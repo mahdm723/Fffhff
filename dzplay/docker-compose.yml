@@ -1,0 +1,56 @@
+# Production-like stack: Caddy (automatic HTTPS) -> DZPLAY -> PostgreSQL + Redis
+#   1. cp .env.example .env  and set SECRET_KEY, POSTGRES_PASSWORD, DOMAIN
+#   2. docker compose up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql+psycopg://dzplay:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/dzplay
+      REDIS_URL: redis://redis:6379/0
+      TRUST_PROXY_HEADERS: "true"
+      TRUSTED_PROXY_COUNT: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dzplay
+      POSTGRES_USER: dzplay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dzplay -d dzplay"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]  # only ephemeral data
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
