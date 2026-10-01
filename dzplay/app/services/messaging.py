@@ -21,12 +21,13 @@ from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app import clock
-from app.config import Settings
+from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, not_found, rate_limited
 from app.models import Block, Conversation, Message, Report, User
 from app.services import matching
 from app.services.auth import log_event
 from app.services.content import clean_message, preview
+from app.services.moderation import flag_content
 from app.services.rate_limit import Limit
 
 PEER_NAME = "dzplay"
@@ -267,6 +268,9 @@ def send_anonymous(db: Session, settings: Settings, limiter, user: User, *, cont
     msg = Message(conversation_id=conv.id, sender_id=user.id, recipient_id=recipient_id, content=text,
                   client_id=cid, created_at=now, expires_at=now + timedelta(seconds=settings.MESSAGE_TTL))
     db.add(msg)
+    db.flush()
+    flag_content(db, settings, target="message", text=text, offender_id=user.id, victim_id=recipient_id,
+                 message_id=msg.id, conversation_id=conv.id)
 
     user.messages_sent += 1
     user.conversations_count += 1
@@ -301,6 +305,9 @@ def reply(db: Session, settings: Settings, limiter, user: User, conversation_id:
     msg = Message(conversation_id=conv.id, sender_id=user.id, recipient_id=peer_id, content=text, client_id=cid,
                   created_at=now, expires_at=now + timedelta(seconds=settings.MESSAGE_TTL))
     db.add(msg)
+    db.flush()
+    flag_content(db, settings, target="message", text=text, offender_id=user.id, victim_id=peer_id,
+                 message_id=msg.id, conversation_id=conv.id)
     conv.consecutive_count = conv.consecutive_count + 1 if conv.last_sender_id == user.id else 1
     conv.last_sender_id = user.id
     conv.last_message_at = now
@@ -526,4 +533,6 @@ def profile(user: User) -> dict:
             "conversations": user.conversations_count,
         },
         "sign_in_method": "google" if user.google_sub and not user.password_hash else "password",
+        # True once for accounts that have not seen the current privacy notice yet.
+        "privacy_notice": (user.privacy_ack_version or 0) < PRIVACY_VERSION,
     }

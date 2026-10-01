@@ -21,6 +21,11 @@ MANDATORY_MATCHING_RULES = ("not_self", "active_status", "not_blocked")
 OPTIONAL_MATCHING_RULES = ("no_open_conversation", "not_recent_partner", "inbound_capacity")
 
 
+# Bump when the privacy policy changes in a way users must be told about; users
+# who acknowledged an older version see the new notice once (see /api/me).
+PRIVACY_VERSION = 2
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -128,6 +133,10 @@ class Settings(BaseSettings):
 
     # --- admin ---------------------------------------------------------------
     ADMIN_API_TOKEN: str = ""  # empty disables the admin API
+
+    # --- user protection: automatic flagging (app/services/moderation.py) ----
+    MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
+    MODERATION_EXTRA_WORDS: str = ""  # extra words/phrases, comma separated ("word*" = starts with)
 
     # --- derived / validation ----------------------------------------------
     secret_key_generated: bool = Field(default=False, exclude=True)

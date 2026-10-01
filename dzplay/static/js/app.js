@@ -4,6 +4,7 @@ import { icon } from './icons.js';
 import { disableForLogout, refreshPushSubscription, showLocalNotification } from './notify.js';
 import * as store from './store.js';
 import { h, toast } from './ui.js';
+import { showPrivacyNotice } from './privacy.js';
 import { renderAuth } from './views/auth.js';
 import { renderChat } from './views/chat.js';
 import { renderHome, resetFeedCache } from './views/home.js';
@@ -137,6 +138,7 @@ function startSession(me) {
   store.sync({ full: true }).catch(() => {});
   store.flushOutbox();
   refreshPushSubscription();
+  showPrivacyNotice(me);
 }
 
 store.subscribe((type, detail) => {

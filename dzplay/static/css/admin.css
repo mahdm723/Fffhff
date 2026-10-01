@@ -189,3 +189,30 @@ button.admin-ref:hover { background: var(--surface-3); }
   .admin-groups, .viz-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-tabs { max-width: 560px; }
 }
+
+/* ---------- automatic flags + conversation review ---------- */
+.admin-main > .admin-seg + .admin-seg { margin-top: -6px; }
+.admin-card__links { display: inline-flex; gap: 14px; flex-wrap: wrap; }
+.admin-link { display: inline-flex; align-items: center; gap: 4px; }
+.admin-link svg { width: 16px; height: 16px; }
+.admin-terms { margin: 0; font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.admin-terms mark {
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent); color: var(--ink);
+  border-radius: 8px; padding: 0 8px; font-weight: 700;
+}
+
+.admin-convs h2 { margin: 4px 0 2px; font-size: 20px; }
+.admin-convs__body { display: flex; flex-direction: column; gap: 14px; margin: 12px 0 16px; max-height: 62vh; overflow-y: auto; overscroll-behavior: contain; }
+.admin-conv { border-radius: 16px; padding: 12px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); display: flex; flex-direction: column; gap: 10px; }
+.admin-conv__head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.admin-conv__head b { color: var(--ink); font-size: 14px; }
+.admin-conv__msgs { display: flex; flex-direction: column; gap: 6px; }
+.admin-msg { max-width: 86%; border-radius: 14px; padding: 7px 11px; display: flex; flex-direction: column; gap: 1px; }
+.admin-msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-msg__who { font-size: 11px; font-weight: 700; color: var(--ink-3); }
+.admin-msg__meta { font-size: 11px; color: var(--ink-3); }
+/* "this user" on the start side (right in RTL), the other person on the end side */
+.admin-msg--user { align-self: flex-start; background: var(--surface-3); }
+.admin-msg--peer { align-self: flex-end; background: var(--surface); border: 1px solid var(--line); }
+.admin-msg--flagged { box-shadow: 0 0 0 1.5px var(--accent-2); }
+.admin-msg--flagged .admin-msg__meta { color: var(--accent-2); font-weight: 700; }

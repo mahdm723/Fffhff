@@ -28,7 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import clock
-from app.config import Settings
+from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, rate_limited
 from app.models import AuthThrottle, SecurityEvent, User
 from app.security import pow as antibot
@@ -151,7 +151,8 @@ def register(db: Session, settings: Settings, ctx: ClientContext, *, email: obje
     if db.scalar(select(User.id).where(User.email == email_n)):
         db.commit()  # keep the consumed challenge
         raise AppError(409, "email_taken", "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.")
-    user = User(email=email_n, password_hash=hash_password(pw), registration_ip_hash=ctx.ip_hash)
+    user = User(email=email_n, password_hash=hash_password(pw), registration_ip_hash=ctx.ip_hash,
+                privacy_ack_version=PRIVACY_VERSION)
     db.add(user)
     try:
         db.flush()
@@ -310,7 +311,8 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
                        "هذا البريد مسجّل بكلمة مرور. سجّل الدخول بالبريد وكلمة المرور.")
 
     _check_registration_quota(db, settings, ctx)
-    user = User(email=email_n, google_sub=sub, password_hash=None, registration_ip_hash=ctx.ip_hash)
+    user = User(email=email_n, google_sub=sub, password_hash=None, registration_ip_hash=ctx.ip_hash,
+                privacy_ack_version=PRIVACY_VERSION)
     db.add(user)
     try:
         db.flush()

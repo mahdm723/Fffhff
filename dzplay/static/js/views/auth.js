@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { createAntibot } from '../antibot.js';
+import { privacySheet } from '../privacy.js';
 import { canOfferAndroidApp, h, wordmark } from '../ui.js';
 
 let gsiLoading = null;
@@ -133,7 +134,9 @@ export function renderAuth(root, { config, onAuthenticated }) {
       formSlot,
       config.google_client_id ? h('div', { class: 'divider', text: 'أو' }) : null,
       config.google_client_id ? googleSlot : null,
-      h('p', { class: 'auth__foot', text: 'لن يرى أحد بريدك أو أي معلومة عنك. الجميع هنا يظهر باسم dzplay فقط.' }),
+      h('p', { class: 'auth__foot' }, 'لن يرى أحد بريدك أو أي معلومة عنك. الجميع هنا يظهر باسم dzplay فقط. ',
+        'لحمايتك تُراجَع الرسائل المسيئة آليًا. ',
+        h('button', { type: 'button', class: 'link-btn', onclick: privacySheet }, 'سياسة الخصوصية')),
       canOfferAndroidApp(config)
         ? h('a', { class: 'btn btn--ghost btn--block app-download', href: config.android_apk_url, download: 'DZPLAY.apk' }, 'تحميل تطبيق أندرويد')
         : null,

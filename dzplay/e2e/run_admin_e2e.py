@@ -78,6 +78,9 @@ def seed(base: str, db_url: str) -> str:
     assert b.post(f"/api/posts/{pid}/report", json={"reason": "inappropriate", "details": "محتوى مزعج"}).status_code == 201
     conv = b.post("/api/messages", json={"content": "مرحبا، هذه رسالة مجهولة مزعجة للتجربة."}).json()["conversation"]["id"]
     assert a.post(f"/api/conversations/{conv}/report", json={"reason": "spam"}).status_code == 201
+    # A threatening reply is flagged automatically (and still delivered).
+    assert a.post(f"/api/conversations/{conv}/messages", json={"content": "راني نعرف وين تسكن، ابعث الدراهم ولا نفضحك"}).status_code == 201
+    register(base, "old-user@example.com")  # gets the privacy notice (see below)
     bad = api_client(base)
     for _ in range(2):
         bad.post("/api/auth/login", json={"email": "owner-a@example.com", "password": "wrong-pass-1", "antibot": challenge(bad, "login")})
@@ -108,6 +111,8 @@ def seed(base: str, db_url: str) -> str:
                                     expires_at=now + timedelta(days=3)))
             for _ in range(rnd.choice([0, 0, 1, 2, 9])):
                 db.add(SecurityEvent(type="login_failed", ip_hash="ab" * 32, created_at=now - timedelta(days=day, hours=3)))
+        old = db.query(User).filter(User.email == "old-user@example.com").one()
+        old.privacy_ack_version = None  # an account from before the privacy update
         db.commit()
     return pid
 
@@ -155,8 +160,8 @@ class Run:
         expect(page.locator(".admin-tile__num").first).to_be_visible()
         expect(page.locator(".viz-card")).to_have_count(4)
         assert page.evaluate("sessionStorage.getItem('dz-admin-token')") == TOKEN
-        expect(page.locator("#reports-badge")).to_have_text("2")
-        self.step("signed in; stats, 4 activity charts, reports badge = 2")
+        expect(page.locator("#reports-badge")).to_have_text("3")
+        self.step("signed in; stats, 4 activity charts, review badge = 2 reports + 1 flag")
         self.shot(page, "02-overview-dark")
         self.shot(page, "03-overview-dark-full", full=True)
 
@@ -183,10 +188,29 @@ class Run:
         post_card.get_by_role("button", name="حذف المحتوى").click()
         page.locator(".sheet").get_by_role("button", name="حذف المحتوى").click()
         expect(page.locator(".admin-card")).to_have_count(1)
-        expect(page.locator("#reports-badge")).to_have_text("1")
+        expect(page.locator("#reports-badge")).to_have_text("2")
         self.step("post report resolved with 'remove'")
         page.get_by_role("tab", name="تم حلها").click()
         expect(page.locator(".admin-resolution")).to_have_text("حُذف المحتوى")
+
+        # Automatic flags: the threatening message, the sender's conversations, remove it.
+        page.get_by_role("tab", name="مفتوحة").click()
+        page.get_by_role("tab", name="رصد تلقائي").click()
+        expect(page.locator(".admin-card")).to_have_count(1)
+        expect(page.locator(".admin-card .chip").first).to_have_text("تهديد")
+        expect(page.locator(".admin-terms mark").first).to_be_visible()
+        self.shot(page, "05b-flags-dark", full=True)
+        page.locator(".admin-card").get_by_role("button", name="عرض المحادثات").click()
+        expect(page.locator(".admin-convs .admin-msg")).to_have_count(2)
+        expect(page.locator(".admin-convs .admin-msg--flagged")).to_have_count(1)
+        self.step("flag listed; sender's stored conversation opens with the flagged message marked")
+        self.shot(page, "05c-conversations-dark")
+        page.locator(".admin-convs").get_by_role("button", name="إغلاق").click()
+        page.locator(".admin-card").get_by_role("button", name="حذف المحتوى").click()
+        page.locator(".sheet").get_by_role("button", name="حذف المحتوى").click()
+        expect(page.locator(".admin-card")).to_have_count(0)
+        expect(page.locator("#reports-badge")).to_have_text("1")
+        self.step("flagged message removed")
 
         page.get_by_role("tab", name="الأمان").click()
         expect(page.locator(".admin-event").first).to_be_visible()
@@ -194,6 +218,7 @@ class Run:
         expect(page.locator(".admin-event__type").first).to_have_text("دخول فاشل")
         page.select_option("#event-type", "")
         expect(page.locator(".admin-event", has_text="رمز مشرف خاطئ")).to_have_count(1)
+        expect(page.locator(".admin-event", has_text="المشرف: اطّلع على محادثات")).to_have_count(1)
         self.step("security log lists the wrong admin token attempt")
         self.shot(page, "06-security-dark")
 
@@ -230,6 +255,29 @@ class Run:
         self.step("light mode; token kept for the tab across reload")
         ctx.close()
 
+    def privacy_notice(self, browser) -> None:
+        ctx = browser.new_context(**MOBILE, color_scheme="dark", locale="ar-DZ")
+        page = ctx.new_page()
+        self.watch(page, "notice")
+        page.goto(self.base + "/")
+        page.get_by_role("tab", name="تسجيل الدخول").click()
+        page.locator("#email").fill("old-user@example.com")
+        page.locator("#password").fill(PASSWORD)
+        page.locator(".antibot").click()
+        expect(page.locator(".antibot")).to_have_attribute("data-state", "done", timeout=20000)
+        page.get_by_role("button", name="دخول").click()
+        expect(page.locator(".privacy-notice h2")).to_have_text("تحديث في سياسة الخصوصية", timeout=15000)
+        self.shot(page, "12-privacy-notice")
+        page.get_by_role("button", name="فهمت").click()
+        expect(page.locator(".privacy-notice")).to_have_count(0)
+        page.wait_for_timeout(500)
+        page.reload()
+        expect(page.locator("#idea-compose")).to_be_visible(timeout=15000)
+        page.wait_for_timeout(800)
+        expect(page.locator(".privacy-notice")).to_have_count(0)
+        self.step("existing user sees the privacy update once")
+        ctx.close()
+
     def desktop(self, browser) -> None:
         ctx = browser.new_context(viewport={"width": 1280, "height": 900}, color_scheme="dark", locale="ar-DZ")
         page = ctx.new_page()
@@ -254,6 +302,7 @@ def main() -> None:
             run.dark(browser)
             run.light(browser)
             run.desktop(browser)
+            run.privacy_notice(browser)
             browser.close()
         viewer = register(base, "viewer-c@example.com")
         feed = viewer.get("/api/posts/feed").json()["posts"]

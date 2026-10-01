@@ -68,6 +68,25 @@ def resolve(report_id: str, body: ResolveReportBody, request: Request) -> dict:
         return admin_service.resolve_report(db, report_id, body.action)
 
 
+@router.get("/flags")
+def flags(request: Request, status: str = Query(default="open", max_length=16), limit: int = Query(default=50, le=200)) -> dict:
+    with get_state(request).database.session() as db:
+        return {"flags": admin_service.list_flags(db, status, limit)}
+
+
+@router.post("/flags/{flag_id}/resolve")
+def resolve_flag(flag_id: str, body: ResolveReportBody, request: Request) -> dict:
+    with get_state(request).database.session() as db:
+        return admin_service.resolve_flag(db, flag_id, body.action)
+
+
+@router.get("/users/{user_ref}/conversations")
+def user_conversations(user_ref: str, request: Request) -> dict:
+    """Stored conversations of a reported/flagged user. Every call is logged."""
+    with get_state(request).database.session() as db:
+        return admin_service.user_conversations(db, user_ref)
+
+
 @router.post("/users/{user_ref}/status")
 def user_status(user_ref: str, body: UserStatusBody, request: Request) -> dict:
     with get_state(request).database.session() as db:

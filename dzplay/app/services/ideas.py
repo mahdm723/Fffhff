@@ -44,6 +44,7 @@ from app.services.messaging import (
     iso,
     parse_iso,
 )
+from app.services.moderation import flag_content
 from app.services.rate_limit import Limit
 
 REACTIONS = ("like", "dislike")
@@ -336,6 +337,8 @@ def add_comment(db: Session, settings: Settings, limiter, user: User, post_id: s
     db.execute(update(Post).where(Post.id == post.id).values(
         comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + 1))
     db.flush()
+    flag_content(db, settings, target="comment", text=text, offender_id=user.id, victim_id=post.author_id,
+                 comment_id=comment.id, post_id=post.id)
     effects.signal(post.author_id, "comment")
     # The writer gets no copy back: comments are for the author's eyes only.
     return {"ok": True, "visible_to": "author_only"}

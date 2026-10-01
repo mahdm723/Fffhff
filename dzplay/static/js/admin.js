@@ -1,7 +1,7 @@
 // DZPLAY owner dashboard. Talks only to the token-protected /api/admin API.
 // The admin token is kept in sessionStorage (cleared when the tab closes) and
 // sent as a Bearer header. All server data is inserted with textContent.
-import { h, toast, confirmSheet, wordmark, REPORT_REASONS } from './ui.js';
+import { h, toast, confirmSheet, sheet, wordmark, REPORT_REASONS } from './ui.js';
 import { icon } from './icons.js';
 
 const TOKEN_KEY = 'dz-admin-token';
@@ -100,12 +100,13 @@ const EVENT_LABELS = {
   admin_set_active: 'المشرف: تفعيل حساب',
   admin_set_suspended: 'المشرف: إيقاف حساب',
   admin_set_banned: 'المشرف: حظر حساب',
+  admin_view_messages: 'المشرف: اطّلع على محادثات',
 };
 const RISKY = new Set(['login_blocked_ip', 'login_blocked_ip_account', 'account_locked', 'login_banned', 'register_limited',
   'honeypot', 'google_invalid_token', 'auto_suspended', 'admin_auth_failed']);
 const CLEANUP_LABELS = {
   messages: 'رسائل منتهية', conversations: 'محادثات منتهية', sessions: 'جلسات منتهية', challenges: 'تحديات مكافحة الروبوت',
-  auth_throttle: 'سجلات حظر الدخول', security_events: 'سجلات أمان قديمة', reports: 'بلاغات قديمة مغلقة',
+  auth_throttle: 'سجلات حظر الدخول', security_events: 'سجلات أمان قديمة', reports: 'بلاغات قديمة مغلقة', flags: 'رصد قديم مغلق',
 };
 const METRICS = [
   ['users', 'مستخدمون جدد'],
@@ -122,7 +123,7 @@ const TABS = [
 
 const state = {
   tab: 'overview', stats: null, activity: null, days: 14, active: null, showTable: false,
-  reportStatus: 'open', eventType: '', prefillRef: '', timer: null, updatedAt: null,
+  reportKind: 'reports', reportStatus: 'open', eventType: '', prefillRef: '', timer: null, updatedAt: null,
 };
 
 // ------------------------------------------------------------------ small pieces
@@ -252,7 +253,7 @@ function renderShell(stats) {
 function paintBadge() {
   const badge = document.getElementById('reports-badge');
   if (!badge || !state.stats) return;
-  const open = state.stats.safety.reports_open;
+  const open = state.stats.safety.reports_open + (state.stats.safety.flags_open || 0);
   badge.textContent = fmt(open);
   badge.hidden = !open;
 }
@@ -338,8 +339,12 @@ function paintStats() {
     tile('المستخدمون', s.users.total, `${fmt(s.users.new_24h)} جدد خلال 24 ساعة`, { icon: 'user' }),
     tile('نشطون الآن', s.users.active_24h, 'خلال آخر 24 ساعة', { icon: 'spark' }),
     tile('رسائل', s.messages.sent_24h, 'أُرسلت خلال 24 ساعة', { icon: 'chat' }),
-    tile('بلاغات مفتوحة', s.safety.reports_open, s.safety.reports_open ? 'تحتاج مراجعة — اضغط للعرض' : 'لا شيء ينتظر',
-      { icon: 'flag', alert: s.safety.reports_open > 0, onclick: () => showTab('reports') }),
+    tile('تحتاج مراجعة', s.safety.reports_open + s.safety.flags_open,
+      s.safety.reports_open + s.safety.flags_open
+        ? `${fmt(s.safety.reports_open)} بلاغ · ${fmt(s.safety.flags_open)} رصد تلقائي`
+        : 'لا شيء ينتظر',
+      { icon: 'flag', alert: s.safety.reports_open + s.safety.flags_open > 0,
+        onclick: () => { state.reportKind = s.safety.flags_open && !s.safety.reports_open ? 'flags' : 'reports'; showTab('reports'); } }),
   );
   document.getElementById('groups').replaceChildren(
     group('المستخدمون', 'user', [
@@ -357,7 +362,7 @@ function paintStats() {
       ['تعليقات', s.ideas.comments], ['إعجابات وعدم إعجاب', s.ideas.reactions],
     ]),
     group('الأمان', 'shield', [
-      ['بلاغات مفتوحة', s.safety.reports_open], ['دخول فاشل خلال 24 ساعة', s.safety.failed_logins_24h],
+      ['بلاغات مفتوحة', s.safety.reports_open], ['رسائل مرصودة تلقائيًا (مفتوحة)', s.safety.flags_open], ['دخول فاشل خلال 24 ساعة', s.safety.failed_logins_24h],
       ['حظر دخول نشط الآن', s.safety.active_login_blocks], ['تسجيلات مرفوضة خلال 24 ساعة', s.safety.registrations_limited_24h],
       ['حظر بين المستخدمين', s.safety.blocks],
     ]),
@@ -539,46 +544,73 @@ function miniChart(label, days, values) {
   return chart;
 }
 
-// ------------------------------------------------------------------ reports
+// ------------------------------------------------------------------ reports + automatic flags
+
+const CATEGORY_LABELS = {
+  threat: 'تهديد', blackmail: 'ابتزاز', sexual: 'تحرش جنسي', insult: 'سب وشتم', contact: 'أرقام أو حسابات', custom: 'كلمة مضافة',
+};
+const LIST_STATUS = [['open', 'مفتوحة'], ['resolved', 'تم حلها'], ['dismissed', 'تم تجاهلها']];
 
 function renderReports(main) {
   const list = h('div', { class: 'admin-list', id: 'report-list' });
+  const note = h('p', { class: 'admin-meta' });
+  const paintNote = () => {
+    note.textContent = state.reportKind === 'flags'
+      ? 'رسائل وتعليقات رصدها النظام تلقائيًا (تهديد، ابتزاز، تحرش، سب، مشاركة أرقام). الرسالة وصلت لصاحبها والمرسل لا يعلم. يُحفظ نصها هنا للمراجعة.'
+      : 'بلاغات قدّمها المستخدمون بأنفسهم، مع نسخة محفوظة من المحتوى المُبلَّغ عنه. لا تظهر عناوين البريد أبدًا.';
+  };
+  paintNote();
   main.replaceChildren(
-    sectionHead('البلاغات'),
-    segmented([['open', 'مفتوحة'], ['resolved', 'تم حلها'], ['dismissed', 'تم تجاهلها']], state.reportStatus,
-      (v) => { state.reportStatus = v; loadReports(list); }, 'حالة البلاغات'),
-    h('p', { class: 'admin-meta', text: 'يظهر محتوى الرسائل هنا فقط كدليل محفوظ عند تقديم بلاغ صريح. لا تظهر عناوين البريد أبدًا.' }),
+    sectionHead('البلاغات والرصد'),
+    segmented([['reports', 'بلاغات المستخدمين'], ['flags', 'رصد تلقائي']], state.reportKind,
+      (v) => { state.reportKind = v; paintNote(); loadReports(list); }, 'نوع المراجعة'),
+    segmented(LIST_STATUS, state.reportStatus, (v) => { state.reportStatus = v; loadReports(list); }, 'الحالة'),
+    note,
     list);
   loadReports(list);
 }
 
 async function loadReports(list) {
   list.replaceChildren(spinner());
+  const kind = state.reportKind;
   try {
-    const { reports } = await call('GET', `/api/admin/reports?status=${state.reportStatus}&limit=100`);
-    paintReports(list, reports);
+    const data = await call('GET', `/api/admin/${kind}?status=${state.reportStatus}&limit=100`);
+    if (kind !== state.reportKind) return; // switched while loading
+    paintReports(list, kind === 'flags' ? data.flags : data.reports);
   } catch (err) {
     list.replaceChildren();
     handleError(err);
   }
 }
 
-function paintReports(list, reports) {
-  if (!reports.length) {
-    list.replaceChildren(emptyState(state.reportStatus === 'open' ? 'لا توجد بلاغات مفتوحة. كل شيء هادئ.' : 'لا شيء هنا بعد.'));
+function paintReports(list, items) {
+  if (!items.length) {
+    const open = state.reportStatus === 'open';
+    list.replaceChildren(emptyState(!open ? 'لا شيء هنا بعد.'
+      : state.reportKind === 'flags' ? 'لم يُرصد أي محتوى مقلق. كل شيء هادئ.' : 'لا توجد بلاغات مفتوحة. كل شيء هادئ.'));
     return;
   }
-  list.replaceChildren(...reports.map((r) => reportCard(r, list)));
+  list.replaceChildren(...items.map((it) => (state.reportKind === 'flags' ? flagCard(it, list) : reportCard(it, list))));
+}
+
+function actionButtons(item, allowed, card, list) {
+  if (item.status !== 'open') return h('p', { class: 'admin-resolution' }, icon('check'), RESOLUTIONS[item.resolution] || item.resolution || '');
+  return h('div', { class: 'admin-actions' }, ...allowed.map((a) => h('button', {
+    type: 'button', class: `btn btn--sm ${ACTIONS[a].cls}`, onclick: () => resolveItem(item, a, card, list),
+  }, ACTIONS[a].label)));
+}
+
+function userLinks(ref) {
+  if (!ref) return null;
+  return h('span', { class: 'admin-card__links' },
+    h('button', { type: 'button', class: 'admin-link', onclick: () => openConversations(ref) }, icon('bubbles'), 'عرض المحادثات'),
+    h('button', { type: 'button', class: 'admin-link', onclick: () => { state.prefillRef = ref; showTab('tools'); } }, 'إدارة الحساب'));
 }
 
 function reportCard(r, list) {
   const card = h('article', { class: 'admin-card glass' });
   const evidence = (r.evidence || []).filter((e) => e && e.content);
-  const actions = r.status === 'open'
-    ? h('div', { class: 'admin-actions' },
-      ...['dismiss', 'warn', ...(r.target === 'post' || r.target === 'comment' ? ['remove'] : []), 'suspend', 'ban']
-        .map((a) => h('button', { type: 'button', class: `btn btn--sm ${ACTIONS[a].cls}`, onclick: () => resolveReport(r, a, card, list) }, ACTIONS[a].label)))
-    : h('p', { class: 'admin-resolution' }, icon('check'), RESOLUTIONS[r.resolution] || r.resolution || '');
+  const allowed = ['dismiss', 'warn', ...(r.target === 'post' || r.target === 'comment' ? ['remove'] : []), 'suspend', 'ban'];
   card.append(...[
     h('div', { class: 'admin-card__head' },
       h('span', { class: 'chip chip--hot', text: REASONS[r.reason] || r.reason }),
@@ -586,10 +618,9 @@ function reportCard(r, list) {
       h('time', { class: 'admin-card__time', datetime: r.created_at, text: when(r.created_at) })),
     h('div', { class: 'admin-card__meta' },
       h('span', {}, 'المستخدم المُبلَّغ عنه: ', userRef(r.reported_user_ref)),
-      h('span', {}, 'كل البلاغات ضده: ', h('b', { text: fmt(r.reported_user_reports_total) })),
-      r.reported_user_ref ? h('button', {
-        type: 'button', class: 'admin-link', onclick: () => { state.prefillRef = r.reported_user_ref; showTab('tools'); },
-      }, 'إدارة الحساب') : null),
+      h('span', {}, 'بلاغات ضده: ', h('b', { text: fmt(r.reported_user_reports_total) })),
+      h('span', {}, 'رصد تلقائي: ', h('b', { text: fmt(r.reported_user_flags_total) })),
+      userLinks(r.reported_user_ref)),
     r.details ? h('div', { class: 'admin-quote' }, h('span', { class: 'admin-quote__label', text: 'ملاحظة المُبلِّغ' }), h('p', { text: r.details })) : null,
     evidence.length ? h('div', { class: 'admin-evidence' },
       h('span', { class: 'admin-quote__label', text: 'الدليل (نسخة محفوظة وقت البلاغ)' }),
@@ -597,16 +628,41 @@ function reportCard(r, list) {
         h('p', { text: e.content }),
         e.created_at ? h('time', { datetime: e.created_at, text: when(e.created_at) }) : null)))
       : h('p', { class: 'admin-meta', text: 'لا يوجد نص محفوظ لهذا البلاغ.' }),
-    actions,
+    actionButtons(r, allowed, card, list),
   ].filter(Boolean)); // native append() would print "null"
   return card;
 }
 
-async function resolveReport(r, action, card, list) {
+function flagCard(f, list) {
+  const card = h('article', { class: 'admin-card glass' });
+  card.append(...[
+    h('div', { class: 'admin-card__head' },
+      ...f.categories.map((c) => h('span', { class: 'chip chip--hot', text: CATEGORY_LABELS[c] || c })),
+      h('span', { class: 'admin-card__target', text: f.target === 'comment' ? 'تعليق خاص' : 'رسالة' }),
+      h('time', { class: 'admin-card__time', datetime: f.created_at, text: when(f.created_at) })),
+    h('div', { class: 'admin-card__meta' },
+      h('span', {}, 'المرسل: ', userRef(f.offender_ref)),
+      h('span', {}, 'رصد تلقائي: ', h('b', { text: fmt(f.offender_flags_total) })),
+      h('span', {}, 'بلاغات: ', h('b', { text: fmt(f.offender_reports_total) })),
+      userLinks(f.offender_ref)),
+    h('div', { class: 'admin-evidence' },
+      h('span', { class: 'admin-quote__label', text: 'النص (نسخة محفوظة)' }),
+      h('div', { class: 'admin-evidence__item' }, h('p', { text: f.content }))),
+    f.terms && f.terms.length ? h('p', { class: 'admin-terms' }, 'الكلمات المرصودة: ',
+      ...f.terms.map((t) => h('mark', { text: t }))) : null,
+    actionButtons(f, ['dismiss', 'warn', 'remove', 'suspend', 'ban'], card, list),
+  ].filter(Boolean));
+  card.dataset.kind = 'flag';
+  return card;
+}
+
+async function resolveItem(item, action, card, list) {
   const a = ACTIONS[action];
-  if (!(await confirmSheet({ title: a.title, text: a.text, confirm: a.label, danger: !!a.danger }))) return;
+  const isFlag = card.dataset.kind === 'flag';
+  const text = isFlag && action === 'remove' ? 'تُحذف الرسالة أو التعليق نهائيًا من الخادم.' : a.text;
+  if (!(await confirmSheet({ title: a.title, text, confirm: a.label, danger: !!a.danger }))) return;
   try {
-    await call('POST', `/api/admin/reports/${encodeURIComponent(r.id)}/resolve`, { action });
+    await call('POST', `/api/admin/${isFlag ? 'flags' : 'reports'}/${encodeURIComponent(item.id)}/resolve`, { action });
     toast(`تم: ${RESOLUTIONS[action]}.`);
     card.remove();
     if (!list.children.length) paintReports(list, []);
@@ -614,6 +670,51 @@ async function resolveReport(r, action, card, list) {
   } catch (err) {
     handleError(err);
   }
+}
+
+// --- stored conversations of a reported / flagged user (every view is logged server side) ---
+
+async function openConversations(ref) {
+  let data;
+  try {
+    data = await call('GET', `/api/admin/users/${encodeURIComponent(ref)}/conversations`);
+  } catch (err) {
+    if (err.status === 403) toast(err.message, 'error');
+    else if (err.status === 404) toast('لا يوجد مستخدم بهذا المرجع.', 'error');
+    else handleError(err);
+    return;
+  }
+  sheet((panel, close) => {
+    panel.classList.add('sheet--tall', 'admin-convs');
+    const body = h('div', { class: 'admin-convs__body' });
+    if (!data.conversations.length) {
+      body.append(h('p', { class: 'admin-meta', text: 'لا توجد محادثات محفوظة لهذا المستخدم الآن (الرسائل تُحذف تلقائيًا بعد انتهاء مدتها).' }));
+    }
+    data.conversations.forEach((c, i) => {
+      body.append(h('section', { class: 'admin-conv' },
+        h('div', { class: 'admin-conv__head' },
+          h('b', { text: `محادثة ${fmt(i + 1)}` }),
+          h('span', { text: c.started_by === 'user' ? 'بدأها هذا المستخدم' : 'بدأها الطرف الآخر' }),
+          h('span', {}, 'الطرف الآخر: ', userRef(c.peer_ref)),
+          c.status !== 'active' ? h('span', { class: 'chip', text: 'مغلقة' }) : null),
+        c.messages.length
+          ? h('div', { class: 'admin-conv__msgs' }, ...c.messages.map((m) => h('div', {
+            class: `admin-msg admin-msg--${m.from} ${m.flagged ? 'admin-msg--flagged' : ''}`,
+          },
+          h('span', { class: 'admin-msg__who', text: m.from === 'user' ? 'هذا المستخدم' : 'الطرف الآخر' }),
+          h('p', { text: m.content }),
+          h('span', { class: 'admin-msg__meta', text: `${when(m.created_at)}${m.flagged ? ' · مرصودة' : ''}` }))))
+          : h('p', { class: 'admin-meta', text: 'انتهت مدة رسائل هذه المحادثة وحُذفت.' })));
+    });
+    panel.append(
+      h('h2', { text: 'محادثات المستخدم' }),
+      h('p', { class: 'admin-meta' }, 'المستخدم: ', userRef(ref),
+        ` · ${fmt(data.conversations.length)} محادثة محفوظة. هذا الاطلاع مسجَّل في سجل الأمان.`),
+      body,
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn btn--ghost btn--block', onclick: () => { close(); state.prefillRef = ref; showTab('tools'); } }, 'إدارة الحساب'),
+        h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إغلاق')));
+  });
 }
 
 async function refreshStatsQuietly() {

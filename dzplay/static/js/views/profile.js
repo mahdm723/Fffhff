@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { profilePosts } from '../ideas.js';
+import { privacySheet } from '../privacy.js';
 import { notificationsEnabled, setNotifications } from '../notify.js';
 import { avatar, confirmSheet, formatDay, h, isAndroidApp, sheet, toast } from '../ui.js';
 
@@ -67,29 +68,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
           return li;
         }));
       } catch (err) { list.replaceChildren(h('li', {}, h('div', { class: 'menu__item', text: err.message }))); }
-    });
-  }
-
-  function privacySheet() {
-    sheet((panel, close) => {
-      panel.append(
-        h('h2', { text: 'الخصوصية في DZPLAY' }),
-        h('div', { class: 'prose' },
-          h('h3', { text: 'ما يراه الآخرون' }),
-          h('p', { text: 'لا شيء عنك. كل المستخدمين يظهرون باسم dzplay فقط. لا يُعرض بريدك أو رقمك أو موقعك أو أي معرّف داخلي.' }),
-          h('h3', { text: 'ما نحتفظ به' }),
-          h('ul', {},
-            h('li', { text: 'بريدك وكلمة مرور مشفّرة (أو معرّف Google) لتسجيل الدخول فقط.' }),
-            h('li', { text: 'الرسائل مؤقتة: تُحذف من الخادم تلقائيًا بعد قراءتها بوقت قصير أو بعد انتهاء مدتها.' }),
-            h('li', { text: 'عناوين IP تُحفظ مشفّرة (بصمة غير قابلة للعكس) فقط لمنع الإساءة والمحاولات الآلية.' }),
-          ),
-          h('h3', { text: 'البلاغات' }),
-          h('p', { text: 'عند الإبلاغ نحتفظ بنص الرسالة المُبلّغ عنها فقط لمراجعتها. لا يطّلع فريق الإدارة على محتوى الرسائل إلا عبر البلاغات.' }),
-          h('h3', { text: 'على جهازك' }),
-          h('p', { text: 'نسخة من محادثاتك تُحفظ على جهازك لتبقى مرئية لك، وتُمسح عند تسجيل الخروج.' }),
-        ),
-        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إغلاق')),
-      );
     });
   }
 

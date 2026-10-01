@@ -65,6 +65,8 @@ class User(Base):
     messages_sent: Mapped[int] = mapped_column(Integer, default=0)
     messages_received: Mapped[int] = mapped_column(Integer, default=0)
     conversations_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Last privacy notice version the user has seen (None = before notices existed).
+    privacy_ack_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class AuthSession(Base):
@@ -102,6 +104,33 @@ class Report(Base):
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Minimal evidence: only the reported content, copied so it survives TTL.
     snapshot: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open|resolved|dismissed
+    resolution: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+
+class ContentFlag(Base):
+    """Private content flagged automatically for review (user protection).
+
+    Holds a copy of the flagged text so it survives the message TTL, like a
+    report snapshot. Plain references (no FK): the source may expire first.
+    """
+
+    __tablename__ = "content_flags"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    target: Mapped[str] = mapped_column(String(16))  # message|comment
+    message_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    post_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    offender_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    victim_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    categories: Mapped[str] = mapped_column(String(128))
+    terms: Mapped[str] = mapped_column(Text, default="[]")
+    snapshot: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open|resolved|dismissed
     resolution: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)

@@ -14,6 +14,7 @@ from app.api.deps import (
     set_session_cookie,
 )
 from app.api.schemas import ChallengeBody, GoogleBody, LoginBody, RegisterBody
+from app.config import PRIVACY_VERSION
 from app.errors import rate_limited
 from app.security.sessions import create_session, revoke_session
 from app.services import auth as auth_service
@@ -120,3 +121,13 @@ def me(request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
         return own_profile(db, current_user(request, db))
+
+
+@router.post("/me/privacy-ack")
+def privacy_ack(request: Request) -> dict:
+    """The user has read the current privacy notice."""
+    st = get_state(request)
+    with st.database.session() as db:
+        user = current_user(request, db)
+        user.privacy_ack_version = PRIVACY_VERSION
+        return {"ok": True, "version": PRIVACY_VERSION}

@@ -504,3 +504,9 @@ body::before {
 .bubble-row.theirs .bubble { background: color-mix(in srgb, var(--glass-bg-strong) 94%, transparent); }
 
 @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
+
+/* inline text button (e.g. "privacy policy" in the sign-up footer) */
+.link-btn { border: 0; background: none; padding: 0; color: var(--lilac); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.privacy-notice h2 { margin-bottom: 6px; }
+.privacy-notice__lead { margin: 0 0 8px; color: var(--ink-2); }
+.privacy-notice .prose { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; }

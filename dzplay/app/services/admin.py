@@ -2,9 +2,11 @@
 
 Admin policy:
 * Aggregated statistics never include message content.
-* Message content is visible to admins only through report snapshots — the
-  minimal evidence copied when a user explicitly reports a message or
-  conversation — and only to handle that abuse report.
+* Message content is visible to admins only for user protection, as told to
+  users in the in-app privacy notice: report snapshots, automatically flagged
+  content (ContentFlag), and the stored conversations of a user who has been
+  reported or flagged. Every such conversation view is logged
+  (security event "admin_view_messages").
 * Users are referred to by an opaque internal reference; e-mail addresses are
   not exposed through the admin API.
 """
@@ -25,6 +27,7 @@ from app.models import (
     AuthThrottle,
     Block,
     Comment,
+    ContentFlag,
     Conversation,
     Message,
     Post,
@@ -74,6 +77,7 @@ def stats(db: Session) -> dict:
         "safety": {
             "blocks": _count(db, Block),
             "reports_open": _count(db, Report, Report.status == "open"),
+            "flags_open": _count(db, ContentFlag, ContentFlag.status == "open"),
             "failed_logins_24h": _count(db, SecurityEvent, SecurityEvent.type == "login_failed", SecurityEvent.created_at > day),
             "active_login_blocks": _count(db, AuthThrottle, AuthThrottle.blocked_until > now),
             "registrations_limited_24h": _count(db, SecurityEvent, SecurityEvent.type == "register_limited", SecurityEvent.created_at > day),
@@ -95,6 +99,7 @@ def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dic
             "reported_user_ref": r.reported_user_id,
             "target": "comment" if r.comment_id else "post" if r.post_id else "message" if r.message_id else "conversation",
             "reported_user_reports_total": _count(db, Report, Report.reported_user_id == r.reported_user_id),
+            "reported_user_flags_total": _count(db, ContentFlag, ContentFlag.offender_id == r.reported_user_id),
             "status": r.status,
             "resolution": r.resolution,
             "created_at": iso(r.created_at),
@@ -195,3 +200,97 @@ def activity(db: Session, days: int = 14, tz_offset_minutes: int = 0) -> dict:
                 counts[i] += 1
         series[name] = counts
     return {"days": list(index), "series": series, "generated_at": iso(clock.utcnow())}
+
+
+# ---------------------------------------------------------------------------
+# automatic flags + conversation review (user protection)
+# ---------------------------------------------------------------------------
+
+FLAG_ACTIONS = ("dismiss", "warn", "remove", "suspend", "ban")
+
+
+def list_flags(db: Session, status: str = "open", limit: int = 50) -> list[dict]:
+    rows = db.execute(select(ContentFlag).where(ContentFlag.status == status)
+                      .order_by(ContentFlag.created_at.desc()).limit(limit)).scalars()
+    out = []
+    for f in rows:
+        out.append({
+            "id": f.id,
+            "target": f.target,
+            "categories": [c for c in f.categories.split(",") if c],
+            "terms": json.loads(f.terms or "[]"),
+            "content": f.snapshot,
+            "offender_ref": f.offender_id,
+            "victim_ref": f.victim_id,
+            "conversation_id": f.conversation_id,
+            "offender_flags_total": _count(db, ContentFlag, ContentFlag.offender_id == f.offender_id),
+            "offender_reports_total": _count(db, Report, Report.reported_user_id == f.offender_id),
+            "status": f.status,
+            "resolution": f.resolution,
+            "created_at": iso(f.created_at),
+        })
+    return out
+
+
+def resolve_flag(db: Session, flag_id: str, action: str) -> dict:
+    """dismiss | warn | remove (delete the message / comment) | suspend | ban"""
+    if action not in FLAG_ACTIONS:
+        raise AppError(400, "invalid_action", "invalid action")
+    flag = db.get(ContentFlag, flag_id)
+    if flag is None:
+        raise not_found()
+    flag.status = "dismissed" if action == "dismiss" else "resolved"
+    flag.resolution = action
+    flag.resolved_at = clock.utcnow()
+    if action == "remove":
+        source = db.get(Message, flag.message_id) if flag.message_id else db.get(Comment, flag.comment_id) if flag.comment_id else None
+        if source is not None:
+            db.delete(source)
+    if action in ("suspend", "ban"):
+        set_user_status(db, flag.offender_id, "suspended" if action == "suspend" else "banned")
+    return {"id": flag.id, "status": flag.status, "resolution": action}
+
+
+def _under_review(db: Session, user_id: str) -> bool:
+    """Conversations may only be opened for a user who was reported or flagged."""
+    return bool(db.scalar(select(Report.id).where(Report.reported_user_id == user_id).limit(1))
+                or db.scalar(select(ContentFlag.id).where(ContentFlag.offender_id == user_id).limit(1)))
+
+
+def user_conversations(db: Session, user_ref: str, conv_limit: int = 50, msg_limit: int = 200) -> dict:
+    user = db.get(User, user_ref)
+    if user is None:
+        raise not_found()
+    if not _under_review(db, user.id):
+        raise AppError(403, "not_under_review",
+                       "يمكن مراجعة محادثات مستخدم فقط إذا وصله بلاغ أو رُصدت له رسالة.")
+    convs = db.execute(
+        select(Conversation)
+        .where((Conversation.initiator_id == user.id) | (Conversation.recipient_id == user.id))
+        .order_by(Conversation.last_message_at.desc()).limit(conv_limit)
+    ).scalars().all()
+    flagged = {m for (m,) in db.execute(select(ContentFlag.message_id).where(
+        ContentFlag.offender_id == user.id, ContentFlag.message_id.is_not(None)))}
+    out = []
+    for c in convs:
+        msgs = db.execute(select(Message).where(Message.conversation_id == c.id)
+                          .order_by(Message.created_at.desc()).limit(msg_limit)).scalars().all()
+        out.append({
+            "id": c.id,
+            "peer_ref": c.peer_of(user.id),
+            "started_by": "user" if c.initiator_id == user.id else "peer",
+            "status": c.status,
+            "created_at": iso(c.created_at),
+            "last_message_at": iso(c.last_message_at),
+            "messages": [{
+                "id": m.id,
+                "from": "user" if m.sender_id == user.id else "peer",
+                "content": m.content,
+                "created_at": iso(m.created_at),
+                "read": m.read_at is not None,
+                "flagged": m.id in flagged,
+            } for m in reversed(msgs)],
+        })
+    db.add(SecurityEvent(type="admin_view_messages", user_id=user.id, detail=f"{len(out)} conversations",
+                         created_at=clock.utcnow()))
+    return {"user_ref": user.id, "status": user.status, "conversations": out}
