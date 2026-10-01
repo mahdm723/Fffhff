@@ -1,4 +1,4 @@
-# Builds the DZPLAY Android app (Trusted Web Activity) as an UNSIGNED APK.
+# Builds the DZPLAY Android app (standalone WebView app) as an UNSIGNED APK.
 # The APK is signed afterwards, outside CI, with the private release key that is
 # never stored in this public repository.
 name: Android APK
