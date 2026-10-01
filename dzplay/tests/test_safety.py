@@ -347,3 +347,27 @@ def test_challenge_endpoint_rate_limited(hx):
     c = hx.client(ip="203.0.113.99")
     codes = [c.post("/api/auth/challenge", json={"purpose": "login"}).status_code for _ in range(32)]
     assert codes[:30] == [200] * 30 and codes[-1] == 429
+
+
+def test_android_asset_links(hx):
+    r = hx.client().get("/.well-known/assetlinks.json")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/json")
+    target = r.json()[0]["target"]
+    assert target["namespace"] == "android_app" and target["package_name"] == "io.dzplay.app"
+    assert all(len(fp.split(":")) == 32 for fp in target["sha256_cert_fingerprints"])
+
+
+def test_android_apk_download(hx, tmp_path, monkeypatch):
+    import app.api.auth as auth_api
+    from app import main as main_mod
+
+    c = hx.client()
+    apk_dir = main_mod.STATIC_DIR / "download"
+    present = (apk_dir / "dzplay.apk").is_file()
+    r = c.get("/download/dzplay.apk")
+    assert r.status_code == (200 if present else 404)
+    assert c.get("/api/config").json()["android_apk_url"] == ("/download/dzplay.apk" if present else None)
+    if present:
+        assert r.headers["content-type"] == "application/vnd.android.package-archive"
+        assert 'filename="DZPLAY.apk"' in r.headers["content-disposition"]
+    assert auth_api._APK == apk_dir / "dzplay.apk"

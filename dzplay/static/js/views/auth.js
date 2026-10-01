@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { createAntibot } from '../antibot.js';
-import { h, wordmark } from '../ui.js';
+import { canOfferAndroidApp, h, wordmark } from '../ui.js';
 
 let gsiLoading = null;
 function loadGoogleScript() {
@@ -134,6 +134,9 @@ export function renderAuth(root, { config, onAuthenticated }) {
       config.google_client_id ? h('div', { class: 'divider', text: 'أو' }) : null,
       config.google_client_id ? googleSlot : null,
       h('p', { class: 'auth__foot', text: 'لن يرى أحد بريدك أو أي معلومة عنك. الجميع هنا يظهر باسم dzplay فقط.' }),
+      canOfferAndroidApp(config)
+        ? h('a', { class: 'btn btn--ghost btn--block app-download', href: config.android_apk_url, download: 'DZPLAY.apk' }, 'تحميل تطبيق أندرويد')
+        : null,
     ),
   );
   draw();

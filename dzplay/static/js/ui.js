@@ -122,3 +122,9 @@ export function newClientId() {
   crypto.getRandomValues(a);
   return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** True in a regular Android browser (not already inside the installed app). */
+export function canOfferAndroidApp(config) {
+  return !!(config && config.android_apk_url) && /Android/i.test(navigator.userAgent)
+    && !matchMedia('(display-mode: standalone)').matches && !document.referrer.startsWith('android-app://');
+}

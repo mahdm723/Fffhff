@@ -157,6 +157,7 @@ a { color: var(--lilac); }
 .divider { display: flex; align-items: center; gap: 12px; color: var(--ink-3); font-size: 13px; margin: 18px 0; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line-strong); }
 .google-slot { display: flex; justify-content: center; min-height: 44px; }
+.app-download { margin-top: 14px; text-decoration: none; }
 .auth__foot { text-align: center; color: var(--ink-3); font-size: 13px; margin-top: 22px; }
 
 /* anti-bot widget */

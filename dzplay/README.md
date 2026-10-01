@@ -154,6 +154,12 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
    ```
 4. انشر. كل `git push` يعيد النشر تلقائيًا.
 
+### تطبيق أندرويد (APK)
+- `android/`: مشروع Trusted Web Activity (مكتبة Google `androidbrowserhelper`) يفتح التطبيق بملء الشاشة، مع WebView احتياطي للهواتف بدون Chrome، وإشعارات، وأيقونة متكيفة، وشاشة بداية.
+- البناء يتم آليًا في GitHub Actions (`.github/workflows/android-apk.yml`) كـ APK **غير موقّع**، ثم يُوقَّع خارج CI بمفتاح خاص لا يُرفع أبدًا إلى المستودع العام.
+- الخادم يقدّم `/.well-known/assetlinks.json` (الإعدادان `ANDROID_APP_PACKAGE` و `ANDROID_CERT_SHA256`) ليفتح التطبيق بدون شريط العنوان، ويقدّم الملف على `/download/dzplay.apk`.
+- لا حاجة لـ APK جديد عند تحديث الخادم؛ فقط عند تغيير النطاق (`twaHost` في `android/gradle.properties`).
+
 ### بعد النشر
 - **Google Sign-In (اختياري):** أنشئ OAuth Client من نوع *Web* في Google Cloud Console، أضف نطاقك في *Authorized JavaScript origins*، وضع `GOOGLE_CLIENT_ID`. بدونه يختفي الزر ويعمل البريد + كلمة المرور فقط.
 - **إشعارات Push (اختياري):** `python -m app.admin_cli gen-vapid` ثم ضع المفتاحين في البيئة.

@@ -119,6 +119,13 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_SUBJECT: str = "mailto:admin@example.com"
 
+    # --- Android app (Trusted Web Activity) -------------------------------------
+    # Digital Asset Links: lets the DZPLAY Android app open this site full screen.
+    ANDROID_APP_PACKAGE: str = "io.dzplay.app"
+    ANDROID_CERT_SHA256: str = (  # public fingerprint(s) of the APK signing key, comma separated
+        "46:15:BE:65:23:30:C9:0A:C6:2C:C3:2C:E5:6B:0C:C0:CB:03:2B:8B:37:E7:13:86:0C:66:D0:A0:FA:EC:79:BF"
+    )
+
     # --- admin ---------------------------------------------------------------
     ADMIN_API_TOKEN: str = ""  # empty disables the admin API
 
@@ -170,6 +177,10 @@ class Settings(BaseSettings):
     @property
     def google_enabled(self) -> bool:
         return bool(self.GOOGLE_CLIENT_ID)
+
+    @property
+    def android_cert_fingerprints(self) -> list[str]:
+        return [f.strip().upper() for f in self.ANDROID_CERT_SHA256.split(",") if f.strip()]
 
     @property
     def push_enabled(self) -> bool:

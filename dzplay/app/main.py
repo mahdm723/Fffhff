@@ -165,6 +165,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_api.router)
     app.include_router(ws_api.router)
 
+    @app.get("/.well-known/assetlinks.json", include_in_schema=False)
+    def assetlinks() -> JSONResponse:
+        """Digital Asset Links for the Android app (full-screen Trusted Web Activity)."""
+        prints = settings.android_cert_fingerprints
+        if not prints:
+            return _error(404, "not_found", "غير موجود.")
+        return JSONResponse([{
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {"namespace": "android_app", "package_name": settings.ANDROID_APP_PACKAGE,
+                       "sha256_cert_fingerprints": prints},
+        }])
+
+    @app.get("/download/dzplay.apk", include_in_schema=False)
+    def android_apk() -> FileResponse:
+        apk = STATIC_DIR / "download" / "dzplay.apk"
+        if not apk.is_file():
+            raise StarletteHTTPException(404)
+        return FileResponse(apk, media_type="application/vnd.android.package-archive", filename="DZPLAY.apk")
+
     if STATIC_DIR.is_dir():
         @app.get("/", include_in_schema=False)
         def index() -> FileResponse:
