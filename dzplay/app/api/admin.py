@@ -7,21 +7,37 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.api.deps import get_state
+from app.api.deps import client_context, get_state
 from app.api.schemas import ResolveReportBody, UserStatusBody
 from app.errors import AppError
 from app.security.crypto import constant_time_equals
 from app.services import admin as admin_service
+from app.services.auth import log_event
 from app.services.cleanup import run_cleanup
+
+# Brute-force protection for the admin token: after this many wrong tokens from
+# one network within the window, that network is refused before the token is
+# even compared (so further guesses reveal nothing). Stored as security events,
+# so it works the same with or without Redis and survives restarts.
+ADMIN_MAX_FAILURES = 10
+ADMIN_FAILURE_WINDOW = 10 * 60
 
 
 def require_admin(request: Request) -> None:
-    token = get_state(request).settings.ADMIN_API_TOKEN
+    st = get_state(request)
+    token = st.settings.ADMIN_API_TOKEN
     if not token:
         raise AppError(404, "not_found", "غير موجود.")
-    header = request.headers.get("authorization", "")
-    if not header.startswith("Bearer ") or not constant_time_equals(header[7:], token):
-        raise AppError(401, "unauthenticated", "unauthorized")
+    ctx = client_context(request)
+    with st.database.session() as db:
+        retry = admin_service.admin_lockout(db, ctx.ip_hash, ADMIN_MAX_FAILURES, ADMIN_FAILURE_WINDOW)
+        if retry:
+            raise AppError(429, "rate_limited", "محاولات كثيرة. حاول لاحقًا.", retry)
+        header = request.headers.get("authorization", "")
+        if not header.startswith("Bearer ") or not constant_time_equals(header[7:], token):
+            log_event(db, "admin_auth_failed", ctx)
+            db.commit()
+            raise AppError(401, "unauthenticated", "unauthorized")
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -31,6 +47,13 @@ router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(re
 def stats(request: Request) -> dict:
     with get_state(request).database.session() as db:
         return admin_service.stats(db)
+
+
+@router.get("/activity")
+def activity(request: Request, days: int = Query(default=14, ge=1, le=30), tz: int = Query(default=0, ge=-840, le=840)) -> dict:
+    """Daily counts for the dashboard chart. `tz` = browser getTimezoneOffset() in minutes."""
+    with get_state(request).database.session() as db:
+        return admin_service.activity(db, days, tz)
 
 
 @router.get("/reports")

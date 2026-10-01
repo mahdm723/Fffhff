@@ -189,6 +189,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         def index() -> FileResponse:
             return FileResponse(STATIC_DIR / "index.html")
 
+        @app.get("/admin", include_in_schema=False)
+        def admin_page() -> FileResponse:
+            """Owner dashboard (works only with ADMIN_API_TOKEN; never linked from the app)."""
+            if not settings.ADMIN_API_TOKEN:
+                raise StarletteHTTPException(404)
+            return FileResponse(STATIC_DIR / "admin.html", headers={"X-Robots-Tag": "noindex, nofollow"})
+
         app.mount("/", StaticFiles(directory=STATIC_DIR), name="static")
     return app
 

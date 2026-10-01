@@ -12,6 +12,7 @@ Admin policy:
 from __future__ import annotations
 
 import json
+import math
 from datetime import timedelta
 
 from sqlalchemy import func, select
@@ -146,3 +147,51 @@ def security_events(db: Session, type_: str | None, limit: int = 100) -> list[di
         {"type": e.type, "user_ref": e.user_id, "ip_ref": (e.ip_hash or "")[:12] or None, "detail": e.detail, "at": iso(e.created_at)}
         for e in db.execute(q).scalars()
     ]
+
+
+def admin_lockout(db: Session, ip_hash: str, max_failures: int, window: int) -> int:
+    """Seconds this network must wait after too many wrong admin tokens (0 = allowed)."""
+    since = clock.utcnow() - timedelta(seconds=window)
+    times = db.execute(
+        select(SecurityEvent.created_at)
+        .where(SecurityEvent.type == "admin_auth_failed", SecurityEvent.ip_hash == ip_hash, SecurityEvent.created_at > since)
+        .order_by(SecurityEvent.created_at.desc())
+        .limit(max_failures)
+    ).scalars().all()
+    if len(times) < max_failures:
+        return 0
+    # Unlocks when the oldest of the last `max_failures` failures leaves the window.
+    wait = (times[-1] + timedelta(seconds=window) - clock.utcnow()).total_seconds()
+    return max(1, math.ceil(wait))
+
+
+ACTIVITY_SERIES = ("users", "posts", "conversations", "failed_logins")
+
+
+def activity(db: Session, days: int = 14, tz_offset_minutes: int = 0) -> dict:
+    """Per-day counts (no content, no identities) for the dashboard chart.
+
+    Days are local to the admin's browser: `tz_offset_minutes` is JavaScript's
+    getTimezoneOffset() (UTC minus local time). Conversations are counted from
+    what is still stored, so ones already purged by the TTL are not included.
+    """
+    shift = timedelta(minutes=-tz_offset_minutes)
+    local_today = (clock.utcnow() + shift).date()
+    first = local_today - timedelta(days=days - 1)
+    since = (clock.utcnow() + shift).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days - 1) - shift
+    sources = {
+        "users": select(User.created_at).where(User.created_at >= since),
+        "posts": select(Post.created_at).where(Post.created_at >= since),
+        "conversations": select(Conversation.created_at).where(Conversation.created_at >= since),
+        "failed_logins": select(SecurityEvent.created_at).where(SecurityEvent.type == "login_failed", SecurityEvent.created_at >= since),
+    }
+    index = {(first + timedelta(days=i)).isoformat(): i for i in range(days)}
+    series = {}
+    for name, query in sources.items():
+        counts = [0] * days
+        for ts in db.execute(query).scalars():
+            i = index.get((ts + shift).date().isoformat())
+            if i is not None:
+                counts[i] += 1
+        series[name] = counts
+    return {"days": list(index), "series": series, "generated_at": iso(clock.utcnow())}
