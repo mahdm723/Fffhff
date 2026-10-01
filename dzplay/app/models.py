@@ -21,6 +21,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -95,6 +96,8 @@ class Report(Base):
     # Plain references (no FK): the conversation/message may expire before review.
     conversation_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     message_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    post_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     reason: Mapped[str] = mapped_column(String(32))
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Minimal evidence: only the reported content, copied so it survives TTL.
@@ -219,3 +222,72 @@ class Message(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Public ideas (posts) — a separate area from private anonymous messaging.
+# Posts are public; comments are private to the post's author; reactions are
+# one per user per post (enforced by a unique constraint).
+# ---------------------------------------------------------------------------
+
+
+class ProfileRef(Base):
+    """Stable public reference used to open someone's ideas profile.
+
+    It is NOT the internal user id and is never shown in anonymous messaging,
+    so a person's public posts cannot be linked to their private conversations.
+    """
+
+    __tablename__ = "profile_refs"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    ref: Mapped[str] = mapped_column(String(32), unique=True, default=new_public_id)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class Post(Base):
+    __tablename__ = "posts"
+    __table_args__ = (
+        UniqueConstraint("author_id", "client_id", name="uq_post_client_id"),
+        Index("ix_post_author_time", "author_id", "created_at"),
+        Index("ix_post_status_time", "status", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    content: Mapped[str] = mapped_column(Text)
+    client_id: Mapped[str | None] = mapped_column(String(64), nullable=True)  # idempotency key
+    status: Mapped[str] = mapped_column(String(16), default="visible")  # visible|removed
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    # Denormalised counters: read on every feed request, updated atomically.
+    likes_count: Mapped[int] = mapped_column(Integer, default=0)
+    dislikes_count: Mapped[int] = mapped_column(Integer, default=0)
+    comments_count: Mapped[int] = mapped_column(Integer, default=0)
+    unseen_comments_count: Mapped[int] = mapped_column(Integer, default=0)  # for the author only
+
+
+class PostReaction(Base):
+    __tablename__ = "post_reactions"
+    __table_args__ = (
+        UniqueConstraint("post_id", "user_id", name="uq_reaction_post_user"),
+        CheckConstraint("reaction_type IN ('like', 'dislike')", name="ck_reaction_type"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    post_id: Mapped[str] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    reaction_type: Mapped[str] = mapped_column(String(8))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+    __table_args__ = (Index("ix_comment_post_time", "post_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    post_id: Mapped[str] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"))
+    author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)

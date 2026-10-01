@@ -6,7 +6,7 @@ from app.api.deps import current_user, get_state
 from app.api.schemas import PushSubscribeBody, PushUnsubscribeBody, ReportBody, SendBody
 from app.errors import AppError
 from app.models import PushSubscription
-from app.services import messaging
+from app.services import ideas, messaging
 from app.services.messaging import Effects
 
 router = APIRouter(prefix="/api", tags=["messaging"])
@@ -141,7 +141,7 @@ def unblock(block_id: str, request: Request) -> dict:
 def get_profile(request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        return messaging.profile(current_user(request, db))
+        return ideas.own_profile(db, current_user(request, db))
 
 
 @router.post("/push/subscribe")

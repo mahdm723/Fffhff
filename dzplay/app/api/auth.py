@@ -16,6 +16,7 @@ from app.api.schemas import ChallengeBody, GoogleBody, LoginBody, RegisterBody
 from app.errors import rate_limited
 from app.security.sessions import create_session, revoke_session
 from app.services import auth as auth_service
+from app.services.ideas import own_profile
 from app.services.messaging import profile
 from app.services.rate_limit import Limit
 
@@ -33,6 +34,8 @@ def public_config(request: Request) -> dict:
         "google_client_id": s.GOOGLE_CLIENT_ID or None,
         "push_public_key": s.VAPID_PUBLIC_KEY if s.push_enabled else None,
         "max_message_length": s.MAX_MESSAGE_LENGTH,
+        "max_post_length": s.MAX_POST_LENGTH,
+        "max_comment_length": s.MAX_COMMENT_LENGTH,
         "password_min_length": s.PASSWORD_MIN_LENGTH,
         "links_allowed": s.LINK_POLICY != "reject",
     }
@@ -113,4 +116,4 @@ def logout(request: Request, response: Response) -> dict:
 def me(request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        return profile(current_user(request, db))
+        return own_profile(db, current_user(request, db))

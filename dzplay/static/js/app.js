@@ -6,9 +6,10 @@ import * as store from './store.js';
 import { h, toast } from './ui.js';
 import { renderAuth } from './views/auth.js';
 import { renderChat } from './views/chat.js';
-import { renderHome } from './views/home.js';
+import { renderHome, resetFeedCache } from './views/home.js';
 import { renderMessages } from './views/messages.js';
 import { renderProfile } from './views/profile.js';
+import { renderUser } from './views/user.js';
 
 const root = document.getElementById('app');
 let cleanupView = null;
@@ -27,20 +28,28 @@ function navigate(hash) {
 function parseRoute() {
   const m = location.hash.match(/^#\/chat\/([A-Za-z0-9_-]{1,32})$/);
   if (m) return { name: 'chat', id: m[1] };
+  const u = location.hash.match(/^#\/u\/([A-Za-z0-9_-]{1,32})$/);
+  if (u) return { name: 'user', ref: u[1] };
   const name = location.hash.replace(/^#\//, '');
   return { name: TABS.some((t) => t.id === name) ? name : 'home' };
+}
+
+function setTabBadge(tab, n) {
+  const btn = shell && shell.nav.querySelector(`[data-tab="${tab}"]`);
+  if (!btn) return;
+  const badge = btn.querySelector('.badge');
+  if (n) {
+    const text = n > 99 ? '99+' : String(n);
+    if (badge) badge.textContent = text;
+    else btn.append(h('span', { class: 'badge', text }));
+  } else if (badge) badge.remove();
 }
 
 function updateBadges() {
   const n = store.unreadTotal();
   document.title = n ? `(${n}) DZPLAY` : 'DZPLAY';
-  if (!shell) return;
-  const badge = shell.nav.querySelector('[data-tab="messages"] .badge');
-  if (n) {
-    const text = n > 99 ? '99+' : String(n);
-    if (badge) badge.textContent = text;
-    else shell.nav.querySelector('[data-tab="messages"]').append(h('span', { class: 'badge', text }));
-  } else if (badge) badge.remove();
+  setTabBadge('messages', n);
+  setTabBadge('profile', (store.state.me && store.state.me.unseen_comments) || 0);
 }
 
 function updateConnectionBanner() {
@@ -77,12 +86,17 @@ function route() {
     shell = buildShell();
     root.replaceChildren(shell.el);
   }
+  const activeTab = r.name === 'user' ? 'home' : r.name;
   for (const btn of shell.nav.querySelectorAll('.nav__btn')) {
-    if (btn.dataset.tab === r.name) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
+    if (btn.dataset.tab === activeTab) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
-  const ctx = { config: store.state.config, navigate, onLogout: logout };
+  const ctx = {
+    config: store.state.config, navigate, onLogout: logout,
+    onMe: (me) => { store.state.me = { ...store.state.me, ...me }; updateBadges(); },
+  };
   if (r.name === 'home') cleanupView = renderHome(shell.page, ctx) || null;
   else if (r.name === 'messages') cleanupView = renderMessages(shell.page, ctx) || null;
+  else if (r.name === 'user') cleanupView = renderUser(shell.page, { ...ctx, ref: r.ref }) || null;
   else cleanupView = renderProfile(shell.page, ctx) || null;
   updateBadges();
   updateConnectionBanner();
@@ -93,6 +107,7 @@ async function logout() {
   try { await api.post('/api/auth/logout'); } catch { /* clear locally anyway */ }
   store.stopRealtime();
   store.clearCache();
+  resetFeedCache();
   try { localStorage.removeItem('dz:draft'); localStorage.removeItem('dz:session'); } catch { /* ignore */ }
   store.state.me = null;
   showAuth();
@@ -105,6 +120,7 @@ function showAuth() {
     config: store.state.config,
     onAuthenticated: (me) => {
       store.clearCache(); // never show a previous account's cached conversations
+      resetFeedCache();
       history.replaceState(null, '', '#/home');
       startSession(me);
     },
@@ -132,6 +148,11 @@ store.subscribe((type, detail) => {
     const inChat = parseRoute().name === 'chat';
     if (document.visibilityState !== 'visible') showLocalNotification();
     else if (!inChat) toast(detail > 1 ? `وصلتك ${detail} رسائل جديدة` : 'وصلتك رسالة جديدة');
+  } else if (type === 'comment') {
+    if (store.state.me) store.state.me.unseen_comments = (store.state.me.unseen_comments || 0) + 1;
+    updateBadges();
+    if (document.visibilityState !== 'visible') showLocalNotification();
+    else toast('وصلك تعليق خاص جديد على إحدى أفكارك');
   } else if (type === 'queued-sent') {
     toast('أُرسلت رسالتك التي كانت في الانتظار.');
   } else if (type === 'queued-failed') {
@@ -141,6 +162,7 @@ store.subscribe((type, detail) => {
 });
 
 window.addEventListener('hashchange', route);
+document.addEventListener('dz:badges', updateBadges);
 
 async function boot() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

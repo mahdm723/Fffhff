@@ -1,9 +1,15 @@
 # DZPLAY — شارك مشاعرك مع شخص آخر
 
-تطبيق رسائل مجهولة الهوية: تكتب رسالة ← يختار الخادم شخصًا عشوائيًا ← تصله الرسالة ← يرد ← تستمر المحادثة.
-كل المستخدمين يظهرون باسم واحد فقط: **dzplay**. لا ملفات شخصية، لا صور، لا متابعين، لا مكالمات.
+منصة بمسارين، وكل المستخدمين فيها يظهرون باسم واحد فقط: **dzplay**.
 
-> نسخة تجريبية أولية (MVP) تعمل فعليًا من التسجيل حتى إرسال واستقبال الرسائل، ومختبرة آليًا (70 اختبارًا + اختبار Redis) وعبر متصفح حقيقي.
+| المسار | الفكرة |
+|---|---|
+| **الأفكار العامة** (الرئيسية) | تنشر فكرة نصية ← يقرؤها الجميع ← إعجاب / عدم إعجاب ← التعليقات **خاصة بصاحب المنشور فقط**. |
+| **الرسائل المجهولة** (الرسائل) | تكتب رسالة ← يختار الخادم شخصًا عشوائيًا ← يرد ← محادثة خاصة مجهولة. |
+
+لا صور، لا متابعين، لا مكالمات، لا معلومات شخصية.
+
+> نسخة تجريبية (MVP) تعمل فعليًا، ومختبرة آليًا (87 اختبارًا + اختبار Redis) وعبر متصفح حقيقي بمستخدمَين.
 
 ![DZPLAY screens](docs/screenshots/overview.png)
 
@@ -34,6 +40,14 @@
 | **WebSocket يحمل "إشارات" فقط** | الخادم يرسل `{"type":"sync"}` ثم يطلب العميل `/api/sync`. نفس المسار يعالج التحديث اللحظي وإعادة الاتصال بعد الانقطاع ← لا تضارب في البيانات. |
 | **لا Kubernetes ولا Microservices** | خادم واحد + قاعدة بيانات واحدة. الكود مقسّم (services / api / security) بحيث يمكن فصل الخدمات لاحقًا. |
 
+### الأفكار العامة (Posts)
+- **منفصلة تمامًا عن الرسائل**: جداول خاصة (`posts`, `post_reactions`, `comments`, `profile_refs`) و API خاص (`/api/posts`, `/api/profiles`).
+- **ترتيب الـ Feed** يتم في الخادم: سحب عشوائي موزون (weighted random) لكل جلسة تصفح؛ العشوائية هي الأساس، والحداثة والتفاعل يرفعان الاحتمال قليلًا فقط مع سقف (`FEED_ENGAGEMENT_CAP`) حتى لا يحتكر المنشور المشهور القمة. كل إعدادات الخوارزمية في `.env` (`FEED_*`). الترقيم بـ cursor ثابت داخل الجلسة، والضغط على ↻ يعطي ترتيبًا جديدًا.
+- **الإعجاب/عدم الإعجاب**: تفاعل واحد لكل مستخدم لكل منشور (قيد `UNIQUE` في قاعدة البيانات)، يمكن تبديله أو إزالته. العدادات `likes_count` و `dislikes_count` مخزنة في المنشور وتُحدَّث ذريًا، فالقراءة سريعة دون عدّ الجدول.
+- **التعليقات خاصة**: لا يعيد أي API نص التعليقات أو عددها إلا لصاحب المنشور، والتحقق `current_user == post.owner` يتم في الخادم (`403` لغيره). من يكتب التعليق نفسه لا يراه بعد الإرسال.
+- **الملف العام**: يظهر `dzplay` + عدد المنشورات والإعجابات وعدم الإعجاب + المنشورات فقط. الملف يُفتح بمرجع عام عشوائي (`ref`) وليس بالمعرّف الداخلي، و**لا يظهر هذا المرجع أبدًا في الرسائل المجهولة**، فلا يمكن ربط أفكار شخص بمحادثاته الخاصة.
+- الحماية نفسها تنطبق: حدود المعدل (`MAX_POSTS_PER_*`, `MAX_COMMENTS_PER_*`, `MAX_REACTIONS_PER_MINUTE`)، منع التكرار، الإبلاغ عن المنشورات والتعليقات، الحظر (يمنع التعليق والرسائل معًا)، وإجراء الإدارة `remove` لإخفاء محتوى مخالف.
+
 ### فصل الهوية الحقيقية عن الهوية الظاهرة
 - قاعدة البيانات فيها: معرّف داخلي دائم (UUID)، البريد، hash كلمة المرور (Argon2id) أو `sub` من Google، الطوابع الزمنية، وبيانات مكافحة الإساءة.
 - كل ما يخرج للعميل يمر عبر دوال serialize في `app/services/messaging.py` فقط، والطرف الآخر دائمًا `"dzplay"`.
@@ -63,10 +77,11 @@ dzplay/
 │   ├── models.py          # مخطط قاعدة البيانات
 │   ├── api/               # المسارات: auth, messages, admin, ws
 │   ├── security/          # كلمات المرور، الجلسات، anti-bot (PoW)، IP
-│   ├── services/          # منطق العمل: auth, matching, messaging, rate_limit, cleanup, realtime, push, admin
+│   ├── services/          # منطق العمل: auth, matching, messaging, ideas, rate_limit, cleanup, realtime, push, admin
+│   ├── migrations.py      # إضافة الأعمدة الجديدة تلقائيًا عند التحديث (بدون فقدان بيانات)
 │   └── admin_cli.py       # أوامر الإدارة
 ├── static/                # الواجهة (PWA): index.html, css/, js/, sw.js, manifest, icons, fonts
-├── tests/                 # 70 اختبارًا (pytest)
+├── tests/                 # 87 اختبارًا (pytest)
 ├── e2e/run_e2e.py         # اختبار متصفح حقيقي بمستخدمَين
 ├── Dockerfile, docker-compose.yml, Caddyfile, Procfile
 └── .env.example           # كل القيم القابلة للتعديل مع شرحها
@@ -97,7 +112,7 @@ uvicorn app.main:app --reload --port 8000
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                   # 70 اختبارًا على SQLite
+pytest                                   # 87 اختبارًا على SQLite
 ```
 
 على PostgreSQL + Redis (كما في الإنتاج):
@@ -166,6 +181,9 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
 | `MATCHING_RULES` | `no_open_conversation,not_recent_partner,inbound_capacity` | قواعد الاختيار الاختيارية |
 | `MESSAGE_TTL` / `MESSAGE_TTL_AFTER_READ` | 7 أيام / يوم | مدة بقاء الرسائل |
 | `MAX_MESSAGE_LENGTH` | 1000 | طول الرسالة |
+| `MAX_POST_LENGTH` / `MAX_COMMENT_LENGTH` | 2000 / 500 | طول المنشور / التعليق |
+| `MAX_POSTS_PER_HOUR` / `_PER_DAY` | 5 / 20 | حدود النشر |
+| `FEED_*` | — | إعدادات خوارزمية ترتيب الأفكار (العشوائية، الحداثة، التفاعل، السقف) |
 
 ---
 
@@ -193,6 +211,15 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
 | POST | `/api/messages/{id}/report` | الإبلاغ عن رسالة |
 | DELETE | `/api/conversations/{id}` | حذف المحادثة من قائمتي |
 | GET | `/api/sync?since=` | مزامنة بعد الاتصال/الانقطاع |
+| POST | `/api/posts` | نشر فكرة |
+| GET | `/api/posts/feed?cursor=` | الـ Feed (ترتيب الخادم + ترقيم) |
+| GET / DELETE | `/api/posts/{id}` | منشور (بدون تعليقات) / حذف منشوري |
+| PUT | `/api/posts/{id}/reaction` | `{"reaction": "like" \| "dislike" \| null}` |
+| POST | `/api/posts/{id}/comments` | تعليق خاص لصاحب المنشور |
+| GET | `/api/posts/{id}/comments` | التعليقات — **لصاحب المنشور فقط** (403 لغيره) |
+| POST | `/api/posts/{id}/report` | الإبلاغ عن منشور |
+| POST / DELETE | `/api/comments/{id}/report`، `/api/comments/{id}/block`، `/api/comments/{id}` | إجراءات صاحب المنشور على التعليقات |
+| GET | `/api/profiles/{ref}`، `/api/profiles/{ref}/posts` | الملف العام ومنشوراته |
 | GET / DELETE | `/api/blocks`، `/api/blocks/{id}` | المحظورون / إلغاء الحظر |
 | POST | `/api/push/subscribe`، `/api/push/unsubscribe` | إشعارات Push |
 | WS | `/api/ws` | إشارات لحظية |
@@ -215,6 +242,8 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
 ## 9. الخصوصية وسياسة الإدارة
 
 - الإحصائيات الإدارية أرقام فقط بدون أي محتوى.
+- تعليقات الأفكار لا يراها إلا صاحب المنشور. لا يطّلع عليها المشرف إلا إذا أبلغ صاحب المنشور عن تعليق بعينه.
+- إحصائيات الرسائل الخاصة تظهر لصاحب الحساب فقط؛ الزوار يرون إحصائيات الأفكار العامة فقط.
 - لا يطّلع المشرف على نص أي رسالة إلا عبر **البلاغات**: عند الإبلاغ تُنسخ الرسالة المُبلّغ عنها فقط (أو آخر 10 رسائل من الطرف المُبلّغ عنه عند الإبلاغ عن محادثة) لكي تبقى بعد انتهاء TTL.
 - المستخدمون يُشار إليهم في الإدارة بمرجع داخلي، ولا تعرض واجهة الإدارة البريد.
 - الإيقاف التلقائي: عند وصول بلاغات من `REPORT_AUTO_SUSPEND_THRESHOLD` أشخاص مختلفين خلال 24 ساعة يُوقف الحساب مؤقتًا عن الإرسال حتى المراجعة.
@@ -223,7 +252,7 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
 ```bash
 python -m app.admin_cli stats                     # المستخدمون، الرسائل، المحادثات، الحظر، المحاولات الفاشلة
 python -m app.admin_cli reports                   # البلاغات المفتوحة مع الدليل
-python -m app.admin_cli resolve <report_id> ban   # dismiss | warn | suspend | ban
+python -m app.admin_cli resolve <report_id> ban   # dismiss | warn | remove | suspend | ban
 python -m app.admin_cli set-status <user_ref> active
 python -m app.admin_cli events --type login_failed
 python -m app.admin_cli cleanup                   # تشغيل التنظيف يدويًا

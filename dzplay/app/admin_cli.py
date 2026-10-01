@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--status", default="open")
     p = sub.add_parser("resolve")
     p.add_argument("report_id")
-    p.add_argument("action", choices=["dismiss", "warn", "suspend", "ban"])
+    p.add_argument("action", choices=["dismiss", "warn", "remove", "suspend", "ban"])
     p = sub.add_parser("set-status")
     p.add_argument("user_ref")
     p.add_argument("status", choices=["active", "suspended", "banned"])

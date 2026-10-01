@@ -81,6 +81,24 @@ class Settings(BaseSettings):
     MAX_REPORTS_PER_HOUR: int = 10
     REPORT_AUTO_SUSPEND_THRESHOLD: int = 5  # distinct reporters in 24h; 0 disables
 
+    # --- public ideas (posts) ---------------------------------------------------
+    MAX_POST_LENGTH: int = 2000
+    MAX_COMMENT_LENGTH: int = 500
+    MAX_POSTS_PER_HOUR: int = 5
+    MAX_POSTS_PER_DAY: int = 20
+    MAX_COMMENTS_PER_MINUTE: int = 6
+    MAX_COMMENTS_PER_HOUR: int = 60
+    MAX_REACTIONS_PER_MINUTE: int = 60
+    # feed ranking: weighted random draw (randomness first, then freshness/engagement)
+    FEED_PAGE_SIZE: int = 15
+    FEED_CANDIDATE_POOL: int = 500  # most recent posts considered for one feed session
+    FEED_FRESHNESS_HALF_LIFE_HOURS: float = 24.0
+    FEED_FRESHNESS_FLOOR: float = 0.15  # older posts keep at least this much weight
+    FEED_ENGAGEMENT_WEIGHT: float = 0.35  # how much likes help (log scale)
+    FEED_ENGAGEMENT_CAP: float = 2.5  # max boost, so popular posts don't always win
+    FEED_SEEN_PENALTY: float = 0.5  # posts you already reacted to
+    FEED_OWN_POST_PENALTY: float = 0.5
+
     # --- matching -----------------------------------------------------------
     MATCHING_RULES: str = ",".join(OPTIONAL_MATCHING_RULES)
     MATCH_EXCLUDE_RECENT_PARTNERS: int = 5

@@ -271,7 +271,9 @@ function connect() {
   ws.onmessage = (e) => {
     let msg;
     try { msg = JSON.parse(e.data); } catch { return; }
-    if (msg.type === 'sync') scheduleSync(msg.reason === 'message' ? 0 : 150);
+    if (msg.type !== 'sync') return;
+    if (msg.reason === 'comment') emit('comment'); // ideas: no message sync needed
+    else scheduleSync(msg.reason === 'message' ? 0 : 150);
   };
   ws.onclose = () => {
     ws = null;

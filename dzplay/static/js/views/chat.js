@@ -1,15 +1,8 @@
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import * as store from '../store.js';
-import { autoGrow, avatar, confirmSheet, formatDay, formatTime, h, sheet, toast } from '../ui.js';
+import { REPORT_REASONS, autoGrow, avatar, confirmSheet, formatDay, formatTime, h, sheet, toast } from '../ui.js';
 
-const REASONS = [
-  ['spam', 'رسائل مزعجة (سبام)'],
-  ['harassment', 'تحرش أو مضايقة'],
-  ['threat', 'تهديد'],
-  ['inappropriate', 'محتوى غير لائق'],
-  ['other', 'سبب آخر'],
-];
 
 const STATUS = {
   pending: ['clock', 'قيد الإرسال'],
@@ -167,7 +160,7 @@ export function renderChat(root, { conversationId, navigate }) {
     sheet((panel, close) => {
       const details = h('textarea', { class: 'input', rows: '3', maxlength: '500', placeholder: 'تفاصيل إضافية (اختياري)' });
       const alsoBlock = h('input', { type: 'checkbox', checked: true });
-      const choices = REASONS.map(([value, label], i) =>
+      const choices = REPORT_REASONS.map(([value, label], i) =>
         h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'reason', value, checked: i === 0 }), h('span', { text: label })));
       const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'إرسال البلاغ');
       submit.addEventListener('click', async () => {

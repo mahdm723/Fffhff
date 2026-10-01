@@ -19,6 +19,14 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+export const REPORT_REASONS = [
+  ['spam', 'رسائل مزعجة (سبام)'],
+  ['harassment', 'تحرش أو مضايقة'],
+  ['threat', 'تهديد'],
+  ['inappropriate', 'محتوى غير لائق'],
+  ['other', 'سبب آخر'],
+];
+
 export function avatar(size = '') {
   return h('div', { class: `avatar ${size ? 'avatar--' + size : ''}`, 'aria-hidden': 'true' }, icon('mask'));
 }

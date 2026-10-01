@@ -23,6 +23,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api import admin as admin_api
 from app.api import auth as auth_api
 from app.api import messages as messages_api
+from app.api import posts as posts_api
 from app.api import ws as ws_api
 from app.config import Settings, get_settings
 from app.errors import AppError
@@ -160,6 +161,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(auth_api.router)
     app.include_router(messages_api.router)
+    app.include_router(posts_api.router)
     app.include_router(admin_api.router)
     app.include_router(ws_api.router)
 

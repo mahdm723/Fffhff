@@ -1,23 +1,34 @@
 import { api } from '../api.js';
 import { icon } from '../icons.js';
+import { profilePosts } from '../ideas.js';
 import { notificationsEnabled, setNotifications } from '../notify.js';
 import { avatar, confirmSheet, formatDay, h, sheet, toast } from '../ui.js';
 
-export function renderProfile(page, { onLogout }) {
+export function renderProfile(page, { onLogout, navigate, onMe }) {
   const statsBox = h('div', { class: 'stats' });
+  const msgStats = h('p', { class: 'msg-stats' });
+  const postsSlot = h('div');
   const notifSwitch = h('span', { class: 'switch', role: 'switch', 'aria-checked': 'false' });
 
   function stat(num, label) {
-    return h('div', { class: 'stat' }, h('div', { class: 'stat__num', text: String(num) }), h('div', { class: 'stat__label', text: label }));
+    return h('div', { class: 'stat glass' }, h('div', { class: 'stat__num', text: String(num) }), h('div', { class: 'stat__label', text: label }));
   }
 
   async function load() {
     try {
       const me = await api.get('/api/profile');
+      if (onMe) onMe(me);
       statsBox.replaceChildren(
-        stat(me.stats.messages_sent, 'رسائل أرسلتها'),
-        stat(me.stats.messages_received, 'رسائل استقبلتها'),
-        stat(me.stats.conversations, 'محادثات'),
+        stat(me.ideas.posts, 'منشورات'),
+        stat(me.ideas.likes, 'إعجاب'),
+        stat(me.ideas.dislikes, 'عدم إعجاب'),
+      );
+      // Private messaging stats: only you see these (visitors see idea stats only).
+      msgStats.replaceChildren(icon('lock'),
+        `رسائلك الخاصة: أرسلت ${me.stats.messages_sent} · استقبلت ${me.stats.messages_received} · ${me.stats.conversations} محادثة`);
+      postsSlot.replaceChildren(
+        h('h2', { class: 'section-title', text: 'أفكاري' }),
+        profilePosts(me.ref, { navigate, emptyText: 'لم تنشر أي فكرة بعد. شارك أول فكرة من الصفحة الرئيسية.' }),
       );
       if (me.status === 'suspended') toast('حسابك موقوف مؤقتًا للمراجعة. لا يمكنك إرسال رسائل حاليًا.', 'error', 6000);
     } catch { /* offline: keep previous */ }
@@ -92,20 +103,22 @@ export function renderProfile(page, { onLogout }) {
 
   page.replaceChildren(
     h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: 'حسابي' })),
-    h('section', { class: 'id-card' },
+    h('section', { class: 'id-card glass' },
       avatar('xl'),
       h('div', { class: 'id-card__name', text: 'dzplay' }),
       h('p', { class: 'id-card__hint', text: 'هذه هي هويتك الظاهرة للجميع. لا أحد يعرف من أنت.' }),
     ),
     statsBox,
-    h('ul', { class: 'menu' },
+    msgStats,
+    h('ul', { class: 'menu glass' },
       item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
       item('block', 'المحظورون', blockedSheet),
       item('shield', 'الخصوصية', privacySheet),
       item('logout', 'تسجيل الخروج', logout, h('span'), 'menu__item--danger'),
     ),
+    postsSlot,
     h('p', { class: 'version', text: 'DZPLAY · نسخة تجريبية' }),
   );
-  statsBox.replaceChildren(stat('–', 'رسائل أرسلتها'), stat('–', 'رسائل استقبلتها'), stat('–', 'محادثات'));
+  statsBox.replaceChildren(stat('–', 'منشورات'), stat('–', 'إعجاب'), stat('–', 'عدم إعجاب'));
   load();
 }

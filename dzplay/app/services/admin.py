@@ -19,7 +19,19 @@ from sqlalchemy.orm import Session
 
 from app import clock
 from app.errors import AppError, not_found
-from app.models import AuthSession, AuthThrottle, Block, Conversation, Message, Report, SecurityEvent, User
+from app.models import (
+    AuthSession,
+    AuthThrottle,
+    Block,
+    Comment,
+    Conversation,
+    Message,
+    Post,
+    PostReaction,
+    Report,
+    SecurityEvent,
+    User,
+)
 from app.security.sessions import revoke_all_sessions
 from app.services.messaging import iso
 
@@ -51,6 +63,13 @@ def stats(db: Session) -> dict:
             "closed": _count(db, Conversation, Conversation.status == "closed"),
             "created_24h": _count(db, Conversation, Conversation.created_at > day),
         },
+        "ideas": {
+            "posts": _count(db, Post, Post.status == "visible"),
+            "posts_24h": _count(db, Post, Post.created_at > day),
+            "removed": _count(db, Post, Post.status == "removed"),
+            "comments": _count(db, Comment),
+            "reactions": _count(db, PostReaction),
+        },
         "safety": {
             "blocks": _count(db, Block),
             "reports_open": _count(db, Report, Report.status == "open"),
@@ -73,6 +92,7 @@ def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dic
             "details": r.details,
             "evidence": json.loads(r.snapshot or "[]"),
             "reported_user_ref": r.reported_user_id,
+            "target": "comment" if r.comment_id else "post" if r.post_id else "message" if r.message_id else "conversation",
             "reported_user_reports_total": _count(db, Report, Report.reported_user_id == r.reported_user_id),
             "status": r.status,
             "resolution": r.resolution,
@@ -82,7 +102,8 @@ def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dic
 
 
 def resolve_report(db: Session, report_id: str, action: str) -> dict:
-    if action not in ("dismiss", "warn", "suspend", "ban"):
+    """dismiss | warn | remove (hide the reported post / delete the comment) | suspend | ban"""
+    if action not in ("dismiss", "warn", "remove", "suspend", "ban"):
         raise AppError(400, "invalid_action", "invalid action")
     rep = db.get(Report, report_id)
     if rep is None:
@@ -90,6 +111,15 @@ def resolve_report(db: Session, report_id: str, action: str) -> dict:
     rep.status = "dismissed" if action == "dismiss" else "resolved"
     rep.resolution = action
     rep.resolved_at = clock.utcnow()
+    if action == "remove":
+        if rep.comment_id:
+            comment = db.get(Comment, rep.comment_id)
+            if comment:
+                db.delete(comment)
+        elif rep.post_id:
+            post = db.get(Post, rep.post_id)
+            if post:
+                post.status = "removed"
     if action in ("suspend", "ban"):
         set_user_status(db, rep.reported_user_id, "suspended" if action == "suspend" else "banned")
     return {"id": rep.id, "status": rep.status, "resolution": action}
