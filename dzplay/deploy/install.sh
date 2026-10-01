@@ -27,6 +27,7 @@ ok()   { printf '    \033[1;32m✓\033[0m %s\n' "$*"; }
 warn() { printf '    \033[1;33m!\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
+main() {
 [ "$(id -u)" -eq 0 ] || die "Run as root: put 'sudo' before 'bash' (… | sudo bash)."
 command -v apt-get >/dev/null || die "This installer supports Ubuntu/Debian (apt-get) only."
 
@@ -113,23 +114,23 @@ ok "Ports 80/443 available"
 
 # --- 5. build & start ---------------------------------------------------------------
 say "5/6 Building and starting (first time takes a few minutes)"
-docker compose up -d --build --remove-orphans
+docker compose up -d --build --remove-orphans </dev/null
 if [ "${SITE}" != ":80" ] && ! grep -q '^VAPID_PRIVATE_KEY=.\+' .env; then
   # Keys for phone notifications (Web Push), generated once.
-  keys="$(docker compose run --rm --no-deps -T app python -m app.admin_cli gen-vapid)"
+  keys="$(docker compose run --rm --no-deps -T app python -m app.admin_cli gen-vapid </dev/null)"
   set_env VAPID_PUBLIC_KEY "$(echo "$keys" | grep '^VAPID_PUBLIC_KEY=' | cut -d= -f2-)"
   set_env VAPID_PRIVATE_KEY "$(echo "$keys" | grep '^VAPID_PRIVATE_KEY=' | cut -d= -f2-)"
-  docker compose up -d app >/dev/null
+  docker compose up -d app >/dev/null </dev/null
   ok "Notification keys generated"
 fi
 
 # --- 6. checks ----------------------------------------------------------------------
 say "6/6 Checking"
 for i in $(seq 1 60); do
-  if docker compose exec -T app python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')" >/dev/null 2>&1; then
+  if docker compose exec -T app python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')" >/dev/null 2>&1 </dev/null; then
     ok "Application is running"; break
   fi
-  [ "$i" -eq 60 ] && { docker compose logs --tail 50 app; die "The application did not start (logs above)."; }
+  [ "$i" -eq 60 ] && { docker compose logs --tail 50 app </dev/null; die "The application did not start (logs above)."; }
   sleep 2
 done
 public_ok=0
@@ -162,3 +163,9 @@ cat <<EOF
   Admin CLI: cd $APP_DIR && docker compose exec app python -m app.admin_cli stats
 =====================================================================
 EOF
+}
+
+# Everything above is only definitions: bash has read the whole file before
+# anything runs, so commands reading stdin cannot swallow the rest of the script
+# when it is piped (curl … | bash).
+main "$@" </dev/null

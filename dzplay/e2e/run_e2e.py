@@ -80,6 +80,7 @@ def main() -> int:
     parser.add_argument("--base-url")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--shots", default=str(ROOT / "e2e" / "screenshots"))
+    parser.add_argument("--ignore-https-errors", action="store_true", help="for self-signed test certificates")
     args = parser.parse_args()
 
     proc = None
@@ -92,8 +93,9 @@ def main() -> int:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(executable_path=chromium if os.path.exists(chromium) else None)
-            ctx_a = browser.new_context(**MOBILE, color_scheme="dark", locale="ar")
-            ctx_b = browser.new_context(**MOBILE, color_scheme="light", locale="ar")
+            extra = {"ignore_https_errors": args.ignore_https_errors}
+            ctx_a = browser.new_context(**MOBILE, **extra, color_scheme="dark", locale="ar")
+            ctx_b = browser.new_context(**MOBILE, **extra, color_scheme="light", locale="ar")
             a, b = ctx_a.new_page(), ctx_b.new_page()
             run.watch(a, "A")
             run.watch(b, "B")
