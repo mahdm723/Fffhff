@@ -118,17 +118,13 @@ python e2e/run_e2e.py
 
 ## 5. النشر
 
-### الخيار A — خادم VPS بنطاق (Docker Compose + HTTPS تلقائي)
+### الخيار A — خادم VPS (أمر واحد) ✅ موصى به
+على خادم Ubuntu/Debian، انسخ هذا الأمر والصقه:
 ```bash
-cd dzplay
-cp .env.example .env
-# عدّل في .env:
-#   SECRET_KEY=...        (python -m app.admin_cli gen-secret)
-#   POSTGRES_PASSWORD=... (كلمة مرور قوية)
-#   DOMAIN=dzplay.example.com
-docker compose up -d --build
+curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-access-check-c1exvo/dzplay/deploy/install.sh | sudo bash
 ```
-يشغّل: Caddy (شهادة HTTPS تلقائية) ← DZPLAY ← PostgreSQL + Redis. وجّه سجل DNS للنطاق نحو الخادم قبل التشغيل.
+يثبّت Docker، ويولّد كل الأسرار، ويشغّل Caddy (HTTPS تلقائي) ← DZPLAY ← PostgreSQL + Redis، ثم يعطيك رابط التطبيق. لا تحتاج نطاقًا: يستخدم `<IP>.sslip.io` مجانًا، أو نطاقك عبر `DOMAIN=...`. إعادة تشغيل نفس الأمر = تحديث.
+الدليل الكامل خطوة بخطوة (مع تثبيت التطبيق على الهاتف): [`deploy/README.md`](deploy/README.md)
 
 ### الخيار B — Railway / Render (مثل بوتك الحالي)
 1. أنشئ خدمة من هذا المستودع واجعل **Root Directory = `dzplay`** (الـ `Procfile` جاهز).
