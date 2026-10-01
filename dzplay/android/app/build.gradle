@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+def twaHost = project.property('twaHost')
+def launchUrl = "https://${twaHost}/"
+
+android {
+    namespace 'io.dzplay.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.dzplay.app'
+        minSdk 21
+        targetSdk 35
+        versionCode Integer.parseInt(project.property('appVersionCode'))
+        versionName project.property('appVersionName')
+
+        manifestPlaceholders = [hostName: twaHost]
+        resValue 'string', 'launchUrl', launchUrl
+        resValue 'string', 'webManifestUrl', "${launchUrl}manifest.webmanifest"
+        // Digital Asset Links: the site must list this app's signing key in /.well-known/assetlinks.json
+        resValue 'string', 'assetStatements',
+            '[{ \\"relation\\": [\\"delegate_permission/common.handle_all_urls\\"],' +
+            ' \\"target\\": {\\"namespace\\": \\"web\\", \\"site\\": \\"https://' + twaHost + '\\"}}]'
+    }
+
+    buildTypes {
+        release {
+            // Signed outside CI with the private release key (never stored in the repository).
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint {
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

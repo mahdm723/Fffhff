@@ -1,0 +1,55 @@
+# Builds the DZPLAY Android app (Trusted Web Activity) as an UNSIGNED APK.
+# The APK is signed afterwards, outside CI, with the private release key that is
+# never stored in this public repository.
+name: Android APK
+
+on:
+  push:
+    paths:
+      - "dzplay/android/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Build unsigned release APK
+        working-directory: dzplay/android
+        run: gradle --no-daemon assembleRelease
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp dzplay/android/app/build/outputs/apk/release/app-release-unsigned.apk out/dzplay-unsigned.apk
+          echo "source: ${GITHUB_SHA}" > out/BUILD_INFO.txt
+          sha256sum out/dzplay-unsigned.apk | tee -a out/BUILD_INFO.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dzplay-unsigned-apk
+          path: out/
+
+      - name: Publish to the android-build branch (for signing)
+        run: |
+          cd out
+          git init -q
+          git checkout -q -b android-build
+          git add .
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "Unsigned DZPLAY APK from ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" android-build

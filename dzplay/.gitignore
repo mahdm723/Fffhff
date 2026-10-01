@@ -7,3 +7,9 @@ __pycache__/
 *.db-shm
 *.db-wal
 e2e/screenshots/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+*.jks
+*.keystore
