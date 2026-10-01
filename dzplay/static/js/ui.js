@@ -123,8 +123,13 @@ export function newClientId() {
   return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** True inside the DZPLAY Android app (its WebView adds "DZPLAYApp/<version>" to the user agent). */
+export function isAndroidApp() {
+  return /\bDZPLAYApp\//.test(navigator.userAgent);
+}
+
 /** True in a regular Android browser (not already inside the installed app). */
 export function canOfferAndroidApp(config) {
-  return !!(config && config.android_apk_url) && /Android/i.test(navigator.userAgent)
+  return !!(config && config.android_apk_url) && /Android/i.test(navigator.userAgent) && !isAndroidApp()
     && !matchMedia('(display-mode: standalone)').matches && !document.referrer.startsWith('android-app://');
 }

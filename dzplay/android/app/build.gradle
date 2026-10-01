@@ -2,8 +2,8 @@ plugins {
     id 'com.android.application'
 }
 
-def twaHost = project.property('twaHost')
-def launchUrl = "https://${twaHost}/"
+// The DZPLAY server this app opens (see gradle.properties).
+def appHost = project.property('appHost')
 
 android {
     namespace 'io.dzplay.app'
@@ -11,18 +11,17 @@ android {
 
     defaultConfig {
         applicationId 'io.dzplay.app'
-        minSdk 21
+        minSdk 23
         targetSdk 35
         versionCode Integer.parseInt(project.property('appVersionCode'))
         versionName project.property('appVersionName')
 
-        manifestPlaceholders = [hostName: twaHost]
-        resValue 'string', 'launchUrl', launchUrl
-        resValue 'string', 'webManifestUrl', "${launchUrl}manifest.webmanifest"
-        // Digital Asset Links: the site must list this app's signing key in /.well-known/assetlinks.json
-        resValue 'string', 'assetStatements',
-            '[{ \\"relation\\": [\\"delegate_permission/common.handle_all_urls\\"],' +
-            ' \\"target\\": {\\"namespace\\": \\"web\\", \\"site\\": \\"https://' + twaHost + '\\"}}]'
+        buildConfigField 'String', 'APP_HOST', "\"${appHost}\""
+        manifestPlaceholders = [hostName: appHost]
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     buildTypes {
@@ -39,7 +38,4 @@ android {
         checkReleaseBuilds false
     }
 }
-
-dependencies {
-    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
-}
+// No third-party dependencies: the app only uses the Android framework WebView.

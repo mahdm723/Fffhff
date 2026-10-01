@@ -2,7 +2,7 @@ import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { profilePosts } from '../ideas.js';
 import { notificationsEnabled, setNotifications } from '../notify.js';
-import { avatar, confirmSheet, formatDay, h, sheet, toast } from '../ui.js';
+import { avatar, confirmSheet, formatDay, h, isAndroidApp, sheet, toast } from '../ui.js';
 
 export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   const statsBox = h('div', { class: 'stats' });
@@ -97,6 +97,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     const url = `${location.origin}${config.android_apk_url}`;
     const text = 'جرّب DZPLAY: شارك أفكارك وتحدث مع شخص مجهول. ثبّت تطبيق أندرويد من هنا:';
     try {
+      if (window.DZPLAYAndroid) { window.DZPLAYAndroid.share(`${text} ${url}`); return; } // native share sheet in the app
       if (navigator.share) { await navigator.share({ title: 'DZPLAY', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
       toast('نُسخ رابط التطبيق. أرسله لأصدقائك.');
@@ -123,7 +124,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     statsBox,
     msgStats,
     h('ul', { class: 'menu glass' },
-      item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
+      isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
       item('block', 'المحظورون', blockedSheet),
       item('shield', 'الخصوصية', privacySheet),
       config && config.android_apk_url ? item('send', 'مشاركة تطبيق DZPLAY', shareApp) : null,
