@@ -297,8 +297,11 @@ class Post(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     # Denormalised counters: read on every feed request, updated atomically.
-    likes_count: Mapped[int] = mapped_column(Integer, default=0)
+    likes_count: Mapped[int] = mapped_column(Integer, default=0)  # REAL reactions only (PostReaction rows)
     dislikes_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Added by the team from the admin panel; shown = max(0, real + boost). Never PostReaction rows.
+    boost_likes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    boost_dislikes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
     unseen_comments_count: Mapped[int] = mapped_column(Integer, default=0)  # for the author only
 
@@ -347,8 +350,10 @@ class Reel(Base):
     error: Mapped[str | None] = mapped_column(String(255), nullable=True)
     media_group_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     pinned_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    likes_count: Mapped[int] = mapped_column(Integer, default=0)
+    likes_count: Mapped[int] = mapped_column(Integer, default=0)  # REAL reactions only (ReelReaction rows)
     dislikes_count: Mapped[int] = mapped_column(Integer, default=0)
+    boost_likes: Mapped[int | None] = mapped_column(Integer, nullable=True)  # team boost; shown = max(0, real + boost)
+    boost_dislikes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
     views_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)

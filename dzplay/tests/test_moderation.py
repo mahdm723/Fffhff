@@ -149,7 +149,7 @@ def _ref(hx, client) -> str:
         return db.scalar(select(User.id).where(User.email == client.email))
 
 
-def test_conversations_only_for_reported_or_flagged_users_and_logged(make_harness):
+def test_admin_conversation_views_are_logged(make_harness):
     hx = make_harness()
     a, b = hx.user(), hx.user()
     send(a, "مرحبا، كيف كان يومك؟")
@@ -158,11 +158,9 @@ def test_conversations_only_for_reported_or_flagged_users_and_logged(make_harnes
     c = hx.admin()
     ref_a = _ref(hx, a)
 
-    # A clean user: no access to their messages.
-    r = c.get(f"/api/admin/users/{ref_a}/conversations", params=REASON)
-    assert r.status_code == 403
+    # Full access (policy v3): any user's stored conversations, always audited; reason optional.
+    assert c.get(f"/api/admin/users/{ref_a}/conversations").status_code == 200
     assert c.get("/api/admin/users/nope/conversations", params=REASON).status_code == 404
-    assert c.get(f"/api/admin/users/{ref_a}/conversations").status_code == 400  # a reason is required
     assert hx.client().get(f"{ADMIN_PATH}/api/admin/users/{ref_a}/conversations", params=REASON).status_code == 401
 
     # After a report, the stored conversations become reviewable.
@@ -177,9 +175,9 @@ def test_conversations_only_for_reported_or_flagged_users_and_logged(make_harnes
 
     with hx.db() as db:
         views = db.scalars(select(SecurityEvent).where(SecurityEvent.type == "admin_view_messages")).all()
-        assert len(views) == 1 and views[0].user_id == ref_a
+        assert len(views) == 2 and {v.user_id for v in views} == {ref_a}
     entries = c.get("/api/admin/audit", params={"action": "view_conversations"}).json()["entries"]
-    assert len(entries) == 1 and entries[0]["reason"] == "مراجعة بلاغ" and entries[0]["target_id"] == ref_a
+    assert len(entries) == 2 and entries[0]["reason"] == "مراجعة بلاغ" and entries[0]["target_id"] == ref_a
     assert entries[0]["actor"] == "owner"
 
 

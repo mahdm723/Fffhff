@@ -270,9 +270,6 @@ def user_conversations(db: Session, user_ref: str, conv_limit: int = 50, msg_lim
     user = db.get(User, user_ref)
     if user is None:
         raise not_found()
-    if not _under_review(db, user.id):
-        raise AppError(403, "not_under_review",
-                       "يمكن مراجعة محادثات مستخدم فقط إذا وصله بلاغ أو رُصدت له رسالة.")
     convs = db.execute(
         select(Conversation)
         .where((Conversation.initiator_id == user.id) | (Conversation.recipient_id == user.id))

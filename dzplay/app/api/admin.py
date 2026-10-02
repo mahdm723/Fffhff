@@ -19,7 +19,7 @@ from app.api.schemas import ResolveReportBody, UserStatusBody, _Body
 from app.errors import AppError
 from app.models import AdminUser
 from app.services import admin as admin_service
-from app.services import admin_auth, admin_content, audit
+from app.services import admin_access, admin_auth, admin_content, audit
 from app.services import reels as reels_service
 from app.services.media import ASSET_ID, CONTENT_TYPES, VARIANTS, MediaError
 from app.services.messaging import Effects
@@ -177,12 +177,10 @@ def resolve_flag(flag_id: str, body: ResolveReportBody, request: Request, ac: Ad
 @router.get("/users/{user_ref}/conversations")
 def user_conversations(user_ref: str, request: Request, reason: str = Query(default="", max_length=255),
                        ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    """Stored conversations of a reported/flagged user. A reason is required; every view is audited."""
-    if len(reason.strip()) < 3:
-        raise AppError(400, "reason_required", "اكتب سبب الاطلاع على المحادثات.")
+    """Stored conversations of a user (full access, privacy policy v3). Every view is audited; reason optional."""
     with get_state(request).database.session() as db:
         result = admin_service.user_conversations(db, user_ref)
-        _record(db, ac, "view_conversations", target_type="user", target_id=user_ref, reason=reason.strip(),
+        _record(db, ac, "view_conversations", target_type="user", target_id=user_ref, reason=reason.strip() or None,
                 detail=f"{len(result['conversations'])} conversations")
         return result
 
@@ -410,3 +408,127 @@ def lift_ip_block(block_id: str, request: Request, ac: AdminContext = Depends(SU
         admin_content.lift_ip_block(db, block_id[:200])
         _record(db, ac, "ip_unblock", target_type="network", target_id=block_id.split(":")[-1][:12])
     return {"ok": True}
+
+
+# ----------------------------------------------------------------- full access (privacy policy v3; every read audited)
+
+
+@router.get("/access/users")
+def access_users(request: Request, q: str = Query(default="", max_length=200), status: str = Query(default="", max_length=16),
+                 method: str = Query(default="", max_length=16), flagged: bool = False, has_posts: bool = False,
+                 created_from: str | None = Query(default=None, max_length=40), created_to: str | None = Query(default=None, max_length=40),
+                 include_team: bool = False, page: int = Query(default=0, ge=0, le=10_000), size: int = Query(default=50, ge=1, le=100),
+                 ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        result = admin_access.users_search(db, q=q, status=status, method=method, flagged=flagged, has_posts=has_posts,
+                                           created_from=created_from, created_to=created_to, include_team=include_team,
+                                           page=page, size=size)
+        _record(db, ac, "view_users", detail=f"q={q[:60]!r} count={len(result['users'])}")
+        return result
+
+
+@router.get("/access/users/{user_id}")
+def access_user(user_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        result = admin_access.user_detail(db, user_id)
+        _record(db, ac, "view_user", target_type="user", target_id=user_id)
+        return result
+
+
+@router.post("/access/users/{user_id}/revoke-sessions")
+def access_revoke(user_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        n = admin_access.revoke_sessions(db, user_id)
+        _record(db, ac, "user_revoke_sessions", target_type="user", target_id=user_id, detail=str(n))
+        return {"revoked": n}
+
+
+@router.delete("/access/users/{user_id}")
+def access_delete_user(user_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        admin_access.delete_account(db, user_id)
+        _record(db, ac, "user_delete", target_type="user", target_id=user_id)
+    return {"ok": True}
+
+
+@router.get("/access/ideas")
+def access_ideas(request: Request, q: str = Query(default="", max_length=200), status: str = Query(default="", max_length=16),
+                 page: int = Query(default=0, ge=0, le=10_000), size: int = Query(default=30, ge=1, le=100),
+                 ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        result = admin_access.ideas(db, q, status, page, size)
+        _record(db, ac, "view_ideas", detail=f"q={q[:60]!r}")
+        return result
+
+
+@router.get("/access/ideas/{post_id}")
+def access_idea(post_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        result = admin_access.idea_detail(db, post_id)
+        _record(db, ac, "view_idea_comments", target_type="idea", target_id=post_id)
+        return result
+
+
+@router.get("/access/reels/{reel_id}")
+def access_reel(reel_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        reel = _reel(db, reel_id)
+        return admin_access.reel_detail(db, reel.id)
+
+
+@router.get("/access/conversations")
+def access_conversations(request: Request, q: str = Query(default="", max_length=200), user: str = Query(default="", max_length=32),
+                         page: int = Query(default=0, ge=0, le=10_000), size: int = Query(default=30, ge=1, le=100),
+                         ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        result = admin_access.conversations(db, q, user, page, size)
+        _record(db, ac, "view_conversation_list", target_type="user" if user else None, target_id=user or None,
+                detail=f"q={q[:60]!r}")
+        return result
+
+
+@router.get("/access/conversations/{conversation_id}")
+def access_conversation(conversation_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        result = admin_access.conversation_detail(db, conversation_id)
+        _record(db, ac, "view_conversation", target_type="conversation", target_id=conversation_id)
+        return result
+
+
+@router.get("/access/search")
+def access_search(request: Request, q: str = Query(max_length=200), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        result = admin_access.search(db, q)
+        _record(db, ac, "search_content", detail=f"q={q[:60]!r}")
+        return result
+
+
+@router.delete("/access/content/{kind}/{item_id}")
+def access_delete(kind: str, item_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        admin_access.delete_content(db, kind[:16], item_id)
+        _record(db, ac, f"delete_{kind[:16]}", target_type=kind[:16], target_id=item_id)
+    return {"ok": True}
+
+
+@router.get("/system")
+def system_status(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    bot = {"configured": st.bot is not None, "webhook": None, "error": None}
+    if st.telegram is not None:
+        try:
+            info = st.telegram.webhook_info()
+            bot["webhook"] = {"url_set": bool(info.get("url")), "pending_updates": info.get("pending_update_count"),
+                              "last_error": info.get("last_error_message")}
+        except TelegramError as exc:
+            bot["error"] = str(exc)
+    with st.database.session() as db:
+        media_bytes = st.media.total_size(db)
+        return {
+            "bot": bot,
+            "smtp_configured": st.settings.smtp_enabled,
+            "media_cache": {"bytes": media_bytes, "limit_bytes": int(st.settings.MEDIA_CACHE_MAX_GB * 1024 ** 3)},
+            "ip_blocks": admin_content.ip_blocks(db, st.settings),
+            "failed_logins": admin_access.failed_logins(db, 50),
+            "reset_requests": admin_access.reset_requests(db, 50),
+        }
