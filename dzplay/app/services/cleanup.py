@@ -28,7 +28,7 @@ from app.models import AdminAuditLog, AdminSession, AuthSession, AuthThrottle, C
 log = logging.getLogger("dzplay.cleanup")
 
 
-def run_cleanup(db: Session, settings: Settings) -> dict[str, int]:
+def run_cleanup(db: Session, settings: Settings, media=None) -> dict[str, int]:
     now = clock.utcnow()
     counts: dict[str, int] = {}
 
@@ -54,6 +54,12 @@ def run_cleanup(db: Session, settings: Settings) -> dict[str, int]:
     purge("admin_sessions", delete(AdminSession).where(or_(AdminSession.expires_at <= now, AdminSession.last_seen_at < idle)))
     purge("audit_log", delete(AdminAuditLog).where(AdminAuditLog.created_at < now - timedelta(seconds=settings.AUDIT_LOG_RETENTION)))
     purge("flags", delete(ContentFlag).where(and_(ContentFlag.expires_at <= now, ContentFlag.status != "open")))
+    from app.services.reels import purge_views
+
+    counts["reel_views"] = purge_views(db, settings)
+    if media is not None:
+        purged = media.purge(db)
+        counts["media_files"] = purged["expired"] + purged["lru"] + purged["orphans"]
     if any(counts.values()):
         log.info("cleanup: %s", counts)
     return counts

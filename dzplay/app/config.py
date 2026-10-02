@@ -175,7 +175,6 @@ class Settings(BaseSettings):
     REELS_PAGE_SIZE: int = 12
     REELS_FRESHNESS_HALF_LIFE_HOURS: float = 72.0  # weight halves every N hours of age
     REELS_OLD_MIN_WEIGHT: float = 0.08  # old reels never drop below this weight
-    REELS_SEEN_PENALTY: float = 0.02  # weight multiplier for recently seen reels (shown after unseen ones)
     REELS_SEEN_TTL: int = 3 * DAY  # how long a "seen" mark lives
     REELS_PIN_HOURS: int = 48  # /pin keeps a reel at the top this long
     MAX_REEL_CAPTION_LENGTH: int = 2000

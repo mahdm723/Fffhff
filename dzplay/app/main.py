@@ -24,6 +24,8 @@ from app.api import admin as admin_api
 from app.api import auth as auth_api
 from app.api import messages as messages_api
 from app.api import posts as posts_api
+from app.api import reels as reels_api
+from app.api import telegram as telegram_api
 from app.api import ws as ws_api
 from app.config import Settings, get_settings
 from app.errors import AppError
@@ -81,7 +83,7 @@ async def _cleanup_loop(state: AppState) -> None:
         try:
             def _run() -> None:
                 with state.database.session() as db:
-                    run_cleanup(db, state.settings)
+                    run_cleanup(db, state.settings, state.media)
 
             await run_in_threadpool(_run)
         except Exception:  # noqa: BLE001 - keep the loop alive
@@ -89,10 +91,13 @@ async def _cleanup_loop(state: AppState) -> None:
         await asyncio.sleep(state.settings.CLEANUP_INTERVAL)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, telegram_transport=None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    state = AppState.build(settings)
+    # httpx logs full request URLs at INFO — Telegram URLs contain the bot token. Never log them.
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+    state = AppState.build(settings, telegram_transport)
 
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -108,6 +113,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await cleanup_task
         await state.hub.stop()
         state.push.shutdown()
+        if state.bot is not None:
+            state.bot.shutdown()
 
     app = FastAPI(title="DZPLAY", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.dz = state
@@ -174,6 +181,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_api.router)
     app.include_router(messages_api.router)
     app.include_router(posts_api.router)
+    app.include_router(reels_api.router)
+    app.include_router(telegram_api.router)
     if settings.admin_enabled:
         app.include_router(admin_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)

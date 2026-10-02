@@ -31,12 +31,14 @@ from app.models import (
     Message,
     Post,
     PostReaction,
+    ReelComment,
     Report,
     SecurityEvent,
     User,
 )
 from app.security.sessions import revoke_all_sessions
 from app.services.messaging import iso
+from app.services.reels import remove_comment as remove_reel_comment
 
 
 def _count(db: Session, model, *where) -> int:
@@ -96,7 +98,8 @@ def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dic
             "details": r.details,
             "evidence": json.loads(r.snapshot or "[]"),
             "reported_user_ref": r.reported_user_id,
-            "target": "comment" if r.comment_id else "post" if r.post_id else "message" if r.message_id else "conversation",
+            "target": ("reel_comment" if r.reel_comment_id else "comment" if r.comment_id else "post" if r.post_id
+                       else "message" if r.message_id else "conversation"),
             "reported_user_reports_total": _count(db, Report, Report.reported_user_id == r.reported_user_id),
             "reported_user_flags_total": _count(db, ContentFlag, ContentFlag.offender_id == r.reported_user_id),
             "status": r.status,
@@ -117,7 +120,11 @@ def resolve_report(db: Session, report_id: str, action: str) -> dict:
     rep.resolution = action
     rep.resolved_at = clock.utcnow()
     if action == "remove":
-        if rep.comment_id:
+        if rep.reel_comment_id:
+            rc = db.get(ReelComment, rep.reel_comment_id)
+            if rc:
+                remove_reel_comment(db, rc)
+        elif rep.comment_id:
             comment = db.get(Comment, rep.comment_id)
             if comment:
                 db.delete(comment)
@@ -226,9 +233,15 @@ def resolve_flag(db: Session, flag_id: str, action: str) -> dict:
     flag.resolution = action
     flag.resolved_at = clock.utcnow()
     if action == "remove":
-        source = db.get(Message, flag.message_id) if flag.message_id else db.get(Comment, flag.comment_id) if flag.comment_id else None
-        if source is not None:
-            db.delete(source)
+        if flag.target == "reel_comment":
+            rc = db.get(ReelComment, flag.comment_id) if flag.comment_id else None
+            if rc is not None:
+                remove_reel_comment(db, rc)
+        else:
+            source = (db.get(Message, flag.message_id) if flag.message_id
+                      else db.get(Comment, flag.comment_id) if flag.comment_id else None)
+            if source is not None:
+                db.delete(source)
     if action in ("suspend", "ban"):
         set_user_status(db, flag.offender_id, "suspended" if action == "suspend" else "banned")
     return {"id": flag.id, "status": flag.status, "resolution": action}

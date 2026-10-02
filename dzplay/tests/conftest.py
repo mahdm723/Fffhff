@@ -27,6 +27,34 @@ from app.main import create_app  # noqa: E402
 from app.security.pow import solve  # noqa: E402
 
 PASSWORD = "Str0ng-Pass!"
+_FFPROBE_SHIM = None
+
+
+def ffprobe_shim() -> str:
+    """Executable `ffprobe` stand-in (PyAV) — the sandbox has ffmpeg but no ffprobe."""
+    global _FFPROBE_SHIM
+    if _FFPROBE_SHIM is None:
+        import stat
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        target = Path(tempfile.mkdtemp(prefix="dz-ffprobe-")) / "ffprobe"
+        shim = Path(__file__).with_name("ffprobe_shim.py")
+        target.write_text(f"#!{sys.executable}\nimport runpy, sys\nrunpy.run_path({str(shim)!r}, run_name='__main__')\n")
+        target.chmod(target.stat().st_mode | stat.S_IEXEC)
+        _FFPROBE_SHIM = str(target)
+    return _FFPROBE_SHIM
+
+
+def ffmpeg_binary() -> str:
+    import shutil
+
+    if shutil.which("ffmpeg"):
+        return "ffmpeg"
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg.get_ffmpeg_exe()
 ADMIN_PATH = "/test-panel"
 ADMIN_PASSWORD = "Admin-Pass-0123456"
 _ip_counter = itertools.count(1)
@@ -48,6 +76,8 @@ def make_settings(tmp_path, **overrides) -> Settings:
         LOG_LEVEL="WARNING",
         ADMIN_PATH=ADMIN_PATH,
         MEDIA_CACHE_DIR=str(tmp_path / "media-cache"),
+        FFMPEG_BINARY=ffmpeg_binary(),
+        FFPROBE_BINARY="ffprobe" if __import__("shutil").which("ffprobe") else ffprobe_shim(),
     )
     base.update(overrides)
     return Settings(**base)
@@ -56,10 +86,10 @@ def make_settings(tmp_path, **overrides) -> Settings:
 class Harness:
     """Creates an app and per-user clients (each with its own cookie jar and IP)."""
 
-    def __init__(self, tmp_path, **overrides):
+    def __init__(self, tmp_path, telegram_transport=None, **overrides):
         clock.reset()
         self.settings = make_settings(tmp_path, **overrides)
-        self.app = create_app(self.settings)
+        self.app = create_app(self.settings, telegram_transport=telegram_transport)
         state = self.app.state.dz
         Base.metadata.drop_all(state.database.engine)
         if self.settings.REDIS_URL:

@@ -188,7 +188,7 @@ def events(request: Request, type: str | None = Query(default=None, max_length=4
 def cleanup(request: Request, ac: AdminContext = Depends(require_admin)) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        deleted = run_cleanup(db, st.settings)
+        deleted = run_cleanup(db, st.settings, st.media)
         _record(db, ac, "cleanup", detail=str(sum(deleted.values())))
         return {"deleted": deleted}
 
