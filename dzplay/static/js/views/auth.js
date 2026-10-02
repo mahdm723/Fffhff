@@ -248,8 +248,8 @@ export function renderAuth(root, { config, onAuthenticated }) {
       formSlot,
       config.google_client_id ? h('div', { class: 'divider', text: 'أو' }) : null,
       config.google_client_id ? googleSlot : null,
-      h('p', { class: 'auth__foot' }, 'لن يرى أحد بريدك أو أي معلومة عنك. الجميع هنا يظهر باسم dzplay فقط. ',
-        'لحمايتك تُراجَع الرسائل المسيئة آليًا. ',
+      h('p', { class: 'auth__foot' }, 'لن يرى المستخدمون الآخرون بريدك أو أي معلومة عنك. الجميع هنا يظهر باسم dzplay فقط. ',
+        'يطّلع فريق الإدارة على الحسابات والمحتوى للإشراف وحماية المستخدمين. ',
         h('button', { type: 'button', class: 'link-btn', onclick: privacySheet }, 'سياسة الخصوصية')),
       canOfferAndroidApp(config)
         ? h('a', { class: 'btn btn--ghost btn--block app-download', href: config.android_apk_url, download: 'DZPLAY.apk' }, 'تحميل تطبيق أندرويد')

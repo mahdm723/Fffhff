@@ -28,7 +28,7 @@ RESERVED_PATHS = {"api", "js", "css", "fonts", "icons", "download", "media", "ad
 
 # Bump when the privacy policy changes in a way users must be told about; users
 # who acknowledged an older version see the new notice once (see /api/me).
-PRIVACY_VERSION = 2
+PRIVACY_VERSION = 3
 
 
 class Settings(BaseSettings):

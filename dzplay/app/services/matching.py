@@ -106,6 +106,8 @@ def pick_recipient(db: Session, settings: Settings, sender_id: str) -> str | Non
     """Return the internal id of a suitable random recipient, or None."""
     ctx = MatchContext(db=db, settings=settings, sender_id=sender_id, now=clock.utcnow())
     conditions = [RULES[name](ctx) for name in settings.matching_rules]
+    # team accounts (official + system) never receive anonymous messages
+    conditions.extend([User.is_official.is_not(True), User.is_system.is_not(True)])
 
     since = ctx.now - timedelta(days=1)
     inbound_today = (

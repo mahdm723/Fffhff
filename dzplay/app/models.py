@@ -71,6 +71,8 @@ class User(Base):
     privacy_ack_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # The platform's own "DZPLAY الرسمي" account (no login; used by admins to comment).
     is_official: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Internal accounts the team posts comments from (shown as "dzplay"); cannot sign in.
+    is_system: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class AuthSession(Base):
@@ -459,6 +461,7 @@ class AdminUser(Base):
     totp_secret_enc: Mapped[str] = mapped_column(Text)  # encrypted with a key derived from SECRET_KEY
     last_totp_step: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # replay guard
     disabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    role: Mapped[str | None] = mapped_column(String(32), nullable=True)  # None = super_admin
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

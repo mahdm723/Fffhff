@@ -97,7 +97,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     h('section', { class: 'id-card glass' },
       avatar('xl'),
       h('div', { class: 'id-card__name', text: 'dzplay' }),
-      h('p', { class: 'id-card__hint', text: 'هذه هي هويتك الظاهرة للجميع. لا أحد يعرف من أنت.' }),
+      h('p', { class: 'id-card__hint', text: 'هذه هي هويتك الظاهرة للجميع. لا يعرف المستخدمون الآخرون من أنت.' }),
     ),
     statsBox,
     msgStats,

@@ -108,7 +108,7 @@ def request_reset(db: Session, settings: Settings, ctx: ClientContext, *, email:
         return result  # same answer; the admin is not bothered again
 
     user = db.scalar(select(User).where(User.email == email_n))
-    if user is None or not user.password_hash or user.status == "banned" or user.is_official:
+    if user is None or not user.password_hash or user.status == "banned" or user.is_official or user.is_system:
         return result  # Google-only / unknown / banned: same answer, nothing sent
 
     now = clock.utcnow()

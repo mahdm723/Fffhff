@@ -171,7 +171,8 @@ def test_comments_visible_only_to_post_owner(hx):
 
     data = owner.get(f"/api/posts/{pid}/comments").json()
     assert sorted(x["content"] for x in data["comments"]) == ["تعليق من B", "تعليق من C"]
-    assert all(x["author"] == "dzplay" and set(x) == {"id", "author", "content", "created_at"} for x in data["comments"])
+    assert all(x["author"] == "dzplay" and x["official"] is False and set(x) == {"id", "author", "official", "content", "created_at"}
+               for x in data["comments"])
 
     # Everyone else: no comment content, no count — in any API.
     ref = owner.get("/api/profile").json()["ref"]

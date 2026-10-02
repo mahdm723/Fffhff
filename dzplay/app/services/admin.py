@@ -41,18 +41,22 @@ from app.services.messaging import iso
 from app.services.reels import remove_comment as remove_reel_comment
 
 
+# Real people only: the official and system accounts are not users.
+_REAL = (User.is_official.is_not(True), User.is_system.is_not(True))
+
+
 def _count(db: Session, model, *where) -> int:
     return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
 
 
-def stats(db: Session, settings=None) -> dict:
+def stats(db: Session, settings=None, media=None) -> dict:
     now = clock.utcnow()
     day = now - timedelta(days=1)
     return {
         "users": {
-            "total": _count(db, User),
-            "active_24h": _count(db, User, User.last_active_at > day),
-            "new_24h": _count(db, User, User.created_at > day),
+            "total": _count(db, User, *_REAL),
+            "active_24h": _count(db, User, User.last_active_at > day, *_REAL),
+            "new_24h": _count(db, User, User.created_at > day, *_REAL),
             "suspended": _count(db, User, User.status == "suspended"),
             "banned": _count(db, User, User.status == "banned"),
             "google": _count(db, User, User.google_sub.is_not(None)),
@@ -85,7 +89,16 @@ def stats(db: Session, settings=None) -> dict:
         },
         "sessions_active": _count(db, AuthSession, AuthSession.expires_at > now),
         "generated_at": iso(now),
+        **_extra(db, settings, media),
     }
+
+
+def _extra(db: Session, settings, media) -> dict:
+    if settings is None:
+        return {}
+    from app.services.admin_content import extra_stats
+
+    return extra_stats(db, settings, media)
 
 
 def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dict]:
@@ -175,7 +188,7 @@ def activity(db: Session, days: int = 14, tz_offset_minutes: int = 0) -> dict:
     first = local_today - timedelta(days=days - 1)
     since = (clock.utcnow() + shift).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days - 1) - shift
     sources = {
-        "users": select(User.created_at).where(User.created_at >= since),
+        "users": select(User.created_at).where(User.created_at >= since, *_REAL),
         "posts": select(Post.created_at).where(Post.created_at >= since),
         "conversations": select(Conversation.created_at).where(Conversation.created_at >= since),
         "failed_logins": select(SecurityEvent.created_at).where(SecurityEvent.type == "login_failed", SecurityEvent.created_at >= since),

@@ -55,10 +55,10 @@ def test_login_requires_password_and_totp_and_rejects_replay(hx):
     assert hx.admin_login(c, "owner", code=good, password="wrong-password-123").status_code == 401
     assert hx.admin_login(c, "nobody", code=good).status_code == 401
     r = hx.admin_login(c, "owner", code=good)
-    assert r.status_code == 200 and r.json() == {"username": "owner"}
+    assert r.status_code == 200 and r.json() == {"username": "owner", "role": "super_admin"}
     cookie = r.headers["set-cookie"]
     assert "HttpOnly" in cookie and "SameSite=strict" in cookie.replace("Strict", "strict") and f"Path={ADMIN_PATH}" in cookie
-    assert c.get(f"{API}/session").json() == {"username": "owner"}
+    assert c.get(f"{API}/session").json() == {"username": "owner", "role": "super_admin"}
     # The same code cannot be used twice (stolen-code replay).
     other = hx.client()
     assert hx.admin_login(other, "owner", code=good).status_code == 401

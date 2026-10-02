@@ -28,6 +28,13 @@ from app.security.passwords import hash_password, verify_password
 from app.services.auth import ClientContext, log_event
 
 COOKIE_NAME = "dz_admin"
+# Roles → what they may do. Only super_admin exists today; add e.g. "moderator" later
+# and give routes require_role("super_admin", "moderator").
+ROLES = ("super_admin",)
+
+
+def role_of(admin: AdminUser) -> str:
+    return admin.role or "super_admin"
 MIN_PASSWORD_LENGTH = 12
 
 
@@ -66,7 +73,10 @@ def _lockout_seconds(db: Session, settings: Settings, ctx: ClientContext, userna
     return worst
 
 
-def create_admin(db: Session, settings: Settings, username: str, password: str) -> tuple[AdminUser, str]:
+def create_admin(db: Session, settings: Settings, username: str, password: str,
+                 role: str = "super_admin") -> tuple[AdminUser, str]:
+    if role not in ROLES:
+        raise ValueError(f"role must be one of: {', '.join(ROLES)}")
     username = username.strip().lower()
     if not (3 <= len(username) <= 64) or not username.replace("-", "").replace("_", "").replace(".", "").isalnum():
         raise ValueError("username: 3-64 letters, digits, '.', '-' or '_'")
@@ -75,7 +85,7 @@ def create_admin(db: Session, settings: Settings, username: str, password: str) 
     if db.scalar(select(AdminUser.id).where(AdminUser.username == username)):
         raise ValueError("this admin already exists")
     secret = totp.new_secret()
-    admin = AdminUser(username=username, password_hash=hash_password(password),
+    admin = AdminUser(username=username, password_hash=hash_password(password), role=role,
                       totp_secret_enc=totp.encrypt_secret(settings.SECRET_KEY, secret))
     db.add(admin)
     db.flush()

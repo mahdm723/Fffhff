@@ -10,14 +10,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import Field
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import client_context, get_state
 from app.api.schemas import ResolveReportBody, UserStatusBody, _Body
 from app.errors import AppError
 from app.models import AdminUser
 from app.services import admin as admin_service
-from app.services import admin_auth, audit
+from app.services import admin_auth, admin_content, audit
+from app.services import reels as reels_service
+from app.services.media import ASSET_ID, CONTENT_TYPES, VARIANTS, MediaError
+from app.services.messaging import Effects
+from app.services.telegram import TelegramError
 from app.services.auth import ClientContext
 from app.services.cleanup import run_cleanup
 
@@ -59,6 +65,21 @@ def require_admin(request: Request) -> AdminContext:
     return AdminContext(admin, client_context(request))
 
 
+def require_role(*roles: str):
+    """Route dependency: an admin session whose role is one of `roles`."""
+
+    def dependency(request: Request) -> AdminContext:
+        ac = require_admin(request)
+        if admin_auth.role_of(ac.admin) not in roles:
+            raise AppError(403, "forbidden", "ليست لديك صلاحية لهذا الإجراء.")
+        return ac
+
+    return dependency
+
+
+SUPER_ADMIN = require_role("super_admin")
+
+
 def _record(db, ac: AdminContext, action: str, **kw) -> None:
     audit.record(db, ac.actor, action, ip_ref=ac.ip_ref, **kw)
 
@@ -73,10 +94,10 @@ def login(body: AdminLoginBody, request: Request, response: Response) -> dict:
     with st.database.session() as db:
         admin, token = admin_auth.login(db, st.settings, ctx, body.username, body.password, body.code)
         audit.record(db, admin.username, "login", ip_ref=ctx.ip_hash[:12])
-        name = admin.username
+        name, role = admin.username, admin_auth.role_of(admin)
     response.set_cookie(admin_auth.COOKIE_NAME, token, max_age=st.settings.ADMIN_SESSION_TTL, httponly=True,
                         secure=bool(st.settings.COOKIE_SECURE), samesite="strict", path=_cookie_path(request))
-    return {"username": name}
+    return {"username": name, "role": role}
 
 
 @router.post("/logout")
@@ -95,22 +116,22 @@ def logout(request: Request, response: Response) -> dict:
 
 @router.get("/session")
 def session(ac: AdminContext = Depends(require_admin)) -> dict:
-    return {"username": ac.admin.username}
+    return {"username": ac.admin.username, "role": admin_auth.role_of(ac.admin)}
 
 
 # ----------------------------------------------------------------- overview
 
 
 @router.get("/stats")
-def stats(request: Request, ac: AdminContext = Depends(require_admin)) -> dict:
+def stats(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        return admin_service.stats(db, st.settings)
+        return admin_service.stats(db, st.settings, st.media)
 
 
 @router.get("/activity")
 def activity(request: Request, days: int = Query(default=14, ge=1, le=30), tz: int = Query(default=0, ge=-840, le=840),
-             ac: AdminContext = Depends(require_admin)) -> dict:
+             ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     """Daily counts for the dashboard chart. `tz` = browser getTimezoneOffset() in minutes."""
     with get_state(request).database.session() as db:
         return admin_service.activity(db, days, tz)
@@ -121,7 +142,7 @@ def activity(request: Request, days: int = Query(default=14, ge=1, le=30), tz: i
 
 @router.get("/reports")
 def reports(request: Request, status: str = Query(default="open", max_length=16), limit: int = Query(default=50, le=200),
-            ac: AdminContext = Depends(require_admin)) -> dict:
+            ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
         items = admin_service.list_reports(db, status, limit)
         _record(db, ac, "view_reports", detail=f"status={status} count={len(items)}")
@@ -129,7 +150,7 @@ def reports(request: Request, status: str = Query(default="open", max_length=16)
 
 
 @router.post("/reports/{report_id}/resolve")
-def resolve(report_id: str, body: ResolveReportBody, request: Request, ac: AdminContext = Depends(require_admin)) -> dict:
+def resolve(report_id: str, body: ResolveReportBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
         result = admin_service.resolve_report(db, report_id, body.action)
         _record(db, ac, f"report_{body.action}", target_type="report", target_id=report_id)
@@ -138,7 +159,7 @@ def resolve(report_id: str, body: ResolveReportBody, request: Request, ac: Admin
 
 @router.get("/flags")
 def flags(request: Request, status: str = Query(default="open", max_length=16), limit: int = Query(default=50, le=200),
-          ac: AdminContext = Depends(require_admin)) -> dict:
+          ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
         items = admin_service.list_flags(db, status, limit)
         _record(db, ac, "view_flags", detail=f"status={status} count={len(items)}")
@@ -146,7 +167,7 @@ def flags(request: Request, status: str = Query(default="open", max_length=16), 
 
 
 @router.post("/flags/{flag_id}/resolve")
-def resolve_flag(flag_id: str, body: ResolveReportBody, request: Request, ac: AdminContext = Depends(require_admin)) -> dict:
+def resolve_flag(flag_id: str, body: ResolveReportBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
         result = admin_service.resolve_flag(db, flag_id, body.action)
         _record(db, ac, f"flag_{body.action}", target_type="flag", target_id=flag_id)
@@ -155,7 +176,7 @@ def resolve_flag(flag_id: str, body: ResolveReportBody, request: Request, ac: Ad
 
 @router.get("/users/{user_ref}/conversations")
 def user_conversations(user_ref: str, request: Request, reason: str = Query(default="", max_length=255),
-                       ac: AdminContext = Depends(require_admin)) -> dict:
+                       ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     """Stored conversations of a reported/flagged user. A reason is required; every view is audited."""
     if len(reason.strip()) < 3:
         raise AppError(400, "reason_required", "اكتب سبب الاطلاع على المحادثات.")
@@ -170,7 +191,7 @@ def user_conversations(user_ref: str, request: Request, reason: str = Query(defa
 
 
 @router.post("/users/{user_ref}/status")
-def user_status(user_ref: str, body: UserStatusBody, request: Request, ac: AdminContext = Depends(require_admin)) -> dict:
+def user_status(user_ref: str, body: UserStatusBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
         result = admin_service.set_user_status(db, user_ref, body.status)
         _record(db, ac, f"user_{body.status}", target_type="user", target_id=user_ref)
@@ -179,13 +200,13 @@ def user_status(user_ref: str, body: UserStatusBody, request: Request, ac: Admin
 
 @router.get("/security-events")
 def events(request: Request, type: str | None = Query(default=None, max_length=48), limit: int = Query(default=100, le=500),
-           ac: AdminContext = Depends(require_admin)) -> dict:
+           ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
         return {"events": admin_service.security_events(db, type, limit)}
 
 
 @router.post("/cleanup")
-def cleanup(request: Request, ac: AdminContext = Depends(require_admin)) -> dict:
+def cleanup(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     st = get_state(request)
     with st.database.session() as db:
         deleted = run_cleanup(db, st.settings, st.media)
@@ -195,6 +216,197 @@ def cleanup(request: Request, ac: AdminContext = Depends(require_admin)) -> dict
 
 @router.get("/audit")
 def audit_log(request: Request, limit: int = Query(default=100, le=500), before: int | None = Query(default=None),
-              action: str | None = Query(default=None, max_length=64), ac: AdminContext = Depends(require_admin)) -> dict:
+              action: str | None = Query(default=None, max_length=64), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
         return {"entries": audit.list_entries(db, limit, before, action), "chain": audit.verify_chain(db)}
+
+
+# ----------------------------------------------------------------- content: Reels, Ideas, official comments, library
+
+
+class ReelStatusBody(_Body):
+    status: str = Field(max_length=16)
+
+
+class ReelPinBody(_Body):
+    hours: int | None = Field(default=None, ge=1, le=24 * 30)
+    pinned: bool = True
+
+
+class CaptionBody(_Body):
+    caption: str = Field(max_length=4000)
+
+
+class OfficialCommentBody(_Body):
+    target: str = Field(max_length=8)  # reel | idea
+    target_id: str = Field(max_length=32)
+    text: str | None = Field(default=None, max_length=4000)
+    library_id: str | None = Field(default=None, max_length=32)
+
+
+class LibraryBody(_Body):
+    category: str = Field(max_length=32)
+    text: str = Field(max_length=4000)
+
+
+def _reel(db, reel_id: str):
+    reel = reels_service.find(db, reel_id)
+    if reel is None:
+        raise AppError(404, "not_found", "غير موجود.")
+    return reel
+
+
+@router.get("/reels")
+def reels_list(request: Request, status: str | None = Query(default=None, max_length=16),
+               limit: int = Query(default=60, le=200), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    base = st.settings.ADMIN_PATH
+
+    def url(asset_id: str, variant: str) -> str:
+        return f"{base}/api/admin/media/{asset_id}/{variant}"
+
+    with st.database.session() as db:
+        return {"reels": admin_content.reels_list(db, status, limit, url)}
+
+
+@router.post("/reels/{reel_id}/status")
+def reel_status(reel_id: str, body: ReelStatusBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        reel = _reel(db, reel_id)
+        if reel.status in ("processing", "failed") and body.status == "visible":
+            raise AppError(409, "not_ready", "المحتوى غير جاهز للعرض.")
+        reels_service.set_status(db, reel, body.status)
+        _record(db, ac, f"reel_{'show' if body.status == 'visible' else 'hide'}", target_type="reel", target_id=reel.short_id)
+        return {"status": reel.status}
+
+
+@router.post("/reels/{reel_id}/pin")
+def reel_pin(reel_id: str, body: ReelPinBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        reel = _reel(db, reel_id)
+        if body.pinned:
+            until = reels_service.pin(db, st.settings, reel, body.hours)
+            _record(db, ac, "reel_pin", target_type="reel", target_id=reel.short_id, detail=f"hours={body.hours or st.settings.REELS_PIN_HOURS}")
+            return {"pinned_until": until.isoformat() + "Z"}
+        reels_service.unpin(reel)
+        _record(db, ac, "reel_unpin", target_type="reel", target_id=reel.short_id)
+        return {"pinned_until": None}
+
+
+@router.put("/reels/{reel_id}/caption")
+def reel_caption(reel_id: str, body: CaptionBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        reel = _reel(db, reel_id)
+        reels_service.edit_caption(db, st.settings, reel, body.caption)
+        _record(db, ac, "reel_caption", target_type="reel", target_id=reel.short_id)
+        return {"caption": reel.caption}
+
+
+@router.delete("/reels/{reel_id}")
+def reel_delete(reel_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        reel = _reel(db, reel_id)
+        sid = reel.short_id
+        reels_service.delete_reel(db, st.media, reel)
+        _record(db, ac, "reel_delete", target_type="reel", target_id=sid)
+    return {"ok": True}
+
+
+@router.get("/media/{asset_id}/{variant}")
+async def admin_media(asset_id: str, variant: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)):
+    """Previews for the panel (admin session instead of a user-bound signature)."""
+    st = get_state(request)
+    if not ASSET_ID.match(asset_id) or variant not in CONTENT_TYPES:
+        raise AppError(404, "not_found", "غير موجود.")
+
+    def locate():
+        with st.database.session() as db:
+            asset = admin_content.asset_for_admin(db, asset_id)
+            if variant not in VARIANTS.get(asset.kind, ()):
+                raise AppError(404, "not_found", "غير موجود.")
+            try:
+                return st.media.ensure(db, asset, variant)
+            except (MediaError, TelegramError):
+                raise AppError(503, "media_unavailable", "تعذّر تحميل الملف الآن.") from None
+
+    path = await run_in_threadpool(locate)
+    return FileResponse(path, media_type=CONTENT_TYPES[variant], headers={"Cache-Control": "private, max-age=600"})
+
+
+@router.get("/ideas")
+def ideas_list(request: Request, limit: int = Query(default=30, le=100), before: str | None = Query(default=None, max_length=40),
+               ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return admin_content.ideas_list(db, limit, before)
+
+
+@router.post("/official-comment", status_code=201)
+def official_comment(body: OfficialCommentBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = admin_content.official_comment(db, st.settings, target=body.target, target_id=body.target_id,
+                                                text=body.text, library_id=body.library_id, effects=effects)
+        _record(db, ac, "official_comment", target_type=body.target, target_id=body.target_id,
+                detail=f"library={body.library_id}" if body.library_id else None)
+    st.dispatch(effects)
+    return result
+
+
+@router.get("/library")
+def library(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return admin_content.library(db)
+
+
+@router.post("/library", status_code=201)
+def library_add(body: LibraryBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        item = admin_content.library_save(db, st.settings, None, body.category, body.text)
+        _record(db, ac, "library_add", target_type="library", target_id=item["id"])
+        return item
+
+
+@router.put("/library/{item_id}")
+def library_edit(item_id: str, body: LibraryBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        item = admin_content.library_save(db, st.settings, item_id, body.category, body.text)
+        _record(db, ac, "library_edit", target_type="library", target_id=item_id)
+        return item
+
+
+@router.delete("/library/{item_id}")
+def library_delete(item_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        admin_content.library_delete(db, item_id)
+        _record(db, ac, "library_delete", target_type="library", target_id=item_id)
+    return {"ok": True}
+
+
+# ----------------------------------------------------------------- users & network blocks
+
+
+@router.get("/users")
+def users(request: Request, filter: str = Query(default="reported", max_length=16), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return {"users": admin_content.users_list(db, filter)}
+
+
+@router.get("/ip-blocks")
+def ip_blocks(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        return {"blocks": admin_content.ip_blocks(db, st.settings)}
+
+
+@router.delete("/ip-blocks/{block_id:path}")
+def lift_ip_block(block_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        admin_content.lift_ip_block(db, block_id[:200])
+        _record(db, ac, "ip_unblock", target_type="network", target_id=block_id.split(":")[-1][:12])
+    return {"ok": True}

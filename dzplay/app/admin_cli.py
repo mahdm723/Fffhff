@@ -89,7 +89,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--type", default=None)
     sub.add_parser("cleanup")
     for name in ("create-admin", "reset-admin-2fa", "set-admin-password"):
-        sub.add_parser(name).add_argument("username")
+        sp = sub.add_parser(name)
+        sp.add_argument("username")
+        if name == "create-admin":
+            sp.add_argument("--role", default="super_admin")
     p = sub.add_parser("audit")
     p.add_argument("--limit", type=int, default=50)
     sub.add_parser("gen-secret")
@@ -113,7 +116,7 @@ def main(argv: list[str] | None = None) -> None:
         with database.session() as db:
             try:
                 if args.cmd == "create-admin":
-                    _admin, secret = admin_auth.create_admin(db, settings, args.username, password)
+                    _admin, secret = admin_auth.create_admin(db, settings, args.username, password, args.role)
                 elif args.cmd == "reset-admin-2fa":
                     secret = admin_auth.reset_totp(db, settings, args.username)
                 else:

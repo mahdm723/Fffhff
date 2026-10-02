@@ -115,10 +115,11 @@ def assets_of(db: Session, reel_id: str) -> list[ReelAsset]:
 
 
 def find(db: Session, ref: str) -> Reel | None:
-    ref = (ref or "").strip().lower()
+    ref = (ref or "").strip()
     if not ref or len(ref) > 32:
         return None
-    return db.scalar(select(Reel).where(or_(Reel.short_id == ref, Reel.id == ref)))
+    # short ids are lower-case (typed in Telegram); full ids are case-sensitive
+    return db.scalar(select(Reel).where(or_(Reel.short_id == ref.lower(), Reel.id == ref)))
 
 
 def set_status(db: Session, reel: Reel, status: str) -> None:

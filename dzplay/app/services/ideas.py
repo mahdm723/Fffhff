@@ -48,6 +48,7 @@ from app.services.moderation import flag_content
 from app.services.rate_limit import Limit
 
 REACTIONS = ("like", "dislike")
+OFFICIAL_NAME = "DZPLAY الرسمي"
 
 
 # ---------------------------------------------------------------------------
@@ -359,9 +360,11 @@ def list_comments(db: Session, user: User, post_id: str, *, before: str | None =
     rows = list(db.execute(q.order_by(Comment.created_at.desc(), Comment.id.desc()).limit(limit + 1)).scalars())
     if post.unseen_comments_count:
         post.unseen_comments_count = 0
+    official = set(db.execute(select(User.id).where(User.is_official.is_(True))).scalars())
     return {
         "post_id": post.id,
-        "comments": [{"id": c.id, "author": PEER_NAME, "content": c.content, "created_at": iso(c.created_at)}
+        "comments": [{"id": c.id, "author": OFFICIAL_NAME if c.author_id in official else PEER_NAME,
+                      "official": c.author_id in official, "content": c.content, "created_at": iso(c.created_at)}
                      for c in rows[:limit]],
         "has_more": len(rows) > limit,
     }
