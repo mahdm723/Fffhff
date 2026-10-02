@@ -91,6 +91,26 @@ async def _cleanup_loop(state: AppState) -> None:
         await asyncio.sleep(state.settings.CLEANUP_INTERVAL)
 
 
+async def _engagement_loop(state: AppState) -> None:
+    """Advance gradual boosts and spread-out team comments (see app.services.engagement)."""
+    from app.services import engagement
+    from app.services.messaging import Effects
+
+    while True:
+        await asyncio.sleep(state.settings.ENGAGEMENT_TICK_SECONDS)
+        try:
+            effects = Effects()
+
+            def _run() -> None:
+                with state.database.session() as db:
+                    engagement.tick(db, state.settings, effects)
+
+            await run_in_threadpool(_run)
+            state.dispatch(effects)
+        except Exception:  # noqa: BLE001 - keep the loop alive
+            log.exception("engagement tick failed")
+
+
 def create_app(settings: Settings | None = None, telegram_transport=None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -106,7 +126,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
             log.warning("SECRET_KEY not set: using a temporary key (sessions survive, IP blocks reset on restart).")
         await state.hub.start()
         cleanup_task = asyncio.create_task(_cleanup_loop(state)) if settings.CLEANUP_INTERVAL > 0 else None
+        engagement_task = asyncio.create_task(_engagement_loop(state)) if settings.ENGAGEMENT_TICK_SECONDS > 0 else None
         yield
+        if engagement_task:
+            engagement_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await engagement_task
         if cleanup_task:
             cleanup_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):

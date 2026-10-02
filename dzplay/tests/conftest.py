@@ -75,6 +75,7 @@ def make_settings(tmp_path, **overrides) -> Settings:
         REPORT_AUTO_SUSPEND_THRESHOLD=0,
         LOG_LEVEL="WARNING",
         ADMIN_PATH=ADMIN_PATH,
+        ENGAGEMENT_TICK_SECONDS=0,  # tests advance gradual jobs explicitly
         MEDIA_CACHE_DIR=str(tmp_path / "media-cache"),
         FFMPEG_BINARY=ffmpeg_binary(),
         FFPROBE_BINARY="ffprobe" if __import__("shutil").which("ffprobe") else ffprobe_shim(),

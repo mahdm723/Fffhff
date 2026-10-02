@@ -19,7 +19,7 @@ from app.api.schemas import ResolveReportBody, UserStatusBody, _Body
 from app.errors import AppError
 from app.models import AdminUser
 from app.services import admin as admin_service
-from app.services import admin_access, admin_auth, admin_content, audit
+from app.services import admin_access, admin_auth, admin_content, audit, engagement
 from app.services import reels as reels_service
 from app.services.media import ASSET_ID, CONTENT_TYPES, VARIANTS, MediaError
 from app.services.messaging import Effects
@@ -355,16 +355,17 @@ def official_comment(body: OfficialCommentBody, request: Request, ac: AdminConte
 
 
 @router.get("/library")
-def library(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+def library(request: Request, q: str = Query(default="", max_length=200), category: str = Query(default="", max_length=32),
+            ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
-        return admin_content.library(db)
+        return engagement.library(db, q, category)
 
 
 @router.post("/library", status_code=201)
 def library_add(body: LibraryBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        item = admin_content.library_save(db, st.settings, None, body.category, body.text)
+        item = engagement.item_save(db, st.settings, None, body.category, body.text)
         _record(db, ac, "library_add", target_type="library", target_id=item["id"])
         return item
 
@@ -373,7 +374,7 @@ def library_add(body: LibraryBody, request: Request, ac: AdminContext = Depends(
 def library_edit(item_id: str, body: LibraryBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        item = admin_content.library_save(db, st.settings, item_id, body.category, body.text)
+        item = engagement.item_save(db, st.settings, item_id, body.category, body.text)
         _record(db, ac, "library_edit", target_type="library", target_id=item_id)
         return item
 
@@ -381,9 +382,127 @@ def library_edit(item_id: str, body: LibraryBody, request: Request, ac: AdminCon
 @router.delete("/library/{item_id}")
 def library_delete(item_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     with get_state(request).database.session() as db:
-        admin_content.library_delete(db, item_id)
+        engagement.item_delete(db, item_id)
         _record(db, ac, "library_delete", target_type="library", target_id=item_id)
     return {"ok": True}
+
+
+class ImportBody(_Body):
+    category: str = Field(max_length=32)
+    text: str = Field(max_length=200_000)
+
+
+class CategoryBody(_Body):
+    name: str = Field(max_length=64)
+
+
+@router.post("/library/import")
+def library_import(body: ImportBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        result = engagement.bulk_import(db, st.settings, body.category, body.text)
+        _record(db, ac, "library_import", target_type="category", target_id=body.category, detail=str(result))
+        return result
+
+
+@router.get("/library/categories")
+def categories(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return {"categories": engagement.categories(db)}
+
+
+@router.post("/library/categories", status_code=201)
+def category_add(body: CategoryBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        cat = engagement.category_save(db, None, body.name)
+        _record(db, ac, "category_add", target_type="category", target_id=cat["id"], detail=cat["name"])
+        return cat
+
+
+@router.put("/library/categories/{cat_id}")
+def category_edit(cat_id: str, body: CategoryBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        cat = engagement.category_save(db, cat_id, body.name)
+        _record(db, ac, "category_edit", target_type="category", target_id=cat_id, detail=cat["name"])
+        return cat
+
+
+@router.delete("/library/categories/{cat_id}")
+def category_delete(cat_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        engagement.category_delete(db, cat_id)
+        _record(db, ac, "category_delete", target_type="category", target_id=cat_id)
+    return {"ok": True}
+
+
+# ----------------------------------------------------------------- engagement control
+
+
+class BoostBody(_Body):
+    target_type: str = Field(max_length=8)
+    ids: list[str] = Field(max_length=500)
+    mode: str = Field(default="add", max_length=8)
+    likes: int | None = None
+    dislikes: int | None = None
+    duration_minutes: int | None = Field(default=None, ge=0)
+
+
+class CommentSource(_Body):
+    kind: str = Field(max_length=8)  # library | random | text
+    library_ids: list[str] = Field(default_factory=list, max_length=500)
+    category: str | None = Field(default=None, max_length=32)
+    count: int | None = None
+    text: str | None = Field(default=None, max_length=4000)
+
+
+class TeamCommentBody(_Body):
+    target_type: str = Field(max_length=8)
+    ids: list[str] = Field(max_length=500)
+    source: CommentSource
+    appearance: str = Field(default="dzplay", max_length=8)  # dzplay | official
+    duration_minutes: int | None = Field(default=None, ge=0)
+
+
+@router.post("/engagement/boost")
+def engagement_boost(body: BoostBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        result = engagement.boost(db, st.settings, target_type=body.target_type, ids=body.ids, mode=body.mode,
+                                  likes=body.likes, dislikes=body.dislikes, duration_minutes=body.duration_minutes,
+                                  actor=ac.actor)
+        _record(db, ac, "engagement_boost", target_type=body.target_type, target_id=result["batch_id"],
+                detail=f"mode={body.mode} likes={body.likes} dislikes={body.dislikes} minutes={body.duration_minutes or 0} "
+                       f"targets={len(result['targets'])}")
+        return result
+
+
+@router.post("/engagement/comments")
+def engagement_comments(body: TeamCommentBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = engagement.post_comments(db, st.settings, target_type=body.target_type, ids=body.ids,
+                                          source=body.source.model_dump(), appearance=body.appearance,
+                                          duration_minutes=body.duration_minutes, actor=ac.actor, effects=effects)
+        _record(db, ac, "engagement_comments", target_type=body.target_type, target_id=result["batch_id"],
+                detail=f"source={body.source.kind} appearance={body.appearance} minutes={body.duration_minutes or 0} "
+                       f"targets={len(result['targets'])}")
+    st.dispatch(effects)
+    return result
+
+
+@router.get("/engagement/jobs")
+def engagement_jobs(request: Request, status: str = Query(default="", max_length=12), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return {"jobs": engagement.jobs(db, status)}
+
+
+@router.post("/engagement/jobs/{job_id}/cancel")
+def engagement_cancel(job_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        n = engagement.cancel(db, job_id)
+        _record(db, ac, "engagement_cancel", target_type="job", target_id=job_id, detail=str(n))
+        return {"cancelled": n}
 
 
 # ----------------------------------------------------------------- users & network blocks

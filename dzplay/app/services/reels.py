@@ -25,6 +25,7 @@ from app.models import Reel, ReelAsset, ReelComment, ReelReaction, ReelView, Rep
 from app.services import reels_ranking
 from app.services.auth import log_event
 from app.services.content import clean_message
+from app.services.counts import shown
 from app.services.ideas import REACTIONS, _blocked_ids
 from app.services.media import VARIANTS
 from app.services.messaging import (
@@ -208,7 +209,8 @@ def serialize(settings: Settings, reel: Reel, assets: list[ReelAsset], my_reacti
         media.append(item)
     return {
         "id": reel.id, "kind": reel.kind, "caption": reel.caption, "media": media,
-        "likes": reel.likes_count, "dislikes": reel.dislikes_count, "comments": reel.comments_count,
+        "likes": shown(reel.likes_count, reel.boost_likes), "dislikes": shown(reel.dislikes_count, reel.boost_dislikes),
+        "comments": reel.comments_count,
         "my_reaction": my_reaction, "created_at": iso(reel.created_at),
     }
 
@@ -319,7 +321,8 @@ def set_reaction(db: Session, settings: Settings, limiter, user: User, reel_id: 
         except IntegrityError:
             continue
     db.refresh(reel)
-    return {"likes": reel.likes_count, "dislikes": reel.dislikes_count, "my_reaction": reaction}
+    return {"likes": shown(reel.likes_count, reel.boost_likes), "dislikes": shown(reel.dislikes_count, reel.boost_dislikes),
+            "my_reaction": reaction}
 
 
 # ---------------------------------------------------------------------------

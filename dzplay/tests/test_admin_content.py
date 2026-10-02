@@ -87,12 +87,14 @@ def test_library_crud_and_use(hx):
     item = admin.post("/api/admin/library", json={"category": "welcome", "text": "مرحبًا بك في DZPLAY!"}).json()
     admin.post("/api/admin/library", json={"category": "encourage", "text": "استمر، أفكارك ملهمة"})
     lib = admin.get("/api/admin/library").json()
-    assert [i["category"] for i in lib["items"]] == ["encourage", "welcome"] and lib["categories"]["welcome"] == "ترحيب"
+    assert {i["category"] for i in lib["items"]} == {"welcome", "encourage"}
+    assert {c["id"]: c["name"] for c in lib["categories"]}["welcome"] == "ترحيب"
     edited = admin.put(f"/api/admin/library/{item['id']}", json={"category": "welcome", "text": "أهلًا وسهلًا!"}).json()
     assert edited["text"] == "أهلًا وسهلًا!"
     rid = make_reels(hx, 1)[0]
     assert admin.post("/api/admin/official-comment", json={"target": "reel", "target_id": rid, "library_id": item["id"]}).status_code == 201
     assert hx.user().get(f"/api/reels/{rid}/comments").json()["comments"][0]["content"] == "أهلًا وسهلًا!"
+    assert admin.get("/api/admin/library", params={"q": "أهلًا"}).json()["items"][0]["usage_count"] == 1
     assert admin.delete(f"/api/admin/library/{item['id']}").status_code == 200
     assert len(admin.get("/api/admin/library").json()["items"]) == 1
     actions = {e["action"] for e in admin.get("/api/admin/audit").json()["entries"]}

@@ -500,13 +500,49 @@ class AdminAuditLog(Base):
     row_hash: Mapped[str] = mapped_column(String(64))
 
 
+class CommentCategory(Base):
+    """Admin-managed categories of the comment library (ترحيب، تشجيع، دعم…)."""
+
+    __tablename__ = "comment_categories"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    name: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
 class CannedComment(Base):
-    """Ready-made comments the admins can post from the official account."""
+    """Ready-made comments the team can post from the panel."""
 
     __tablename__ = "canned_comments"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
-    category: Mapped[str] = mapped_column(String(32), index=True)
+    category: Mapped[str] = mapped_column(String(32), index=True)  # CommentCategory.id
     text: Mapped[str] = mapped_column(Text)
+    usage_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class EngagementJob(Base):
+    """A boost or a batch of team comments applied gradually by the scheduler.
+
+    boost:   `total` is added to boost_<metric> of the target progressively (may be negative).
+    comment: `payload` is a JSON list of comments; `applied` of them are already posted.
+    """
+
+    __tablename__ = "engagement_jobs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    batch_id: Mapped[str] = mapped_column(String(32), index=True)
+    kind: Mapped[str] = mapped_column(String(8))  # boost|comment
+    target_type: Mapped[str] = mapped_column(String(8))  # idea|reel
+    target_id: Mapped[str] = mapped_column(String(32), index=True)
+    metric: Mapped[str | None] = mapped_column(String(8), nullable=True)  # likes|dislikes (boost jobs)
+    total: Mapped[int] = mapped_column(Integer, default=0)
+    applied: Mapped[int] = mapped_column(Integer, default=0)
+    payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    start_at: Mapped[datetime] = mapped_column(DateTime)
+    end_at: Mapped[datetime] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String(12), default="running", index=True)  # running|done|cancelled|failed
+    created_by: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)

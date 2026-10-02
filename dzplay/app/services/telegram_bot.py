@@ -278,7 +278,8 @@ class BotService:
                 pinned = " 📌" if r.pinned_until and r.pinned_until > now else ""
                 kind = "🎬" if r.kind == "video" else "🖼"
                 lines.append(f"{r.short_id} {kind} {STATUS_AR.get(r.status, r.status)}{pinned} · "
-                             f"👍{r.likes_count} 👎{r.dislikes_count} 💬{r.comments_count} 👁{r.views_count}")
+                             f"👍{r.likes_count}{f'+{r.boost_likes}' if r.boost_likes else ''} 👎{r.dislikes_count}"
+                             f"{f'+{r.boost_dislikes}' if r.boost_dislikes else ''} 💬{r.comments_count} 👁{r.views_count}")
         self.say("آخر المحتوى:\n" + "\n".join(lines))
 
     def _stats(self) -> None:

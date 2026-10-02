@@ -207,6 +207,14 @@ class Settings(BaseSettings):
     SMTP_SECURITY: str = "starttls"  # starttls | ssl | none (none only for local testing)
     SMTP_TIMEOUT: int = 20
 
+    # --- engagement control (admin panel) -------------------------------------------
+    SYSTEM_ACCOUNTS: int = 25  # internal accounts team comments are posted from (shown as "dzplay")
+    ENGAGEMENT_TICK_SECONDS: int = 60  # how often gradual boosts/comment batches advance
+    ENGAGEMENT_MAX_DURATION_HOURS: int = 30 * 24
+    ENGAGEMENT_MAX_AMOUNT: int = 1_000_000  # per target and metric
+    ENGAGEMENT_MAX_TARGETS: int = 200  # per bulk operation
+    ENGAGEMENT_MAX_COMMENTS: int = 200  # per target per operation
+
     # --- profile ---------------------------------------------------------------------
     FOOTER_TEXT: str = "صُنع في ولاية سعيدة / حساسنة / قرية تامسنة"
 

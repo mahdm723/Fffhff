@@ -32,7 +32,6 @@ from app.services.content import clean_message
 from app.services.messaging import Effects, iso
 
 OFFICIAL_EMAIL = "official@dzplay.invalid"  # not a real mailbox; the account has no password and cannot sign in
-CATEGORIES = {"welcome": "ترحيب", "encourage": "تشجيع", "engage": "تفاعل", "thanks": "شكر", "other": "أخرى"}
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +55,7 @@ def _comment_text(db: Session, settings: Settings, text: object, library_id: obj
         if item is None:
             raise not_found()
         text = item.text
+        item.usage_count = (item.usage_count or 0) + 1
     return clean_message(text, max_len, "allow_plain")
 
 
@@ -82,45 +82,6 @@ def official_comment(db: Session, settings: Settings, *, target: str, target_id:
 
 
 # ---------------------------------------------------------------------------
-# comment library
-# ---------------------------------------------------------------------------
-
-
-def _canned(c: CannedComment) -> dict:
-    return {"id": c.id, "category": c.category, "category_label": CATEGORIES.get(c.category, c.category), "text": c.text,
-            "updated_at": iso(c.updated_at)}
-
-
-def library(db: Session) -> dict:
-    rows = db.execute(select(CannedComment).order_by(CannedComment.category, CannedComment.created_at)).scalars()
-    return {"items": [_canned(c) for c in rows], "categories": CATEGORIES}
-
-
-def library_save(db: Session, settings: Settings, item_id: str | None, category: object, text: object) -> dict:
-    if category not in CATEGORIES:
-        raise AppError(400, "invalid_category", "تصنيف غير صالح.")
-    body = clean_message(text, settings.MAX_REEL_COMMENT_LENGTH, "allow_plain")
-    now = clock.utcnow()
-    if item_id:
-        item = db.get(CannedComment, item_id[:32])
-        if item is None:
-            raise not_found()
-        item.category, item.text, item.updated_at = category, body, now
-    else:
-        item = CannedComment(category=category, text=body, created_at=now, updated_at=now)
-        db.add(item)
-    db.flush()
-    return _canned(item)
-
-
-def library_delete(db: Session, item_id: str) -> None:
-    item = db.get(CannedComment, item_id[:32])
-    if item is None:
-        raise not_found()
-    db.delete(item)
-
-
-# ---------------------------------------------------------------------------
 # Reels & Ideas lists
 # ---------------------------------------------------------------------------
 
@@ -141,6 +102,7 @@ def reels_list(db: Session, status: str | None, limit: int, media_url) -> list[d
             "id": r.id, "short_id": r.short_id, "kind": r.kind, "caption": r.caption, "status": r.status, "error": r.error,
             "files": len(assets), "pinned_until": iso(r.pinned_until) if r.pinned_until and r.pinned_until > now else None,
             "likes": r.likes_count, "dislikes": r.dislikes_count, "comments": r.comments_count, "views": r.views_count,
+            "boost": {"likes": r.boost_likes or 0, "dislikes": r.boost_dislikes or 0},
             "thumb": thumb, "created_at": iso(r.created_at),
         })
     return out
@@ -157,6 +119,7 @@ def ideas_list(db: Session, limit: int, before: str | None) -> dict:
     more = len(rows) > limit
     rows = rows[:limit]
     return {"ideas": [{"id": p.id, "content": p.content, "likes": p.likes_count, "dislikes": p.dislikes_count,
+                       "boost": {"likes": p.boost_likes or 0, "dislikes": p.boost_dislikes or 0},
                        "comments": p.comments_count, "created_at": iso(p.created_at)} for p in rows],
             "next_before": iso(rows[-1].created_at) if more and rows else None}
 
