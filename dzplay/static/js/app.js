@@ -5,6 +5,7 @@ import { disableForLogout, refreshPushSubscription, showLocalNotification } from
 import * as store from './store.js';
 import { h, toast } from './ui.js';
 import { showPrivacyNotice } from './privacy.js';
+import { clearMediaCache, resetFeed as resetReelsFeed, startPrefetch, stopPrefetch } from './reels-prefetch.js';
 import { renderAuth } from './views/auth.js';
 import { renderChat } from './views/chat.js';
 import { renderHome, resetFeedCache } from './views/home.js';
@@ -109,6 +110,9 @@ async function logout() {
   store.stopRealtime();
   store.clearCache();
   resetFeedCache();
+  stopPrefetch();
+  resetReelsFeed();
+  await clearMediaCache(); // prefetched media is tied to this account's session
   try { localStorage.removeItem('dz:draft'); localStorage.removeItem('dz:session'); } catch { /* ignore */ }
   store.state.me = null;
   showAuth();
@@ -121,6 +125,7 @@ function showAuth() {
     config: store.state.config,
     onAuthenticated: (me) => {
       store.clearCache(); // never show a previous account's cached conversations
+      resetReelsFeed();
       resetFeedCache();
       history.replaceState(null, '', '#/home');
       startSession(me);
@@ -139,6 +144,9 @@ function startSession(me) {
   store.flushOutbox();
   refreshPushSubscription();
   showPrivacyNotice(me);
+  // Warm up Reels in the background whatever page the user opened (low priority, see reels-prefetch.js).
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 800));
+  idle(() => startPrefetch(store.state.config), { timeout: 2500 });
 }
 
 store.subscribe((type, detail) => {

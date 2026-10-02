@@ -110,6 +110,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     ),
     postsSlot,
     h('p', { class: 'version', text: 'DZPLAY · نسخة تجريبية' }),
+    ...(config && config.footer_text ? [h('p', { class: 'profile-footer', text: config.footer_text })] : []), // replaceChildren would print null
   );
   statsBox.replaceChildren(stat('–', 'منشورات'), stat('–', 'إعجاب'), stat('–', 'عدم إعجاب'));
   load();

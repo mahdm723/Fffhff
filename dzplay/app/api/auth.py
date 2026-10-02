@@ -42,6 +42,10 @@ def public_config(request: Request) -> dict:
         "password_min_length": s.PASSWORD_MIN_LENGTH,
         "links_allowed": s.LINK_POLICY != "reject",
         "android_apk_url": "/download/dzplay.apk" if _APK.is_file() else None,
+        "max_reel_comment_length": s.MAX_REEL_COMMENT_LENGTH,
+        "reels_prefetch": {"count": s.PREFETCH_COUNT, "ahead": s.PREFETCH_AHEAD, "device_cache_mb": s.DEVICE_MEDIA_CACHE_MB},
+        "password_reset_enabled": bool(s.telegram_enabled and s.smtp_enabled),
+        "footer_text": s.FOOTER_TEXT,
     }
 
 

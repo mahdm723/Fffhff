@@ -11,7 +11,26 @@ export class ApiError extends Error {
   get isRetryable() { return this.isNetwork || this.status >= 500; }
 }
 
+// Requests the user is waiting for (messages, ideas, sign-in…). Background media
+// prefetch watches this and pauses while any are in flight.
+let inflight = 0;
+const idleWaiters = [];
+export function apiBusy() { return inflight > 0; }
+export function whenApiIdle() {
+  return inflight === 0 ? Promise.resolve() : new Promise((resolve) => idleWaiters.push(resolve));
+}
+
 export async function request(method, path, body) {
+  inflight += 1;
+  try {
+    return await doRequest(method, path, body);
+  } finally {
+    inflight -= 1;
+    if (inflight === 0) idleWaiters.splice(0).forEach((fn) => fn());
+  }
+}
+
+async function doRequest(method, path, body) {
   const init = {
     method,
     credentials: 'same-origin',

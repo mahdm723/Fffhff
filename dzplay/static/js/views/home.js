@@ -1,8 +1,17 @@
-// Home: share a public idea + the randomized ideas feed (order chosen by the server).
+// Home: two full-screen panes side by side — Reels (default) and Ideas — switched by a
+// horizontal swipe or the "Reels | الأفكار" indicator at the top.
+//
+// Swipe conflicts: the pager is a native horizontal scroll-snap container. A photo carousel
+// inside a reel is a nested horizontal scroller, so the browser gives a swipe to the carousel
+// while it still has photos in that direction; once it is on its last photo, the next swipe
+// scrolls the pager to Ideas (scroll latching). Vertical swipes go to the reels list.
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { infiniteSentinel, onIdeaChange, postCard } from '../ideas.js';
 import { autoGrow, h, newClientId, toast, wordmark } from '../ui.js';
+import { renderReels } from './reels.js';
+
+let currentPane = 'reels'; // Reels when the app opens; remembered while it stays open
 
 const DRAFT_KEY = 'dz:idea-draft';
 const STALE_MS = 5 * 60 * 1000;
@@ -17,7 +26,52 @@ export function resetFeedCache() {
   Object.assign(feedState, { posts: [], cursor: null, done: false, loadedAt: 0, scrollY: 0 });
 }
 
-export function renderHome(page, { config, navigate }) {
+export function renderHome(page, ctx) {
+  page.classList.add('page--home');
+  const reelsPane = h('section', { class: 'home-pane home-pane--reels', id: 'pane-reels', 'aria-label': 'Reels' });
+  const ideasPane = h('section', { class: 'home-pane home-pane--ideas', id: 'pane-ideas', 'aria-label': 'الأفكار' });
+  const pager = h('div', { class: 'home-pager' }, reelsPane, ideasPane);
+  const tab = (id, label, pane) => h('button', {
+    type: 'button', role: 'tab', class: 'home-switch__tab', 'aria-controls': pane.id, dataset: { pane: id },
+    onclick: () => show(id, true),
+  }, label);
+  const tabs = [tab('reels', 'Reels', reelsPane), tab('ideas', 'الأفكار', ideasPane)];
+  const switcher = h('div', { class: 'home-switch', role: 'tablist', 'aria-label': 'الصفحة الرئيسية' },
+    h('div', { class: 'home-switch__inner glass glass--blur' }, ...tabs, h('span', { class: 'home-switch__bar', 'aria-hidden': 'true' })));
+  page.replaceChildren(pager, switcher);
+
+  const reels = renderReels(reelsPane, ctx);
+  const cleanupIdeas = renderIdeasPane(ideasPane, ctx);
+
+  function mark(id) {
+    currentPane = id;
+    tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.pane === id)));
+    switcher.dataset.pane = id;
+    page.dataset.pane = id;
+    reels.setVisible(id === 'reels');
+  }
+  function show(id, smooth) {
+    (id === 'reels' ? reelsPane : ideasPane).scrollIntoView({ inline: 'start', block: 'nearest', behavior: smooth ? 'smooth' : 'auto' });
+    mark(id);
+  }
+  // Which pane is on screen after a swipe (works whatever the RTL scrollLeft convention is).
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting && e.intersectionRatio > 0.55) mark(e.target === reelsPane ? 'reels' : 'ideas');
+  }, { root: pager, threshold: [0.55] });
+  io.observe(reelsPane);
+  io.observe(ideasPane);
+  requestAnimationFrame(() => show(currentPane, false));
+
+  return () => {
+    io.disconnect();
+    reels.destroy();
+    cleanupIdeas();
+    page.classList.remove('page--home');
+    delete page.dataset.pane;
+  };
+}
+
+function renderIdeasPane(page, { config, navigate }) {
   const max = config.max_post_length;
   const savedY = feedState.scrollY; // read before the router's scroll-to-top reaches our listener
   const list = h('div', { class: 'feed', 'aria-live': 'polite' });
@@ -134,7 +188,7 @@ export function renderHome(page, { config, navigate }) {
   const fresh = feedState.posts.length && Date.now() - feedState.loadedAt < STALE_MS;
   if (fresh) {
     for (const p of feedState.posts) list.append(postCard(p, { navigate, onRemoved: removed }));
-    requestAnimationFrame(() => window.scrollTo(0, savedY));
+    requestAnimationFrame(() => { page.scrollTop = savedY; });
   } else {
     resetFeedCache();
     loadMore(true);
@@ -148,12 +202,12 @@ export function renderHome(page, { config, navigate }) {
     if (gone) feedState.posts.splice(i, 1);
     else feedState.posts[i] = post;
   });
-  const onScroll = () => { feedState.scrollY = window.scrollY; };
-  window.addEventListener('scroll', onScroll, { passive: true });
+  const onScroll = () => { feedState.scrollY = page.scrollTop; };
+  page.addEventListener('scroll', onScroll, { passive: true });
 
   return () => {
     sentinel.stop();
     offChange();
-    window.removeEventListener('scroll', onScroll);
+    page.removeEventListener('scroll', onScroll);
   };
 }
