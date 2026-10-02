@@ -73,7 +73,30 @@ def _ask_password() -> str:
     return first
 
 
-def main(argv: list[str] | None = None) -> None:
+def _telegram(settings, args, transport=None) -> None:
+    """Register the webhook with Telegram (set-webhook) or show its state (bot-status). Never prints the token."""
+    from app.services.telegram import TelegramClient, TelegramError
+
+    if not settings.telegram_enabled:
+        raise SystemExit("Telegram is off: set TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID in .env, then run again.")
+    tg = TelegramClient(settings, transport=transport)
+    try:
+        if args.cmd == "set-webhook":
+            base = args.public_url.rstrip("/")
+            if not base.startswith("https://"):
+                raise SystemExit("Telegram needs an https:// address, e.g. https://chat.example.com")
+            if len(settings.TELEGRAM_WEBHOOK_SECRET) < 16:
+                raise SystemExit("TELEGRAM_WEBHOOK_SECRET is missing or too short: openssl rand -hex 32")
+            tg.set_webhook(base + "/api/telegram/webhook", settings.TELEGRAM_WEBHOOK_SECRET)
+            print(f"Webhook set: {base}/api/telegram/webhook")
+        info = tg.webhook_info()
+    except TelegramError as exc:
+        raise SystemExit(f"Telegram error: {tg.redact(exc)}") from None
+    _print({"webhook_url": info.get("url") or None, "pending_updates": info.get("pending_update_count"),
+            "last_error": info.get("last_error_message")})
+
+
+def main(argv: list[str] | None = None, telegram_transport=None) -> None:
     parser = argparse.ArgumentParser(prog="dzplay-admin")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("stats")
@@ -97,6 +120,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--limit", type=int, default=50)
     sub.add_parser("gen-secret")
     sub.add_parser("gen-vapid")
+    p = sub.add_parser("set-webhook")  # tell Telegram where to deliver the bot's updates
+    p.add_argument("public_url")
+    sub.add_parser("bot-status")
     args = parser.parse_args(argv)
 
     if args.cmd == "gen-secret":
@@ -107,6 +133,9 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     settings = get_settings()
+    if args.cmd in ("set-webhook", "bot-status"):
+        _telegram(settings, args, telegram_transport)
+        return
     database = Database(settings.DATABASE_URL)
     database.create_all()
     if args.cmd in ("create-admin", "reset-admin-2fa", "set-admin-password"):

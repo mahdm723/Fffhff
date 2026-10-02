@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlsplit
 
 from sqlalchemy import delete, select
 
@@ -19,6 +20,20 @@ from app.models import PushSubscription
 log = logging.getLogger("dzplay.push")
 
 PUSH_PAYLOAD = {"title": "DZPLAY", "body": "لديك رسالة جديدة على DZPLAY", "url": "/#/messages"}
+
+
+def push_endpoint_allowed(settings: Settings, endpoint: str) -> bool:
+    """Only https URLs on a known browser push service (no internal hosts, ports or credentials: SSRF guard)."""
+    try:
+        u = urlsplit(endpoint)
+        port = u.port
+    except ValueError:
+        return False
+    host = (u.hostname or "").lower()
+    if u.scheme != "https" or u.username or u.password or port not in (None, 443) or not host:
+        return False
+    allowed = [h.strip().lower() for h in settings.PUSH_ALLOWED_HOSTS.split(",") if h.strip()]
+    return any(host == h or host.endswith("." + h) for h in allowed)
 
 
 class PushNotifier:
@@ -42,6 +57,9 @@ class PushNotifier:
             subs = db.execute(select(PushSubscription).where(PushSubscription.user_id == user_id)).scalars().all()
             dead: list[int] = []
             for sub in subs:
+                if not push_endpoint_allowed(self.settings, sub.endpoint):  # saved before the SSRF guard existed
+                    dead.append(sub.id)
+                    continue
                 try:
                     webpush(
                         subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},

@@ -128,6 +128,9 @@ class Settings(BaseSettings):
     VAPID_PUBLIC_KEY: str = ""
     VAPID_PRIVATE_KEY: str = ""
     VAPID_SUBJECT: str = "mailto:admin@example.com"
+    # Browser push services the server may POST to (anything else would let users aim requests at internal hosts).
+    PUSH_ALLOWED_HOSTS: str = ("fcm.googleapis.com,push.services.mozilla.com,notify.windows.com,push.apple.com,"
+                               "updates.push.services.mozilla.com")
 
     # --- Android app (Trusted Web Activity) -------------------------------------
     # Digital Asset Links: lets the DZPLAY Android app open this site full screen.
@@ -144,6 +147,8 @@ class Settings(BaseSettings):
     ADMIN_LOGIN_MAX_FAILURES: int = 5  # wrong logins per network (and per username) ...
     ADMIN_LOGIN_WINDOW: int = 15 * 60  # ... within this window lock the panel login for that window
     AUDIT_LOG_RETENTION: int = 365 * DAY
+    ADMIN_API_PER_MINUTE: int = 240  # requests per admin session per minute (the panel needs ~10 per screen)
+    ADMIN_API_ANON_PER_MINUTE: int = 30  # unauthenticated panel API requests per network per minute
 
     # --- Telegram bot (Reels uploads, password-recovery requests) -------------
     TELEGRAM_BOT_TOKEN: str = ""  # secret: .env only

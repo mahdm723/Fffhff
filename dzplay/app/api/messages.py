@@ -8,6 +8,7 @@ from app.errors import AppError
 from app.models import PushSubscription
 from app.services import ideas, messaging
 from app.services.messaging import Effects
+from app.services.push import push_endpoint_allowed
 
 router = APIRouter(prefix="/api", tags=["messaging"])
 
@@ -149,7 +150,7 @@ def push_subscribe(body: PushSubscribeBody, request: Request) -> dict:
     st = get_state(request)
     if not st.settings.push_enabled:
         raise AppError(404, "push_disabled", "الإشعارات غير مفعّلة.")
-    if not body.endpoint.startswith("https://"):
+    if not push_endpoint_allowed(st.settings, body.endpoint):
         raise AppError(400, "invalid_subscription", "اشتراك غير صالح.")
     with st.database.session() as db:
         user = current_user(request, db)

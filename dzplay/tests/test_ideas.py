@@ -306,3 +306,36 @@ def test_existing_database_gets_new_columns(tmp_path):
     with db.engine.begin() as conn:
         assert conn.execute(text("SELECT reason, post_id FROM reports")).one() == ("spam", None)
     assert add_missing_columns(db.engine) == []  # idempotent
+
+
+def test_phase2_upgrade_adds_engagement_columns_and_tables(tmp_path):
+    """A database from before engagement control (boosts, system accounts, roles, library v2) upgrades in place."""
+    from sqlalchemy import inspect
+
+    from app import models
+    from app.db import Base, Database
+    from app.services.counts import shown
+
+    db = Database(f"sqlite:///{tmp_path}/old.db")
+    Base.metadata.create_all(db.engine)
+    with db.engine.begin() as conn:
+        for table, col in (("posts", "boost_likes"), ("posts", "boost_dislikes"), ("reels", "boost_likes"),
+                           ("reels", "boost_dislikes"), ("users", "is_system"), ("admin_users", "role"),
+                           ("canned_comments", "usage_count")):
+            conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {col}"))
+        conn.execute(text("DROP TABLE engagement_jobs"))
+        conn.execute(text("DROP TABLE comment_categories"))
+        conn.execute(text("INSERT INTO users (id, email, status, created_at, last_active_at, messages_sent, messages_received, "
+                          "conversations_count) VALUES ('u1', 'a@example.com', 'active', '2026-01-01', '2026-01-01', 0, 0, 0)"))
+        conn.execute(text("INSERT INTO posts (id, author_id, content, status, likes_count, dislikes_count, comments_count, "
+                          "unseen_comments_count, created_at, updated_at) VALUES ('p1', 'u1', 'old', 'visible', 4, 1, 0, 0, "
+                          "'2026-01-01', '2026-01-01')"))
+    db.create_all()  # what the app runs at startup
+    db.create_all()  # idempotent
+    insp = inspect(db.engine)
+    assert {"boost_likes", "boost_dislikes"} <= {c["name"] for c in insp.get_columns("posts")}
+    assert "is_system" in {c["name"] for c in insp.get_columns("users")}
+    assert {"engagement_jobs", "comment_categories"} <= set(insp.get_table_names())
+    with db.session() as s:
+        p = s.get(models.Post, "p1")
+        assert (p.likes_count, p.boost_likes, shown(p.likes_count, p.boost_likes)) == (4, None, 4)

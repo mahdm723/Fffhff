@@ -9,6 +9,7 @@
 #   MODE=http                 no HTTPS, serve on http://<server-ip> (quick test only)
 #   BRANCH=...                git branch to deploy (default: the DZPLAY branch)
 #   PUBLIC_IP=1.2.3.4         override the auto-detected public IP
+#   HARDEN=1                  also run deploy/harden.sh (ufw firewall, fail2ban, automatic security updates)
 #
 # Without DOMAIN, a free hostname <ip>.sslip.io is used so you still get real
 # HTTPS (needed to install the app on a phone and for notifications).
@@ -34,11 +35,12 @@ command -v apt-get >/dev/null || die "This installer supports Ubuntu/Debian (apt
 # --- 1. system packages ---------------------------------------------------------
 say "1/6 Checking system packages"
 missing=""
-for bin in git curl openssl; do command -v "$bin" >/dev/null || missing="$missing $bin"; done
+for bin in git curl openssl gpg; do command -v "$bin" >/dev/null || missing="$missing $bin"; done
+missing="${missing/ gpg/ gnupg}"
 if [ -n "$missing" ]; then
   apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $missing ca-certificates >/dev/null
 fi
-ok "git, curl, openssl"
+ok "git, curl, openssl, gnupg"
 
 if ! command -v docker >/dev/null; then
   say "Installing Docker (official script)"
@@ -68,7 +70,7 @@ set_env() {  # set_env KEY VALUE  — replace or append in .env
 }
 if [ ! -f .env ]; then
   # Clean copy of the documented defaults (comments removed so every tool parses it the same way).
-  sed -E 's/[[:space:]]+#.*$//' .env.example | grep -E '^[A-Z_]+=' > .env
+  sed -E 's/[[:space:]]+#.*$//' .env.example | grep -E '^[A-Z][A-Z0-9_]*=' > .env
   chmod 600 .env
   set_env ENV production
   set_env SECRET_KEY "$(openssl rand -hex 32)"
@@ -96,6 +98,8 @@ fi
 env_has() { grep -q "^$1=.\+" .env; }
 env_has ADMIN_PATH || { set_env ADMIN_PATH "/panel-$(openssl rand -hex 8)"; ok "Generated a secret admin panel path"; }
 env_has TELEGRAM_WEBHOOK_SECRET || set_env TELEGRAM_WEBHOOK_SECRET "$(openssl rand -hex 32)"
+NEW_BACKUP_PASS=0
+env_has BACKUP_PASSPHRASE || { set_env BACKUP_PASSPHRASE "$(openssl rand -hex 32)"; NEW_BACKUP_PASS=1; ok "Generated a backup encryption passphrase"; }
 if grep -q '^ADMIN_API_TOKEN=' .env; then
   sed -i '/^ADMIN_API_TOKEN=/d' .env   # replaced by admin accounts + 2FA
   ok "Removed the old admin token (the panel now uses admin accounts + 2FA)"
@@ -154,7 +158,45 @@ else
   warn "Certificate logs: cd $APP_DIR && docker compose logs caddy"
 fi
 
+# Telegram bot (Reels uploads, password recovery): tell Telegram where to deliver updates.
+if grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && grep -q '^TELEGRAM_ADMIN_CHAT_ID=.\+' .env; then
+  if [ "${PUBLIC_URL#https://}" != "$PUBLIC_URL" ] && docker compose exec -T app python -m app.admin_cli set-webhook "$PUBLIC_URL" >/dev/null 2>&1 </dev/null; then
+    ok "Telegram bot connected (webhook set)"
+  else
+    warn "Telegram bot not connected yet: cd $APP_DIR && docker compose exec app python -m app.admin_cli set-webhook $PUBLIC_URL"
+  fi
+fi
+
+# Daily encrypted database backup (03:17 server time) + a first backup now.
+chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh
+cat > /etc/cron.d/dzplay-backup <<CRON
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+17 3 * * * root $APP_DIR/deploy/backup.sh >> /var/log/dzplay-backup.log 2>&1
+CRON
+chmod 644 /etc/cron.d/dzplay-backup
+cat > /etc/logrotate.d/dzplay-backup <<'ROTATE'
+/var/log/dzplay-backup.log {
+  monthly
+  rotate 6
+  compress
+  missingok
+  notifempty
+}
+ROTATE
+if "$APP_DIR/deploy/backup.sh" >> /var/log/dzplay-backup.log 2>&1; then
+  ok "Daily encrypted backups in $(grep -E '^BACKUP_DIR=.+' .env | cut -d= -f2- || echo /var/backups/dzplay)"
+else
+  warn "The first backup failed: see /var/log/dzplay-backup.log"
+fi
+if [ "${HARDEN:-0}" = "1" ]; then
+  "$APP_DIR/deploy/harden.sh" || warn "Hardening reported a problem (see above)."
+fi
+
 ADMIN_PATH_VALUE="$(grep '^ADMIN_PATH=' .env | cut -d= -f2-)"
+BACKUP_NOTE=""
+[ "$NEW_BACKUP_PASS" = 1 ] && BACKUP_NOTE="IMPORTANT: copy the backup passphrase to a safe place OFF this server:
+     grep BACKUP_PASSPHRASE $APP_DIR/.env"
 if docker compose exec -T app python -c "from app.config import get_settings; from app.db import Database; from app.services.admin_auth import count_admins; d=Database(get_settings().DATABASE_URL); d.create_all(); s=d.SessionLocal(); raise SystemExit(0 if count_admins(s) else 1)" >/dev/null 2>&1 </dev/null; then
   ADMIN_NOTE="Sign in with your admin account + the code from your authenticator app."
 else
@@ -170,6 +212,10 @@ cat <<EOF
 
   Admin panel (keep this address secret):   $PUBLIC_URL$ADMIN_PATH_VALUE
   $ADMIN_NOTE
+
+  Backups:   daily + encrypted in /var/backups/dzplay  (restore: $APP_DIR/deploy/restore.sh FILE)
+  $BACKUP_NOTE
+  Hardening (firewall, fail2ban, auto-updates):   sudo $APP_DIR/deploy/harden.sh
 
   Update to the latest version:   run the same install command again
   Logs:      cd $APP_DIR && docker compose logs -f app

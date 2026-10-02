@@ -171,6 +171,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         h["X-Frame-Options"] = "DENY"
         h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
         h["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+        if not path.startswith("/media/"):
+            # No other site may embed our responses. Not on /media/: Chromium blocks the later Range
+            # requests of a video whose first bytes came from the Service Worker's prefetch cache.
+            # Media URLs are signed, short-lived and bound to the viewer's session instead.
+            h["Cross-Origin-Resource-Policy"] = "same-origin"
+        h["X-Permitted-Cross-Domain-Policies"] = "none"
         h["Content-Security-Policy"] = csp
         if settings.COOKIE_SECURE:
             h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

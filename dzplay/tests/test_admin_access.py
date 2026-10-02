@@ -7,6 +7,7 @@ import re
 
 from sqlalchemy import select
 
+from app import clock
 from app.models import Post, PostReaction, User
 from tests.conftest import ADMIN_PATH, reply, send
 from tests.test_reels import make_reels
@@ -42,13 +43,29 @@ def test_every_admin_route_rejects_anonymous_and_user_sessions(hx):
     user = hx.user()
     routes = list(_admin_routes(hx))
     assert len(routes) > 35
-    for method, path in routes:
+    for i, (method, path) in enumerate(routes):
+        if i % 10 == 9:
+            clock.advance(61)  # stay under the per-network limit for unauthenticated panel calls (tested below)
         for client in (hx.client(), user):
             r = client.request(method, path, json={})
             assert r.status_code in (401, 403), f"{method} {path} -> {r.status_code}"
     # and the old guessable paths do not exist at all
     for path in ("/api/admin/stats", "/admin", "/api/admin/access/users"):
         assert user.get(path).status_code == 404
+
+
+def test_admin_api_is_rate_limited(make_harness):
+    hx = make_harness(ADMIN_API_PER_MINUTE=20, ADMIN_API_ANON_PER_MINUTE=5)
+    anon = hx.client()
+    codes = [anon.get(f"{ADMIN_PATH}/api/admin/stats").status_code for _ in range(7)]
+    assert codes[:5] == [401] * 5 and codes[5:] == [429, 429]
+    admin = hx.admin()
+    codes = [admin.get("/api/admin/session").status_code for _ in range(25)]
+    assert codes.count(200) == 20 and codes[-1] == 429
+    r = admin.get("/api/admin/session")
+    assert r.status_code == 429 and int(r.headers["Retry-After"]) >= 1
+    clock.advance(61)
+    assert admin.get("/api/admin/session").status_code == 200
 
 
 # ----------------------------------------------------------------- users

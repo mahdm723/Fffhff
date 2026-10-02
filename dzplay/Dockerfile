@@ -6,16 +6,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # ffmpeg: Reels video remux/transcode + posters (runs as the unprivileged app user).
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip "setuptools>=83" && pip install -r requirements.txt
 
 COPY app ./app
 COPY static ./static
 
+# The code stays owned by root (read-only for the app user); only the media cache is writable.
 RUN useradd --create-home --uid 10001 dzplay && mkdir -p /data/media-cache && chown -R dzplay /data
 USER dzplay
 

@@ -463,3 +463,57 @@ def test_ideas_comments_still_owner_only(hx):
         assert r.status_code == 403 and "تعليق لصاحب الفكرة" not in r.text
     # and the Reels comment endpoints cannot reach Ideas comments
     assert other.get(f"/api/reels/{pid}/comments").status_code == 404
+
+
+def test_playlist_or_concat_inputs_are_refused(tmp_path, media_files):
+    """A file sent to the bot can't make ffmpeg read other local files or URLs (LFI / SSRF)."""
+    from app.services import media
+    from tests.conftest import ffprobe_shim
+
+    settings = Settings(SECRET_KEY="x", FFMPEG_BINARY=ffmpeg_binary(), FFPROBE_BINARY=ffprobe_shim())
+    clip = tmp_path / "clip.mp4"
+    clip.write_bytes(media_files["small"])
+    assert media.probe(settings, clip)["vcodec"] == "h264"  # a real container is fine
+    concat = tmp_path / "upload.mp4"
+    concat.write_text(f"ffconcat version 1.0\nfile '{clip}'\n")
+    hls = tmp_path / "upload2.mp4"
+    hls.write_text(f"#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nhttp://127.0.0.1:9/x.ts\n#EXTINF:1,\nfile://{clip}\n#EXT-X-ENDLIST\n")
+    for bad in (concat, hls):
+        with pytest.raises(media.MediaError):
+            media.prepare_video(settings, bad, tmp_path / "out.mp4", tmp_path / "out.jpg")
+        assert not (tmp_path / "out.mp4").exists()
+
+
+def test_cli_registers_the_webhook_without_printing_the_token(monkeypatch, capsys):
+    from app import admin_cli
+    from app.config import get_settings
+
+    fake = tg.FakeTelegram()
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", tg.TOKEN)
+    monkeypatch.setenv("TELEGRAM_ADMIN_CHAT_ID", str(tg.ADMIN_ID))
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "s" * 32)
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(SystemExit, match="https"):
+            admin_cli.main(["set-webhook", "http://insecure.example"], telegram_transport=fake.transport)
+        admin_cli.main(["set-webhook", "https://chat.example.com/"], telegram_transport=fake.transport)
+        assert fake.webhook["url"] == "https://chat.example.com/api/telegram/webhook"
+        assert fake.webhook["secret_token"] == "s" * 32
+        admin_cli.main(["bot-status"], telegram_transport=fake.transport)
+        out = capsys.readouterr().out
+        assert "https://chat.example.com/api/telegram/webhook" in out and tg.TOKEN not in out
+        monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "")
+        get_settings.cache_clear()
+        with pytest.raises(SystemExit, match="TELEGRAM_WEBHOOK_SECRET"):
+            admin_cli.main(["set-webhook", "https://chat.example.com"], telegram_transport=fake.transport)
+    finally:
+        get_settings.cache_clear()
+
+
+def test_media_responses_skip_corp_everything_else_has_it(hx):
+    """CORP on videos breaks playback when the first bytes come from the prefetch cache (Service Worker)."""
+    c = hx.client()
+    assert c.get("/").headers["cross-origin-resource-policy"] == "same-origin"
+    assert c.get("/api/me").headers["cross-origin-resource-policy"] == "same-origin"
+    r = c.get("/media/xxxxxxxxxxxxxxxx/mp4?e=1&s=bad")
+    assert r.status_code in (403, 404) and "cross-origin-resource-policy" not in r.headers

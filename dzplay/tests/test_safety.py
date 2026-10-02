@@ -338,6 +338,31 @@ def test_security_headers_and_static(hx):
     assert js.status_code == 200 and js.headers["content-type"].startswith("text/javascript")
     assert c.get("/api/me").headers["cache-control"] == "no-store"
     assert c.get("/api/nope").json()["error"]["code"] == "not_found"
+    assert r.headers["cross-origin-resource-policy"] == "same-origin"
+    assert r.headers["referrer-policy"] == "no-referrer" and r.headers["x-frame-options"] == "DENY"
+
+
+def test_secrets_and_source_are_never_served(hx):
+    """Only static/ is public: no .env, git data, source, docs or directory listings."""
+    c = hx.client()
+    for path in ("/.env", "/.env.example", "/.git/config", "/.git/HEAD", "/app/config.py", "/app/main.py", "/Dockerfile",
+                 "/docker-compose.yml", "/Caddyfile", "/requirements.txt", "/deploy/install.sh", "/%2e%2e/.env",
+                 "/..%2f.env", "/js/..%2f..%2f.env", "/static/../app/main.py", "/docs", "/redoc", "/openapi.json",
+                 "/js/", "/css/", "/icons/", "/download/"):
+        r = c.get(path)
+        assert r.status_code == 404, f"{path} -> {r.status_code}"
+        assert "SECRET_KEY" not in r.text and "TELEGRAM" not in r.text
+
+
+def test_cors_is_closed(hx):
+    c = hx.user()
+    r = c.options("/api/me", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})
+    assert "access-control-allow-origin" not in r.headers
+    r = c.get("/api/me", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in r.headers
+    # a cross-site write is refused even with the custom header (Origin check)
+    r = c.post("/api/posts", json={"content": "x" * 20}, headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403
 
 
 def test_oversized_body_rejected(hx):
@@ -374,3 +399,20 @@ def test_android_apk_download(hx, tmp_path, monkeypatch):
         assert r.headers["content-type"] == "application/vnd.android.package-archive"
         assert 'filename="DZPLAY.apk"' in r.headers["content-disposition"]
     assert auth_api._APK == apk_dir / "dzplay.apk"
+
+
+def test_push_endpoints_limited_to_browser_push_services():
+    """Web Push subscriptions are URLs the server POSTs to: never internal hosts (SSRF)."""
+    from app.services.push import push_endpoint_allowed
+    from app.config import Settings
+
+    s = Settings(SECRET_KEY="x")
+    for ok in ("https://fcm.googleapis.com/fcm/send/abc", "https://updates.push.services.mozilla.com/wpush/v2/x",
+               "https://wns2-par02p.notify.windows.com/w/?token=x", "https://web.push.apple.com/QGx",
+               "https://fcm.googleapis.com:443/fcm/send/abc"):
+        assert push_endpoint_allowed(s, ok), ok
+    for bad in ("http://fcm.googleapis.com/fcm/send/abc", "https://127.0.0.1/x", "https://db:5432/x", "https://169.254.169.254/latest",
+                "https://localhost/x", "https://fcm.googleapis.com.evil.example/x", "https://evilfcm.googleapis.com.attacker.io/",
+                "https://user:pw@fcm.googleapis.com/x", "https://fcm.googleapis.com:8443/x", "https://[::1]/x", "file:///etc/passwd",
+                "https://notfcm.googleapis.co/x", "https:///x", "https://fcm.googleapis.com:99999/x"):
+        assert not push_endpoint_allowed(s, bad), bad

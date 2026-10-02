@@ -62,9 +62,16 @@ def _run(args: list[str], timeout: int) -> subprocess.CompletedProcess:
         raise MediaError("ffmpeg غير مثبت على الخادم.") from None
 
 
+# Only real video containers. Playlist/concat formats (hls, concat, ...) can point ffmpeg at other
+# local files or URLs, and the input may be any file someone sends to the bot.
+SAFE_CONTAINERS = {"mov", "mp4", "m4a", "3gp", "3g2", "mj2", "matroska", "webm", "avi", "flv", "mpegts"}
+# Inputs are local temp files: no network protocols (SSRF) and no protocol nesting.
+INPUT_GUARD = ["-protocol_whitelist", "file"]
+
+
 def probe(settings: Settings, src: Path) -> dict:
-    res = _run([settings.FFPROBE_BINARY, "-v", "error", "-print_format", "json", "-show_streams", "-show_format", str(src)],
-               settings.MEDIA_PROCESS_TIMEOUT)
+    res = _run([settings.FFPROBE_BINARY, "-v", "error", *INPUT_GUARD, "-print_format", "json", "-show_streams", "-show_format",
+                str(src)], settings.MEDIA_PROCESS_TIMEOUT)
     if res.returncode != 0:
         raise MediaError("الملف ليس فيديو صالحًا.")
     try:
@@ -77,6 +84,8 @@ def probe(settings: Settings, src: Path) -> dict:
     if video is None:
         raise MediaError("لا يوجد مسار فيديو في الملف.")
     fmt = data.get("format") or {}
+    if not set(str(fmt.get("format_name") or "").split(",")) & SAFE_CONTAINERS:
+        raise MediaError("صيغة الملف غير مدعومة.")
 
     def num(value, cast=float):
         try:
@@ -103,7 +112,7 @@ def prepare_video(settings: Settings, src: Path, out_mp4: Path, out_poster: Path
     bw, bh = _box(info, settings)
     fits = info["width"] <= bw and info["height"] <= bh
     light = info["bitrate"] and info["bitrate"] <= settings.VIDEO_REMUX_MAX_BITRATE_K * 1000
-    ff = [settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", str(src)]
+    ff = [settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", *INPUT_GUARD, "-i", str(src)]
     common = ["-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-movflags", "+faststart", "-f", "mp4"]
     if (info["vcodec"] == "h264" and info["acodec"] in (None, "aac") and info["pix_fmt"] in (None, "yuv420p")
             and fits and light):
@@ -122,7 +131,7 @@ def prepare_video(settings: Settings, src: Path, out_mp4: Path, out_poster: Path
         raise MediaError("تعذّر تجهيز الفيديو.")
     seek = "0.5" if info["duration"] > 1.0 else "0"
     res = _run([settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-ss", seek,
-                "-i", str(out_mp4), "-frames:v", "1", "-vf", f"scale=w='min(iw,{bw})':h=-2", "-q:v", "5",
+                *INPUT_GUARD, "-i", str(out_mp4), "-frames:v", "1", "-vf", f"scale=w='min(iw,{bw})':h=-2", "-q:v", "5",
                 "-map_metadata", "-1", str(out_poster)], settings.MEDIA_PROCESS_TIMEOUT)
     if res.returncode != 0 or not out_poster.exists():
         raise MediaError("تعذّر إنشاء صورة الغلاف.")

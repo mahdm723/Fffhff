@@ -26,7 +26,8 @@ def main() -> int:
                         pix_fmt=s.codec_context.pix_fmt)
         streams.append(item)
     duration = (container.duration or 0) / 1_000_000
-    print(json.dumps({"streams": streams, "format": {"duration": str(duration), "bit_rate": str(container.bit_rate or 0)}}))
+    print(json.dumps({"streams": streams, "format": {"format_name": container.format.name, "duration": str(duration),
+                                                  "bit_rate": str(container.bit_rate or 0)}}))
     return 0
 
 

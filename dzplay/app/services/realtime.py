@@ -43,10 +43,15 @@ class Hub:
     async def stop(self) -> None:
         if self._listener:
             self._listener.cancel()
+            # bounded: a Redis connection cancelled mid-operation must never block shutdown
+            await asyncio.wait({self._listener}, timeout=5)
+            self._listener = None
+        if self._redis is not None:
             try:
-                await self._listener
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                self._redis.close()
+            except Exception:  # noqa: BLE001
                 pass
+            self._redis = None
 
     async def _listen(self) -> None:
         import redis.asyncio as aioredis
@@ -64,8 +69,11 @@ class Hub:
                 except (ValueError, KeyError, TypeError):
                     log.warning("bad realtime payload")
         finally:
-            await pubsub.aclose()
-            await client.aclose()
+            for closing in (pubsub.aclose(), client.aclose()):
+                try:
+                    await asyncio.wait_for(closing, timeout=2)
+                except (asyncio.TimeoutError, asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
 
     # connections -------------------------------------------------------------
     def connect(self, user_id: str) -> asyncio.Queue:

@@ -16,13 +16,14 @@ from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import client_context, get_state
 from app.api.schemas import ResolveReportBody, UserStatusBody, _Body
-from app.errors import AppError
+from app.errors import AppError, rate_limited
 from app.models import AdminUser
 from app.services import admin as admin_service
 from app.services import admin_access, admin_auth, admin_content, audit, engagement
 from app.services import reels as reels_service
 from app.services.media import ASSET_ID, CONTENT_TYPES, VARIANTS, MediaError
 from app.services.messaging import Effects
+from app.services.rate_limit import Limit
 from app.services.telegram import TelegramError
 from app.services.auth import ClientContext
 from app.services.cleanup import run_cleanup
@@ -54,15 +55,24 @@ def _cookie_path(request: Request) -> str:
     return get_state(request).settings.ADMIN_PATH
 
 
+def _throttle(st, key: str, per_minute: int) -> None:
+    decision = st.limiter.check_and_hit([Limit(key, per_minute, 60)])
+    if not decision.allowed:
+        raise rate_limited(decision.retry_after, "طلبات كثيرة. انتظر قليلًا.")
+
+
 def require_admin(request: Request) -> AdminContext:
     st = get_state(request)
+    ctx = client_context(request)
     token = request.cookies.get(admin_auth.COOKIE_NAME)
     with st.database.session() as db:
         admin = admin_auth.resolve(db, st.settings, token)
         if admin is None:
+            _throttle(st, f"admin_anon:{ctx.ip_hash}", st.settings.ADMIN_API_ANON_PER_MINUTE)
             raise AppError(401, "unauthenticated", "انتهت الجلسة. سجّل الدخول من جديد.")
         db.expunge(admin)
-    return AdminContext(admin, client_context(request))
+    _throttle(st, f"admin_api:{admin.id}", st.settings.ADMIN_API_PER_MINUTE)
+    return AdminContext(admin, ctx)
 
 
 def require_role(*roles: str):
@@ -389,7 +399,7 @@ def library_delete(item_id: str, request: Request, ac: AdminContext = Depends(SU
 
 class ImportBody(_Body):
     category: str = Field(max_length=32)
-    text: str = Field(max_length=200_000)
+    text: str = Field(max_length=60_000)  # API bodies are capped at 64 KB (≈ 1,000 comments per import)
 
 
 class CategoryBody(_Body):

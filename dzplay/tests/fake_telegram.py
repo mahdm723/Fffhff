@@ -73,10 +73,14 @@ class FakeTelegram:
             size = reported if reported is not None else len(content)
             return self._ok({"file_id": file_id, "file_unique_id": file_id[:8], "file_size": size,
                              "file_path": f"documents/{file_id}.bin"})
-        if method in ("answerCallbackQuery", "editMessageReplyMarkup", "setWebhook"):
+        if method == "setWebhook":
+            self.webhook = body
+            return self._ok(True)
+        if method in ("answerCallbackQuery", "editMessageReplyMarkup"):
             return self._ok(True)
         if method == "getWebhookInfo":
-            return self._ok({"url": "", "pending_update_count": 0})
+            hook = getattr(self, "webhook", None) or {}
+            return self._ok({"url": hook.get("url", ""), "pending_update_count": 0})
         return httpx.Response(404, json={"ok": False, "error_code": 404, "description": "Not Found"})
 
 

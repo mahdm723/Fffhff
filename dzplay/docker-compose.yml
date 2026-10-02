@@ -1,6 +1,14 @@
 # Production-like stack: Caddy (automatic HTTPS) -> DZPLAY -> PostgreSQL + Redis
 #   1. cp .env.example .env  and set SECRET_KEY, POSTGRES_PASSWORD, DOMAIN
 #   2. docker compose up -d --build
+# Only Caddy publishes ports (80/443); PostgreSQL and Redis are reachable from the app only.
+
+x-logging: &logging  # bounded container logs (no disk fill-up)
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   app:
     build: .
@@ -15,6 +23,15 @@ services:
       MEDIA_CACHE_DIR: /data/media-cache
     volumes:
       - media:/data/media-cache  # temporary Reels media cache (originals stay in Telegram)
+    # container hardening: read-only image, no privilege escalation, no Linux capabilities
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *logging
     depends_on:
       db:
         condition: service_healthy
@@ -28,6 +45,9 @@ services:
       POSTGRES_DB: dzplay
       POSTGRES_USER: dzplay
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -39,6 +59,9 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--save", "", "--appendonly", "no"]  # only ephemeral data
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
 
   caddy:
     image: caddy:2-alpine
@@ -48,6 +71,9 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN}
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
