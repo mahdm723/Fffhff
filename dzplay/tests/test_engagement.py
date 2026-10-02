@@ -94,6 +94,10 @@ def test_gradual_bulk_boost_on_ideas_and_reels(hx):
     assert all(shown(viewer, p)[0] == 50 for p in pids)
     reel = viewer.get("/api/reels/feed").json()["reels"][0]
     assert reel["dislikes"] == 60  # its 1-hour job is complete
+    # the short id shown by the Telegram bot works as a target too
+    short = admin.get(f"/api/admin/access/reels/{rid}").json()["reel"]["short_id"]
+    by_short = admin.post("/api/admin/engagement/boost", json={"target_type": "reel", "ids": [short.upper()], "likes": 5})
+    assert by_short.status_code == 200 and by_short.json()["targets"][0]["id"] == rid
     jobs = admin.get("/api/admin/engagement/jobs").json()["jobs"]
     assert {j["status"] for j in jobs if j["target_type"] == "idea"} == {"running"}
     # cancel the batch: the progress so far stays, nothing more is added

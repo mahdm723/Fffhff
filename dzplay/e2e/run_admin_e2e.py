@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app import clock  # noqa: E402
-from app.models import Conversation, Post, SecurityEvent, User  # noqa: E402
+from app.models import AuthThrottle, Conversation, Post, SecurityEvent, User  # noqa: E402
 from app.security.pow import solve  # noqa: E402
 
 ADMIN_PATH = "/panel-e2e-test"
@@ -36,6 +36,7 @@ ADMIN_PASSWORD = "e2e-Admin-Pass-0123"
 SECRET = "e2e-secret"
 ADMIN_TOTP: dict[str, str] = {}
 PASSWORD = "Str0ng-Pass!"
+SEEDED: dict[str, str] = {}
 MOBILE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "is_mobile": True, "has_touch": True}
 
 
@@ -84,6 +85,7 @@ def seed(base: str, db_url: str) -> str:
     assert a.post(f"/api/conversations/{conv}/report", json={"reason": "spam"}).status_code == 201
     # A threatening reply is flagged automatically (and still delivered).
     assert a.post(f"/api/conversations/{conv}/messages", json={"content": "راني نعرف وين تسكن، ابعث الدراهم ولا نفضحك"}).status_code == 201
+    SEEDED["idea"] = b.post("/api/posts", json={"content": "فكرة جميلة ستحصل على تعزيز وتعليقات من الفريق."}).json()["id"]
     register(base, "old-user@example.com")  # gets the privacy notice (see below)
     bad = api_client(base)
     for _ in range(2):
@@ -117,6 +119,8 @@ def seed(base: str, db_url: str) -> str:
                 db.add(SecurityEvent(type="login_failed", ip_hash="ab" * 32, created_at=now - timedelta(days=day, hours=3)))
         old = db.query(User).filter(User.email == "old-user@example.com").one()
         old.privacy_ack_version = None  # an account from before the privacy update
+        db.add(AuthThrottle(key="ip:" + "cd" * 32, failures=9, first_failure_at=now, last_failure_at=now,
+                            blocked_until=now + timedelta(minutes=30)))  # an active network block to lift
         db.commit()
 
         # One admin account per browser context (a TOTP code can only be used once).
@@ -164,6 +168,14 @@ class Run:
     def dark(self, browser) -> None:
         ctx = browser.new_context(**MOBILE, color_scheme="dark", locale="ar-DZ", timezone_id="Africa/Algiers")
         page = ctx.new_page()
+        try:
+            self._dark(page)
+        except Exception:
+            page.screenshot(path=str(self.shots / "FAILED.png"), full_page=True)  # what the browser showed
+            raise
+        ctx.close()
+
+    def _dark(self, page: Page) -> None:
         self.watch(page, "dark")
         assert urllib.request.urlopen(self.base + ADMIN_PATH).status == 200
         for guess in ("/admin", "/js/admin.js"):
@@ -224,47 +236,152 @@ class Run:
         expect(page.locator(".admin-card .chip").first).to_have_text("تهديد")
         expect(page.locator(".admin-terms mark").first).to_be_visible()
         self.shot(page, "05b-flags-dark", full=True)
-        page.locator(".admin-card").get_by_role("button", name="عرض المحادثات").click()
-        page.get_by_role("button", name="مراجعة رصد تلقائي").click()
-        expect(page.locator(".admin-convs .admin-msg")).to_have_count(2)
-        expect(page.locator(".admin-convs .admin-msg--flagged")).to_have_count(1)
-        self.step("flag listed; sender's stored conversation opens with the flagged message marked")
+        page.locator(".admin-card").get_by_role("button", name="صفحة المستخدم والمحادثات").click()
+        user_sheet = page.locator(".admin-detail").last
+        expect(user_sheet.locator(".admin-email").first).to_have_text("owner-a@example.com")
+        user_sheet.locator("summary", has_text="المحادثات").click()
+        user_sheet.locator(".admin-line--btn").first.click()
+        conv_sheet = page.locator(".admin-detail").last
+        expect(conv_sheet.locator(".admin-msg")).to_have_count(2)
+        expect(conv_sheet.locator(".admin-msg--flagged")).to_have_count(1)
+        self.step("flag listed; sender's page → stored conversation with both participants, flagged message marked")
         self.shot(page, "05c-conversations-dark")
-        page.locator(".admin-convs").get_by_role("button", name="إغلاق").click()
+        conv_sheet.get_by_role("button", name="إغلاق").click()
+        page.locator(".admin-detail").last.get_by_role("button", name="إغلاق").click()
+        expect(page.locator(".admin-detail")).to_have_count(0)
         page.locator(".admin-card").get_by_role("button", name="حذف المحتوى").click()
         page.locator(".sheet").get_by_role("button", name="حذف المحتوى").click()
         expect(page.locator(".admin-card")).to_have_count(0)
         expect(page.locator("#reports-badge")).to_have_text("1")
         self.step("flagged message removed")
 
-        page.get_by_role("tab", name="السجلات").click()
+        page.get_by_role("tab", name="السجل", exact=True).click()
         expect(page.locator(".admin-event").first).to_be_visible()
         page.select_option("#event-type", "login_failed")
         expect(page.locator(".admin-event__type").first).to_have_text("دخول فاشل")
         page.select_option("#event-type", "")
         expect(page.locator(".admin-event", has_text="دخول مشرف فاشل")).to_have_count(1)
-        expect(page.locator(".admin-event", has_text="المشرف: اطّلع على محادثات")).to_have_count(1)
         self.shot(page, "06-security-dark")
         page.get_by_role("tab", name="سجل الإدارة").click()
         expect(page.locator(".admin-chain")).to_contain_text("السجل سليم")
-        view = page.locator(".admin-event", has_text="اطّلع على محادثات")
-        expect(view).to_have_count(1)
-        expect(view).to_contain_text("مراجعة رصد تلقائي")
-        self.step("security log shows the failed admin login; audit log shows the conversation view with its reason")
+        expect(page.locator(".admin-event", has_text="اطّلع على محادثة")).to_have_count(1)
+        expect(page.locator(".admin-event", has_text="فتح صفحة مستخدم")).to_have_count(1)
+        self.step("security log shows the failed admin login; audit log shows the user page + conversation views")
         self.shot(page, "06b-audit-dark")
 
-        page.get_by_role("tab", name="الصيانة").click()
-        page.get_by_role("button", name="تشغيل التنظيف الآن").click()
-        expect(page.locator(".admin-row", has_text="رسائل منتهية")).to_be_visible()
-        self.step("cleanup ran")
-        self.shot(page, "07-tools-dark", full=True)
+        self.users_and_content(page)
+        self.engagement(page)
+        self.system(page)
 
         page.get_by_role("button", name="خروج").click()
         expect(page.locator("#admin-user")).to_be_visible()
         page.reload()
         expect(page.locator("#admin-user")).to_be_visible()
         self.step("logout ends the admin session")
-        ctx.close()
+
+    def users_and_content(self, page: Page) -> None:
+        page.get_by_role("tab", name="المستخدمون").click()
+        expect(page.locator(".admin-card--tap").first).to_be_visible()
+        page.get_by_placeholder("بحث بالبريد أو المعرّف أو مرجع الملف").fill("friend-b")
+        page.locator(".admin-filters").get_by_role("button", name="بحث").click()
+        expect(page.locator(".admin-card--tap")).to_have_count(1)
+        expect(page.locator(".admin-card--tap .admin-email")).to_have_text("friend-b@example.com")
+        self.shot(page, "07-users-dark")
+        page.locator(".admin-card--tap").click()
+        sheet = page.locator(".admin-detail")
+        expect(sheet.locator(".admin-email").first).to_have_text("friend-b@example.com")
+        sheet.locator("summary", has_text="المنشورات").click()
+        expect(sheet.locator(".admin-text", has_text="فكرة جميلة")).to_be_visible()
+        assert "password" not in sheet.inner_text().lower() and "null" not in sheet.inner_text()
+        self.step("users: search by e-mail, full user page (posts, conversations, reports, events)")
+        self.shot(page, "08-user-detail-dark")
+        sheet.get_by_role("button", name="إنهاء كل الجلسات").click()
+        expect(page.locator(".toast").last).to_contain_text("أُنهيت")
+        sheet.get_by_role("button", name="إغلاق").click()
+
+        page.get_by_role("tab", name="المحتوى").click()
+        card = page.locator(".admin-card", has_text="فكرة جميلة")
+        expect(card).to_be_visible()
+        card.locator(".admin-select-box").check()
+        expect(page.locator(".admin-selbar")).to_be_visible()
+        expect(page.locator(".admin-selbar__n")).to_contain_text("1")
+        self.shot(page, "09-content-dark")
+        page.get_by_role("tab", name="المحادثات").click()
+        expect(page.locator(".admin-card--tap").first).to_be_visible()
+        page.get_by_role("tab", name="بحث").click()
+        page.get_by_placeholder("ابحث في الأفكار والتعليقات والرسائل والأوصاف").fill("مزعجة")
+        page.locator("#admin-main form").get_by_role("button", name="بحث").click()
+        expect(page.locator(".admin-group__title", has_text="رسائل")).to_be_visible()
+        self.step("content: ideas with selection, conversations, full-text search")
+        page.get_by_role("tab", name="الأفكار").click()
+        expect(page.locator(".admin-selbar")).to_be_visible()  # selection survives tab switches
+        page.locator(".admin-selbar").get_by_role("button", name="تعزيز التفاعل").click()
+
+    def engagement(self, page: Page) -> None:
+        pid = SEEDED["idea"]
+        expect(page.locator(".admin-ids")).to_have_value(pid)
+        page.get_by_label("👍 إعجاب").fill("120")
+        page.get_by_label("👎 عدم إعجاب").fill("4")
+        page.locator(".admin-form").get_by_role("button", name="تطبيق").click()
+        expect(page.locator(".viz-table tbody td").first).to_have_text("120 = 0 + 120")
+        self.step("boost from the content selection: +120 likes / +4 dislikes applied")
+        self.shot(page, "10-boost-dark", full=True)
+        # set displayed = 300, gradually over 2 hours → a running job, then cancel it
+        page.get_by_role("tab", name="تحديد الرقم الظاهر").click()
+        page.get_by_label("👍 إعجاب").fill("300")
+        page.get_by_label("👎 عدم إعجاب").fill("")
+        page.get_by_role("tab", name="تدريجي").click()
+        page.locator(".admin-form input[type=number]").last.fill("2")
+        page.locator(".admin-form").get_by_role("button", name="تطبيق").click()
+        expect(page.locator(".toast").last).to_contain_text("التدريجية")
+
+        page.get_by_role("tab", name="المكتبة").click()
+        page.get_by_role("button", name="استيراد دفعة").click()
+        page.locator(".sheet textarea").fill("فكرة رائعة!\nواصل، عمل ممتاز\nفكرة رائعة!\n\nأعجبتني جدًا")
+        page.locator(".sheet").get_by_role("button", name="استيراد").click()
+        expect(page.locator(".toast").last).to_contain_text("أُضيف 3")
+        expect(page.locator("#admin-main .admin-card")).to_have_count(3)
+        self.step("library: bulk import (duplicates and blank lines skipped)")
+        self.shot(page, "11-library-dark", full=True)
+
+        page.get_by_role("tab", name="تعليقات").click()
+        page.get_by_role("tab", name="عشوائي من تصنيف").click()
+        page.get_by_label("العدد لكل منشور").fill("2")
+        page.get_by_role("button", name="نشر التعليقات").click()
+        expect(page.locator(".toast").last).to_contain_text("نُشر 2")
+        self.step("team comments: 2 random library comments on the selected idea (as dzplay)")
+        self.shot(page, "12-comments-dark", full=True)
+
+        page.get_by_role("tab", name="العمليات").click()
+        job = page.locator(".admin-card", has_text="تعزيز")
+        expect(job).to_have_count(1)
+        expect(job.locator(".admin-progress")).to_be_visible()
+        self.shot(page, "13-jobs-dark")
+        job.get_by_role("button", name="إلغاء العملية كلها").click()
+        page.locator(".sheet").get_by_role("button", name="إلغاء العملية").click()
+        expect(page.locator(".admin-empty")).to_contain_text("لا توجد عمليات جارية")
+        self.step("gradual set-to-300 job listed with progress, then cancelled")
+
+        # the team comments are marked internally on the idea page
+        page.get_by_role("tab", name="المحتوى").click()
+        page.locator(".admin-card", has_text="فكرة جميلة").get_by_role("button", name="كل التعليقات").click()
+        expect(page.locator(".admin-detail .admin-card--team")).to_have_count(2)
+        expect(page.locator(".admin-detail .chip--team").first).to_have_text("تعليق الفريق")
+        page.locator(".admin-detail").get_by_role("button", name="إغلاق").click()
+
+    def system(self, page: Page) -> None:
+        page.get_by_role("tab", name="الأمان والنظام").click()
+        expect(page.locator(".admin-group__title", has_text="بوت Telegram")).to_be_visible()
+        expect(page.locator(".admin-row", has_text="البوت")).to_contain_text("غير مُعدّ")
+        block = page.locator(".admin-event", has_text="حظر دخول")
+        expect(block).to_have_count(1)
+        self.shot(page, "14-system-dark", full=True)
+        block.get_by_role("button", name="رفع الحظر").click()
+        page.locator(".sheet").get_by_role("button", name="رفع الحظر").click()
+        expect(page.locator(".admin-event", has_text="حظر دخول")).to_have_count(0)
+        page.get_by_role("button", name="تشغيل التنظيف الآن").click()
+        expect(page.locator(".admin-row", has_text="رسائل منتهية")).to_be_visible()
+        self.step("system: bot/SMTP/cache status, network block lifted, cleanup ran")
 
     def light(self, browser) -> None:
         ctx = browser.new_context(**MOBILE, color_scheme="light", locale="ar-DZ", timezone_id="Africa/Algiers")
@@ -272,14 +389,20 @@ class Run:
         self.watch(page, "light")
         page.goto(self.base + ADMIN_PATH)
         expect(page.locator("#admin-user")).to_be_visible()
-        self.shot(page, "08-login-light")
+        self.shot(page, "18-login-light")
         self.sign_in(page, "light", goto=False)
         expect(page.locator(".viz-card")).to_have_count(4)
         page.wait_for_timeout(300)
-        self.shot(page, "09-overview-light-full", full=True)
+        self.shot(page, "19-overview-light-full", full=True)
         page.get_by_role("tab", name="البلاغات").click()
         expect(page.locator(".admin-card")).to_have_count(1)
-        self.shot(page, "10-reports-light", full=True)
+        self.shot(page, "20-reports-light", full=True)
+        for tab, name in (("المستخدمون", "21-users-light"), ("المحتوى", "22-content-light"), ("التفاعل", "23-engage-light"),
+                          ("الأمان والنظام", "24-system-light")):
+            page.get_by_role("tab", name=tab, exact=True).click()
+            page.wait_for_timeout(500)
+            assert "null" not in page.locator("#admin-main").inner_text(), tab
+            self.shot(page, name, full=True)
         # session survives a reload in the same tab
         page.reload()
         expect(page.locator(".admin-tab").first).to_be_visible()
@@ -298,7 +421,7 @@ class Run:
         expect(page.locator(".antibot")).to_have_attribute("data-state", "done", timeout=20000)
         page.get_by_role("button", name="دخول").click()
         expect(page.locator(".privacy-notice h2")).to_have_text("تحديث في سياسة الخصوصية", timeout=15000)
-        self.shot(page, "12-privacy-notice")
+        self.shot(page, "26-privacy-notice")
         page.get_by_role("button", name="فهمت").click()
         expect(page.locator(".privacy-notice")).to_have_count(0)
         page.wait_for_timeout(500)
@@ -315,7 +438,7 @@ class Run:
         self.watch(page, "desktop")
         self.sign_in(page, "desk")
         expect(page.locator(".viz-card")).to_have_count(4)
-        self.shot(page, "11-overview-desktop", full=True)
+        self.shot(page, "25-overview-desktop", full=True)
         ctx.close()
 
 
@@ -339,6 +462,9 @@ def main() -> None:
         feed = viewer.get("/api/posts/feed").json()["posts"]
         assert pid not in [x["id"] for x in feed], "removed post still in feed"
         run.step("removed post is gone from the public feed")
+        boosted = viewer.get(f"/api/posts/{SEEDED['idea']}").json()
+        assert boosted["likes"] >= 120 and boosted["dislikes"] == 4, boosted
+        run.step(f"users see the displayed numbers: {boosted['likes']} likes / {boosted['dislikes']} dislikes")
         if run.errors:
             print("\n".join(run.errors))
             raise SystemExit(1)

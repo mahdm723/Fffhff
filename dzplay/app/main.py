@@ -37,7 +37,8 @@ from app.state import AppState
 log = logging.getLogger("dzplay")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
-_ADMIN_ASSETS = {"admin.js": "text/javascript", "admin.css": "text/css"}
+_ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m in (
+    "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system")}}
 _CSRF_EXEMPT = {"/api/telegram/webhook"}  # authenticated by Telegram's secret header instead
 
 # Don't depend on the host's /etc/mime.types (ES modules require a JS MIME type).

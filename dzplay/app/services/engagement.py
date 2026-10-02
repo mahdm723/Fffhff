@@ -56,6 +56,10 @@ def _target(db: Session, target_type: str, target_id: str):
     if model is None:
         raise AppError(400, "invalid_target", "نوع المنشور غير صالح.")
     obj = db.get(model, str(target_id)[:32])
+    if obj is None and target_type == "reel":  # the short id shown by the Telegram bot works too
+        from app.services.reels import find
+
+        obj = find(db, str(target_id))
     if obj is None:
         raise not_found()
     return obj

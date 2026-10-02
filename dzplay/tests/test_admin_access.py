@@ -127,6 +127,7 @@ def test_conversations_with_both_participants(hx):
     assert {conv["initiator"]["email"], conv["recipient"]["email"]} == {a.email, b.email}
     detail = admin.get(f"/api/admin/access/conversations/{cid}").json()
     assert [m["content"] for m in detail["messages"]] == ["رسالة مجهولة", "رد"]
+    assert [m["flagged"] for m in detail["messages"]] == [False, False]
     assert admin.get("/api/admin/access/conversations", params={"q": "مجهولة"}).json()["total"] == 1
     assert admin.get("/api/admin/access/conversations", params={"q": "لا يوجد"}).json()["total"] == 0
     actions = [e["action"] for e in admin.get("/api/admin/audit").json()["entries"]]

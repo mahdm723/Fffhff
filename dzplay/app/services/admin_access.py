@@ -299,10 +299,12 @@ def conversation_detail(db: Session, conversation_id: str) -> dict:
         raise not_found()
     msgs = list(db.execute(select(Message).where(Message.conversation_id == c.id).order_by(Message.created_at)).scalars())
     people = _users_by_id(db, [c.initiator_id, c.recipient_id])
+    flagged = set(db.execute(select(ContentFlag.message_id).where(ContentFlag.conversation_id == c.id,
+                                                                  ContentFlag.message_id.is_not(None))).scalars())
     return {"conversation": {"id": c.id, "initiator": _who(people.get(c.initiator_id)), "recipient": _who(people.get(c.recipient_id)),
                              "status": c.status, "created_at": iso(c.created_at), "expires_at": iso(c.expires_at)},
             "messages": [{"id": m.id, "sender_id": m.sender_id, "content": m.content, "created_at": iso(m.created_at),
-                          "read_at": iso(m.read_at), "expires_at": iso(m.expires_at)} for m in msgs]}
+                          "read_at": iso(m.read_at), "expires_at": iso(m.expires_at), "flagged": m.id in flagged} for m in msgs]}
 
 
 def search(db: Session, q: str, limit: int = 30) -> dict:

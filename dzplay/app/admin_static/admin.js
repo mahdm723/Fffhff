@@ -2,64 +2,22 @@
 // API there. Sign-in = admin account + password + TOTP code; the session is an
 // HttpOnly cookie scoped to the panel path (never readable from JS).
 // All server data is inserted with textContent.
-import { h, toast, confirmSheet, sheet, wordmark, REPORT_REASONS } from '/js/ui.js';
+import { h, toast, confirmSheet, wordmark, REPORT_REASONS } from '/js/ui.js';
 import { icon } from '/js/icons.js';
+import {
+  bytes, call, emptyState, fmt, handleError, hooks, iconButton, sectionHead, segmented, shortRef, spinner, userRef, waitText, when,
+} from './admin-common.js';
+import { openUser, renderUsers } from './admin-users.js';
+import { openIdea, renderContent } from './admin-content.js';
+import { openEngage, renderEngage } from './admin-engage.js';
+import { renderSystem } from './admin-system.js';
 
-const BASE = document.documentElement.dataset.base || '';
 const REFRESH_MS = 30_000;
 const app = document.getElementById('app');
-
-const nf = new Intl.NumberFormat('ar-DZ');
-const fmt = (n) => nf.format(n ?? 0);
 const shortDay = new Intl.DateTimeFormat('ar-DZ', { day: 'numeric', month: 'short' });
 const longDay = new Intl.DateTimeFormat('ar-DZ', { weekday: 'long', day: 'numeric', month: 'long' });
-const stamp = new Intl.DateTimeFormat('ar-DZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const clockFmt = new Intl.DateTimeFormat('ar-DZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const when = (iso) => (iso ? stamp.format(new Date(iso)) : '');
 const parseDay = (d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd); };
-const shortRef = (ref) => (ref ? `${ref.slice(0, 8)}…` : '—');
-
-// ------------------------------------------------------------------ API
-
-class AdminError extends Error {
-  constructor(status, code, message, retryAfter = null) {
-    super(message);
-    this.status = status;
-    this.code = code;
-    this.retryAfter = retryAfter;
-  }
-}
-
-async function call(method, path, body) {
-  const headers = { Accept: 'application/json' };
-  const init = { method, headers, cache: 'no-store', credentials: 'same-origin' };
-  if (path.startsWith('/api/admin')) path = BASE + path;
-  if (method !== 'GET') {
-    headers['X-DZ-Requested'] = '1';
-    headers['Content-Type'] = 'application/json';
-    init.body = JSON.stringify(body ?? {});
-  }
-  let res;
-  try { res = await fetch(path, init); } catch { throw new AdminError(0, 'network', 'لا يوجد اتصال بالإنترنت.'); }
-  let data = null;
-  try { data = await res.json(); } catch { /* empty */ }
-  if (!res.ok) {
-    const e = (data && data.error) || {};
-    throw new AdminError(res.status, e.code || 'error', e.message || 'حدث خطأ. حاول مرة أخرى.', e.retry_after ?? null);
-  }
-  return data;
-}
-
-function waitText(seconds) {
-  const m = Math.max(1, Math.ceil((seconds || 60) / 60));
-  return m === 1 ? 'دقيقة' : `${fmt(m)} دقائق`;
-}
-
-function handleError(err) {
-  if (err.status === 401) return signOut('انتهت الجلسة. سجّل الدخول من جديد.');
-  if (err.status === 429) return toast(`محاولات كثيرة. حاول بعد ${waitText(err.retryAfter)}.`, 'error');
-  return toast(err.message, 'error');
-}
 
 // ------------------------------------------------------------------ labels
 
@@ -70,7 +28,7 @@ const ACTIONS = {
   dismiss: { label: 'تجاهل', title: 'تجاهل البلاغ؟', text: 'لن يتغير شيء في حساب المستخدم أو المحتوى.', cls: 'btn--ghost' },
   warn: { label: 'تحذير', title: 'تسجيل تحذير؟', text: 'يُغلق البلاغ ويُسجَّل كتحذير، دون إيقاف الحساب.', cls: 'btn--ghost' },
   remove: { label: 'حذف المحتوى', title: 'حذف المحتوى المُبلَّغ عنه؟', text: 'تختفي الفكرة من الصفحة الرئيسية، أو يُحذف التعليق نهائيًا.', cls: 'btn--danger', danger: true },
-  suspend: { label: 'إيقاف الحساب', title: 'إيقاف الحساب؟', text: 'لن يستطيع صاحب الحساب الإرسال أو النشر حتى تعيد تفعيله من تبويب الصيانة.', cls: 'btn--danger', danger: true },
+  suspend: { label: 'إيقاف الحساب', title: 'إيقاف الحساب؟', text: 'لن يستطيع صاحب الحساب الإرسال أو النشر حتى تعيد تفعيله من صفحته.', cls: 'btn--danger', danger: true },
   ban: { label: 'حظر نهائي', title: 'حظر الحساب نهائيًا؟', text: 'يُحظر الحساب ويُسجَّل خروجه من كل الأجهزة.', cls: 'btn--danger', danger: true },
 };
 const EVENT_LABELS = {
@@ -99,10 +57,6 @@ const EVENT_LABELS = {
 };
 const RISKY = new Set(['admin_login_failed', 'login_blocked_ip', 'login_blocked_ip_account', 'account_locked', 'login_banned', 'register_limited',
   'honeypot', 'google_invalid_token', 'auto_suspended', 'admin_auth_failed']);
-const CLEANUP_LABELS = {
-  messages: 'رسائل منتهية', conversations: 'محادثات منتهية', sessions: 'جلسات منتهية', challenges: 'تحديات مكافحة الروبوت',
-  auth_throttle: 'سجلات حظر الدخول', security_events: 'سجلات أمان قديمة', reports: 'بلاغات قديمة مغلقة', flags: 'رصد قديم مغلق',
-};
 const METRICS = [
   ['users', 'مستخدمون جدد'],
   ['posts', 'أفكار منشورة'],
@@ -111,60 +65,18 @@ const METRICS = [
 ];
 const TABS = [
   ['overview', 'نظرة عامة'],
+  ['users', 'المستخدمون'],
+  ['content', 'المحتوى'],
+  ['engage', 'التفاعل'],
   ['reports', 'البلاغات'],
-  ['security', 'السجلات'],
-  ['tools', 'الصيانة'],
+  ['system', 'الأمان والنظام'],
+  ['logs', 'السجل'],
 ];
 
 const state = {
   tab: 'overview', stats: null, activity: null, days: 14, active: null, showTable: false,
-  reportKind: 'reports', logKind: 'events', reportStatus: 'open', eventType: '', prefillRef: '', timer: null, updatedAt: null,
+  reportKind: 'reports', logKind: 'events', reportStatus: 'open', eventType: '', timer: null, updatedAt: null,
 };
-
-// ------------------------------------------------------------------ small pieces
-
-function segmented(options, current, onPick, label) {
-  const box = h('div', { class: 'segmented admin-seg', role: 'tablist', 'aria-label': label });
-  box.style.gridTemplateColumns = `repeat(${options.length}, 1fr)`;
-  for (const [value, text] of options) {
-    box.append(h('button', {
-      type: 'button', role: 'tab', 'aria-selected': String(value === current),
-      onclick: () => {
-        box.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', 'false'));
-        box.querySelector(`[data-v="${value}"]`).setAttribute('aria-selected', 'true');
-        onPick(value);
-      },
-      dataset: { v: value },
-    }, text));
-  }
-  return box;
-}
-
-function iconButton(name, label, onclick) {
-  return h('button', { type: 'button', class: 'icon-btn glass', 'aria-label': label, title: label, onclick }, icon(name));
-}
-
-function sectionHead(title, ...extra) {
-  return h('div', { class: 'admin-section__head' }, h('h2', { class: 'admin-section__title', text: title }), ...extra);
-}
-
-function emptyState(text) {
-  return h('div', { class: 'empty glass admin-empty' }, h('p', { text }));
-}
-
-function spinner() {
-  return h('div', { class: 'admin-loading' }, h('span', { class: 'spinner' }));
-}
-
-function userRef(ref) {
-  if (!ref) return h('span', { class: 'admin-ref', text: '—' });
-  return h('button', {
-    type: 'button', class: 'admin-ref', dir: 'ltr', title: 'نسخ مرجع المستخدم',
-    onclick: async () => {
-      try { await navigator.clipboard.writeText(ref); toast('تم نسخ مرجع المستخدم.'); } catch { toast(ref); }
-    },
-  }, shortRef(ref));
-}
 
 // ------------------------------------------------------------------ sign in / out
 
@@ -257,7 +169,12 @@ function showTab(id) {
   document.querySelectorAll('.admin-tab').forEach((b) => b.setAttribute('aria-selected', String(b.id === `tab-${id}`)));
   const main = document.getElementById('admin-main');
   main.setAttribute('aria-labelledby', `tab-${id}`);
-  ({ overview: renderOverview, reports: renderReports, security: renderSecurity, tools: renderTools })[id](main);
+  const tab = document.getElementById(`tab-${id}`);
+  if (tab) tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  ({
+    overview: renderOverview, users: renderUsers, content: renderContent, engage: renderEngage, reports: renderReports,
+    system: renderSystem, logs: renderSecurity,
+  })[id](main);
   window.scrollTo({ top: 0 });
 }
 
@@ -340,7 +257,7 @@ function paintStats() {
       { icon: 'flag', alert: s.safety.reports_open + s.safety.flags_open > 0,
         onclick: () => { state.reportKind = s.safety.flags_open && !s.safety.reports_open ? 'flags' : 'reports'; showTab('reports'); } }),
   );
-  document.getElementById('groups').replaceChildren(
+  document.getElementById('groups').replaceChildren(...[
     group('المستخدمون', 'user', [
       ['إجمالي الحسابات', s.users.total], ['نشطون خلال 24 ساعة', s.users.active_24h], ['جدد خلال 24 ساعة', s.users.new_24h],
       ['سجّلوا عبر Google', s.users.google], ['موقوفون', s.users.suspended], ['محظورون', s.users.banned],
@@ -358,9 +275,23 @@ function paintStats() {
     group('الأمان', 'shield', [
       ['بلاغات مفتوحة', s.safety.reports_open], ['رسائل مرصودة تلقائيًا (مفتوحة)', s.safety.flags_open], ['دخول فاشل خلال 24 ساعة', s.safety.failed_logins_24h],
       ['حظر دخول نشط الآن', s.safety.active_login_blocks], ['تسجيلات مرفوضة خلال 24 ساعة', s.safety.registrations_limited_24h],
-      ['حظر بين المستخدمين', s.safety.blocks],
+      ['حظر بين المستخدمين', s.safety.blocks], ['حظر شبكات نشط', s.ip_blocks_active],
     ]),
-  );
+    s.reels ? group('Reels', 'reels', [
+      ['ظاهر', s.reels.visible], ['مخفي', s.reels.hidden], ['قيد التجهيز', s.reels.processing], ['فشل التجهيز', s.reels.failed],
+      ['مشاهدات خلال 24 ساعة', s.reels.views_24h], ['تفاعلات خلال 24 ساعة', s.reels.reactions_24h],
+      ['تعليقات خلال 24 ساعة', s.reels.comments_24h], ['كل التعليقات', s.reel_comments],
+    ]) : null,
+    s.password_resets ? group('استعادة كلمة المرور', 'lock', [
+      ['طلبات خلال 24 ساعة', s.password_resets.requests_24h], ['بانتظار المشرف', s.password_resets.waiting_admin],
+      ['اكتملت خلال 24 ساعة', s.password_resets.completed_24h],
+    ]) : null,
+  ].filter(Boolean)); // native replaceChildren() would print "null"
+  if (s.media_cache_bytes != null) {
+    document.getElementById('groups').append(h('article', { class: 'admin-group glass' },
+      h('h3', { class: 'admin-group__title' }, icon('reels'), 'ذاكرة الوسائط'),
+      h('dl', { class: 'admin-group__rows' }, h('div', { class: 'admin-row' }, h('dt', { text: 'الحجم الحالي' }), h('dd', { text: bytes(s.media_cache_bytes) })))));
+  }
 }
 
 async function loadActivity() {
@@ -597,8 +528,7 @@ function actionButtons(item, allowed, card, list) {
 function userLinks(ref) {
   if (!ref) return null;
   return h('span', { class: 'admin-card__links' },
-    h('button', { type: 'button', class: 'admin-link', onclick: () => openConversations(ref) }, icon('bubbles'), 'عرض المحادثات'),
-    h('button', { type: 'button', class: 'admin-link', onclick: () => { state.prefillRef = ref; showTab('tools'); } }, 'إدارة الحساب'));
+    h('button', { type: 'button', class: 'admin-link', onclick: () => openUser(ref) }, icon('user'), 'صفحة المستخدم والمحادثات'));
 }
 
 function reportCard(r, list) {
@@ -666,72 +596,6 @@ async function resolveItem(item, action, card, list) {
   }
 }
 
-// --- stored conversations of a reported / flagged user (every view is logged server side) ---
-
-const VIEW_REASONS = ['مراجعة بلاغ', 'مراجعة رصد تلقائي', 'التحقق من تهديد أو ابتزاز', 'حماية قاصر'];
-
-function askReason() {
-  return new Promise((resolve) => {
-    let answer = null;
-    sheet((panel, close) => {
-      const custom = h('input', { class: 'input', maxlength: '200', placeholder: 'أو اكتب السبب…' });
-      const pick = (r) => { answer = r; close(); };
-      panel.append(
-        h('h2', { text: 'سبب الاطلاع على المحادثات' }),
-        h('p', { class: 'admin-meta', text: 'المحادثات خاصة. يُسجَّل اطلاعك مع السبب في سجل الإدارة (من، متى، ماذا، لماذا).' }),
-        h('div', { class: 'admin-reasons' }, ...VIEW_REASONS.map((r) => h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onclick: () => pick(r) }, r))),
-        h('form', { class: 'admin-reason-form', onsubmit: (e) => { e.preventDefault(); if (custom.value.trim().length >= 3) pick(custom.value.trim()); } },
-          custom, h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, 'متابعة')),
-        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إلغاء')));
-    }, () => resolve(answer));
-  });
-}
-
-async function openConversations(ref) {
-  const reason = await askReason();
-  if (!reason) return;
-  let data;
-  try {
-    data = await call('GET', `/api/admin/users/${encodeURIComponent(ref)}/conversations?reason=${encodeURIComponent(reason)}`);
-  } catch (err) {
-    if (err.status === 403) toast(err.message, 'error');
-    else if (err.status === 404) toast('لا يوجد مستخدم بهذا المرجع.', 'error');
-    else handleError(err);
-    return;
-  }
-  sheet((panel, close) => {
-    panel.classList.add('sheet--tall', 'admin-convs');
-    const body = h('div', { class: 'admin-convs__body' });
-    if (!data.conversations.length) {
-      body.append(h('p', { class: 'admin-meta', text: 'لا توجد محادثات محفوظة لهذا المستخدم الآن (الرسائل تُحذف تلقائيًا بعد انتهاء مدتها).' }));
-    }
-    data.conversations.forEach((c, i) => {
-      body.append(h('section', { class: 'admin-conv' },
-        h('div', { class: 'admin-conv__head' },
-          h('b', { text: `محادثة ${fmt(i + 1)}` }),
-          h('span', { text: c.started_by === 'user' ? 'بدأها هذا المستخدم' : 'بدأها الطرف الآخر' }),
-          h('span', {}, 'الطرف الآخر: ', userRef(c.peer_ref)),
-          c.status !== 'active' ? h('span', { class: 'chip', text: 'مغلقة' }) : null),
-        c.messages.length
-          ? h('div', { class: 'admin-conv__msgs' }, ...c.messages.map((m) => h('div', {
-            class: `admin-msg admin-msg--${m.from} ${m.flagged ? 'admin-msg--flagged' : ''}`,
-          },
-          h('span', { class: 'admin-msg__who', text: m.from === 'user' ? 'هذا المستخدم' : 'الطرف الآخر' }),
-          h('p', { text: m.content }),
-          h('span', { class: 'admin-msg__meta', text: `${when(m.created_at)}${m.flagged ? ' · مرصودة' : ''}` }))))
-          : h('p', { class: 'admin-meta', text: 'انتهت مدة رسائل هذه المحادثة وحُذفت.' })));
-    });
-    panel.append(
-      h('h2', { text: 'محادثات المستخدم' }),
-      h('p', { class: 'admin-meta' }, 'المستخدم: ', userRef(ref),
-        ` · ${fmt(data.conversations.length)} محادثة محفوظة. هذا الاطلاع مسجَّل في سجل الإدارة.`),
-      body,
-      h('div', { class: 'actions' },
-        h('button', { class: 'btn btn--ghost btn--block', onclick: () => { close(); state.prefillRef = ref; showTab('tools'); } }, 'إدارة الحساب'),
-        h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إغلاق')));
-  });
-}
-
 async function refreshStatsQuietly() {
   try {
     state.stats = await call('GET', '/api/admin/stats');
@@ -747,6 +611,15 @@ const AUDIT_LABELS = {
   view_conversations: 'اطّلع على محادثات', cleanup: 'تنظيف البيانات', user_active: 'تفعيل حساب',
   user_suspended: 'إيقاف حساب', user_banned: 'حظر حساب', create_admin: 'إنشاء مشرف (CLI)',
   reset_admin_2fa: 'إعادة 2FA (CLI)', set_admin_password: 'تغيير كلمة مرور مشرف (CLI)',
+  view_users: 'بحث في المستخدمين', view_user: 'فتح صفحة مستخدم', user_revoke_sessions: 'إنهاء جلسات مستخدم', user_delete: 'حذف حساب',
+  view_ideas: 'تصفح الأفكار', view_idea_comments: 'اطّلع على تعليقات فكرة', view_conversation_list: 'تصفح المحادثات',
+  view_conversation: 'اطّلع على محادثة', search_content: 'بحث في المحتوى', delete_idea: 'حذف فكرة', delete_idea_comment: 'حذف تعليق فكرة',
+  delete_reel_comment: 'حذف تعليق Reel', delete_message: 'حذف رسالة', delete_conversation: 'حذف محادثة',
+  engagement_boost: 'تعزيز تفاعل', engagement_comments: 'تعليقات الفريق', engagement_cancel: 'إلغاء عملية تفاعل',
+  library_add: 'مكتبة: إضافة', library_edit: 'مكتبة: تعديل', library_delete: 'مكتبة: حذف', library_import: 'مكتبة: استيراد',
+  category_add: 'تصنيف: إضافة', category_edit: 'تصنيف: تعديل', category_delete: 'تصنيف: حذف', official_comment: 'تعليق رسمي',
+  ip_unblock: 'رفع حظر شبكة', reel_show: 'إظهار Reel', reel_hide: 'إخفاء Reel', reel_pin: 'تثبيت Reel', reel_unpin: 'إلغاء تثبيت Reel',
+  reel_caption: 'تعديل وصف Reel', reel_delete: 'حذف Reel', login_failed: 'دخول مشرف فاشل',
 };
 const auditLabel = (a) => AUDIT_LABELS[a] || ({ report_: 'بلاغ: ', flag_: 'رصد: ' }[a.replace(/[a-z]+$/, '')] || '') + (RESOLUTIONS[a.split('_').pop()] || a);
 
@@ -822,79 +695,14 @@ async function loadEvents(list) {
   }
 }
 
-// ------------------------------------------------------------------ maintenance
-
-function renderTools(main) {
-  const result = h('dl', { class: 'admin-group__rows', hidden: true });
-  const runBtn = h('button', { type: 'button', class: 'btn btn--primary btn--block' }, icon('trash'), 'تشغيل التنظيف الآن');
-  runBtn.addEventListener('click', async () => {
-    runBtn.disabled = true;
-    try {
-      const { deleted } = await call('POST', '/api/admin/cleanup');
-      const total = Object.values(deleted).reduce((a, b) => a + b, 0);
-      result.replaceChildren(...Object.entries(deleted).map(([k, v]) => h('div', { class: 'admin-row' },
-        h('dt', { text: CLEANUP_LABELS[k] || k }), h('dd', { text: fmt(v) }))));
-      result.hidden = false;
-      toast(total ? `تم حذف ${fmt(total)} عنصرًا منتهيًا.` : 'لا يوجد شيء منتهٍ للحذف.');
-      refreshStatsQuietly();
-    } catch (err) {
-      handleError(err);
-    } finally {
-      runBtn.disabled = false;
-    }
-  });
-
-  const refInput = h('input', {
-    class: 'input', id: 'user-ref', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off',
-    placeholder: 'مرجع المستخدم', value: state.prefillRef || '',
-  });
-  state.prefillRef = '';
-  let status = 'suspended';
-  const statusSeg = segmented([['active', 'تفعيل'], ['suspended', 'إيقاف'], ['banned', 'حظر']], status, (v) => { status = v; }, 'الحالة الجديدة');
-  const applyBtn = h('button', { type: 'submit', class: 'btn btn--ghost btn--block' }, 'تطبيق');
-  const statusForm = h('form', {
-    onsubmit: async (e) => {
-      e.preventDefault();
-      const ref = refInput.value.trim();
-      if (!ref) { refInput.focus(); return; }
-      const words = { active: ['تفعيل الحساب؟', 'يعود الحساب للعمل بشكل طبيعي.'], suspended: ['إيقاف الحساب؟', 'لن يستطيع الإرسال أو النشر حتى تعيد تفعيله.'], banned: ['حظر الحساب نهائيًا؟', 'يُحظر الحساب ويُسجَّل خروجه من كل الأجهزة.'] }[status];
-      if (!(await confirmSheet({ title: words[0], text: words[1], confirm: 'تأكيد', danger: status !== 'active' }))) return;
-      applyBtn.disabled = true;
-      try {
-        await call('POST', `/api/admin/users/${encodeURIComponent(ref)}/status`, { status });
-        toast('تم تحديث حالة الحساب.');
-        refreshStatsQuietly();
-      } catch (err) {
-        if (err.status === 404) toast('لا يوجد مستخدم بهذا المرجع.', 'error');
-        else handleError(err);
-      } finally {
-        applyBtn.disabled = false;
-      }
-    },
-  },
-  h('div', { class: 'field' }, h('label', { for: 'user-ref', text: 'مرجع المستخدم (من البلاغات أو سجل الأمان)' }), refInput),
-  statusSeg,
-  applyBtn);
-
-  main.replaceChildren(
-    sectionHead('الصيانة'),
-    h('article', { class: 'admin-group glass' },
-      h('h3', { class: 'admin-group__title' }, icon('clock'), 'تنظيف البيانات المنتهية'),
-      h('p', { class: 'admin-meta', text: 'يعمل تلقائيًا بشكل دوري: يحذف الرسائل والمحادثات التي انتهت مدتها، الجلسات القديمة، وسجلات الأمان والبلاغات المغلقة القديمة.' }),
-      runBtn,
-      result),
-    h('article', { class: 'admin-group glass' },
-      h('h3', { class: 'admin-group__title' }, icon('user'), 'حالة حساب'),
-      statusForm),
-    h('article', { class: 'admin-group glass' },
-      h('h3', { class: 'admin-group__title' }, icon('lock'), 'أمان حسابات المشرفين'),
-      h('p', { class: 'admin-meta', text: 'إذا فقدت هاتف المصادقة أو شككت في كلمة المرور، شغّل في الخادم:' }),
-      h('pre', { class: 'admin-code', dir: 'ltr' }, h('code', {
-        text: 'cd /opt/dzplay/dzplay\ndocker compose exec app python -m app.admin_cli reset-admin-2fa owner\ndocker compose exec app python -m app.admin_cli set-admin-password owner',
-      }))));
-}
-
 // ------------------------------------------------------------------ boot
+
+hooks.onUnauthorized = (message) => signOut(message);
+hooks.openUser = openUser;
+hooks.openIdea = openIdea;
+hooks.openEngage = openEngage;
+hooks.showTab = showTab;
+hooks.refreshStats = () => refreshStatsQuietly();
 
 async function boot() {
   try {

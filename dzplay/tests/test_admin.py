@@ -29,6 +29,16 @@ def test_panel_served_only_at_secret_path_with_strict_csp(hx):
     assert r.headers["X-Robots-Tag"] == "noindex, nofollow"
     assert r.headers["Cache-Control"] == "no-store"
     assert c.get(f"{ADMIN_PATH}/assets/admin.js").status_code == 200
+    # every module the panel imports is served from the allowlist with a JS MIME type
+    import re
+    seen, todo = set(), ["admin.js"]
+    while todo:
+        name = todo.pop()
+        seen.add(name)
+        r = c.get(f"{ADMIN_PATH}/assets/{name}")
+        assert r.status_code == 200 and r.headers["content-type"].startswith("text/javascript"), name
+        todo += [m for m in re.findall(r"from '\./([\w-]+\.js)'", r.text) if m not in seen]
+    assert {"admin-common.js", "admin-users.js", "admin-content.js", "admin-engage.js", "admin-system.js"} <= seen
     # nothing at guessable places, and the asset route is an allowlist
     for path in ("/admin", "/admin.html", "/js/admin.js", "/api/admin/stats", f"{ADMIN_PATH}/assets/..%2fmain.py",
                  f"{ADMIN_PATH}/assets/admin.html", f"{ADMIN_PATH}/assets/%2e%2e%2f%2e%2e%2fconfig.py"):
