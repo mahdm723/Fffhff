@@ -13,11 +13,20 @@ from app.api.deps import (
     session_token,
     set_session_cookie,
 )
-from app.api.schemas import ChallengeBody, GoogleBody, LoginBody, RegisterBody
+from app.api.schemas import (
+    ChallengeBody,
+    GoogleBody,
+    LoginBody,
+    RegisterBody,
+    ResetCompleteBody,
+    ResetRequestBody,
+    ResetVerifyBody,
+)
 from app.config import PRIVACY_VERSION
-from app.errors import rate_limited
+from app.errors import AppError, rate_limited
 from app.security.sessions import create_session, revoke_session
 from app.services import auth as auth_service
+from app.services import password_reset
 from app.services.ideas import own_profile
 from app.services.messaging import profile
 from app.services.rate_limit import Limit
@@ -45,6 +54,8 @@ def public_config(request: Request) -> dict:
         "max_reel_comment_length": s.MAX_REEL_COMMENT_LENGTH,
         "reels_prefetch": {"count": s.PREFETCH_COUNT, "ahead": s.PREFETCH_AHEAD, "device_cache_mb": s.DEVICE_MEDIA_CACHE_MB},
         "password_reset_enabled": bool(s.telegram_enabled and s.smtp_enabled),
+        "reset_code_hours": max(1, s.RESET_CODE_TTL // 3600),
+        "reset_max_attempts": s.RESET_MAX_CODE_ATTEMPTS,
         "footer_text": s.FOOTER_TEXT,
     }
 
@@ -83,6 +94,50 @@ def login(body: LoginBody, request: Request, response: Response) -> dict:
     with st.database.session() as db:
         user = auth_service.login(db, st.settings, ctx, email=body.email, password=body.password, antibot_payload=body.antibot)
         token = create_session(db, st.settings, user)
+        result = profile(user)
+    set_session_cookie(response, request, token)
+    return result
+
+
+# ----------------------------------------------------------------- password recovery
+
+
+def _reset_enabled(request: Request) -> None:
+    st = get_state(request)
+    if st.bot is None or not st.settings.smtp_enabled:
+        raise AppError(503, "reset_unavailable", "استعادة الحساب غير مفعّلة حاليًا. تواصل مع الإدارة.")
+
+
+@router.post("/auth/reset/request")
+def reset_request(body: ResetRequestBody, request: Request) -> dict:
+    """Same answer whether or not the e-mail exists (no account enumeration)."""
+    _reset_enabled(request)
+    st = get_state(request)
+    ctx = client_context(request)
+    with st.database.session() as db:
+        result = password_reset.request_reset(db, st.settings, ctx, email=body.email, antibot_payload=body.antibot)
+    if result.get("notify"):
+        st.bot.run_later(password_reset.notify_admin, st.bot, result["notify"])  # after commit, off the request path
+    return {"ok": True, "message": result["message"]}
+
+
+@router.post("/auth/reset/verify")
+def reset_verify(body: ResetVerifyBody, request: Request) -> dict:
+    _reset_enabled(request)
+    st = get_state(request)
+    with st.database.session() as db:
+        return password_reset.verify_code(db, st.settings, st.limiter, client_context(request), email=body.email, code=body.code)
+
+
+@router.post("/auth/reset/complete")
+def reset_complete(body: ResetCompleteBody, request: Request, response: Response) -> dict:
+    _reset_enabled(request)
+    st = get_state(request)
+    with st.database.session() as db:
+        user = password_reset.complete(db, st.settings, client_context(request), reset_token=body.reset_token,
+                                       password=body.password, password_confirm=body.password_confirm,
+                                       antibot_payload=body.antibot)
+        token = create_session(db, st.settings, user)  # a fresh session; all older ones were revoked
         result = profile(user)
     set_session_cookie(response, request, token)
     return result

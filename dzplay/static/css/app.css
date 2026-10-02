@@ -662,3 +662,12 @@ body::before {
 /* ---------- profile footer ---------- */
 .profile-footer { text-align: center; font-size: 12px; color: var(--ink-3); opacity: .75; margin: 30px 0 4px; }
 @media (prefers-reduced-motion: reduce) { .home-switch__bar { transition: none; } }
+
+/* ---------- forgot password ---------- */
+.auth__forgot { display: block; margin: 14px auto 0; font-size: 14px; }
+.reset__title { margin: 0 0 4px; font-size: 20px; }
+.reset__lead { margin: 0 0 16px; color: var(--ink-2); font-size: 14px; }
+.reset__hint { margin: -6px 0 12px; color: var(--ink-3); font-size: 12.5px; }
+.reset__sent { position: relative; margin: 14px 0; padding: 12px 14px; border-radius: 14px; font-size: 14px; color: var(--ink-2); }
+.reset__step + .reset__step { margin-top: 6px; }
+.reset__back { display: block; margin: 18px auto 0; font-size: 14px; }

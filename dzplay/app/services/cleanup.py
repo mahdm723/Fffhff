@@ -57,6 +57,9 @@ def run_cleanup(db: Session, settings: Settings, media=None) -> dict[str, int]:
     from app.services.reels import purge_views
 
     counts["reel_views"] = purge_views(db, settings)
+    from app.services.password_reset import purge as purge_resets
+
+    counts["password_resets"] = purge_resets(db)
     if media is not None:
         purged = media.purge(db)
         counts["media_files"] = purged["expired"] + purged["lru"] + purged["orphans"]

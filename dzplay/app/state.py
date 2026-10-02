@@ -45,7 +45,10 @@ class AppState:
         if telegram is not None:
             from app.services.telegram_bot import BotService
 
+            from app.services import password_reset
+
             state.bot = BotService(settings, database, telegram, media, limiter)
+            password_reset.install(state.bot)
         return state
 
     def dispatch(self, effects: Effects) -> None:

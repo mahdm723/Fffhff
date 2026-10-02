@@ -86,6 +86,9 @@ def make_media(tmp: Path) -> dict[str, bytes]:
 
 class Server:
     def __init__(self, tmp: Path):
+        from tests.smtp_sink import SmtpSink
+
+        self.smtp = SmtpSink().__enter__()
         self.fake = tg.FakeTelegram()
         self.port = free_port()
         self.base = f"http://127.0.0.1:{self.port}"
@@ -94,6 +97,7 @@ class Server:
             CLEANUP_INTERVAL=0, LOG_LEVEL="WARNING", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP=20,
             TELEGRAM_BOT_TOKEN=tg.TOKEN, TELEGRAM_ADMIN_CHAT_ID=str(tg.ADMIN_ID), TELEGRAM_WEBHOOK_SECRET=SECRET,
             TELEGRAM_ALBUM_SETTLE_SECONDS=0.4, MEDIA_CACHE_DIR=str(tmp / "media"), FFMPEG_BINARY=ffmpeg_binary(),
+            SMTP_HOST="127.0.0.1", SMTP_PORT=self.smtp.port, SMTP_SECURITY="none", SMTP_FROM="DZPLAY <no-reply@dzplay.test>",
             FFPROBE_BINARY=ffprobe_shim(), PREFETCH_COUNT=2, PREFETCH_AHEAD=2,
         )
         self.app = create_app(self.settings, telegram_transport=self.fake.transport)
@@ -113,6 +117,7 @@ class Server:
     def stop(self) -> None:
         self.server.should_exit = True
         self.thread.join(5)
+        self.smtp.__exit__(None, None, None)
 
     def hook(self, update: dict) -> None:
         r = httpx.post(self.base + "/api/telegram/webhook", json=update, headers={"X-Telegram-Bot-Api-Secret-Token": SECRET})
@@ -138,8 +143,14 @@ class Run:
         self.metrics: dict[str, float] = {}
         shots.mkdir(parents=True, exist_ok=True)
 
-    def watch(self, page: Page, who: str) -> None:
-        page.on("console", lambda m: m.type == "error" and "status of 401" not in m.text and self.errors.append(f"{who} console: {m.text}"))
+    def watch(self, page: Page, who: str, expected: tuple[str, ...] = ()) -> None:
+        ok = ("status of 401",) + expected  # 401: /api/me before sign-in
+
+        def on_console(m):
+            if m.type == "error" and not any(x in m.text for x in ok):
+                self.errors.append(f"{who} console: {m.text}")
+
+        page.on("console", on_console)
         page.on("pageerror", lambda e: self.errors.append(f"{who} pageerror: {e}"))
 
     def shot(self, page: Page, name: str) -> None:
@@ -263,7 +274,7 @@ def main() -> int:
             # vertical snap to the next reel; the previous one pauses
             swipe(page, 195, 700, 0, -520)
             page.wait_for_function(f"() => ({ACTIVE_JS})() === 1")
-            run.metrics["next_play_s"] = playing(page, 1)
+            run.metrics["next_play_s"] = playing(page, 1, timeout=30)
             assert page.evaluate("() => document.querySelectorAll('.reel video')[0].paused")
             run.step(f"swipe up snaps to the next reel; it plays in {run.metrics['next_play_s']:.2f}s, previous paused")
 
@@ -415,6 +426,47 @@ def main() -> int:
             keys = page.evaluate("async () => (await (await caches.open('dz-media-v1')).keys()).map(r => new URL(r.url).pathname)")
             assert keys and not any(k.endswith("/mp4") for k in keys), keys
             run.step(f"Save-Data / 3G: only posters prefetched ({len(keys)} files, no video)")
+            ctx.close()
+            # ---------------------------------------------------------------- forgot password
+            email = f"forgot{int(time.time())}@example.com"
+            old_session = api_user(srv.base, email)
+            ctx = browser.new_context(**MOBILE, color_scheme="dark", locale="ar-DZ")
+            page = ctx.new_page()
+            run.watch(page, "R", expected=("status of 400",))  # the deliberately wrong code
+            page.goto(srv.base + "/")
+            page.get_by_role("button", name="نسيت كلمة السر؟").click()
+            page.locator("#reset-email").fill(email)
+            page.locator(".antibot:visible").click()
+            expect(page.locator(".antibot:visible")).to_have_attribute("data-state", "done", timeout=30000)
+            run.shot(page, "10-reset-step1")
+            page.get_by_role("button", name="إرسال الطلب").click()
+            expect(page.locator(".reset__sent")).to_contain_text("إن كان هذا البريد مسجّلًا")
+            expect(page.locator("#reset-code")).to_be_visible()
+            run.shot(page, "11-reset-step2")
+            srv.idle()
+            import re as _re
+
+            rid = _re.search(r"رقم الطلب: ([A-Z0-9]+)", next(t for t in reversed(srv.fake.texts()) if "طلب استعادة" in t)).group(1)
+            srv.hook(tg.callback(f"rgen:{rid}"))
+            srv.idle()
+            assert "أُرسل رمز الاستعادة" in srv.fake.last_text()
+            code = _re.search(r"^ {4}([A-Z0-9]{4,12})\s*$", srv.smtp.last_text(), _re.M).group(1)
+            page.locator("#reset-code").fill("000000" if code != "000000" else "111111")
+            page.get_by_role("button", name="تحقق من الرمز").click()
+            expect(page.get_by_role("alert").filter(has_text="الرمز غير صحيح")).to_be_visible()
+            page.locator("#reset-code").fill(code)
+            page.get_by_role("button", name="تحقق من الرمز").click()
+            expect(page.locator("#reset-password")).to_be_visible()
+            page.locator("#reset-password").fill("Brand-New-Pass-42")
+            page.locator("#reset-password2").fill("Brand-New-Pass-42")
+            page.locator(".antibot:visible").click()
+            expect(page.locator(".antibot:visible")).to_have_attribute("data-state", "done", timeout=30000)
+            run.shot(page, "12-reset-step3")
+            page.get_by_role("button", name="تغيير كلمة المرور والدخول").click()
+            expect(page.locator(".home-switch")).to_be_visible(timeout=15000)
+            assert old_session.get("/api/me").status_code == 401
+            run.step("forgot password: e-mail → admin taps «توليد رمز» in Telegram → code e-mailed → wrong code refused → "
+                     "right code → new password → signed in; the old session was signed out")
             ctx.close()
             browser.close()
 

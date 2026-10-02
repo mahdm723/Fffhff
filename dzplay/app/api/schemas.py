@@ -65,3 +65,20 @@ class ResolveReportBody(_Body):
 
 class UserStatusBody(_Body):
     status: str = Field(max_length=16)
+
+
+class ResetRequestBody(_Body):
+    email: str = Field(max_length=320)
+    antibot: dict[str, Any] | None = None
+
+
+class ResetVerifyBody(_Body):
+    email: str = Field(max_length=320)
+    code: str = Field(max_length=32)
+
+
+class ResetCompleteBody(_Body):
+    reset_token: str = Field(max_length=128)
+    password: str = Field(max_length=512)
+    password_confirm: str = Field(max_length=512)
+    antibot: dict[str, Any] | None = None

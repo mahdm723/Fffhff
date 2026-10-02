@@ -26,7 +26,7 @@ from app import clock
 from app.errors import AppError
 from app.models import UsedChallenge
 
-PURPOSES = ("register", "login")
+PURPOSES = ("register", "login", "reset")
 
 
 @dataclass
