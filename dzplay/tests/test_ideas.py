@@ -218,15 +218,15 @@ def test_owner_can_report_delete_and_block_commenter(hx):
 
 
 def test_report_post_and_admin_remove(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN="tok")
+    hx = make_harness()
     owner, b = hx.user(), hx.user()
     pid = post(owner, "منشور مخالف").json()["id"]
     assert owner.post(f"/api/posts/{pid}/report", json={"reason": "spam"}).status_code == 400
     assert b.post(f"/api/posts/{pid}/report", json={"reason": "inappropriate"}).status_code == 201
-    admin = hx.client()
-    reports = admin.get("/api/admin/reports", headers={"Authorization": "Bearer tok"}).json()["reports"]
+    admin = hx.admin()
+    reports = admin.get("/api/admin/reports").json()["reports"]
     assert reports[0]["target"] == "post" and reports[0]["evidence"][0]["content"] == "منشور مخالف"
-    admin.post(f"/api/admin/reports/{reports[0]['id']}/resolve", json={"action": "remove"}, headers={"Authorization": "Bearer tok"})
+    admin.post(f"/api/admin/reports/{reports[0]['id']}/resolve", json={"action": "remove"})
     assert b.get(f"/api/posts/{pid}").status_code == 404
     assert pid not in feed_ids(b)[0]
 

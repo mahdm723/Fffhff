@@ -6,6 +6,10 @@
   python -m app.admin_cli set-status <user_ref> active|suspended|banned
   python -m app.admin_cli events [--type login_failed]
   python -m app.admin_cli cleanup
+  python -m app.admin_cli create-admin <username>      (asks for a password, prints the 2FA QR code)
+  python -m app.admin_cli reset-admin-2fa <username>
+  python -m app.admin_cli set-admin-password <username>
+  python -m app.admin_cli audit [--limit 50]
   python -m app.admin_cli gen-secret
   python -m app.admin_cli gen-vapid
 """
@@ -42,6 +46,33 @@ def _gen_vapid() -> None:
     print(f"VAPID_PRIVATE_KEY={b64(raw_private)}")
 
 
+def _show_totp(settings, username: str, secret: str) -> None:
+    from app.security.totp import provisioning_uri
+
+    uri = provisioning_uri(secret, f"{username}@{settings.APP_NAME}")
+    print("\nScan this QR code with Google Authenticator / Microsoft Authenticator / Aegis / 2FAS:\n")
+    try:
+        import qrcode
+
+        qr = qrcode.QRCode(border=1)
+        qr.add_data(uri)
+        qr.print_ascii(invert=True)
+    except ImportError:
+        pass
+    print(f"Or enter this key manually: {secret}\n")
+    if settings.ADMIN_PATH:
+        print(f"Panel path: {settings.ADMIN_PATH}\n")
+
+
+def _ask_password() -> str:
+    import getpass
+
+    first = getpass.getpass("New admin password (12+ characters): ")
+    if first != getpass.getpass("Repeat password: "):
+        raise SystemExit("Passwords do not match.")
+    return first
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="dzplay-admin")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -57,6 +88,10 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("events")
     p.add_argument("--type", default=None)
     sub.add_parser("cleanup")
+    for name in ("create-admin", "reset-admin-2fa", "set-admin-password"):
+        sub.add_parser(name).add_argument("username")
+    p = sub.add_parser("audit")
+    p.add_argument("--limit", type=int, default=50)
     sub.add_parser("gen-secret")
     sub.add_parser("gen-vapid")
     args = parser.parse_args(argv)
@@ -71,7 +106,33 @@ def main(argv: list[str] | None = None) -> None:
     settings = get_settings()
     database = Database(settings.DATABASE_URL)
     database.create_all()
+    if args.cmd in ("create-admin", "reset-admin-2fa", "set-admin-password"):
+        from app.services import admin_auth, audit
+
+        password = _ask_password() if args.cmd != "reset-admin-2fa" else None
+        with database.session() as db:
+            try:
+                if args.cmd == "create-admin":
+                    _admin, secret = admin_auth.create_admin(db, settings, args.username, password)
+                elif args.cmd == "reset-admin-2fa":
+                    secret = admin_auth.reset_totp(db, settings, args.username)
+                else:
+                    admin_auth.set_password(db, args.username, password)
+                    secret = None
+            except ValueError as exc:
+                raise SystemExit(str(exc)) from None
+            audit.record(db, "cli", args.cmd.replace("-", "_"), target_type="admin", target_id=args.username.lower())
+        if secret:
+            _show_totp(settings, args.username.lower(), secret)
+        print("Done.")
+        return
+
     with database.session() as db:
+        if args.cmd == "audit":
+            from app.services import audit
+
+            _print({"chain": audit.verify_chain(db), "entries": audit.list_entries(db, args.limit)})
+            return
         if args.cmd == "stats":
             _print(admin.stats(db))
         elif args.cmd == "reports":

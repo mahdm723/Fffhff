@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app import clock
 from app.config import Settings
-from app.models import AuthSession, AuthThrottle, ContentFlag, Conversation, Message, Report, SecurityEvent, UsedChallenge
+from app.models import AdminAuditLog, AdminSession, AuthSession, AuthThrottle, ContentFlag, Conversation, Message, Report, SecurityEvent, UsedChallenge
 
 log = logging.getLogger("dzplay.cleanup")
 
@@ -50,6 +50,9 @@ def run_cleanup(db: Session, settings: Settings) -> dict[str, int]:
     purge("security_events", delete(SecurityEvent).where(
         SecurityEvent.created_at < now - timedelta(seconds=settings.SECURITY_EVENT_RETENTION)))
     purge("reports", delete(Report).where(and_(Report.expires_at <= now, Report.status != "open")))
+    idle = now - timedelta(seconds=settings.ADMIN_SESSION_IDLE)
+    purge("admin_sessions", delete(AdminSession).where(or_(AdminSession.expires_at <= now, AdminSession.last_seen_at < idle)))
+    purge("audit_log", delete(AdminAuditLog).where(AdminAuditLog.created_at < now - timedelta(seconds=settings.AUDIT_LOG_RETENTION)))
     purge("flags", delete(ContentFlag).where(and_(ContentFlag.expires_at <= now, ContentFlag.status != "open")))
     if any(counts.values()):
         log.info("cleanup: %s", counts)

@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app import clock
 from app.models import Block, Conversation, Message, Report, User
-from tests.conftest import reply, send
+from tests.conftest import ADMIN_PATH, reply, send
 
 # ----------------------------------------------------------------- limits
 
@@ -292,16 +292,16 @@ def test_websocket_requires_session_and_same_origin(hx):
 # ----------------------------------------------------------------- admin
 
 
-def test_admin_api_requires_token_and_hides_content(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN="admin-secret-token")
+def test_admin_api_requires_admin_session_and_hides_content(make_harness):
+    hx = make_harness()
     a, b = hx.user(), hx.user()
     r = send(a, "محتوى خاص جدًا")
     cid = r.json()["conversation"]["id"]
-    c = hx.client()
-    assert c.get("/api/admin/stats").status_code == 401
-    assert c.get("/api/admin/stats", headers={"Authorization": "Bearer wrong"}).status_code == 401
-    auth = {"Authorization": "Bearer admin-secret-token"}
-    stats = c.get("/api/admin/stats", headers=auth)
+    anon = hx.client()
+    assert anon.get(f"{ADMIN_PATH}/api/admin/stats").status_code == 401
+    assert anon.get("/api/admin/stats").status_code == 404  # nothing at the old, guessable path
+    c = hx.admin()
+    stats = c.get("/api/admin/stats")
     assert stats.status_code == 200
     data = stats.json()
     assert data["users"]["total"] == 2 and data["messages"]["stored_now"] == 1
@@ -309,16 +309,19 @@ def test_admin_api_requires_token_and_hides_content(make_harness):
 
     # Content becomes visible only through an explicit report.
     b.post(f"/api/conversations/{cid}/report", json={"reason": "spam"})
-    reports = c.get("/api/admin/reports", headers=auth).json()["reports"]
+    reports = c.get("/api/admin/reports").json()["reports"]
     assert reports[0]["evidence"][0]["content"] == "محتوى خاص جدًا"
     assert "@" not in json.dumps(reports)
-    res = c.post(f"/api/admin/reports/{reports[0]['id']}/resolve", json={"action": "ban"}, headers=auth)
+    res = c.post(f"/api/admin/reports/{reports[0]['id']}/resolve", json={"action": "ban"})
     assert res.json()["resolution"] == "ban"
     assert a.get("/api/me").status_code == 401  # banned + sessions revoked
 
 
-def test_admin_api_disabled_without_token(hx):
-    assert hx.client().get("/api/admin/stats", headers={"Authorization": "Bearer "}).status_code == 404
+def test_admin_panel_disabled_without_admin_path(make_harness):
+    hx = make_harness(ADMIN_PATH="")
+    c = hx.client()
+    assert c.get(f"{ADMIN_PATH}/api/admin/stats").status_code == 404
+    assert c.get(ADMIN_PATH).status_code == 404
 
 
 # ----------------------------------------------------------------- misc

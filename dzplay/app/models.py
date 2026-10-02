@@ -20,9 +20,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -67,6 +69,8 @@ class User(Base):
     conversations_count: Mapped[int] = mapped_column(Integer, default=0)
     # Last privacy notice version the user has seen (None = before notices existed).
     privacy_ack_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The platform's own "DZPLAY الرسمي" account (no login; used by admins to comment).
+    is_official: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class AuthSession(Base):
@@ -100,6 +104,7 @@ class Report(Base):
     message_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     post_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    reel_comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     reason: Mapped[str] = mapped_column(String(32))
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Minimal evidence: only the reported content, copied so it survives TTL.
@@ -320,3 +325,180 @@ class Comment(Base):
     author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Reels — platform content uploaded by the admins through Telegram. The media
+# files stay in Telegram; we keep only references and a temporary disk cache.
+# ---------------------------------------------------------------------------
+
+
+class Reel(Base):
+    __tablename__ = "reels"
+    __table_args__ = (Index("ix_reel_status_time", "status", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    short_id: Mapped[str] = mapped_column(String(12), unique=True)  # shown in the bot (/hide <id>)
+    kind: Mapped[str] = mapped_column(String(8))  # video|images
+    caption: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(16), default="processing")  # processing|visible|hidden|failed
+    error: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    media_group_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    pinned_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    likes_count: Mapped[int] = mapped_column(Integer, default=0)
+    dislikes_count: Mapped[int] = mapped_column(Integer, default=0)
+    comments_count: Mapped[int] = mapped_column(Integer, default=0)
+    views_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class ReelAsset(Base):
+    __tablename__ = "reel_assets"
+    __table_args__ = (Index("ix_asset_reel_pos", "reel_id", "position"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    kind: Mapped[str] = mapped_column(String(8))  # video|image
+    tg_file_id: Mapped[str] = mapped_column(String(255))
+    tg_unique_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    source_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ready: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ReelReaction(Base):
+    __tablename__ = "reel_reactions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "reel_id", name="uq_reel_reaction"),
+        CheckConstraint("reaction IN ('like','dislike')", name="ck_reel_reaction"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"), index=True)
+    reaction: Mapped[str] = mapped_column(String(8))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class ReelComment(Base):
+    """Public comments on Reels — a separate table from the owner-only Ideas comments."""
+
+    __tablename__ = "reel_comments"
+    __table_args__ = (Index("ix_reel_comment_time", "reel_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"))
+    author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class ReelView(Base):
+    """Light, temporary "seen" marks so a session does not replay recent reels first."""
+
+    __tablename__ = "reel_views"
+    __table_args__ = (UniqueConstraint("user_id", "reel_id", name="uq_reel_view"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"))
+    seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+
+
+class MediaCacheEntry(Base):
+    """Processed media files on the server's disk cache (LRU + size cap + TTL)."""
+
+    __tablename__ = "media_cache"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)  # "<asset_id>.<variant>"
+    asset_id: Mapped[str] = mapped_column(String(32), index=True)
+    size: Mapped[int] = mapped_column(BigInteger, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    last_access: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+
+
+# ---------------------------------------------------------------------------
+# Password recovery (admin-assisted; the code reaches the user by e-mail)
+# ---------------------------------------------------------------------------
+
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    short_id: Mapped[str] = mapped_column(String(12), unique=True)  # shown to the admin in Telegram
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)  # argon2 hash, never the code
+    # pending (waiting for admin) | sent (code e-mailed) | verified | used | cancelled | expired | failed
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)  # after a correct code
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    code_set_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+
+# ---------------------------------------------------------------------------
+# Admin panel: separate accounts with TOTP, sessions, tamper-evident audit log
+# ---------------------------------------------------------------------------
+
+
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    username: Mapped[str] = mapped_column(String(64), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    totp_secret_enc: Mapped[str] = mapped_column(Text)  # encrypted with a key derived from SECRET_KEY
+    last_totp_step: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # replay guard
+    disabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AdminSession(Base):
+    __tablename__ = "admin_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    admin_id: Mapped[str] = mapped_column(ForeignKey("admin_users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+
+class AdminAuditLog(Base):
+    """Append-only: the panel has no update/delete path. Each row chains the
+    previous row's hash, so silent edits in the database are detectable."""
+
+    __tablename__ = "admin_audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    actor: Mapped[str] = mapped_column(String(80))  # admin username, "telegram" or "cli"
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    target_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    target_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ip_ref: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+    prev_hash: Mapped[str] = mapped_column(String(64))
+    row_hash: Mapped[str] = mapped_column(String(64))
+
+
+class CannedComment(Base):
+    """Ready-made comments the admins can post from the official account."""
+
+    __tablename__ = "canned_comments"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    category: Mapped[str] = mapped_column(String(32), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)

@@ -27,6 +27,8 @@ from app.main import create_app  # noqa: E402
 from app.security.pow import solve  # noqa: E402
 
 PASSWORD = "Str0ng-Pass!"
+ADMIN_PATH = "/test-panel"
+ADMIN_PASSWORD = "Admin-Pass-0123456"
 _ip_counter = itertools.count(1)
 
 
@@ -44,6 +46,8 @@ def make_settings(tmp_path, **overrides) -> Settings:
         GOOGLE_CLIENT_ID="test-client.apps.googleusercontent.com",
         REPORT_AUTO_SUSPEND_THRESHOLD=0,
         LOG_LEVEL="WARNING",
+        ADMIN_PATH=ADMIN_PATH,
+        MEDIA_CACHE_DIR=str(tmp_path / "media-cache"),
     )
     base.update(overrides)
     return Settings(**base)
@@ -63,6 +67,8 @@ class Harness:
         self._lifespan = TestClient(self.app)
         self._lifespan.__enter__()  # runs startup (create tables, hub)
         self.state = state
+        self.admin_secrets: dict[str, str] = {}
+        self._admin_clients: dict[str, AdminClient] = {}
 
     def client(self, ip: str | None = None) -> TestClient:
         ip = ip or f"10.0.{next(_ip_counter) % 250}.{next(_ip_counter) % 250}"
@@ -96,10 +102,62 @@ class Harness:
     def db(self):
         return self.state.database.session()
 
+    # --- admin panel -------------------------------------------------------
+    def create_admin(self, username: str = "owner") -> str:
+        """Create an admin account; returns its TOTP secret."""
+        from app.services import admin_auth
+
+        with self.db() as db:
+            _admin, secret = admin_auth.create_admin(db, self.settings, username, ADMIN_PASSWORD)
+        self.admin_secrets[username] = secret
+        return secret
+
+    def admin_login(self, c: TestClient, username: str = "owner", code: str | None = None, password: str = ADMIN_PASSWORD):
+        from app.security import totp
+
+        secret = self.admin_secrets.get(username) or self.create_admin(username)
+        if code is None:
+            # each TOTP step can be used once: move to the next step for every new login
+            clock.advance(totp.STEP)
+            code = totp.code_at(secret, totp.current_step(clock.timestamp()))
+        return c.post(f"{ADMIN_PATH}/api/admin/login", json={"username": username, "password": password, "code": code})
+
+    def admin(self, username: str = "owner", ip: str | None = None) -> "AdminClient":
+        """A client signed in to the admin panel (cached per username)."""
+        if username not in self._admin_clients:
+            c = self.client(ip)
+            r = self.admin_login(c, username)
+            assert r.status_code == 200, r.text
+            self._admin_clients[username] = AdminClient(c)
+        return self._admin_clients[username]
+
     def close(self):
         self._lifespan.__exit__(None, None, None)
         self.state.database.engine.dispose()
         clock.reset()
+
+
+class AdminClient:
+    """Wraps a signed-in TestClient; "/api/admin/..." paths go to the secret admin prefix."""
+
+    def __init__(self, client: TestClient):
+        self.client = client
+
+    @staticmethod
+    def _path(path: str) -> str:
+        return ADMIN_PATH + path if path.startswith("/api/admin") else path
+
+    def get(self, path: str, **kw):
+        return self.client.get(self._path(path), **kw)
+
+    def post(self, path: str, **kw):
+        return self.client.post(self._path(path), **kw)
+
+    def put(self, path: str, **kw):
+        return self.client.put(self._path(path), **kw)
+
+    def delete(self, path: str, **kw):
+        return self.client.delete(self._path(path), **kw)
 
 
 @pytest.fixture

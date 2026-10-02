@@ -73,7 +73,6 @@ if [ ! -f .env ]; then
   set_env ENV production
   set_env SECRET_KEY "$(openssl rand -hex 32)"
   set_env POSTGRES_PASSWORD "$(openssl rand -hex 24)"
-  set_env ADMIN_API_TOKEN "$(openssl rand -hex 32)"
   set_env TRUST_PROXY_HEADERS true
   set_env TRUSTED_PROXY_COUNT 1
   if [ "$MODE" = "http" ]; then
@@ -93,6 +92,15 @@ if [ ! -f .env ]; then
 else
   ok "Keeping existing .env"
 fi
+# Secrets added by later versions (generated once, kept on every update).
+env_has() { grep -q "^$1=.\+" .env; }
+env_has ADMIN_PATH || { set_env ADMIN_PATH "/panel-$(openssl rand -hex 8)"; ok "Generated a secret admin panel path"; }
+env_has TELEGRAM_WEBHOOK_SECRET || set_env TELEGRAM_WEBHOOK_SECRET "$(openssl rand -hex 32)"
+if grep -q '^ADMIN_API_TOKEN=' .env; then
+  sed -i '/^ADMIN_API_TOKEN=/d' .env   # replaced by admin accounts + 2FA
+  ok "Removed the old admin token (the panel now uses admin accounts + 2FA)"
+fi
+chmod 600 .env
 PUBLIC_URL="$(grep '^PUBLIC_URL=' .env | cut -d= -f2-)"
 SITE="$(grep '^DOMAIN=' .env | cut -d= -f2-)"
 ok "Address: $PUBLIC_URL"
@@ -146,7 +154,13 @@ else
   warn "Certificate logs: cd $APP_DIR && docker compose logs caddy"
 fi
 
-ADMIN_TOKEN="$(grep '^ADMIN_API_TOKEN=' .env | cut -d= -f2-)"
+ADMIN_PATH_VALUE="$(grep '^ADMIN_PATH=' .env | cut -d= -f2-)"
+if docker compose exec -T app python -c "from app.config import get_settings; from app.db import Database; from app.services.admin_auth import count_admins; d=Database(get_settings().DATABASE_URL); d.create_all(); s=d.SessionLocal(); raise SystemExit(0 if count_admins(s) else 1)" >/dev/null 2>&1 </dev/null; then
+  ADMIN_NOTE="Sign in with your admin account + the code from your authenticator app."
+else
+  ADMIN_NOTE="First time: create your admin account (asks a password, then shows a QR code for 2FA):
+     cd $APP_DIR && docker compose exec app python -m app.admin_cli create-admin owner"
+fi
 cat <<EOF
 
 =====================================================================
@@ -154,8 +168,8 @@ cat <<EOF
 
   Open on your phone:   $PUBLIC_URL
 
-  Admin statistics:     curl -H "Authorization: Bearer $ADMIN_TOKEN" $PUBLIC_URL/api/admin/stats
-  (keep this token secret — it is stored in $APP_DIR/.env)
+  Admin panel (keep this address secret):   $PUBLIC_URL$ADMIN_PATH_VALUE
+  $ADMIN_NOTE
 
   Update to the latest version:   run the same install command again
   Logs:      cd $APP_DIR && docker compose logs -f app

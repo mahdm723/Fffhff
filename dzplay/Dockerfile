@@ -4,6 +4,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
+# ffmpeg: Reels video remux/transcode + posters (runs as the unprivileged app user).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
@@ -11,7 +16,7 @@ RUN pip install -r requirements.txt
 COPY app ./app
 COPY static ./static
 
-RUN useradd --create-home --uid 10001 dzplay && mkdir -p /data && chown dzplay /data
+RUN useradd --create-home --uid 10001 dzplay && mkdir -p /data/media-cache && chown -R dzplay /data
 USER dzplay
 
 EXPOSE 8000

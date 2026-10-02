@@ -14,7 +14,6 @@ Admin policy:
 from __future__ import annotations
 
 import json
-import math
 from datetime import timedelta
 
 from sqlalchemy import func, select
@@ -44,7 +43,7 @@ def _count(db: Session, model, *where) -> int:
     return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
 
 
-def stats(db: Session) -> dict:
+def stats(db: Session, settings=None) -> dict:
     now = clock.utcnow()
     day = now - timedelta(days=1)
     return {
@@ -152,22 +151,6 @@ def security_events(db: Session, type_: str | None, limit: int = 100) -> list[di
         {"type": e.type, "user_ref": e.user_id, "ip_ref": (e.ip_hash or "")[:12] or None, "detail": e.detail, "at": iso(e.created_at)}
         for e in db.execute(q).scalars()
     ]
-
-
-def admin_lockout(db: Session, ip_hash: str, max_failures: int, window: int) -> int:
-    """Seconds this network must wait after too many wrong admin tokens (0 = allowed)."""
-    since = clock.utcnow() - timedelta(seconds=window)
-    times = db.execute(
-        select(SecurityEvent.created_at)
-        .where(SecurityEvent.type == "admin_auth_failed", SecurityEvent.ip_hash == ip_hash, SecurityEvent.created_at > since)
-        .order_by(SecurityEvent.created_at.desc())
-        .limit(max_failures)
-    ).scalars().all()
-    if len(times) < max_failures:
-        return 0
-    # Unlocks when the oldest of the last `max_failures` failures leaves the window.
-    wait = (times[-1] + timedelta(seconds=window) - clock.utcnow()).total_seconds()
-    return max(1, math.ceil(wait))
 
 
 ACTIVITY_SERIES = ("users", "posts", "conversations", "failed_logins")

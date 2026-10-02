@@ -1,4 +1,4 @@
-"""End-to-end browser test of the owner dashboard (/admin) on a phone viewport.
+"""End-to-end browser test of the admin panel (secret ADMIN_PATH, account + 2FA) on a phone viewport.
 
     python e2e/run_admin_e2e.py [--shots DIR]
 
@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from datetime import timedelta
 from pathlib import Path
@@ -30,7 +31,10 @@ from app import clock  # noqa: E402
 from app.models import Conversation, Post, SecurityEvent, User  # noqa: E402
 from app.security.pow import solve  # noqa: E402
 
-TOKEN = "e2e-admin-token-0123456789"
+ADMIN_PATH = "/panel-e2e-test"
+ADMIN_PASSWORD = "e2e-Admin-Pass-0123"
+SECRET = "e2e-secret"
+ADMIN_TOTP: dict[str, str] = {}
 PASSWORD = "Str0ng-Pass!"
 MOBILE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "is_mobile": True, "has_touch": True}
 
@@ -38,8 +42,8 @@ MOBILE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "
 def start_server(port: int) -> tuple[subprocess.Popen, str, str]:
     tmp = tempfile.mkdtemp(prefix="dz-admin-e2e-")
     db_url = f"sqlite:///{tmp}/e2e.db"
-    env = dict(os.environ, DATABASE_URL=db_url, SECRET_KEY="e2e-secret", ENV="development", CLEANUP_INTERVAL="0",
-               LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10", ADMIN_API_TOKEN=TOKEN)
+    env = dict(os.environ, DATABASE_URL=db_url, SECRET_KEY=SECRET, ENV="development", CLEANUP_INTERVAL="0",
+               LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10", ADMIN_PATH=ADMIN_PATH)
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"], cwd=ROOT, env=env)
     base = f"http://127.0.0.1:{port}"
@@ -114,6 +118,15 @@ def seed(base: str, db_url: str) -> str:
         old = db.query(User).filter(User.email == "old-user@example.com").one()
         old.privacy_ack_version = None  # an account from before the privacy update
         db.commit()
+
+        # One admin account per browser context (a TOTP code can only be used once).
+        from app.config import Settings
+        from app.services import admin_auth
+
+        settings = Settings(SECRET_KEY=SECRET, DATABASE_URL=db_url)
+        for name in ("owner", "light", "desk"):
+            _admin, ADMIN_TOTP[name] = admin_auth.create_admin(db, settings, name, ADMIN_PASSWORD)
+        db.commit()
     return pid
 
 
@@ -125,7 +138,7 @@ class Run:
         shots.mkdir(parents=True, exist_ok=True)
 
     def watch(self, page: Page, who: str) -> None:
-        # The deliberate wrong-token sign-in logs one expected 401.
+        # The deliberate wrong sign-in and the first visit (no session yet) log expected 401s.
         page.on("console", lambda m: m.type == "error" and "status of 401" not in m.text
                 and self.errors.append(f"{who} console: {m.text}"))
         page.on("pageerror", lambda e: self.errors.append(f"{who} pageerror: {e}"))
@@ -138,28 +151,39 @@ class Run:
     def step(text: str) -> None:
         print(f"  ✓ {text}", flush=True)
 
-    def sign_in(self, page: Page, token: str) -> None:
-        page.goto(self.base + "/admin")
-        page.fill("#admin-token", token)
+    def sign_in(self, page: Page, username: str, code: str | None = None, goto: bool = True) -> None:
+        from app.security import totp
+
+        if goto:
+            page.goto(self.base + ADMIN_PATH)
+        page.fill("#admin-user", username)
+        page.fill("#admin-pass", ADMIN_PASSWORD)
+        page.fill("#admin-code", code or totp.code_at(ADMIN_TOTP[username], totp.current_step(time.time())))
         page.get_by_role("button", name="دخول").click()
 
     def dark(self, browser) -> None:
         ctx = browser.new_context(**MOBILE, color_scheme="dark", locale="ar-DZ", timezone_id="Africa/Algiers")
         page = ctx.new_page()
         self.watch(page, "dark")
-        page.goto(self.base + "/admin")
-        expect(page.locator("#admin-token")).to_be_visible()
+        assert urllib.request.urlopen(self.base + ADMIN_PATH).status == 200
+        for guess in ("/admin", "/js/admin.js"):
+            try:
+                urllib.request.urlopen(self.base + guess)
+                raise AssertionError(f"{guess} should not exist")
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 404
+        page.goto(self.base + ADMIN_PATH)
+        expect(page.locator("#admin-user")).to_be_visible()
         self.shot(page, "01-login-dark")
 
-        self.sign_in(page, "wrong-token")
-        expect(page.get_by_role("alert")).to_have_text("الرمز غير صحيح.")
-        self.step("wrong token rejected")
+        self.sign_in(page, "owner", code="000000", goto=False)
+        expect(page.get_by_role("alert")).to_have_text("بيانات الدخول أو رمز التحقق غير صحيحة.")
+        self.step("wrong 2FA code rejected; /admin does not exist")
 
-        page.fill("#admin-token", TOKEN)
-        page.get_by_role("button", name="دخول").click()
+        self.sign_in(page, "owner", goto=False)
         expect(page.locator(".admin-tile__num").first).to_be_visible()
         expect(page.locator(".viz-card")).to_have_count(4)
-        assert page.evaluate("sessionStorage.getItem('dz-admin-token')") == TOKEN
+        assert "dz_admin" not in page.evaluate("document.cookie")  # HttpOnly
         expect(page.locator("#reports-badge")).to_have_text("3")
         self.step("signed in; stats, 4 activity charts, review badge = 2 reports + 1 flag")
         self.shot(page, "02-overview-dark")
@@ -201,6 +225,7 @@ class Run:
         expect(page.locator(".admin-terms mark").first).to_be_visible()
         self.shot(page, "05b-flags-dark", full=True)
         page.locator(".admin-card").get_by_role("button", name="عرض المحادثات").click()
+        page.get_by_role("button", name="مراجعة رصد تلقائي").click()
         expect(page.locator(".admin-convs .admin-msg")).to_have_count(2)
         expect(page.locator(".admin-convs .admin-msg--flagged")).to_have_count(1)
         self.step("flag listed; sender's stored conversation opens with the flagged message marked")
@@ -212,15 +237,21 @@ class Run:
         expect(page.locator("#reports-badge")).to_have_text("1")
         self.step("flagged message removed")
 
-        page.get_by_role("tab", name="الأمان").click()
+        page.get_by_role("tab", name="السجلات").click()
         expect(page.locator(".admin-event").first).to_be_visible()
         page.select_option("#event-type", "login_failed")
         expect(page.locator(".admin-event__type").first).to_have_text("دخول فاشل")
         page.select_option("#event-type", "")
-        expect(page.locator(".admin-event", has_text="رمز مشرف خاطئ")).to_have_count(1)
+        expect(page.locator(".admin-event", has_text="دخول مشرف فاشل")).to_have_count(1)
         expect(page.locator(".admin-event", has_text="المشرف: اطّلع على محادثات")).to_have_count(1)
-        self.step("security log lists the wrong admin token attempt")
         self.shot(page, "06-security-dark")
+        page.get_by_role("tab", name="سجل الإدارة").click()
+        expect(page.locator(".admin-chain")).to_contain_text("السجل سليم")
+        view = page.locator(".admin-event", has_text="اطّلع على محادثات")
+        expect(view).to_have_count(1)
+        expect(view).to_contain_text("مراجعة رصد تلقائي")
+        self.step("security log shows the failed admin login; audit log shows the conversation view with its reason")
+        self.shot(page, "06b-audit-dark")
 
         page.get_by_role("tab", name="الصيانة").click()
         page.get_by_role("button", name="تشغيل التنظيف الآن").click()
@@ -229,20 +260,20 @@ class Run:
         self.shot(page, "07-tools-dark", full=True)
 
         page.get_by_role("button", name="خروج").click()
-        expect(page.locator("#admin-token")).to_be_visible()
-        assert page.evaluate("sessionStorage.getItem('dz-admin-token')") is None
+        expect(page.locator("#admin-user")).to_be_visible()
         page.reload()
-        expect(page.locator("#admin-token")).to_be_visible()
-        self.step("logout clears the token")
+        expect(page.locator("#admin-user")).to_be_visible()
+        self.step("logout ends the admin session")
         ctx.close()
 
     def light(self, browser) -> None:
         ctx = browser.new_context(**MOBILE, color_scheme="light", locale="ar-DZ", timezone_id="Africa/Algiers")
         page = ctx.new_page()
         self.watch(page, "light")
-        page.goto(self.base + "/admin")
+        page.goto(self.base + ADMIN_PATH)
+        expect(page.locator("#admin-user")).to_be_visible()
         self.shot(page, "08-login-light")
-        self.sign_in(page, TOKEN)
+        self.sign_in(page, "light", goto=False)
         expect(page.locator(".viz-card")).to_have_count(4)
         page.wait_for_timeout(300)
         self.shot(page, "09-overview-light-full", full=True)
@@ -252,7 +283,7 @@ class Run:
         # session survives a reload in the same tab
         page.reload()
         expect(page.locator(".admin-tab").first).to_be_visible()
-        self.step("light mode; token kept for the tab across reload")
+        self.step("light mode; session kept across reload")
         ctx.close()
 
     def privacy_notice(self, browser) -> None:
@@ -282,7 +313,7 @@ class Run:
         ctx = browser.new_context(viewport={"width": 1280, "height": 900}, color_scheme="dark", locale="ar-DZ")
         page = ctx.new_page()
         self.watch(page, "desktop")
-        self.sign_in(page, TOKEN)
+        self.sign_in(page, "desk")
         expect(page.locator(".viz-card")).to_have_count(4)
         self.shot(page, "11-overview-desktop", full=True)
         ctx.close()

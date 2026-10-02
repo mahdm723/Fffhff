@@ -12,6 +12,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       TRUST_PROXY_HEADERS: "true"
       TRUSTED_PROXY_COUNT: "1"
+      MEDIA_CACHE_DIR: /data/media-cache
+    volumes:
+      - media:/data/media-cache  # temporary Reels media cache (originals stay in Telegram)
     depends_on:
       db:
         condition: service_healthy
@@ -54,3 +57,4 @@ services:
 volumes:
   pgdata:
   caddy_data:
+  media:

@@ -21,6 +21,11 @@ MANDATORY_MATCHING_RULES = ("not_self", "active_status", "not_blocked")
 OPTIONAL_MATCHING_RULES = ("no_open_conversation", "not_recent_partner", "inbound_capacity")
 
 
+# First path segments the app itself uses; ADMIN_PATH may not shadow them.
+RESERVED_PATHS = {"api", "js", "css", "fonts", "icons", "download", "media", "admin", "healthz", ".well-known",
+                  "sw.js", "manifest.webmanifest", "index.html"}
+
+
 # Bump when the privacy policy changes in a way users must be told about; users
 # who acknowledged an older version see the new notice once (see /api/me).
 PRIVACY_VERSION = 2
@@ -131,8 +136,80 @@ class Settings(BaseSettings):
         "46:15:BE:65:23:30:C9:0A:C6:2C:C3:2C:E5:6B:0C:C0:CB:03:2B:8B:37:E7:13:86:0C:66:D0:A0:FA:EC:79:BF"
     )
 
-    # --- admin ---------------------------------------------------------------
-    ADMIN_API_TOKEN: str = ""  # empty disables the admin API
+    # --- admin panel (separate admin accounts + TOTP 2FA) ---------------------
+    ADMIN_PATH: str = ""  # secret URL prefix of the panel, e.g. /panel-x7f3k9q2; empty disables the panel
+    ADMIN_IP_ALLOWLIST: str = ""  # optional comma-separated IPs/CIDRs allowed to reach the panel
+    ADMIN_SESSION_TTL: int = 12 * HOUR  # absolute lifetime of an admin session
+    ADMIN_SESSION_IDLE: int = 30 * 60  # admin session ends after this much inactivity
+    ADMIN_LOGIN_MAX_FAILURES: int = 5  # wrong logins per network (and per username) ...
+    ADMIN_LOGIN_WINDOW: int = 15 * 60  # ... within this window lock the panel login for that window
+    AUDIT_LOG_RETENTION: int = 365 * DAY
+
+    # --- Telegram bot (Reels uploads, password-recovery requests) -------------
+    TELEGRAM_BOT_TOKEN: str = ""  # secret: .env only
+    TELEGRAM_ADMIN_CHAT_ID: str = ""  # only this chat may control the bot
+    TELEGRAM_WEBHOOK_SECRET: str = ""  # secret: sent by Telegram in X-Telegram-Bot-Api-Secret-Token
+    TELEGRAM_API_BASE: str = "https://api.telegram.org"  # or a Local Bot API server
+    TELEGRAM_MAX_FILE_MB: int = 20  # getFile limit of the public Bot API
+    TELEGRAM_ALBUM_SETTLE_SECONDS: float = 2.5  # wait for the rest of an album before confirming
+
+    # --- media cache + processing ----------------------------------------------
+    MEDIA_CACHE_DIR: str = "./media-cache"
+    MEDIA_CACHE_MAX_GB: float = 5.0
+    MEDIA_CACHE_TTL: int = 14 * DAY  # files unused for this long are deleted (refetched on demand)
+    MEDIA_URL_TTL: int = 2 * HOUR  # lifetime of signed media URLs
+    MEDIA_PROCESS_TIMEOUT: int = 300  # seconds per ffmpeg run
+    FFMPEG_BINARY: str = "ffmpeg"
+    FFPROBE_BINARY: str = "ffprobe"
+    VIDEO_MAX_WIDTH: int = 720  # portrait 720p
+    VIDEO_MAX_HEIGHT: int = 1280
+    VIDEO_CRF: int = 26
+    VIDEO_MAX_BITRATE_K: int = 2000
+    VIDEO_AUDIO_BITRATE_K: int = 96
+    VIDEO_REMUX_MAX_BITRATE_K: int = 3500  # H.264/AAC sources under this are only remuxed (fast)
+    IMAGE_MAX_SIDE: int = 1440
+    IMAGE_QUALITY: int = 82
+    IMAGE_MAX_PIXELS: int = 40_000_000  # decompression-bomb guard
+
+    # --- reels -------------------------------------------------------------------
+    REELS_PAGE_SIZE: int = 12
+    REELS_FRESHNESS_HALF_LIFE_HOURS: float = 72.0  # weight halves every N hours of age
+    REELS_OLD_MIN_WEIGHT: float = 0.08  # old reels never drop below this weight
+    REELS_SEEN_PENALTY: float = 0.02  # weight multiplier for recently seen reels (shown after unseen ones)
+    REELS_SEEN_TTL: int = 3 * DAY  # how long a "seen" mark lives
+    REELS_PIN_HOURS: int = 48  # /pin keeps a reel at the top this long
+    MAX_REEL_CAPTION_LENGTH: int = 2000
+    MAX_REEL_COMMENT_LENGTH: int = 300
+    MAX_REEL_COMMENTS_PER_MINUTE: int = 6
+    MAX_REEL_COMMENTS_PER_HOUR: int = 60
+    REEL_COMMENTS_PAGE_SIZE: int = 20
+    PREFETCH_COUNT: int = 3  # reels prefetched as soon as the app opens
+    PREFETCH_AHEAD: int = 3  # reels kept loaded after the one being watched
+    DEVICE_MEDIA_CACHE_MB: int = 200  # on-device cache cap for prefetched media
+
+    # --- password recovery (admin-assisted via Telegram, code by e-mail) -------
+    RESET_CODE_TTL: int = 24 * HOUR
+    RESET_MAX_REQUESTS: int = 3  # requests per network within RESET_IP_WINDOW before a block
+    RESET_IP_WINDOW: int = 4 * HOUR
+    RESET_IP_BLOCK_DURATION: int = 4 * HOUR
+    RESET_MAX_PER_EMAIL: int = 3  # requests per e-mail within RESET_EMAIL_WINDOW
+    RESET_EMAIL_WINDOW: int = DAY
+    RESET_MAX_CODE_ATTEMPTS: int = 5  # wrong codes before the code is cancelled
+    RESET_VERIFY_PER_IP_PER_HOUR: int = 20
+    RESET_TOKEN_TTL: int = 15 * 60  # after a correct code, time to choose the new password
+    RESET_CODE_LENGTH: int = 6
+
+    # --- e-mail (SMTP) -------------------------------------------------------------
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""  # secret: .env only
+    SMTP_FROM: str = ""  # e.g. "DZPLAY <no-reply@example.com>"
+    SMTP_SECURITY: str = "starttls"  # starttls | ssl | none (none only for local testing)
+    SMTP_TIMEOUT: int = 20
+
+    # --- profile ---------------------------------------------------------------------
+    FOOTER_TEXT: str = "صُنع في ولاية سعيدة / حساسنة / قرية تامسنة"
 
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
@@ -190,6 +267,37 @@ class Settings(BaseSettings):
     @property
     def android_cert_fingerprints(self) -> list[str]:
         return [f.strip().upper() for f in self.ANDROID_CERT_SHA256.split(",") if f.strip()]
+
+    @property
+    def admin_enabled(self) -> bool:
+        return bool(self.ADMIN_PATH)
+
+    @property
+    def telegram_enabled(self) -> bool:
+        return bool(self.TELEGRAM_BOT_TOKEN and self.TELEGRAM_ADMIN_CHAT_ID)
+
+    @property
+    def smtp_enabled(self) -> bool:
+        return bool(self.SMTP_HOST and self.SMTP_FROM)
+
+    @field_validator("ADMIN_PATH")
+    @classmethod
+    def _admin_path(cls, v: str) -> str:
+        v = v.strip().rstrip("/")
+        if not v:
+            return ""
+        import re as _re
+
+        if not _re.fullmatch(r"/[A-Za-z0-9_-]{6,64}", v) or v.split("/")[1] in RESERVED_PATHS:
+            raise ValueError("ADMIN_PATH must look like /panel-x7f3k9q2 (6-64 letters, digits, - or _)")
+        return v
+
+    @field_validator("SMTP_SECURITY")
+    @classmethod
+    def _smtp_security(cls, v: str) -> str:
+        if v not in ("starttls", "ssl", "none"):
+            raise ValueError("SMTP_SECURITY must be starttls, ssl or none")
+        return v
 
     @property
     def push_enabled(self) -> bool:

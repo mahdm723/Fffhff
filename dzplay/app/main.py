@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -27,11 +27,16 @@ from app.api import posts as posts_api
 from app.api import ws as ws_api
 from app.config import Settings, get_settings
 from app.errors import AppError
+from app.security.net import client_ip
+from app.services import admin_auth
 from app.services.cleanup import run_cleanup
 from app.state import AppState
 
 log = logging.getLogger("dzplay")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
+_ADMIN_ASSETS = {"admin.js": "text/javascript", "admin.css": "text/css"}
+_CSRF_EXEMPT = {"/api/telegram/webhook"}  # authenticated by Telegram's secret header instead
 
 # Don't depend on the host's /etc/mime.types (ES modules require a JS MIME type).
 for _ext, _type in {".js": "text/javascript", ".webmanifest": "application/manifest+json", ".woff2": "font/woff2",
@@ -107,13 +112,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="DZPLAY", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.dz = state
     csp = _csp(settings)
+    admin_prefix = settings.ADMIN_PATH
 
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
         path = request.url.path
-        if path.startswith("/api/") and int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
+        in_admin = bool(admin_prefix) and (path == admin_prefix or path.startswith(admin_prefix + "/"))
+        if in_admin and not admin_auth.ip_allowed(settings, client_ip(request, settings)):
+            return _error(404, "not_found", "غير موجود.")  # outside the allowlist the panel does not exist
+        is_api = path.startswith("/api/") or (in_admin and path.startswith(admin_prefix + "/api/"))
+        if is_api and int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
             return _error(413, "too_large", "الطلب كبير جدًا.")
-        if path.startswith("/api/") and request.method not in _SAFE_METHODS:
+        if is_api and request.method not in _SAFE_METHODS and path not in _CSRF_EXEMPT:
             # CSRF defence in depth (cookies are SameSite=Strict as well): a custom
             # header cannot be sent cross-site without a CORS preflight we never allow.
             if request.headers.get("x-dz-requested") != "1":
@@ -131,8 +141,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         h["Content-Security-Policy"] = csp
         if settings.COOKIE_SECURE:
             h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        if path.startswith("/api/"):
+        if is_api or in_admin:
             h["Cache-Control"] = "no-store"
+        if in_admin:
+            h["X-Robots-Tag"] = "noindex, nofollow"
         elif "Cache-Control" not in h:
             h["Cache-Control"] = "no-cache"
         return response
@@ -162,7 +174,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_api.router)
     app.include_router(messages_api.router)
     app.include_router(posts_api.router)
-    app.include_router(admin_api.router)
+    if settings.admin_enabled:
+        app.include_router(admin_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)
 
     @app.get("/.well-known/assetlinks.json", include_in_schema=False)
@@ -189,12 +202,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         def index() -> FileResponse:
             return FileResponse(STATIC_DIR / "index.html")
 
-        @app.get("/admin", include_in_schema=False)
-        def admin_page() -> FileResponse:
-            """Owner dashboard (works only with ADMIN_API_TOKEN; never linked from the app)."""
-            if not settings.ADMIN_API_TOKEN:
-                raise StarletteHTTPException(404)
-            return FileResponse(STATIC_DIR / "admin.html", headers={"X-Robots-Tag": "noindex, nofollow"})
+        if settings.admin_enabled:
+            @app.get(admin_prefix, include_in_schema=False)
+            def admin_page() -> HTMLResponse:
+                """The admin panel (secret path; never linked from the app)."""
+                html = (ADMIN_STATIC_DIR / "admin.html").read_text(encoding="utf-8")
+                return HTMLResponse(html.replace("{{ADMIN_PATH}}", admin_prefix))
+
+            @app.get(admin_prefix + "/assets/{name}", include_in_schema=False)
+            def admin_asset(name: str) -> FileResponse:
+                if name not in _ADMIN_ASSETS:  # fixed allowlist: no path input reaches the filesystem
+                    raise StarletteHTTPException(404)
+                return FileResponse(ADMIN_STATIC_DIR / name, media_type=_ADMIN_ASSETS[name])
 
         app.mount("/", StaticFiles(directory=STATIC_DIR), name="static")
     return app

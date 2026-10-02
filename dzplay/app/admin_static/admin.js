@@ -1,10 +1,11 @@
-// DZPLAY owner dashboard. Talks only to the token-protected /api/admin API.
-// The admin token is kept in sessionStorage (cleared when the tab closes) and
-// sent as a Bearer header. All server data is inserted with textContent.
-import { h, toast, confirmSheet, sheet, wordmark, REPORT_REASONS } from './ui.js';
-import { icon } from './icons.js';
+// DZPLAY admin panel. Lives under the secret ADMIN_PATH; talks only to its own
+// API there. Sign-in = admin account + password + TOTP code; the session is an
+// HttpOnly cookie scoped to the panel path (never readable from JS).
+// All server data is inserted with textContent.
+import { h, toast, confirmSheet, sheet, wordmark, REPORT_REASONS } from '/js/ui.js';
+import { icon } from '/js/icons.js';
 
-const TOKEN_KEY = 'dz-admin-token';
+const BASE = document.documentElement.dataset.base || '';
 const REFRESH_MS = 30_000;
 const app = document.getElementById('app');
 
@@ -18,16 +19,7 @@ const when = (iso) => (iso ? stamp.format(new Date(iso)) : '');
 const parseDay = (d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd); };
 const shortRef = (ref) => (ref ? `${ref.slice(0, 8)}…` : '—');
 
-// ------------------------------------------------------------------ token + API
-
-let memToken = null; // fallback when sessionStorage is unavailable
-function getToken() {
-  try { return sessionStorage.getItem(TOKEN_KEY) || memToken; } catch { return memToken; }
-}
-function setToken(t) {
-  memToken = t || null;
-  try { if (t) sessionStorage.setItem(TOKEN_KEY, t); else sessionStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ }
-}
+// ------------------------------------------------------------------ API
 
 class AdminError extends Error {
   constructor(status, code, message, retryAfter = null) {
@@ -38,9 +30,10 @@ class AdminError extends Error {
   }
 }
 
-async function call(method, path, body, token = getToken()) {
-  const headers = { Accept: 'application/json', Authorization: `Bearer ${token || ''}` };
-  const init = { method, headers, cache: 'no-store', credentials: 'omit' };
+async function call(method, path, body) {
+  const headers = { Accept: 'application/json' };
+  const init = { method, headers, cache: 'no-store', credentials: 'same-origin' };
+  if (path.startsWith('/api/admin')) path = BASE + path;
   if (method !== 'GET') {
     headers['X-DZ-Requested'] = '1';
     headers['Content-Type'] = 'application/json';
@@ -63,7 +56,7 @@ function waitText(seconds) {
 }
 
 function handleError(err) {
-  if (err.status === 401) return signOut('انتهت الجلسة أو تغيّر الرمز. أدخل الرمز من جديد.');
+  if (err.status === 401) return signOut('انتهت الجلسة. سجّل الدخول من جديد.');
   if (err.status === 429) return toast(`محاولات كثيرة. حاول بعد ${waitText(err.retryAfter)}.`, 'error');
   return toast(err.message, 'error');
 }
@@ -101,8 +94,10 @@ const EVENT_LABELS = {
   admin_set_suspended: 'المشرف: إيقاف حساب',
   admin_set_banned: 'المشرف: حظر حساب',
   admin_view_messages: 'المشرف: اطّلع على محادثات',
+  admin_login: 'دخول مشرف',
+  admin_login_failed: 'دخول مشرف فاشل',
 };
-const RISKY = new Set(['login_blocked_ip', 'login_blocked_ip_account', 'account_locked', 'login_banned', 'register_limited',
+const RISKY = new Set(['admin_login_failed', 'login_blocked_ip', 'login_blocked_ip_account', 'account_locked', 'login_banned', 'register_limited',
   'honeypot', 'google_invalid_token', 'auto_suspended', 'admin_auth_failed']);
 const CLEANUP_LABELS = {
   messages: 'رسائل منتهية', conversations: 'محادثات منتهية', sessions: 'جلسات منتهية', challenges: 'تحديات مكافحة الروبوت',
@@ -117,13 +112,13 @@ const METRICS = [
 const TABS = [
   ['overview', 'نظرة عامة'],
   ['reports', 'البلاغات'],
-  ['security', 'الأمان'],
+  ['security', 'السجلات'],
   ['tools', 'الصيانة'],
 ];
 
 const state = {
   tab: 'overview', stats: null, activity: null, days: 14, active: null, showTable: false,
-  reportKind: 'reports', reportStatus: 'open', eventType: '', prefillRef: '', timer: null, updatedAt: null,
+  reportKind: 'reports', logKind: 'events', reportStatus: 'open', eventType: '', prefillRef: '', timer: null, updatedAt: null,
 };
 
 // ------------------------------------------------------------------ small pieces
@@ -175,52 +170,51 @@ function userRef(ref) {
 
 function renderLogin(message = '') {
   stopRefresh();
-  const input = h('input', {
-    class: 'input', id: 'admin-token', type: 'password', dir: 'ltr', autocomplete: 'off', spellcheck: 'false',
-    autocapitalize: 'off', required: true, placeholder: 'ADMIN_API_TOKEN',
+  const field = (id, label, attrs) => h('div', { class: 'field' }, h('label', { for: id, text: label }),
+    h('input', { class: 'input', id, dir: 'ltr', spellcheck: 'false', autocapitalize: 'off', required: true, ...attrs }));
+  const user = field('admin-user', 'اسم المشرف', { autocomplete: 'username', maxlength: '64' });
+  const pass = field('admin-pass', 'كلمة المرور', { type: 'password', autocomplete: 'current-password', maxlength: '256' });
+  const code = field('admin-code', 'رمز التحقق (تطبيق المصادقة)', {
+    inputmode: 'numeric', autocomplete: 'one-time-code', pattern: '[0-9]{6}', maxlength: '6', placeholder: '123456',
   });
   const error = h('p', { class: 'form-error', role: 'alert', text: message, hidden: !message });
   const submit = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, icon('lock'), 'دخول');
+  const val = (f) => f.querySelector('input').value.trim();
   const form = h('form', {
     class: 'admin-login__card glass',
     onsubmit: async (e) => {
       e.preventDefault();
-      const token = input.value.trim();
-      if (!token) return;
       submit.disabled = true;
       error.hidden = true;
       try {
-        const stats = await call('GET', '/api/admin/stats', undefined, token);
-        setToken(token);
-        renderShell(stats);
+        await call('POST', '/api/admin/login', { username: val(user), password: pass.querySelector('input').value, code: val(code) });
+        renderShell(await call('GET', '/api/admin/stats'));
       } catch (err) {
-        error.textContent = err.status === 401 ? 'الرمز غير صحيح.'
-          : err.status === 429 ? `محاولات خاطئة كثيرة من هذه الشبكة. حاول بعد ${waitText(err.retryAfter)}.`
+        error.textContent = err.status === 401 ? 'بيانات الدخول أو رمز التحقق غير صحيحة.'
+          : err.status === 429 ? `محاولات خاطئة كثيرة. حاول بعد ${waitText(err.retryAfter)}.`
             : err.message;
         error.hidden = false;
         submit.disabled = false;
-        input.select();
+        code.querySelector('input').value = '';
+        code.querySelector('input').focus();
       }
     },
-  },
-  h('div', { class: 'field' }, h('label', { for: 'admin-token', text: 'رمز المشرف' }), input),
-  error,
-  submit);
+  }, user, pass, code, error, submit);
 
   app.replaceChildren(h('main', { class: 'admin-login' },
     wordmark(true),
-    h('h1', { class: 'admin-login__title', text: 'لوحة التحكم' }),
-    h('p', { class: 'admin-login__lead', text: 'للمالك فقط. أدخل رمز المشرف الموجود في ملف ‎.env على الخادم.' }),
+    h('h1', { class: 'admin-login__title', text: 'لوحة الإدارة' }),
+    h('p', { class: 'admin-login__lead', text: 'للمشرفين فقط. الدخول بحساب مشرف ورمز من تطبيق المصادقة.' }),
     form,
     h('div', { class: 'admin-hint glass' },
-      h('p', { text: 'لعرض الرمز، شغّل في الخادم:' }),
-      h('code', { dir: 'ltr', text: 'grep ADMIN_API_TOKEN /opt/dzplay/dzplay/.env' }),
-      h('p', { class: 'admin-hint__note', text: 'يُحفظ الرمز في هذه النافذة فقط ويُمسح عند إغلاقها أو عند الخروج.' }))));
-  input.focus();
+      h('p', { text: 'لإنشاء حساب مشرف (مرة واحدة)، شغّل في الخادم:' }),
+      h('code', { dir: 'ltr', text: 'cd /opt/dzplay/dzplay && docker compose exec app python -m app.admin_cli create-admin owner' }),
+      h('p', { class: 'admin-hint__note', text: 'يطلب كلمة مرور ثم يعرض رمز QR تمسحه بتطبيق Google Authenticator أو Microsoft Authenticator.' }))));
+  user.querySelector('input').focus();
 }
 
-function signOut(message = '') {
-  setToken(null);
+async function signOut(message = '') {
+  try { await call('POST', '/api/admin/logout'); } catch { /* already signed out */ }
   state.stats = null;
   state.activity = null;
   renderLogin(message);
@@ -674,10 +668,31 @@ async function resolveItem(item, action, card, list) {
 
 // --- stored conversations of a reported / flagged user (every view is logged server side) ---
 
+const VIEW_REASONS = ['مراجعة بلاغ', 'مراجعة رصد تلقائي', 'التحقق من تهديد أو ابتزاز', 'حماية قاصر'];
+
+function askReason() {
+  return new Promise((resolve) => {
+    let answer = null;
+    sheet((panel, close) => {
+      const custom = h('input', { class: 'input', maxlength: '200', placeholder: 'أو اكتب السبب…' });
+      const pick = (r) => { answer = r; close(); };
+      panel.append(
+        h('h2', { text: 'سبب الاطلاع على المحادثات' }),
+        h('p', { class: 'admin-meta', text: 'المحادثات خاصة. يُسجَّل اطلاعك مع السبب في سجل الإدارة (من، متى، ماذا، لماذا).' }),
+        h('div', { class: 'admin-reasons' }, ...VIEW_REASONS.map((r) => h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onclick: () => pick(r) }, r))),
+        h('form', { class: 'admin-reason-form', onsubmit: (e) => { e.preventDefault(); if (custom.value.trim().length >= 3) pick(custom.value.trim()); } },
+          custom, h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, 'متابعة')),
+        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إلغاء')));
+    }, () => resolve(answer));
+  });
+}
+
 async function openConversations(ref) {
+  const reason = await askReason();
+  if (!reason) return;
   let data;
   try {
-    data = await call('GET', `/api/admin/users/${encodeURIComponent(ref)}/conversations`);
+    data = await call('GET', `/api/admin/users/${encodeURIComponent(ref)}/conversations?reason=${encodeURIComponent(reason)}`);
   } catch (err) {
     if (err.status === 403) toast(err.message, 'error');
     else if (err.status === 404) toast('لا يوجد مستخدم بهذا المرجع.', 'error');
@@ -709,7 +724,7 @@ async function openConversations(ref) {
     panel.append(
       h('h2', { text: 'محادثات المستخدم' }),
       h('p', { class: 'admin-meta' }, 'المستخدم: ', userRef(ref),
-        ` · ${fmt(data.conversations.length)} محادثة محفوظة. هذا الاطلاع مسجَّل في سجل الأمان.`),
+        ` · ${fmt(data.conversations.length)} محادثة محفوظة. هذا الاطلاع مسجَّل في سجل الإدارة.`),
       body,
       h('div', { class: 'actions' },
         h('button', { class: 'btn btn--ghost btn--block', onclick: () => { close(); state.prefillRef = ref; showTab('tools'); } }, 'إدارة الحساب'),
@@ -727,19 +742,61 @@ async function refreshStatsQuietly() {
 
 // ------------------------------------------------------------------ security log
 
+const AUDIT_LABELS = {
+  login: 'دخول مشرف', logout: 'خروج مشرف', view_reports: 'اطّلع على البلاغات', view_flags: 'اطّلع على الرصد',
+  view_conversations: 'اطّلع على محادثات', cleanup: 'تنظيف البيانات', user_active: 'تفعيل حساب',
+  user_suspended: 'إيقاف حساب', user_banned: 'حظر حساب', create_admin: 'إنشاء مشرف (CLI)',
+  reset_admin_2fa: 'إعادة 2FA (CLI)', set_admin_password: 'تغيير كلمة مرور مشرف (CLI)',
+};
+const auditLabel = (a) => AUDIT_LABELS[a] || ({ report_: 'بلاغ: ', flag_: 'رصد: ' }[a.replace(/[a-z]+$/, '')] || '') + (RESOLUTIONS[a.split('_').pop()] || a);
+
 function renderSecurity(main) {
-  const select = h('select', { class: 'input admin-select', id: 'event-type', 'aria-label': 'نوع الحدث' },
-    h('option', { value: '', text: 'كل الأحداث' }),
-    ...Object.entries(EVENT_LABELS).map(([v, label]) => h('option', { value: v, text: label })));
-  select.value = state.eventType;
-  const list = h('div', { class: 'admin-events glass', id: 'event-list' });
-  select.addEventListener('change', () => { state.eventType = select.value; loadEvents(list); });
+  const body = h('div', { class: 'admin-section' });
+  const showEvents = () => {
+    const select = h('select', { class: 'input admin-select', id: 'event-type', 'aria-label': 'نوع الحدث' },
+      h('option', { value: '', text: 'كل الأحداث' }),
+      ...Object.entries(EVENT_LABELS).map(([v, label]) => h('option', { value: v, text: label })));
+    select.value = state.eventType;
+    const list = h('div', { class: 'admin-events glass', id: 'event-list' });
+    select.addEventListener('change', () => { state.eventType = select.value; loadEvents(list); });
+    body.replaceChildren(
+      h('div', { class: 'admin-filter' }, select),
+      h('p', { class: 'admin-meta', text: 'المستخدمون بمرجع داخلي فقط، والشبكات ببصمة مشفّرة مختصرة — لا عناوين IP ولا بريد. تُحذف السجلات تلقائيًا بعد 30 يومًا.' }),
+      list);
+    loadEvents(list);
+  };
+  const showAudit = async () => {
+    const list = h('div', { class: 'admin-events glass', id: 'audit-list' }, spinner());
+    const chain = h('p', { class: 'admin-meta' });
+    body.replaceChildren(
+      h('p', { class: 'admin-meta', text: 'كل ما يفعله المشرفون، وكل اطلاع على محتوى خاص، مع السبب. السجل لا يمكن تعديله أو حذفه من اللوحة، وكل سطر مربوط بالسطر السابق لكشف أي تلاعب.' }),
+      chain, list);
+    try {
+      const data = await call('GET', '/api/admin/audit?limit=200');
+      chain.replaceChildren(icon(data.chain.ok ? 'check' : 'flag'),
+        data.chain.ok ? ` السجل سليم (${fmt(data.chain.checked)} سطرًا).` : ` تحذير: السجل عُدّل خارج اللوحة عند السطر ${data.chain.broken_at}.`);
+      chain.className = `admin-meta admin-chain ${data.chain.ok ? '' : 'admin-chain--bad'}`;
+      list.replaceChildren(...(data.entries.length ? data.entries.map((e) => h('div', { class: 'admin-event' },
+        h('div', { class: 'admin-event__top' },
+          h('span', { class: 'admin-event__type', text: auditLabel(e.action) }),
+          h('time', { class: 'admin-event__time', datetime: e.at, text: when(e.at) })),
+        h('div', { class: 'admin-event__meta' },
+          h('span', {}, 'المشرف: ', h('b', { text: e.actor })),
+          e.target_id ? h('span', {}, 'الهدف: ', h('code', { dir: 'ltr', text: `${e.target_type || ''} ${shortRef(e.target_id)}` })) : null,
+          e.reason ? h('span', {}, 'السبب: ', h('b', { text: e.reason })) : null,
+          e.detail ? h('span', { class: 'admin-event__detail', text: e.detail }) : null)))
+        : [h('p', { class: 'admin-events__empty', text: 'لا شيء بعد.' })]));
+    } catch (err) {
+      list.replaceChildren();
+      handleError(err);
+    }
+  };
   main.replaceChildren(
-    sectionHead('سجل الأمان'),
-    h('div', { class: 'admin-filter' }, select),
-    h('p', { class: 'admin-meta', text: 'المستخدمون بمرجع داخلي فقط، والشبكات ببصمة مشفّرة مختصرة — لا عناوين IP ولا بريد. تُحذف السجلات تلقائيًا بعد 30 يومًا.' }),
-    list);
-  loadEvents(list);
+    sectionHead('السجلات'),
+    segmented([['events', 'أحداث الأمان'], ['audit', 'سجل الإدارة']], state.logKind,
+      (v) => { state.logKind = v; (v === 'audit' ? showAudit : showEvents)(); }, 'نوع السجل'),
+    body);
+  (state.logKind === 'audit' ? showAudit : showEvents)();
 }
 
 async function loadEvents(list) {
@@ -830,23 +887,20 @@ function renderTools(main) {
       h('h3', { class: 'admin-group__title' }, icon('user'), 'حالة حساب'),
       statusForm),
     h('article', { class: 'admin-group glass' },
-      h('h3', { class: 'admin-group__title' }, icon('lock'), 'تغيير رمز المشرف'),
-      h('p', { class: 'admin-meta', text: 'إذا شاركت الرمز مع أحد أو ظهر في مكان عام، غيّره بهذه الأوامر في الخادم ثم ادخل بالرمز الجديد:' }),
+      h('h3', { class: 'admin-group__title' }, icon('lock'), 'أمان حسابات المشرفين'),
+      h('p', { class: 'admin-meta', text: 'إذا فقدت هاتف المصادقة أو شككت في كلمة المرور، شغّل في الخادم:' }),
       h('pre', { class: 'admin-code', dir: 'ltr' }, h('code', {
-        text: 'cd /opt/dzplay/dzplay\nsed -i "s/^ADMIN_API_TOKEN=.*/ADMIN_API_TOKEN=$(openssl rand -hex 32)/" .env\ndocker compose up -d --force-recreate app\ngrep ADMIN_API_TOKEN .env',
+        text: 'cd /opt/dzplay/dzplay\ndocker compose exec app python -m app.admin_cli reset-admin-2fa owner\ndocker compose exec app python -m app.admin_cli set-admin-password owner',
       }))));
 }
 
 // ------------------------------------------------------------------ boot
 
 async function boot() {
-  const token = getToken();
-  if (!token) { renderLogin(); return; }
   try {
-    renderShell(await call('GET', '/api/admin/stats', undefined, token));
+    renderShell(await call('GET', '/api/admin/stats'));
   } catch (err) {
-    if (err.status === 401) signOut();
-    else renderLogin(err.status === 429 ? `محاولات كثيرة. حاول بعد ${waitText(err.retryAfter)}.` : err.message);
+    renderLogin(err.status === 401 || err.status === 0 ? '' : err.message);
   }
 }
 

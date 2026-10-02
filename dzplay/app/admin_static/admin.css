@@ -216,3 +216,10 @@ button.admin-ref:hover { background: var(--surface-3); }
 .admin-msg--peer { align-self: flex-end; background: var(--surface); border: 1px solid var(--line); }
 .admin-msg--flagged { box-shadow: 0 0 0 1.5px var(--accent-2); }
 .admin-msg--flagged .admin-msg__meta { color: var(--accent-2); font-weight: 700; }
+
+/* ---------- audit log + reason prompt ---------- */
+.admin-chain { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink-2); }
+.admin-chain svg { width: 18px; height: 18px; color: var(--ok); }
+.admin-chain--bad, .admin-chain--bad svg { color: var(--danger); }
+.admin-reasons { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.admin-reason-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }

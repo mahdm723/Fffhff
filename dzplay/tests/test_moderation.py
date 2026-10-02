@@ -13,8 +13,9 @@ from app.models import ContentFlag, Message, SecurityEvent, User
 from app.services.moderation import normalize, scan
 from tests.conftest import reply, send
 
-TOKEN = "admin-secret-token"
-AUTH = {"Authorization": f"Bearer {TOKEN}"}
+from tests.conftest import ADMIN_PATH
+
+REASON = {"reason": "مراجعة بلاغ"}
 
 
 # ----------------------------------------------------------------- scanner
@@ -64,7 +65,7 @@ def test_scan_extra_words_from_config():
 
 
 def test_threatening_message_is_flagged_but_still_delivered(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN)
+    hx = make_harness()
     a, b = hx.user(), hx.user()
     r = send(a, "راني نعرف وين تسكن، نقتلك")
     assert r.status_code == 201
@@ -73,7 +74,7 @@ def test_threatening_message_is_flagged_but_still_delivered(make_harness):
     convs = b.get("/api/conversations").json()["conversations"]
     assert len(convs) == 1  # delivered normally
 
-    flags = hx.client().get("/api/admin/flags", headers=AUTH).json()["flags"]
+    flags = hx.admin().get("/api/admin/flags").json()["flags"]
     assert len(flags) == 1
     f = flags[0]
     assert f["categories"] == ["threat"] and f["target"] == "message"
@@ -86,31 +87,31 @@ def test_threatening_message_is_flagged_but_still_delivered(make_harness):
     # A clean reply is not flagged.
     cid = convs[0]["id"]
     assert reply(b, cid, "من أنت؟ لا أفهم").status_code == 201
-    assert len(hx.client().get("/api/admin/flags", headers=AUTH).json()["flags"]) == 1
+    assert len(hx.admin().get("/api/admin/flags").json()["flags"]) == 1
 
 
 def test_flag_snapshot_survives_message_ttl(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN)
+    hx = make_harness()
     a, _b = hx.user(), hx.user()
     send(a, "ابعث الدراهم ولا نفضحك")
     clock.advance(hx.settings.MESSAGE_TTL + 60)
-    c = hx.client()
-    assert c.post("/api/admin/cleanup", headers=AUTH).json()["deleted"]["messages"] == 1
-    flags = c.get("/api/admin/flags", headers=AUTH).json()["flags"]
+    c = hx.admin()
+    assert c.post("/api/admin/cleanup").json()["deleted"]["messages"] == 1
+    flags = c.get("/api/admin/flags").json()["flags"]
     assert flags[0]["content"] == "ابعث الدراهم ولا نفضحك"
 
 
 def test_private_comment_is_flagged(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN)
+    hx = make_harness()
     owner, b = hx.user(), hx.user()
     pid = owner.post("/api/posts", json={"content": "فكرة عامة"}).json()["id"]
     assert b.post(f"/api/posts/{pid}/comments", json={"content": "يا قحبة"}).status_code == 201
-    flags = hx.client().get("/api/admin/flags", headers=AUTH).json()["flags"]
+    flags = hx.admin().get("/api/admin/flags").json()["flags"]
     assert flags[0]["target"] == "comment" and flags[0]["categories"] == ["sexual"]
 
 
 def test_moderation_can_be_disabled(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN, MODERATION_ENABLED=False)
+    hx = make_harness(MODERATION_ENABLED=False)
     a, _b = hx.user(), hx.user()
     send(a, "نقتلك")
     with hx.db() as db:
@@ -118,26 +119,26 @@ def test_moderation_can_be_disabled(make_harness):
 
 
 def test_resolve_flag_remove_deletes_message_and_ban_revokes(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN)
+    hx = make_harness()
     a, b = hx.user(), hx.user()
     send(a, "يا كلب")
     cid = b.get("/api/conversations").json()["conversations"][0]["id"]
     reply(a, cid, "نقتلك")
-    c = hx.client()
-    flags = c.get("/api/admin/flags", headers=AUTH).json()["flags"]
+    c = hx.admin()
+    flags = c.get("/api/admin/flags").json()["flags"]
     assert len(flags) == 2
     insult = next(f for f in flags if f["categories"] == ["insult"])
     threat = next(f for f in flags if f["categories"] == ["threat"])
     assert insult["offender_flags_total"] == 2
 
-    assert c.post(f"/api/admin/flags/{insult['id']}/resolve", json={"action": "remove"}, headers=AUTH).status_code == 200
+    assert c.post(f"/api/admin/flags/{insult['id']}/resolve", json={"action": "remove"}).status_code == 200
     contents = [m["content"] for m in b.get(f"/api/conversations/{cid}").json()["messages"]]
     assert "يا كلب" not in contents and "نقتلك" in contents
-    assert c.post(f"/api/admin/flags/{threat['id']}/resolve", json={"action": "ban"}, headers=AUTH).json()["resolution"] == "ban"
+    assert c.post(f"/api/admin/flags/{threat['id']}/resolve", json={"action": "ban"}).json()["resolution"] == "ban"
     assert a.get("/api/me").status_code == 401
-    assert c.post(f"/api/admin/flags/{threat['id']}/resolve", json={"action": "explode"}, headers=AUTH).status_code == 400
-    assert c.get("/api/admin/flags", headers=AUTH).json()["flags"] == []
-    assert c.get("/api/admin/stats", headers=AUTH).json()["safety"]["flags_open"] == 0
+    assert c.post(f"/api/admin/flags/{threat['id']}/resolve", json={"action": "explode"}).status_code == 400
+    assert c.get("/api/admin/flags").json()["flags"] == []
+    assert c.get("/api/admin/stats").json()["safety"]["flags_open"] == 0
 
 
 # ----------------------------------------------------------------- conversation review
@@ -149,23 +150,24 @@ def _ref(hx, client) -> str:
 
 
 def test_conversations_only_for_reported_or_flagged_users_and_logged(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN)
+    hx = make_harness()
     a, b = hx.user(), hx.user()
     send(a, "مرحبا، كيف كان يومك؟")
     cid = b.get("/api/conversations").json()["conversations"][0]["id"]
     reply(b, cid, "جيد، شكرًا")
-    c = hx.client()
+    c = hx.admin()
     ref_a = _ref(hx, a)
 
     # A clean user: no access to their messages.
-    r = c.get(f"/api/admin/users/{ref_a}/conversations", headers=AUTH)
+    r = c.get(f"/api/admin/users/{ref_a}/conversations", params=REASON)
     assert r.status_code == 403
-    assert c.get("/api/admin/users/nope/conversations", headers=AUTH).status_code == 404
-    assert c.get(f"/api/admin/users/{ref_a}/conversations").status_code == 401
+    assert c.get("/api/admin/users/nope/conversations", params=REASON).status_code == 404
+    assert c.get(f"/api/admin/users/{ref_a}/conversations").status_code == 400  # a reason is required
+    assert hx.client().get(f"{ADMIN_PATH}/api/admin/users/{ref_a}/conversations", params=REASON).status_code == 401
 
     # After a report, the stored conversations become reviewable.
     assert b.post(f"/api/conversations/{cid}/report", json={"reason": "harassment"}).status_code == 201
-    r = c.get(f"/api/admin/users/{ref_a}/conversations", headers=AUTH)
+    r = c.get(f"/api/admin/users/{ref_a}/conversations", params=REASON)
     assert r.status_code == 200
     data = r.json()
     conv = data["conversations"][0]
@@ -176,13 +178,16 @@ def test_conversations_only_for_reported_or_flagged_users_and_logged(make_harnes
     with hx.db() as db:
         views = db.scalars(select(SecurityEvent).where(SecurityEvent.type == "admin_view_messages")).all()
         assert len(views) == 1 and views[0].user_id == ref_a
+    entries = c.get("/api/admin/audit", params={"action": "view_conversations"}).json()["entries"]
+    assert len(entries) == 1 and entries[0]["reason"] == "مراجعة بلاغ" and entries[0]["target_id"] == ref_a
+    assert entries[0]["actor"] == "owner"
 
 
 def test_flag_alone_opens_review_and_marks_flagged_message(make_harness):
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN)
+    hx = make_harness()
     a, _b = hx.user(), hx.user()
     send(a, "ابعثيلي صورتك")
-    data = hx.client().get(f"/api/admin/users/{_ref(hx, a)}/conversations", headers=AUTH).json()
+    data = hx.admin().get(f"/api/admin/users/{_ref(hx, a)}/conversations", params=REASON).json()
     assert data["conversations"][0]["messages"][0]["flagged"] is True
 
 
@@ -205,7 +210,7 @@ def test_privacy_notice_for_existing_users_only_once(hx):
 
 def test_message_model_untouched_by_flagging(make_harness):
     """Flagging keeps a copy; it must not alter or hold the original message."""
-    hx = make_harness(ADMIN_API_TOKEN=TOKEN)
+    hx = make_harness()
     a, _b = hx.user(), hx.user()
     send(a, "نقتلك")
     with hx.db() as db:
