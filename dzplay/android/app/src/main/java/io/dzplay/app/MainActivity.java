@@ -48,7 +48,8 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setSupportMultipleWindows(false);
-        s.setMediaPlaybackRequiresUserGesture(true);
+        // Reels autoplay MUTED as you scroll (the web app never starts sound by itself; unmuting needs a tap).
+        s.setMediaPlaybackRequiresUserGesture(false);
         s.setUserAgentString(s.getUserAgentString() + " DZPLAYApp/" + BuildConfig.VERSION_NAME);
 
         CookieManager cookies = CookieManager.getInstance();
