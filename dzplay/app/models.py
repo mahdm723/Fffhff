@@ -51,8 +51,18 @@ def new_public_id() -> str:
 # ---------------------------------------------------------------------------
 
 
+PUBLIC_ID_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # no 0/O, 1/I lookalikes
+PUBLIC_ID_RE = r"^DZ-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$"
+
+
+def new_public_user_id() -> str:
+    """DZ-XXXXXX: random (not sequential, ~1e9 values), shown to people; never the internal id."""
+    return "DZ-" + "".join(secrets.choice(PUBLIC_ID_ALPHABET) for _ in range(6))
+
+
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (Index("ux_users_public_id", "public_id", unique=True),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
@@ -73,6 +83,34 @@ class User(Base):
     is_official: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     # Internal accounts the team posts comments from (shown as "dzplay"); cannot sign in.
     is_system: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    # --- V4: identity (all nullable: added in place to existing databases) ---
+    # Shown name; None = the default "dzplay". Not unique: people are told apart by public_id.
+    display_name: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    name_norm: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)  # search key
+    name_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Short random public ID (e.g. DZ-7K4M9Q): fixed for life, unrelated to the internal id.
+    public_id: Mapped[str | None] = mapped_column(String(12), nullable=True, default=new_public_user_id)
+    gender: Mapped[str | None] = mapped_column(String(12), nullable=True)  # male|female|unspecified (None = unspecified)
+    gender_asked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    age_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # "18+ and terms"
+    # Privacy switches (None = default)
+    accept_anonymous: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
+    accept_direct: Mapped[str | None] = mapped_column(String(12), nullable=True)  # everyone|nobody (default everyone)
+    accept_calls: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
+    searchable_by_name: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
+
+
+class NameHistory(Base):
+    """Previous display names (shown in the admin panel only)."""
+
+    __tablename__ = "name_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    old_name: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    new_name: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
 class AuthSession(Base):
@@ -202,6 +240,7 @@ class Conversation(Base):
     __table_args__ = (
         Index("ix_conv_initiator", "initiator_id", "created_at"),
         Index("ix_conv_recipient", "recipient_id", "created_at"),
+        Index("ux_conv_direct_key", "direct_key", unique=True),
     )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
@@ -223,6 +262,18 @@ class Conversation(Base):
     last_sender_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     consecutive_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    # --- V4 ---
+    kind: Mapped[str | None] = mapped_column(String(12), nullable=True)  # anonymous (None) | direct
+    direct_key: Mapped[str | None] = mapped_column(String(80), nullable=True)  # "a:b" sorted ids: one direct chat per pair
+    request_state: Mapped[str | None] = mapped_column(String(12), nullable=True)  # direct: pending|accepted|ignored
+    initiator_revealed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # anonymous: identity shown to the peer
+    recipient_revealed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    initiator_muted: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    recipient_muted: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Each side has written at least once (calls unlock only after the other side replied).
+    initiator_sent: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    recipient_sent: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
     def is_participant(self, user_id: str) -> bool:
         return user_id in (self.initiator_id, self.recipient_id)
 
@@ -237,6 +288,25 @@ class Conversation(Base):
             self.initiator_hidden = value
         else:
             self.recipient_hidden = value
+
+    @property
+    def is_direct(self) -> bool:
+        return self.kind == "direct"
+
+    def revealed(self, user_id: str) -> bool:
+        return bool(self.initiator_revealed if user_id == self.initiator_id else self.recipient_revealed)
+
+    def has_sent(self, user_id: str) -> bool:
+        return bool(self.initiator_sent if user_id == self.initiator_id else self.recipient_sent)
+
+    def mark_sent(self, user_id: str) -> None:
+        if user_id == self.initiator_id:
+            self.initiator_sent = True
+        else:
+            self.recipient_sent = True
+
+    def muted_for(self, user_id: str) -> bool:
+        return bool(self.initiator_muted if user_id == self.initiator_id else self.recipient_muted)
 
 
 class Message(Base):
@@ -258,6 +328,9 @@ class Message(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # V4: system notices inside a chat (identity revealed, missed call, call ended…)
+    kind: Mapped[str | None] = mapped_column(String(12), nullable=True)  # text (None) | system
+    meta: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON for system messages
 
 
 # ---------------------------------------------------------------------------

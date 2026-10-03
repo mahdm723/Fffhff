@@ -224,6 +224,25 @@ class Settings(BaseSettings):
     # --- profile ---------------------------------------------------------------------
     FOOTER_TEXT: str = "صُنع في ولاية سعيدة / حساسنة / قرية تامسنة"
 
+    # --- V4: names, public ID, search, direct messages ---------------------------
+    DEFAULT_DISPLAY_NAME: str = "dzplay"
+    NAME_MIN_LENGTH: int = 3
+    NAME_MAX_LENGTH: int = 20
+    NAME_CHANGE_COOLDOWN_DAYS: int = 14  # going back to the default name is always allowed
+    # Compared after normalization (case, lookalike letters, spaces/underscores removed)
+    NAME_RESERVED: str = ("dzplay,dzplay الرسمي,dz play,official,admin,administrator,support,moderator,mod,staff,team,"
+                          "system,root,owner,الادارة,الإدارة,ادارة,مشرف,المشرف,الدعم,الدعم الفني,الرسمي,فريق dzplay")
+    NAME_BLOCKED_WORDS: str = ""  # extra words not allowed in names, comma separated ("word*" = starts with)
+    SEARCH_PER_MINUTE: int = 20  # people searches per user per minute (anti-scraping)
+    SEARCH_PER_DAY: int = 300
+    SEARCH_MAX_RESULTS: int = 20  # per page
+    SEARCH_MAX_PAGES: int = 3
+    DIRECT_MSG_BEFORE_REPLY_LIMIT: int = 3  # messages before the recipient accepts or replies
+    DIRECT_NEW_PER_DAY: int = 20  # new direct conversations a user may start per day
+    TYPING_EVENTS_PER_MINUTE: int = 30
+    WS_MAX_MESSAGE_BYTES: int = 16_384  # client → server WebSocket message size cap
+    WS_MSGS_PER_10S: int = 60  # client → server WebSocket messages per connection per 10 s
+
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
     MODERATION_EXTRA_WORDS: str = ""  # extra words/phrases, comma separated ("word*" = starts with)

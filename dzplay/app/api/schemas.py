@@ -23,6 +23,8 @@ class RegisterBody(_Body):
     password_confirm: str = Field(max_length=512)
     antibot: dict[str, Any] | None = None
     website: str | None = Field(default=None, max_length=200)  # honeypot: humans never fill it
+    gender: str | None = Field(default=None, max_length=12)  # male|female|unspecified (required)
+    age_confirmed: bool = False  # "I am 18+ and accept the terms" (required)
 
 
 class LoginBody(_Body):

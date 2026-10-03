@@ -334,11 +334,15 @@ def _official_ids(db: Session) -> set[str]:
     return set(db.execute(select(User.id).where(User.is_official.is_(True))).scalars())
 
 
-def serialize_comment(c: ReelComment, viewer_id: str | None, official: set[str]) -> dict:
+def serialize_comment(c: ReelComment, viewer_id: str | None, official: set[str], author: User | None = None) -> dict:
+    from app.services import names
+
     is_official = c.author_id in official
+    name = OFFICIAL_NAME if is_official else (names.shown_name(author) if author is not None else PEER_NAME)
     return {
         "id": c.id, "content": c.content, "created_at": iso(c.created_at),
-        "author": {"name": OFFICIAL_NAME if is_official else PEER_NAME, "official": is_official},
+        "author": {"name": name, "official": is_official,
+                   "gender": None if is_official or author is None else names.public_gender(author)},
         "mine": c.author_id == viewer_id,
     }
 
@@ -365,7 +369,9 @@ def list_comments(db: Session, settings: Settings, user: User, reel_id: str, cur
     if more and rows:
         last = rows[-1]
         nxt = base64.urlsafe_b64encode(json.dumps({"t": iso(last.created_at), "i": last.id}).encode()).decode().rstrip("=")
-    return {"comments": [serialize_comment(c, user.id, official) for c in rows], "next_cursor": nxt,
+    ids = {c.author_id for c in rows}
+    authors = {u.id: u for u in db.execute(select(User).where(User.id.in_(ids))).scalars()} if ids else {}
+    return {"comments": [serialize_comment(c, user.id, official, authors.get(c.author_id)) for c in rows], "next_cursor": nxt,
             "total": reel.comments_count}
 
 
@@ -387,7 +393,7 @@ def add_comment(db: Session, settings: Settings, limiter, user: User, reel_id: s
     if not user.is_official:
         flag_content(db, settings, target="reel_comment", text=text, offender_id=user.id, victim_id=None,
                      comment_id=comment.id, post_id=reel.id)
-    return {"comment": serialize_comment(comment, user.id, _official_ids(db) if user.is_official else set())}
+    return {"comment": serialize_comment(comment, user.id, _official_ids(db) if user.is_official else set(), user)}
 
 
 def _comment(db: Session, comment_id: str) -> ReelComment:

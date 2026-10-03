@@ -142,7 +142,7 @@ def unblock(block_id: str, request: Request) -> dict:
 def get_profile(request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        return ideas.own_profile(db, current_user(request, db))
+        return ideas.own_profile(db, current_user(request, db), st.settings)
 
 
 @router.post("/push/subscribe")

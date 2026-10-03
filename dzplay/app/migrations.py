@@ -39,3 +39,35 @@ def add_missing_columns(engine: Engine) -> list[str]:
     for name in added:
         log.info("schema: added column %s", name)
     return added
+
+
+def backfill(engine: Engine) -> dict:
+    """Idempotent data steps for existing databases (V4): unique indexes on new columns and a
+    public ID for every account that has none. Safe to run on every start."""
+    from app.models import new_public_user_id
+
+    done = {"public_ids": 0}
+    with engine.begin() as conn:
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_public_id ON users (public_id)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_conv_direct_key ON conversations (direct_key)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_name_norm ON users (name_norm)"))
+        # Conversations from before V4: the initiator always wrote first; the recipient replied if a
+        # message of theirs is still stored or they were the last sender.
+        conn.execute(text("UPDATE conversations SET initiator_sent = :t WHERE initiator_sent IS NULL"), {"t": True})
+        conn.execute(text(
+            "UPDATE conversations SET recipient_sent = :t WHERE recipient_sent IS NULL AND (last_sender_id = recipient_id "
+            "OR EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = conversations.id AND m.sender_id = conversations.recipient_id))"),
+            {"t": True})
+        missing = [r[0] for r in conn.execute(text("SELECT id FROM users WHERE public_id IS NULL"))]
+        if missing:
+            taken = {r[0] for r in conn.execute(text("SELECT public_id FROM users WHERE public_id IS NOT NULL"))}
+            for uid in missing:
+                pid = new_public_user_id()
+                while pid in taken:
+                    pid = new_public_user_id()
+                taken.add(pid)
+                conn.execute(text("UPDATE users SET public_id = :p WHERE id = :i"), {"p": pid, "i": uid})
+            done["public_ids"] = len(missing)
+    if done["public_ids"]:
+        log.info("backfill: public IDs for %d accounts", done["public_ids"])
+    return done

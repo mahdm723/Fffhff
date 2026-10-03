@@ -80,7 +80,7 @@ def register(body: RegisterBody, request: Request, response: Response) -> dict:
     with st.database.session() as db:
         user = auth_service.register(
             db, st.settings, ctx, email=body.email, password=body.password, password_confirm=body.password_confirm,
-            antibot_payload=body.antibot, honeypot=body.website,
+            antibot_payload=body.antibot, honeypot=body.website, gender=body.gender, age_confirmed=body.age_confirmed,
         )
         token = create_session(db, st.settings, user)
         result = profile(user)
@@ -180,7 +180,7 @@ def logout(request: Request, response: Response) -> dict:
 def me(request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        return own_profile(db, current_user(request, db))
+        return own_profile(db, current_user(request, db), st.settings)
 
 
 @router.post("/me/privacy-ack")

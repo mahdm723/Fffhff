@@ -1,8 +1,13 @@
 """Conversations, messages, blocking and reporting.
 
-Everything returned from here is already "anonymised": the other participant
-is always the literal string "dzplay", and no internal user id, e-mail or IP
-ever leaves this module. Ownership is checked server-side on every call;
+Two kinds of conversation:
+* anonymous (random matching, kind None): both sides appear as "dzplay" unless a side chose
+  "كشف هويتي" — that reveals its own name + public ID to the other side only, for good;
+* direct (V4, kind "direct"): started from someone's public ID; the peer's chosen name is shown.
+  A new direct chat is a *message request* for the recipient (accept / ignore / block) and the
+  sender may send at most DIRECT_MSG_BEFORE_REPLY_LIMIT messages until it is accepted or answered.
+
+No internal user id, e-mail or IP ever leaves this module. Ownership is checked server-side on every call;
 a conversation that is not yours is indistinguishable from one that does not
 exist (404).
 
@@ -24,7 +29,7 @@ from app import clock
 from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, not_found, rate_limited
 from app.models import Block, Conversation, Message, Report, User
-from app.services import matching
+from app.services import matching, names
 from app.services.auth import log_event
 from app.services.content import clean_message, preview
 from app.services.moderation import flag_content
@@ -75,6 +80,7 @@ def _message_status(m: Message) -> str:
 
 def serialize_message(m: Message, viewer_id: str) -> dict:
     mine = m.sender_id == viewer_id
+    system = m.kind == "system"
     return {
         "id": m.id,
         "conversation_id": m.conversation_id,
@@ -82,16 +88,45 @@ def serialize_message(m: Message, viewer_id: str) -> dict:
         "author": "me" if mine else PEER_NAME,
         "content": m.content,
         "created_at": iso(m.created_at),
-        "status": _message_status(m) if mine else None,
+        "status": _message_status(m) if mine and not system else None,
         "client_id": m.client_id if mine else None,
+        "kind": "system" if system else "text",
+        "meta": json.loads(m.meta) if system and m.meta else None,
     }
 
 
-def serialize_conversation(c: Conversation, viewer_id: str, last: Message | None, unread: int) -> dict:
+def peer_card(c: Conversation, viewer_id: str, peer: User | None) -> dict:
+    """How the other participant appears to the viewer (never internal ids or e-mail)."""
+    peer_id = c.peer_of(viewer_id)
+    shown = c.is_direct or c.revealed(peer_id)
+    if peer is None or not shown:
+        return {"name": names.default_name(), "public_id": None, "gender": None, "profile_ref": None, "anonymous": True}
+    return {"name": names.shown_name(peer), "public_id": peer.public_id, "gender": names.public_gender(peer),
+            "profile_ref": None, "anonymous": False}
+
+
+def _request_view(c: Conversation, viewer_id: str) -> dict | None:
+    if not c.is_direct:
+        return None
+    state = c.request_state or "accepted"
+    incoming = viewer_id == c.recipient_id
+    return {"state": state, "incoming": incoming, "pending_for_me": incoming and state == "pending"}
+
+
+def serialize_conversation(c: Conversation, viewer_id: str, last: Message | None, unread: int,
+                           peer: User | None = None) -> dict:
     peer_read = c.recipient_last_read_at if viewer_id == c.initiator_id else c.initiator_last_read_at
+    peer_id = c.peer_of(viewer_id)
+    card = peer_card(c, viewer_id, peer)
     return {
         "id": c.id,
-        "peer": PEER_NAME,
+        "kind": "direct" if c.is_direct else "anonymous",
+        "peer": card["name"],
+        "peer_card": card,
+        "me_revealed": c.revealed(viewer_id),
+        "muted": c.muted_for(viewer_id),
+        "request": _request_view(c, viewer_id),
+        "peer_has_replied": c.has_sent(peer_id),
         "status": c.status,
         "closed_by_me": c.status == "closed" and c.closed_by_id == viewer_id,
         "started_by_me": c.initiator_id == viewer_id,
@@ -102,7 +137,8 @@ def serialize_conversation(c: Conversation, viewer_id: str, last: Message | None
         "peer_read_at": iso(peer_read),
         "can_reply": c.status == "active",
         "last_message": (
-            {"preview": preview(last.content), "mine": last.sender_id == viewer_id, "created_at": iso(last.created_at)}
+            {"preview": preview(last.content), "mine": last.sender_id == viewer_id, "created_at": iso(last.created_at),
+             "kind": "system" if last.kind == "system" else "text"}
             if last
             else None
         ),
@@ -200,7 +236,10 @@ def _summaries(db: Session, user: User, conversations: list[Conversation]) -> li
         .where(Message.conversation_id.in_(ids), Message.recipient_id == user.id, Message.read_at.is_(None))
         .group_by(Message.conversation_id)
     ).all())
-    return [serialize_conversation(c, user.id, last_by_conv.get(c.id), unread.get(c.id, 0)) for c in conversations]
+    peer_ids = {c.peer_of(user.id) for c in conversations}
+    peers = {u.id: u for u in db.execute(select(User).where(User.id.in_(peer_ids))).scalars()} if peer_ids else {}
+    return [serialize_conversation(c, user.id, last_by_conv.get(c.id), unread.get(c.id, 0), peers.get(c.peer_of(user.id)))
+            for c in conversations]
 
 
 def _visible_conversations(db: Session, user: User, limit: int = 200) -> list[Conversation]:
@@ -262,6 +301,7 @@ def send_anonymous(db: Session, settings: Settings, limiter, user: User, *, cont
     conv = Conversation(
         initiator_id=user.id, recipient_id=recipient_id, created_at=now, last_message_at=now, updated_at=now,
         expires_at=now + timedelta(seconds=settings.CONVERSATION_IDLE_TTL), last_sender_id=user.id, consecutive_count=1,
+        initiator_sent=True,
     )
     db.add(conv)
     db.flush()
@@ -297,6 +337,7 @@ def reply(db: Session, settings: Settings, limiter, user: User, conversation_id:
     peer_id = conv.peer_of(user.id)
     if conv.status != "active" or _blocked_between(db, user.id, peer_id):
         raise AppError(403, "conversation_closed", "هذه المحادثة لم تعد متاحة.")
+    _check_direct_request(settings, conv, user.id)
     if conv.last_sender_id == user.id and conv.consecutive_count >= settings.MAX_CONSECUTIVE_MESSAGES:
         raise AppError(429, "wait_for_reply", "أرسلت عدة رسائل متتالية. انتظر رد الطرف الآخر.", retry_after=60)
     _check_limits(limiter, _message_limits(settings, user.id))
@@ -308,21 +349,43 @@ def reply(db: Session, settings: Settings, limiter, user: User, conversation_id:
     db.flush()
     flag_content(db, settings, target="message", text=text, offender_id=user.id, victim_id=peer_id,
                  message_id=msg.id, conversation_id=conv.id)
+    _after_send(db, settings, conv, user, peer_id, now, effects)
+    return {"message": serialize_message(msg, user.id)}
+
+
+def _check_direct_request(settings: Settings, conv: Conversation, sender_id: str) -> None:
+    """Until the recipient accepts or answers a direct request, the sender may only send a few messages."""
+    if not conv.is_direct or (conv.request_state or "accepted") == "accepted" or sender_id != conv.initiator_id:
+        return
+    if conv.last_sender_id == sender_id and conv.consecutive_count >= settings.DIRECT_MSG_BEFORE_REPLY_LIMIT:
+        raise AppError(429, "request_pending", "أرسلت الحد الأقصى من الرسائل. انتظر حتى يقبل الطرف الآخر طلب المراسلة.",
+                       retry_after=3600)
+
+
+def _after_send(db: Session, settings: Settings, conv: Conversation, user: User, peer_id: str, now: datetime,
+                effects: Effects) -> None:
     conv.consecutive_count = conv.consecutive_count + 1 if conv.last_sender_id == user.id else 1
     conv.last_sender_id = user.id
+    conv.mark_sent(user.id)
     conv.last_message_at = now
     conv.updated_at = now
     conv.expires_at = now + timedelta(seconds=settings.CONVERSATION_IDLE_TTL)
-    conv.set_hidden(peer_id, False)  # a new message brings a deleted conversation back for the peer
+    if conv.is_direct and user.id == conv.recipient_id and conv.request_state != "accepted":
+        conv.request_state = "accepted"  # answering a message request accepts it
+    ignored = conv.is_direct and conv.request_state == "ignored" and peer_id == conv.recipient_id
+    if not ignored:
+        conv.set_hidden(peer_id, False)  # a new message brings a deleted conversation back for the peer
 
     user.messages_sent += 1
     db.execute(update(User).where(User.id == peer_id).values(messages_received=User.messages_received + 1))
     db.flush()
 
-    effects.signal(peer_id, "message")
-    effects.push_to.append(peer_id)
+    if not ignored:
+        effects.signal(peer_id, "message")
+        pending_request = conv.is_direct and conv.request_state == "pending" and peer_id == conv.recipient_id
+        if not pending_request and not conv.muted_for(peer_id):
+            effects.push_to.append(peer_id)
     effects.signal(user.id, "sent")
-    return {"message": serialize_message(msg, user.id)}
 
 
 # ---------------------------------------------------------------------------
@@ -523,9 +586,19 @@ def _maybe_auto_suspend(db: Session, settings: Settings, user_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def profile(user: User) -> dict:
+def profile(user: User, settings: Settings | None = None) -> dict:
+    nxt = None
+    if user.name_changed_at is not None and settings is not None:
+        nxt = user.name_changed_at + timedelta(days=settings.NAME_CHANGE_COOLDOWN_DAYS)
     return {
-        "display_name": PEER_NAME,
+        "display_name": names.shown_name(user),
+        "has_custom_name": bool(user.display_name),
+        "public_id": user.public_id,
+        "gender": user.gender or "unspecified",
+        "next_name_change_at": iso(nxt) if nxt and nxt > clock.utcnow() else None,
+        "needs_gender": user.gender_asked_at is None,
+        "age_confirmed": user.age_confirmed_at is not None,
+        "privacy": privacy_view(user),
         "status": user.status,
         "stats": {
             "messages_sent": user.messages_sent,
@@ -536,3 +609,185 @@ def profile(user: User) -> dict:
         # True once for accounts that have not seen the current privacy notice yet.
         "privacy_notice": (user.privacy_ack_version or 0) < PRIVACY_VERSION,
     }
+
+
+def privacy_view(user: User) -> dict:
+    return {
+        "accept_anonymous": user.accept_anonymous is not False,
+        "accept_direct": user.accept_direct or "everyone",
+        "accept_calls": user.accept_calls is not False,
+        "searchable_by_name": user.searchable_by_name is not False,
+    }
+
+
+def set_privacy(user: User, body: dict) -> dict:
+    """Server-side privacy switches (the UI is never trusted)."""
+    for key in ("accept_anonymous", "accept_calls", "searchable_by_name"):
+        if key in body and body[key] is not None:
+            if not isinstance(body[key], bool):
+                raise AppError(400, "invalid_input", "طلب غير صالح.")
+            setattr(user, key, body[key])
+    if body.get("accept_direct") is not None:
+        if body["accept_direct"] not in ("everyone", "nobody"):
+            raise AppError(400, "invalid_input", "طلب غير صالح.")
+        user.accept_direct = body["accept_direct"]
+    return privacy_view(user)
+
+
+# ---------------------------------------------------------------------------
+# direct messages (V4)
+# ---------------------------------------------------------------------------
+
+
+def _direct_key(a: str, b: str) -> str:
+    return ":".join(sorted((a, b)))
+
+
+def find_person(db: Session, public_id: object) -> User | None:
+    from app.models import PUBLIC_ID_RE
+
+    import re
+
+    pid = public_id.strip().upper() if isinstance(public_id, str) else ""
+    if not re.match(PUBLIC_ID_RE, pid):
+        return None
+    u = db.scalar(select(User).where(User.public_id == pid))
+    if u is None or u.status != "active" or u.is_system or u.is_official:
+        return None
+    return u
+
+
+def require_adult(user: User) -> None:
+    if user.age_confirmed_at is None:
+        raise AppError(403, "age_required", "أكّد أن عمرك 18 سنة أو أكثر من الإعدادات أولًا.")
+
+
+def direct_target(db: Session, user: User, public_id: object) -> User:
+    target = find_person(db, public_id)
+    if target is None or target.id == user.id or _blocked_between(db, user.id, target.id):
+        raise not_found()  # unknown, blocked either way, suspended: indistinguishable
+    return target
+
+
+def existing_direct(db: Session, a: str, b: str) -> Conversation | None:
+    conv = db.scalar(select(Conversation).where(Conversation.direct_key == _direct_key(a, b)))
+    if conv is not None and conv.expires_at <= clock.utcnow():
+        db.delete(conv)  # expired (TTL) but not cleaned yet: start a fresh one
+        db.flush()
+        return None
+    return conv
+
+
+def person_card(db: Session, viewer: User, public_id: object) -> dict:
+    target = direct_target(db, viewer, public_id)
+    from app.services import ideas
+
+    conv = existing_direct(db, viewer.id, target.id)
+    if conv is not None and conv.status == "active":
+        can_message = True  # an existing chat keeps working even if they later close direct messages
+    else:
+        can_message = conv is None and (target.accept_direct or "everyone") == "everyone"
+    visible = conv is not None and not conv.hidden_for(viewer.id)
+    return {"name": names.shown_name(target), "public_id": target.public_id, "gender": names.public_gender(target),
+            "profile_ref": ideas.profile_ref_for(db, target.id), "can_message": can_message,
+            "conversation_id": conv.id if visible else None}
+
+
+def send_direct(db: Session, settings: Settings, limiter, user: User, public_id: object, *, content: object,
+                client_id: object, effects: Effects) -> dict:
+    """First message to someone found by public ID: reuses the pair's direct chat or starts a request."""
+    _require_can_send(user)
+    require_adult(user)
+    target = direct_target(db, user, public_id)
+    text = clean_message(content, settings.MAX_MESSAGE_LENGTH, settings.LINK_POLICY)
+    cid = _clean_client_id(client_id)
+    existing_msg = _existing_by_client_id(db, user, cid)
+    if existing_msg is not None:
+        conv = db.get(Conversation, existing_msg.conversation_id)
+        return {"conversation": _summaries(db, user, [conv])[0], "message": serialize_message(existing_msg, user.id)}
+    conv = existing_direct(db, user.id, target.id)
+    if conv is not None:
+        if conv.status != "active":
+            raise AppError(403, "conversation_closed", "هذه المحادثة لم تعد متاحة.")
+        conv.set_hidden(user.id, False)
+        result = reply(db, settings, limiter, user, conv.id, content=text, client_id=cid, effects=effects)
+        return {"conversation": _summaries(db, user, [conv])[0], **result}
+    if (target.accept_direct or "everyone") != "everyone":
+        raise AppError(403, "direct_closed", "هذا الشخص لا يستقبل رسائل مباشرة.")
+    _check_limits(limiter, _message_limits(settings, user.id) + [
+        Limit(f"newconv_day:direct:{user.id}", settings.DIRECT_NEW_PER_DAY, DAY)])
+    now = clock.utcnow()
+    conv = Conversation(
+        initiator_id=user.id, recipient_id=target.id, created_at=now, last_message_at=now, updated_at=now,
+        expires_at=now + timedelta(seconds=settings.CONVERSATION_IDLE_TTL), last_sender_id=None, consecutive_count=0,
+        kind="direct", direct_key=_direct_key(user.id, target.id), request_state="pending",
+    )
+    db.add(conv)
+    db.flush()
+    msg = Message(conversation_id=conv.id, sender_id=user.id, recipient_id=target.id, content=text, client_id=cid,
+                  created_at=now, expires_at=now + timedelta(seconds=settings.MESSAGE_TTL))
+    db.add(msg)
+    db.flush()
+    flag_content(db, settings, target="message", text=text, offender_id=user.id, victim_id=target.id,
+                 message_id=msg.id, conversation_id=conv.id)
+    user.conversations_count += 1
+    db.execute(update(User).where(User.id == target.id).values(conversations_count=User.conversations_count + 1))
+    _after_send(db, settings, conv, user, target.id, now, effects)
+    return {"conversation": _summaries(db, user, [conv])[0], "message": serialize_message(msg, user.id)}
+
+
+def answer_request(db: Session, user: User, conversation_id: str, action: str, effects: Effects) -> dict:
+    """The recipient of a direct message request accepts or ignores it (block uses block_conversation)."""
+    conv = _get_visible_conversation(db, user, conversation_id)
+    if not conv.is_direct or user.id != conv.recipient_id:
+        raise not_found()
+    if action == "accept":
+        conv.request_state = "accepted"
+    elif action == "ignore":
+        conv.request_state = "ignored"
+        conv.set_hidden(user.id, True)
+    else:
+        raise AppError(400, "invalid_action", "طلب غير صالح.")
+    conv.updated_at = clock.utcnow()
+    effects.signal(user.id, "conversation")
+    return {"state": conv.request_state}
+
+
+def _system_message(db: Session, settings: Settings, conv: Conversation, actor_id: str, event: str, text: str,
+                    meta: dict | None = None) -> Message:
+    now = clock.utcnow()
+    msg = Message(conversation_id=conv.id, sender_id=actor_id, recipient_id=conv.peer_of(actor_id), content=text,
+                  created_at=now, expires_at=now + timedelta(seconds=settings.MESSAGE_TTL), kind="system",
+                  meta=json.dumps({"event": event, **(meta or {})}, ensure_ascii=False))
+    db.add(msg)
+    conv.last_message_at = now
+    conv.updated_at = now
+    db.flush()
+    return msg
+
+
+def reveal(db: Session, settings: Settings, user: User, conversation_id: str, effects: Effects) -> dict:
+    """Anonymous chat: show MY name and public ID to the other side (one-way, cannot be undone)."""
+    conv = _get_visible_conversation(db, user, conversation_id)
+    if conv.is_direct:
+        raise AppError(400, "not_anonymous", "هذه محادثة مباشرة.")
+    if conv.status != "active":
+        raise AppError(403, "conversation_closed", "هذه المحادثة لم تعد متاحة.")
+    if not conv.revealed(user.id):
+        if user.id == conv.initiator_id:
+            conv.initiator_revealed = True
+        else:
+            conv.recipient_revealed = True
+        _system_message(db, settings, conv, user.id, "reveal", "كُشفت الهوية",
+                        {"name": names.shown_name(user), "public_id": user.public_id})
+        effects.signal([user.id, conv.peer_of(user.id)], "message")
+    return {"me_revealed": True}
+
+
+def set_muted(db: Session, user: User, conversation_id: str, muted: bool) -> dict:
+    conv = _get_visible_conversation(db, user, conversation_id)
+    if user.id == conv.initiator_id:
+        conv.initiator_muted = bool(muted)
+    else:
+        conv.recipient_muted = bool(muted)
+    return {"muted": bool(muted)}

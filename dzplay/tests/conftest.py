@@ -115,7 +115,8 @@ class Harness:
         return ch
 
     def register(self, c: TestClient, email: str, password: str = PASSWORD, **extra):
-        body = {"email": email, "password": password, "password_confirm": password, "antibot": self.challenge(c, "register")}
+        body = {"email": email, "password": password, "password_confirm": password, "antibot": self.challenge(c, "register"),
+                "gender": "unspecified", "age_confirmed": True}
         body.update(extra)
         return c.post("/api/auth/register", json=body)
 

@@ -23,6 +23,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api import admin as admin_api
 from app.api import auth as auth_api
 from app.api import messages as messages_api
+from app.api import people as people_api
 from app.api import posts as posts_api
 from app.api import reels as reels_api
 from app.api import telegram as telegram_api
@@ -118,6 +119,9 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     # httpx logs full request URLs at INFO — Telegram URLs contain the bot token. Never log them.
     for noisy in ("httpx", "httpcore"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    from app.services import names
+
+    names.configure(settings)
     state = AppState.build(settings, telegram_transport)
 
     @contextlib.asynccontextmanager
@@ -213,6 +217,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
 
     app.include_router(auth_api.router)
     app.include_router(messages_api.router)
+    app.include_router(people_api.router)
     app.include_router(posts_api.router)
     app.include_router(reels_api.router)
     app.include_router(telegram_api.router)

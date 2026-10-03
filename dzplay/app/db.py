@@ -35,10 +35,11 @@ class Database:
 
     def create_all(self) -> None:
         from app import models  # noqa: F401  (register models)
-        from app.migrations import add_missing_columns
+        from app.migrations import add_missing_columns, backfill
 
         Base.metadata.create_all(self.engine)
         add_missing_columns(self.engine)
+        backfill(self.engine)
 
     @contextmanager
     def session(self) -> Iterator[Session]:

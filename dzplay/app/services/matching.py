@@ -85,7 +85,7 @@ def _inbound_capacity(ctx: MatchContext):
     inbound = (
         select(func.count())
         .select_from(Conversation)
-        .where(Conversation.recipient_id == User.id, Conversation.created_at > since)
+        .where(Conversation.recipient_id == User.id, Conversation.created_at > since, Conversation.kind.is_(None))
         .correlate(User)
         .scalar_subquery()
     )
@@ -107,13 +107,14 @@ def pick_recipient(db: Session, settings: Settings, sender_id: str) -> str | Non
     ctx = MatchContext(db=db, settings=settings, sender_id=sender_id, now=clock.utcnow())
     conditions = [RULES[name](ctx) for name in settings.matching_rules]
     # team accounts (official + system) never receive anonymous messages
-    conditions.extend([User.is_official.is_not(True), User.is_system.is_not(True)])
+    conditions.extend([User.is_official.is_not(True), User.is_system.is_not(True),
+                       User.accept_anonymous.is_not(False)])  # privacy switch "no random messages" (always applied)
 
     since = ctx.now - timedelta(days=1)
     inbound_today = (
         select(func.count())
         .select_from(Conversation)
-        .where(Conversation.recipient_id == User.id, Conversation.created_at > since)
+        .where(Conversation.recipient_id == User.id, Conversation.created_at > since, Conversation.kind.is_(None))
         .correlate(User)
         .scalar_subquery()
     )

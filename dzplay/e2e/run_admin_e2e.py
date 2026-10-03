@@ -71,6 +71,7 @@ def challenge(c: httpx.Client, purpose: str) -> dict:
 def register(base: str, email: str) -> httpx.Client:
     c = api_client(base)
     r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD, "password_confirm": PASSWORD,
+                                           "gender": "unspecified", "age_confirmed": True,
                                            "antibot": challenge(c, "register")})
     assert r.status_code == 201, r.text
     return c

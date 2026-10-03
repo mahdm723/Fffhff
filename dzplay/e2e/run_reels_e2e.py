@@ -131,7 +131,8 @@ def api_user(base: str, email: str) -> httpx.Client:
     c = httpx.Client(base_url=base, headers={"X-DZ-Requested": "1"}, timeout=30)
     ch = c.post("/api/auth/challenge", json={"purpose": "register"}).json()
     ch["number"] = solve(ch)
-    r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch})
+    r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch,
+                                           "gender": "unspecified", "age_confirmed": True})
     assert r.status_code == 201, r.text
     return c
 

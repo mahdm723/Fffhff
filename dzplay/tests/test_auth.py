@@ -30,7 +30,7 @@ def test_register_creates_session_and_hides_identity(hx):
 def test_register_validation(hx):
     c = hx.client()
     ch = hx.challenge(c, "register")
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": "nope-nope", "antibot": ch})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": "nope-nope", "antibot": ch, "gender": "male", "age_confirmed": True})
     assert r.status_code == 400 and r.json()["error"]["code"] == "password_mismatch"
     r = hx.register(c, "a@example.com", password="short")
     assert r.json()["error"]["code"] == "weak_password"
@@ -40,21 +40,21 @@ def test_register_validation(hx):
 
 def test_antibot_required_single_use_and_purpose_bound(hx):
     c = hx.client()
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "gender": "male", "age_confirmed": True})
     assert r.status_code == 400 and r.json()["error"]["code"] == "antibot_required"
 
     ch = hx.challenge(c, "login")  # wrong purpose
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
     assert r.json()["error"]["code"] == "antibot_invalid"
 
     ch = hx.challenge(c, "register")
     bad = dict(ch, number=ch["number"] + 1)
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": bad})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": bad, "gender": "male", "age_confirmed": True})
     assert r.json()["error"]["code"] == "antibot_invalid"
 
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
     assert r.status_code == 201
-    r = c.post("/api/auth/register", json={"email": "b@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch})
+    r = c.post("/api/auth/register", json={"email": "b@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
     assert r.json()["error"]["code"] == "antibot_used"  # replay refused
 
 
@@ -62,7 +62,7 @@ def test_antibot_challenge_expires(hx):
     c = hx.client()
     ch = hx.challenge(c, "register")
     clock.advance(hx.settings.POW_CHALLENGE_TTL + 1)
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
     assert r.json()["error"]["code"] == "antibot_expired"
 
 

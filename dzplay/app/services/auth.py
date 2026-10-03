@@ -138,21 +138,27 @@ def _check_registration_quota(db: Session, settings: Settings, ctx: ClientContex
 
 
 def register(db: Session, settings: Settings, ctx: ClientContext, *, email: object, password: object,
-             password_confirm: object, antibot_payload: dict | None, honeypot: str | None) -> User:
+             password_confirm: object, antibot_payload: dict | None, honeypot: str | None,
+             gender: object = None, age_confirmed: object = False) -> User:
     if honeypot:
         log_event(db, "honeypot", ctx)
         db.commit()
         raise AppError(400, "antibot_invalid", "فشل التحقق من أنك لست روبوتًا. أعد المحاولة.")
     email_n = normalize_email(email)
     pw = validate_new_password(settings, password, password_confirm, email_n)
+    if gender not in ("male", "female", "unspecified"):
+        raise AppError(400, "gender_required", "اختر: رجل، أنثى، أو أفضّل عدم الذكر.")
+    if age_confirmed is not True:
+        raise AppError(400, "age_required", "يجب تأكيد أن عمرك 18 سنة أو أكثر والموافقة على شروط الاستخدام.")
     _check_registration_quota(db, settings, ctx)
     _check_antibot(db, settings, ctx, "register", antibot_payload)
 
     if db.scalar(select(User.id).where(User.email == email_n)):
         db.commit()  # keep the consumed challenge
         raise AppError(409, "email_taken", "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.")
+    now = clock.utcnow()
     user = User(email=email_n, password_hash=hash_password(pw), registration_ip_hash=ctx.ip_hash,
-                privacy_ack_version=PRIVACY_VERSION)
+                privacy_ack_version=PRIVACY_VERSION, gender=gender, gender_asked_at=now, age_confirmed_at=now)
     db.add(user)
     try:
         db.flush()

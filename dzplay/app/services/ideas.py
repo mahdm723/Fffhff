@@ -94,13 +94,25 @@ def _user_by_ref(db: Session, ref: str) -> User:
 # ---------------------------------------------------------------------------
 
 
-def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | None) -> dict:
+def _authors(db: Session, ids) -> dict[str, User]:
+    ids = {i for i in ids if i}
+    return {u.id: u for u in db.execute(select(User).where(User.id.in_(ids))).scalars()} if ids else {}
+
+
+def _author_view(u: User | None) -> dict:
+    from app.services import names
+
+    return {"name": names.shown_name(u) if u is not None else PEER_NAME,
+            "gender": names.public_gender(u) if u is not None else None}
+
+
+def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | None, author: User | None = None) -> dict:
     mine = p.author_id == viewer_id
     return {
         "id": p.id,
         "content": p.content,
         "created_at": iso(p.created_at),
-        "author": {"name": PEER_NAME, "ref": author_ref},
+        "author": {**_author_view(author), "ref": author_ref},
         "mine": mine,
         "likes": shown(p.likes_count, p.boost_likes),
         "dislikes": shown(p.dislikes_count, p.boost_dislikes),
@@ -120,7 +132,8 @@ def _serialize_many(db: Session, posts: list[Post], viewer_id: str) -> list[dict
         select(PostReaction.post_id, PostReaction.reaction_type)
         .where(PostReaction.user_id == viewer_id, PostReaction.post_id.in_([p.id for p in posts]))
     ).all())
-    return [serialize_post(p, viewer_id, refs[p.author_id], reactions.get(p.id)) for p in posts]
+    authors = _authors(db, {p.author_id for p in posts})
+    return [serialize_post(p, viewer_id, refs[p.author_id], reactions.get(p.id), authors.get(p.author_id)) for p in posts]
 
 
 def _visible_post(db: Session, post_id: str) -> Post:
@@ -364,9 +377,10 @@ def list_comments(db: Session, user: User, post_id: str, *, before: str | None =
     if post.unseen_comments_count:
         post.unseen_comments_count = 0
     official = set(db.execute(select(User.id).where(User.is_official.is_(True))).scalars())
+    authors = _authors(db, {c.author_id for c in rows[:limit]})
     return {
         "post_id": post.id,
-        "comments": [{"id": c.id, "author": OFFICIAL_NAME if c.author_id in official else PEER_NAME,
+        "comments": [{"id": c.id, "author": OFFICIAL_NAME if c.author_id in official else _author_view(authors.get(c.author_id))["name"],
                       "official": c.author_id in official, "content": c.content, "created_at": iso(c.created_at)}
                      for c in rows[:limit]],
         "has_more": len(rows) > limit,
@@ -462,10 +476,14 @@ def unseen_comments(db: Session, user_id: str) -> int:
 
 
 def public_profile(db: Session, viewer: User, ref: str) -> dict:
+    from app.services import names
+
     owner = _user_by_ref(db, ref)
     return {
         "ref": ref,
-        "name": PEER_NAME,
+        "name": names.shown_name(owner),
+        "gender": names.public_gender(owner),
+        "public_id": owner.public_id,
         "is_me": owner.id == viewer.id,
         "stats": idea_stats(db, owner.id),  # public stats only — never messaging stats or personal data
     }
@@ -486,11 +504,11 @@ def profile_posts(db: Session, viewer: User, ref: str, *, before: str | None, li
     }
 
 
-def own_profile(db: Session, user: User) -> dict:
+def own_profile(db: Session, user: User, settings=None) -> dict:
     """The signed-in user's own profile: public idea stats + private messaging stats."""
     from app.services.messaging import profile as messaging_profile
 
-    data = messaging_profile(user)
+    data = messaging_profile(user, settings)
     data["ref"] = profile_ref_for(db, user.id)
     data["ideas"] = idea_stats(db, user.id)
     data["unseen_comments"] = unseen_comments(db, user.id)
