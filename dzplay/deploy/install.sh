@@ -168,7 +168,7 @@ if grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && grep -q '^TELEGRAM_ADMIN_CHAT_ID=.\
 fi
 
 # Daily encrypted database backup (03:17 server time) + a first backup now.
-chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh
+chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh
 cat > /etc/cron.d/dzplay-backup <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -216,6 +216,7 @@ cat <<EOF
   Backups:   daily + encrypted in /var/backups/dzplay  (restore: $APP_DIR/deploy/restore.sh FILE)
   $BACKUP_NOTE
   Hardening (firewall, fail2ban, auto-updates):   sudo $APP_DIR/deploy/harden.sh
+  Telegram bot (Reels uploads):   admin panel → الأمان والنظام → بوت Telegram
 
   Update to the latest version:   run the same install command again
   Logs:      cd $APP_DIR && docker compose logs -f app

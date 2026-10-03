@@ -546,3 +546,18 @@ class EngagementJob(Base):
     status: Mapped[str] = mapped_column(String(12), default="running", index=True)  # running|done|cancelled|failed
     created_by: Mapped[str] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class AppSetting(Base):
+    """Settings changed from the admin panel at runtime (e.g. the Telegram bot).
+
+    Secrets are stored sealed (Fernet, key derived from SECRET_KEY) and are never sent back to the
+    browser. A value here takes precedence over the same setting in .env.
+    """
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_by: Mapped[str | None] = mapped_column(String(80), nullable=True)

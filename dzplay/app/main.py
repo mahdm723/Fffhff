@@ -123,6 +123,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         state.database.create_all()
+        state.load_runtime_config()  # bot settings saved from the admin panel
         if settings.secret_key_generated:
             log.warning("SECRET_KEY not set: using a temporary key (sessions survive, IP blocks reset on restart).")
         await state.hub.start()

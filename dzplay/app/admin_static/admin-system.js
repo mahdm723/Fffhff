@@ -3,7 +3,7 @@
 import { h, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 import {
-  attempt, authorLine, bytes, call, chip, confirmDanger, emptyState, fmt, hooks, sectionHead, spinner, userRef, when,
+  attempt, authorLine, bytes, call, chip, confirmDanger, emptyState, field, fmt, hooks, sectionHead, spinner, userRef, when,
 } from './admin-common.js';
 
 const RESET_STATUS = {
@@ -35,16 +35,6 @@ export async function renderSystem(main) {
   const d = await attempt(() => call('GET', '/api/admin/system'));
   if (!d) { body.replaceChildren(); return; }
 
-  const bot = d.bot;
-  const hook = bot.webhook;
-  const botRows = [['البوت', bot.configured ? 'مُعدّ' : 'غير مُعدّ (TELEGRAM_BOT_TOKEN فارغ)', bot.configured ? 'admin-ok' : 'admin-warn']];
-  if (hook) {
-    botRows.push(['Webhook', hook.url_set ? 'مضبوط' : 'غير مضبوط', hook.url_set ? 'admin-ok' : 'admin-warn'],
-      ['تحديثات بالانتظار', fmt(hook.pending_updates || 0)]);
-    if (hook.last_error) botRows.push(['آخر خطأ من Telegram', hook.last_error, 'admin-warn']);
-  }
-  if (bot.error) botRows.push(['تعذّر الاتصال بـ Telegram', bot.error, 'admin-warn']);
-
   const used = d.media_cache.bytes;
   const limit = d.media_cache.limit_bytes || 1;
   const pct = Math.min(100, Math.round((used / limit) * 100));
@@ -52,8 +42,8 @@ export async function renderSystem(main) {
   fill.style.inlineSize = `${pct}%`;
 
   body.replaceChildren(
+    botSection(),
     h('div', { class: 'admin-groups' },
-      card('بوت Telegram', 'send', rows(botRows)),
       card('البريد (استعادة كلمة المرور)', 'bell', rows([
         ['SMTP', d.smtp_configured ? 'مُعدّ' : 'غير مُعدّ — الرموز تُرسل عبر Telegram فقط', d.smtp_configured ? 'admin-ok' : 'admin-warn']])),
       card('ذاكرة الوسائط المؤقتة', 'reels',
@@ -73,6 +63,89 @@ export async function renderSystem(main) {
           + 'docker compose exec app python -m app.admin_cli set-admin-password NAME\n'
           + 'docker compose exec app python -m app.admin_cli audit',
       }))));
+}
+
+// ------------------------------------------------------------------ Telegram bot (token is write-only)
+
+const SOURCE = { panel: 'من لوحة التحكم', env: 'من ملف .env في الخادم', none: '—' };
+
+function botSection() {
+  const status = h('div', {}, spinner());
+  const token = h('input', { class: 'input', type: 'password', dir: 'ltr', autocomplete: 'off', spellcheck: 'false',
+    autocapitalize: 'off', maxlength: '100', placeholder: '123456789:AA…' });
+  const chat = h('input', { class: 'input', dir: 'ltr', inputmode: 'numeric', autocomplete: 'off', maxlength: '24', placeholder: '323530056' });
+  const code = h('input', { class: 'input', dir: 'ltr', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '6',
+    pattern: '[0-9]{6}', placeholder: '123456' });
+  const save = h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, icon('send'), 'حفظ وربط البوت');
+  const testBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', hidden: true }, 'رسالة تجربة');
+  const removeBtn = h('button', { type: 'button', class: 'btn btn--danger btn--sm', hidden: true }, 'إزالة الربط');
+  const needCode = () => {
+    if (/^[0-9]{6}$/.test(code.value.trim())) return code.value.trim();
+    toast('اكتب رمز التحقق من تطبيق المصادقة (6 أرقام).', 'error');
+    code.focus();
+    return null;
+  };
+
+  const paint = (s) => {
+    const r = [
+      ['الحالة', s.configured ? `مربوط${s.bot_username ? ` — @${s.bot_username}` : ''}` : 'غير مربوط', s.configured ? 'admin-ok' : 'admin-warn'],
+    ];
+    if (s.configured) {
+      r.push(['المصدر', SOURCE[s.source] || s.source], ['رقم المحادثة', s.chat_id || '—'], ['الرمز المحفوظ', s.token_hint || '—']);
+      if (s.webhook) {
+        r.push(['الاستقبال (Webhook)', s.webhook.url_set ? 'يعمل' : 'غير مضبوط', s.webhook.url_set ? 'admin-ok' : 'admin-warn']);
+        if (s.webhook.last_error) r.push(['آخر خطأ من Telegram', s.webhook.last_error, 'admin-warn']);
+      }
+    }
+    if (s.error) r.push(['تعذّر الاتصال بـ Telegram', s.error, 'admin-warn']);
+    status.replaceChildren(rows(r));
+    if (s.chat_id && !chat.value) chat.value = s.chat_id;
+    testBtn.hidden = !s.configured;
+    removeBtn.hidden = s.source !== 'panel';
+    save.lastChild.textContent = s.configured ? 'تحديث الرمز' : 'حفظ وربط البوت';
+  };
+  const load = async () => { const s = await attempt(() => call('GET', '/api/admin/telegram')); if (s) paint(s); };
+
+  const form = h('form', {
+    class: 'admin-form',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      const otp = needCode();
+      if (!otp) return;
+      save.disabled = true;
+      const s = await attempt(() => call('PUT', '/api/admin/telegram', { token: token.value.trim(), chat_id: chat.value.trim(), code: otp }));
+      save.disabled = false;
+      token.value = '';
+      code.value = '';
+      if (!s) return;
+      paint(s);
+      if (s.test_error) toast(s.test_error, 'error');
+      else toast('تم الربط ✅ — وصلتك رسالة تجربة في Telegram.');
+    },
+  },
+  h('ol', { class: 'admin-steps' },
+    h('li', { text: 'في Telegram افتح @BotFather، أنشئ بوتًا أو اختر بوتك، وانسخ الرمز (Token). إذا شاركت الرمز مع أحد، اضغط Revoke وخذ رمزًا جديدًا.' }),
+    h('li', { text: 'رقم محادثتك: أرسل أي رسالة إلى @userinfobot وانسخ الرقم (Id).' }),
+    h('li', { text: 'افتح بوتك واضغط Start (مرة واحدة)، ثم املأ الحقول هنا.' })),
+  field('رمز البوت (Token)', token),
+  field('رقم محادثتك (Chat ID)', chat),
+  field('رمز التحقق من تطبيق المصادقة', code),
+  h('p', { class: 'admin-meta', text: 'الرمز يُحفظ مشفّرًا ولا يُعرض بعد الحفظ أبدًا. كل تغيير يُسجَّل في سجل الإدارة.' }),
+  save);
+
+  testBtn.addEventListener('click', async () => {
+    if (await attempt(() => call('POST', '/api/admin/telegram/test'))) toast('أُرسلت رسالة تجربة إلى Telegram.');
+  });
+  removeBtn.addEventListener('click', async () => {
+    const otp = needCode();
+    if (!otp || !(await confirmDanger('إزالة ربط البوت؟', 'يتوقف استقبال الفيديوهات والصور من Telegram (أو يعود لإعداد ملف .env إن وُجد).', 'إزالة'))) return;
+    const s = await attempt(() => call('POST', '/api/admin/telegram/remove', { code: otp }));
+    code.value = '';
+    if (s) { paint(s); toast('أُزيل الربط.'); }
+  });
+
+  load();
+  return card('بوت Telegram', 'send', h('p', { class: 'admin-meta', text: 'لرفع الفيديوهات والصور (Reels) واستقبال طلبات استعادة كلمات المرور.' }), status, h('div', { class: 'admin-actions' }, testBtn, removeBtn), form);
 }
 
 function blocksSection(blocks) {

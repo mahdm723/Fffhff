@@ -309,3 +309,6 @@ button.admin-ref:hover { background: var(--surface-3); }
 }
 /* Arabic placeholder in a monospace, LTR box would break the letters apart */
 .admin-ids:placeholder-shown { direction: rtl; font-family: var(--font); }
+
+.admin-steps { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+.admin-form .field { margin-bottom: 0; }

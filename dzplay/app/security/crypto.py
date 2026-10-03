@@ -25,3 +25,26 @@ def new_token() -> str:
 
 def constant_time_equals(a: str, b: str) -> bool:
     return hmac.compare_digest(a.encode(), b.encode())
+
+
+def _fernet(secret_key: str, purpose: str):
+    import base64
+
+    from cryptography.fernet import Fernet
+
+    raw = hashlib.sha256(f"dzplay-{purpose}:{secret_key}".encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(raw))
+
+
+def seal(secret_key: str, purpose: str, text: str) -> str:
+    """Encrypt a secret for storage (authenticated; key derived from SECRET_KEY and a purpose label)."""
+    return _fernet(secret_key, purpose).encrypt(text.encode()).decode()
+
+
+def unseal(secret_key: str, purpose: str, token: str) -> str | None:
+    from cryptography.fernet import InvalidToken
+
+    try:
+        return _fernet(secret_key, purpose).decrypt(token.encode()).decode()
+    except (InvalidToken, ValueError):
+        return None

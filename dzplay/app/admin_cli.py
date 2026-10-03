@@ -74,11 +74,20 @@ def _ask_password() -> str:
 
 
 def _telegram(settings, args, transport=None) -> None:
-    """Register the webhook with Telegram (set-webhook) or show its state (bot-status). Never prints the token."""
+    """set-webhook / bot-status / bot-test (a hello message to the admin chat). Never prints the token."""
     from app.services.telegram import TelegramClient, TelegramError
+    from app.services.runtime_config import telegram_config
+    from app.services.telegram_bot import HELP
 
-    if not settings.telegram_enabled:
-        raise SystemExit("Telegram is off: set TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID in .env, then run again.")
+    database = Database(settings.DATABASE_URL)
+    database.create_all()
+    with database.session() as db:
+        cfg = telegram_config(db, settings)  # admin panel first, then .env
+    if not cfg["token"]:
+        raise SystemExit("Telegram is off: connect the bot in the admin panel (الأمان والنظام) or set "
+                         "TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID in .env.")
+    settings = settings.model_copy(update={"TELEGRAM_BOT_TOKEN": cfg["token"], "TELEGRAM_ADMIN_CHAT_ID": cfg["chat_id"],
+                                           "TELEGRAM_WEBHOOK_SECRET": cfg["secret"] or ""})
     tg = TelegramClient(settings, transport=transport)
     try:
         if args.cmd == "set-webhook":
@@ -89,6 +98,10 @@ def _telegram(settings, args, transport=None) -> None:
                 raise SystemExit("TELEGRAM_WEBHOOK_SECRET is missing or too short: openssl rand -hex 32")
             tg.set_webhook(base + "/api/telegram/webhook", settings.TELEGRAM_WEBHOOK_SECRET)
             print(f"Webhook set: {base}/api/telegram/webhook")
+        if args.cmd == "bot-test":
+            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, "✅ DZPLAY متصل. أرسل فيديو أو صورة مع وصف لنشرها.\n\n" + HELP)
+            print("Test message sent to the admin chat.")
+            return
         info = tg.webhook_info()
     except TelegramError as exc:
         raise SystemExit(f"Telegram error: {tg.redact(exc)}") from None
@@ -123,6 +136,9 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
     p = sub.add_parser("set-webhook")  # tell Telegram where to deliver the bot's updates
     p.add_argument("public_url")
     sub.add_parser("bot-status")
+    sub.add_parser("bot-test")  # send a hello message to TELEGRAM_ADMIN_CHAT_ID
+    p = sub.add_parser("admin-link")  # the secret panel address (+ whether an admin account exists)
+    p.add_argument("public_url")
     args = parser.parse_args(argv)
 
     if args.cmd == "gen-secret":
@@ -133,11 +149,22 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
         return
 
     settings = get_settings()
-    if args.cmd in ("set-webhook", "bot-status"):
+    if args.cmd in ("set-webhook", "bot-status", "bot-test"):
         _telegram(settings, args, telegram_transport)
         return
     database = Database(settings.DATABASE_URL)
     database.create_all()
+    if args.cmd == "admin-link":
+        from app.services.admin_auth import count_admins
+
+        if not settings.ADMIN_PATH:
+            raise SystemExit("ADMIN_PATH is empty in .env: the panel is off.")
+        with database.session() as db:
+            admins = count_admins(db)
+        print(args.public_url.rstrip("/") + settings.ADMIN_PATH)
+        if not admins:
+            print("No admin account yet: docker compose exec app python -m app.admin_cli create-admin owner")
+        return
     if args.cmd in ("create-admin", "reset-admin-2fa", "set-admin-password"):
         from app.services import admin_auth, audit
 

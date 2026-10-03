@@ -143,6 +143,22 @@ def login(db: Session, settings: Settings, ctx: ClientContext, username: object,
     return admin, token
 
 
+def verify_step_up(db: Session, settings: Settings, ctx: ClientContext, admin: AdminUser, code: object) -> None:
+    """Re-check the admin's authenticator code before a sensitive change (same replay guard and lockout as login)."""
+    uref = keyed_hash(settings.SECRET_KEY, "admin-user", admin.username)[:24]
+    wait = _lockout_seconds(db, settings, ctx, uref)
+    if wait:
+        raise AppError(429, "rate_limited", "محاولات كثيرة. حاول لاحقًا.", wait)
+    row = db.get(AdminUser, admin.id)
+    secret = totp.decrypt_secret(settings.SECRET_KEY, row.totp_secret_enc) if row else None
+    step = totp.matching_step(secret, code, clock.timestamp()) if secret and isinstance(code, str) else None
+    if step is None or (row.last_totp_step is not None and step <= row.last_totp_step):
+        log_event(db, "admin_login_failed", ctx, None, uref)
+        db.commit()  # keep the failure even though we raise
+        raise AppError(403, "invalid_code", "رمز التحقق غير صحيح.")
+    row.last_totp_step = step
+
+
 def resolve(db: Session, settings: Settings, token: str | None) -> AdminUser | None:
     if not token or len(token) > 128:
         return None

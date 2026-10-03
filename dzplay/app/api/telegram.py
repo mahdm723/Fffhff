@@ -18,7 +18,7 @@ router = APIRouter(tags=["telegram"])
 @router.post("/api/telegram/webhook", include_in_schema=False)
 async def webhook(request: Request) -> JSONResponse:
     st = get_state(request)
-    secret = st.settings.TELEGRAM_WEBHOOK_SECRET
+    secret = st.telegram_secret  # .env or admin panel (AppState.configure_telegram)
     if st.bot is None or not secret:
         return JSONResponse({"error": {"code": "not_found"}}, status_code=404)
     if not constant_time_equals(request.headers.get("x-telegram-bot-api-secret-token", ""), secret):

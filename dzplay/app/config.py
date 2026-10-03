@@ -140,6 +140,7 @@ class Settings(BaseSettings):
     )
 
     # --- admin panel (separate admin accounts + TOTP 2FA) ---------------------
+    PUBLIC_URL: str = ""  # https://your-domain (set by the installer); used to register the Telegram webhook
     ADMIN_PATH: str = ""  # secret URL prefix of the panel, e.g. /panel-x7f3k9q2; empty disables the panel
     ADMIN_IP_ALLOWLIST: str = ""  # optional comma-separated IPs/CIDRs allowed to reach the panel
     ADMIN_SESSION_TTL: int = 12 * HOUR  # absolute lifetime of an admin session

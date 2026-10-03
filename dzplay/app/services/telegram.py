@@ -80,6 +80,13 @@ class TelegramClient:
     def webhook_info(self) -> dict:
         return self.call("getWebhookInfo")
 
+    def delete_webhook(self) -> None:
+        self.call("deleteWebhook", drop_pending_updates=False)
+
+    def get_me(self) -> dict:
+        """The bot's own account (checks that the token is valid)."""
+        return self.call("getMe")
+
     # -------------------------------------------------------------- files
     def download(self, file_id: str, dest: Path) -> int:
         """Download a file by file_id to `dest`; returns its size. Raises FileTooLarge over the cap."""

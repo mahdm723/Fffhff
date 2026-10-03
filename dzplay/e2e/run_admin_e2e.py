@@ -142,8 +142,8 @@ class Run:
         shots.mkdir(parents=True, exist_ok=True)
 
     def watch(self, page: Page, who: str) -> None:
-        # The deliberate wrong sign-in and the first visit (no session yet) log expected 401s.
-        page.on("console", lambda m: m.type == "error" and "status of 401" not in m.text
+        # Expected: 401 (deliberate wrong sign-in, first visit) and 403 (deliberate wrong 2FA code on the bot form).
+        page.on("console", lambda m: m.type == "error" and "status of 401" not in m.text and "status of 403" not in m.text
                 and self.errors.append(f"{who} console: {m.text}"))
         page.on("pageerror", lambda e: self.errors.append(f"{who} pageerror: {e}"))
 
@@ -372,7 +372,16 @@ class Run:
     def system(self, page: Page) -> None:
         page.get_by_role("tab", name="الأمان والنظام").click()
         expect(page.locator(".admin-group__title", has_text="بوت Telegram")).to_be_visible()
-        expect(page.locator(".admin-row", has_text="البوت")).to_contain_text("غير مُعدّ")
+        expect(page.locator(".admin-row", has_text="الحالة").first).to_contain_text("غير مربوط")
+        page.get_by_label("رمز البوت (Token)").fill("123456789:AAH" + "x" * 32)
+        page.get_by_label("رقم محادثتك (Chat ID)").fill("323530056")
+        page.get_by_label("رمز التحقق من تطبيق المصادقة").fill("000000")
+        page.get_by_role("button", name="حفظ وربط البوت").click()
+        expect(page.locator(".toast--error").last).to_contain_text("رمز التحقق غير صحيح")
+        assert page.get_by_label("رمز البوت (Token)").input_value() == ""  # never kept in the page
+        self.step("bot form: token + chat ID + 2FA code; a wrong code is refused and the token field is cleared")
+        page.locator(".admin-group", has_text="بوت Telegram").scroll_into_view_if_needed()
+        self.shot(page, "14a-bot-form-dark")
         block = page.locator(".admin-event", has_text="حظر دخول")
         expect(block).to_have_count(1)
         self.shot(page, "14-system-dark", full=True)

@@ -19,7 +19,7 @@ from app.api.schemas import ResolveReportBody, UserStatusBody, _Body
 from app.errors import AppError, rate_limited
 from app.models import AdminUser
 from app.services import admin as admin_service
-from app.services import admin_access, admin_auth, admin_content, audit, engagement
+from app.services import admin_access, admin_auth, admin_content, audit, engagement, runtime_config
 from app.services import reels as reels_service
 from app.services.media import ASSET_ID, CONTENT_TYPES, VARIANTS, MediaError
 from app.services.messaging import Effects
@@ -661,3 +661,122 @@ def system_status(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> 
             "failed_logins": admin_access.failed_logins(db, 50),
             "reset_requests": admin_access.reset_requests(db, 50),
         }
+
+
+# ----------------------------------------------------------------- Telegram bot settings (token is write-only)
+
+
+class TelegramBody(_Body):
+    token: str = Field(max_length=100)
+    chat_id: str = Field(max_length=24)
+    code: str = Field(max_length=12)
+
+
+class StepUpBody(_Body):
+    code: str = Field(max_length=12)
+
+
+def _public_url(request: Request, settings) -> str:
+    return (settings.PUBLIC_URL or f"https://{request.headers.get('host', '')}").rstrip("/")
+
+
+def _telegram_status(st, request: Request) -> dict:
+    with st.database.session() as db:
+        cfg = runtime_config.telegram_config(db, st.settings)
+    out = {"configured": st.bot is not None, "source": st.telegram_source, "chat_id": cfg["chat_id"] or None,
+           "token_hint": ("…" + cfg["token"][-4:]) if cfg["token"] else None, "bot_username": None,
+           "webhook": None, "error": None, "public_url": _public_url(request, st.settings)}
+    if st.telegram is not None:
+        try:
+            out["bot_username"] = st.telegram.get_me().get("username")
+            info = st.telegram.webhook_info()
+            out["webhook"] = {"url_set": bool(info.get("url")), "pending_updates": info.get("pending_update_count"),
+                              "last_error": info.get("last_error_message")}
+        except TelegramError as exc:
+            out["error"] = str(exc)
+    return out
+
+
+def _hello(st) -> str | None:
+    """Send the test message to the admin chat; returns an Arabic hint on failure."""
+    from app.services.telegram_bot import HELP
+
+    try:
+        st.telegram.send_message(st.bot.admin_id, "✅ DZPLAY متصل. أرسل فيديو أو صورة مع وصف لنشرها.\n\n" + HELP)
+        return None
+    except TelegramError as exc:
+        if "chat not found" in str(exc).lower() or "403" in str(exc):
+            return "تعذّر إرسال رسالة التجربة: افتح البوت في Telegram واضغط Start، وتأكد من رقم المحادثة."
+        return "تعذّر إرسال رسالة التجربة: " + str(exc)
+
+
+@router.get("/telegram")
+def telegram_get(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    return _telegram_status(get_state(request), request)
+
+
+@router.put("/telegram")
+def telegram_put(body: TelegramBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    from app.services.telegram import TelegramClient
+
+    st = get_state(request)
+    token, chat_id = runtime_config.validate(body.token, body.chat_id)
+    public_url = _public_url(request, st.settings)
+    if not public_url.startswith("https://") or public_url == "https://":
+        raise AppError(400, "https_required", "يحتاج Telegram عنوان https للموقع (PUBLIC_URL).")
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+    probe = TelegramClient(st.settings.model_copy(update={"TELEGRAM_BOT_TOKEN": token}), transport=st.telegram_transport)
+    try:
+        me = probe.get_me()
+    except TelegramError:
+        raise AppError(400, "invalid_token", "Telegram رفض هذا الرمز. انسخه من جديد من @BotFather.") from None
+    finally:
+        probe.close()
+    with st.database.session() as db:
+        cfg = runtime_config.save_telegram(db, st.settings, token, chat_id, ac.actor)
+        _record(db, ac, "telegram_update", target_type="bot", target_id=str(me.get("username") or "")[:32],
+                detail=f"chat_id={chat_id}")
+    st.configure_telegram(cfg["token"], cfg["chat_id"], cfg["secret"], "panel")
+    try:
+        st.telegram.set_webhook(public_url + "/api/telegram/webhook", cfg["secret"])
+    except TelegramError as exc:
+        raise AppError(502, "webhook_failed", "حُفظ الرمز، لكن تعذّر ربط Telegram بالموقع: " + str(exc)) from None
+    out = _telegram_status(st, request)
+    out["test_error"] = _hello(st)
+    return out
+
+
+@router.post("/telegram/test")
+def telegram_test(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    if st.bot is None:
+        raise AppError(409, "not_configured", "البوت غير مربوط بعد.")
+    problem = _hello(st)
+    if problem:
+        raise AppError(502, "test_failed", problem)
+    return {"ok": True}
+
+
+@router.post("/telegram/remove")
+def telegram_remove(body: StepUpBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+        runtime_config.clear_telegram(db)
+        _record(db, ac, "telegram_remove", target_type="bot")
+    if st.telegram is not None and st.telegram_source == "panel":
+        try:
+            st.telegram.delete_webhook()
+        except TelegramError:
+            pass
+    if st.settings.telegram_enabled:  # back to the .env bot
+        st.configure_telegram(st.settings.TELEGRAM_BOT_TOKEN, st.settings.TELEGRAM_ADMIN_CHAT_ID,
+                              st.settings.TELEGRAM_WEBHOOK_SECRET, "env")
+        try:
+            st.telegram.set_webhook(_public_url(request, st.settings) + "/api/telegram/webhook", st.telegram_secret)
+        except TelegramError:
+            pass
+    else:
+        st.configure_telegram(None)
+    return _telegram_status(st, request)

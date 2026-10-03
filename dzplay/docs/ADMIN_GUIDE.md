@@ -106,20 +106,26 @@ cd /opt/dzplay/dzplay
 
 ## 4. بوت Telegram (رفع Reels واستعادة كلمات المرور)
 
-1. ضع في `.env` (نفّذ `nano .env`):
-   ```
-   TELEGRAM_BOT_TOKEN=<الرمز الجديد من BotFather>
-   TELEGRAM_ADMIN_CHAT_ID=<رقم محادثتك>
-   ```
-   `TELEGRAM_WEBHOOK_SECRET` يولّده المثبّت تلقائيًا.
-2. ثم:
-   ```bash
-   docker compose up -d app
-   docker compose exec app python -m app.admin_cli set-webhook "$(grep '^PUBLIC_URL=' .env | cut -d= -f2-)"
-   docker compose exec app python -m app.admin_cli bot-status
-   ```
-   (أمر التثبيت يفعل ذلك تلقائيًا إن وجد الرمز في `.env`.)
-3. داخل Telegram:
+**من لوحة التحكم (الأسهل):**
+1. في Telegram:
+   - افتح @BotFather وانسخ رمز بوتك. إذا شاركته مع أحد، اضغط **Revoke** وخذ رمزًا جديدًا.
+   - أرسل أي رسالة إلى @userinfobot وانسخ رقمك (Id).
+   - افتح بوتك واضغط **Start**.
+2. اللوحة ← **الأمان والنظام** ← **بوت Telegram**:
+   - الصق الرمز ورقم المحادثة.
+   - اكتب رمز التحقق من تطبيق المصادقة.
+   - اضغط **حفظ وربط البوت**.
+3. تصلك رسالة «✅ DZPLAY متصل»، والربط فوري دون إعادة تشغيل.
+
+ما يحدث عند الحفظ:
+- يُحفظ الرمز في قاعدة البيانات **مشفّرًا**، ولا يُعرض مرة أخرى؛ تظهر آخر 4 أحرف منه فقط.
+- يُطلب رمز 2FA عند كل تغيير.
+- يُسجَّل التغيير في سجل الإدارة.
+- قيمة اللوحة تتقدم على `.env`. زر **إزالة الربط** يعيدك إلى إعداد `.env` إن وُجد.
+
+**بديل من الخادم:** `sudo deploy/telegram-setup.sh` يسألك عن الرمز (مخفيًا) ورقم المحادثة، ثم يربط البوت ويرسل رسالة تجربة. أو ضع `TELEGRAM_BOT_TOKEN` و`TELEGRAM_ADMIN_CHAT_ID` في `.env`، ثم نفّذ `docker compose up -d app`.
+
+**الاستعمال داخل Telegram:**
    - أرسل فيديو أو صورة أو ألبومًا مع وصف، فيصبح Reel.
    - الأوامر: `/list` و`/hide` و`/show` و`/delete` و`/pin <id> [ساعات]` و`/unpin` و`/caption` و`/stats` و`/help`.
    - يعمل البوت فقط في محادثتك (`TELEGRAM_ADMIN_CHAT_ID`)، وأي محادثة أخرى تُتجاهل.

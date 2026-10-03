@@ -492,6 +492,7 @@ def test_cli_registers_the_webhook_without_printing_the_token(monkeypatch, capsy
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", tg.TOKEN)
     monkeypatch.setenv("TELEGRAM_ADMIN_CHAT_ID", str(tg.ADMIN_ID))
     monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "s" * 32)
+    monkeypatch.setenv("DATABASE_URL", "sqlite://")
     get_settings.cache_clear()
     try:
         with pytest.raises(SystemExit, match="https"):
@@ -517,3 +518,24 @@ def test_media_responses_skip_corp_everything_else_has_it(hx):
     assert c.get("/api/me").headers["cross-origin-resource-policy"] == "same-origin"
     r = c.get("/media/xxxxxxxxxxxxxxxx/mp4?e=1&s=bad")
     assert r.status_code in (403, 404) and "cross-origin-resource-policy" not in r.headers
+
+
+def test_cli_bot_test_and_admin_link(monkeypatch, capsys, tmp_path):
+    from app import admin_cli
+    from app.config import get_settings
+
+    fake = tg.FakeTelegram()
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", tg.TOKEN)
+    monkeypatch.setenv("TELEGRAM_ADMIN_CHAT_ID", str(tg.ADMIN_ID))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path}/cli.db")
+    monkeypatch.setenv("ADMIN_PATH", "/panel-cli-test")
+    get_settings.cache_clear()
+    try:
+        admin_cli.main(["bot-test"], telegram_transport=fake.transport)
+        assert str(fake.sent[-1]["chat_id"]) == str(tg.ADMIN_ID) and "DZPLAY متصل" in fake.sent[-1]["text"]
+        admin_cli.main(["admin-link", "https://chat.example.com/"])
+        out = capsys.readouterr().out
+        assert "https://chat.example.com/panel-cli-test" in out and "create-admin" in out
+        assert tg.TOKEN not in out
+    finally:
+        get_settings.cache_clear()

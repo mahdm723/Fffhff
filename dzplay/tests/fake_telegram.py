@@ -78,6 +78,11 @@ class FakeTelegram:
             return self._ok(True)
         if method in ("answerCallbackQuery", "editMessageReplyMarkup"):
             return self._ok(True)
+        if method == "deleteWebhook":
+            self.webhook = None
+            return self._ok(True)
+        if method == "getMe":
+            return self._ok({"id": int(self.token.split(":")[0]), "is_bot": True, "username": "dzplay_test_bot"})
         if method == "getWebhookInfo":
             hook = getattr(self, "webhook", None) or {}
             return self._ok({"url": hook.get("url", ""), "pending_update_count": 0})
