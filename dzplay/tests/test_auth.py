@@ -288,3 +288,18 @@ def test_google_disabled_without_client_id(make_harness):
     c = hx.client()
     assert c.get("/api/config").json()["google_client_id"] is None
     assert c.post("/api/auth/google", json={"credential": "x"}).status_code == 404
+
+
+def test_new_google_account_must_complete_gender_and_age(hx, monkeypatch):
+    c = hx.client()
+    assert _google(hx, c, monkeypatch, {}).status_code == 200
+    me = c.get("/api/me").json()
+    assert me["needs_onboarding"] is True and me["age_confirmed"] is False
+    hx.user()  # someone to receive
+    r = c.post("/api/messages", json={"content": "مرحبا"})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "onboarding_required"
+    assert c.post("/api/me/onboarding", json={"gender": "male", "age_confirmed": False}).status_code == 400
+    assert c.post("/api/me/onboarding", json={"gender": "robot", "age_confirmed": True}).status_code == 400
+    done = c.post("/api/me/onboarding", json={"gender": "male", "age_confirmed": True}).json()
+    assert done["needs_onboarding"] is False and done["age_confirmed"] is True and done["gender"] == "male"
+    assert c.post("/api/messages", json={"content": "مرحبا"}).status_code == 201

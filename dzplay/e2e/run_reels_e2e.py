@@ -169,6 +169,8 @@ def register_ui(page: Page, base: str, email: str) -> None:
     page.locator("#email").fill(email)
     page.locator("#password").fill(PASSWORD)
     page.locator("#password_confirm").fill(PASSWORD)
+    page.locator(".gender-pick__opt", has_text="أفضّل عدم الذكر").click()
+    page.locator("#age_confirmed").check()
     page.locator(".antibot").click()
     expect(page.locator(".antibot")).to_have_attribute("data-state", "done", timeout=30000)
     page.get_by_role("button", name="إنشاء الحساب").click()

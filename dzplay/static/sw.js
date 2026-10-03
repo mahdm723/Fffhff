@@ -1,10 +1,10 @@
 // DZPLAY service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v5';
+const VERSION = 'dz-v6';
 const MEDIA_CACHE = 'dz-media-v1'; // filled by js/reels-prefetch.js; survives app updates
 const SHELL = [
   '/', '/css/app.css', '/manifest.webmanifest',
   '/js/app.js', '/js/api.js', '/js/ui.js', '/js/icons.js', '/js/store.js', '/js/notify.js',
-  '/js/antibot.js', '/js/pow-worker.js', '/js/ideas.js', '/js/privacy.js', '/js/reels-prefetch.js',
+  '/js/antibot.js', '/js/pow-worker.js', '/js/ideas.js', '/js/privacy.js', '/js/reels-prefetch.js', '/js/people.js', '/js/onboarding.js',
   '/js/views/auth.js', '/js/views/home.js', '/js/views/messages.js', '/js/views/chat.js', '/js/views/profile.js', '/js/views/user.js', '/js/views/reels.js',
   '/fonts/plex-arabic-arabic-400.woff2', '/fonts/plex-arabic-arabic-500.woff2', '/fonts/plex-arabic-arabic-700.woff2',
   '/icons/icon.svg', '/icons/icon-192.png',

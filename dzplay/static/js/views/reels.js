@@ -4,7 +4,7 @@
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { feedState, loadMore, prefetchAround, touch } from '../reels-prefetch.js';
-import { REPORT_REASONS, avatar, formatListTime, h, sheet, toast } from '../ui.js';
+import { REPORT_REASONS, formatListTime, h, nameLine, personAvatar, sheet, toast } from '../ui.js';
 
 const MUTE_KEY = 'dz:reels-muted';
 const VIEW_AFTER_MS = 1500;
@@ -257,7 +257,7 @@ async function react(reel, type, paint) {
 // ------------------------------------------------------------------ public comments
 
 function authorLine(c) {
-  const name = h('b', { class: 'rc-name', text: c.author.name, dir: 'auto' });
+  const name = h('b', { class: 'rc-name' }, nameLine(c.author.name, c.author.gender));
   return c.author.official
     ? h('span', { class: 'rc-author' }, name, h('span', { class: 'official-badge' }, icon('verified'), 'رسمي'))
     : h('span', { class: 'rc-author' }, name);
@@ -304,7 +304,7 @@ function openComments(reel, config, paintReel) {
 
     const item = (c) => {
       const row = h('div', { class: `rc-item ${c.author.official ? 'rc-item--official' : ''}` },
-        c.author.official ? h('div', { class: 'avatar avatar--sm avatar--official', 'aria-hidden': 'true' }, icon('verified')) : avatar('sm'),
+        c.author.official ? h('div', { class: 'avatar avatar--sm avatar--official', 'aria-hidden': 'true' }, icon('verified')) : personAvatar(c.author.name, { size: 'sm' }),
         h('div', { class: 'rc-body' },
           h('div', { class: 'rc-meta' }, authorLine(c), h('time', { class: 'rc-time', datetime: c.created_at, text: formatListTime(c.created_at) })),
           h('p', { class: 'rc-text', dir: 'auto', text: c.content })),
@@ -367,7 +367,7 @@ function openComments(reel, config, paintReel) {
 
     panel.append(
       h('div', { class: 'rc-head' }, h('h2', { text: 'التعليقات' }), countEl),
-      h('p', { class: 'rc-note', text: 'تعليقات المقاطع عامة: يراها الجميع، وكل المعلّقين يظهرون باسم dzplay.' }),
+      h('p', { class: 'rc-note', text: 'تعليقات المقاطع عامة: يراها الجميع مع اسمك الظاهر.' }),
       listEl, moreBtn, form,
     );
     paintCount();

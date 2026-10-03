@@ -62,6 +62,8 @@ function userCard(u) {
     onkeydown: (e) => { if (e.key === 'Enter') openUser(u.id); } },
   h('div', { class: 'admin-card__head' },
     h('b', { class: 'admin-email', dir: 'ltr', text: u.email || '—' }),
+    h('span', { class: 'admin-name', dir: 'auto', text: u.display_name || 'dzplay' }),
+    u.public_id ? h('code', { dir: 'ltr', text: u.public_id }) : null,
     chip(STATUS[u.status] || u.status, u.status !== 'active' ? 'chip--hot' : ''),
     chip(METHOD[u.method] || u.method)),
   h('div', { class: 'admin-card__meta' },
@@ -80,6 +82,14 @@ function section(title, count, ...children) {
     h('summary', {}, h('span', { text: title }), h('span', { class: 'chip', text: fmt(count) })), ...children);
 }
 
+const GENDER = { male: 'رجل', female: 'أنثى', unspecified: 'أفضّل عدم الذكر' };
+
+function privacyText(p) {
+  if (!p) return '—';
+  return [p.accept_anonymous ? 'يستقبل المجهولة' : 'لا يستقبل المجهولة', p.accept_direct === 'everyone' ? 'يستقبل المباشرة' : 'لا يستقبل المباشرة',
+    p.accept_calls ? 'يستقبل المكالمات' : 'لا يستقبل المكالمات', p.searchable_by_name ? 'يظهر في البحث' : 'مخفي من البحث بالاسم'].join(' · ');
+}
+
 export function openUser(id) {
   detailSheet('صفحة المستخدم', async (body, close) => {
     const paint = async () => {
@@ -95,7 +105,10 @@ export function openUser(id) {
         h('section', { class: 'admin-group glass' },
           h('h3', { class: 'admin-email', dir: 'ltr', text: u.email || (u.team === 'official' ? 'DZPLAY الرسمي' : 'حساب نظام') }),
           h('dl', { class: 'admin-group__rows' },
-            ...[['المعرّف الداخلي', u.id], ['طريقة التسجيل', METHOD[u.method] || u.method], ['الحالة', STATUS[u.status] || u.status],
+            ...[['الاسم الظاهر', u.display_name || 'dzplay (افتراضي)'], ['المعرّف العام', u.public_id || '—'],
+              ['الجنس', GENDER[u.gender] || 'غير محدد'], ['تأكيد 18+', u.age_confirmed_at ? when(u.age_confirmed_at) : 'لم يؤكد بعد'],
+              ['الخصوصية', privacyText(u.privacy)],
+              ['المعرّف الداخلي', u.id], ['طريقة التسجيل', METHOD[u.method] || u.method], ['الحالة', STATUS[u.status] || u.status],
               ['التسجيل', when(u.created_at)], ['آخر نشاط', when(u.last_active_at)], ['جلسات نشطة', fmt(u.sessions_active)],
               ['رسائل مرسلة / مستلمة', `${fmt(u.stats.messages_sent)} / ${fmt(u.stats.messages_received)}`],
               ['مرجع الملف العام', u.profile_ref || '—']]
@@ -112,6 +125,9 @@ export function openUser(id) {
               if (!(await confirmDanger('حذف الحساب نهائيًا؟', 'تُحذف منشوراته وتعليقاته ومحادثاته وتفاعلاته. لا يمكن التراجع.', 'حذف'))) return;
               if (await attempt(() => call('DELETE', `/api/admin/access/users/${encodeURIComponent(u.id)}`))) { toast('حُذف الحساب.'); close(); }
             }))),
+        section('سجل الأسماء (للإدارة فقط)', d.name_history.length, ...d.name_history.map((n) => h('div', { class: 'admin-line' },
+          h('bdi', { text: n.old || 'dzplay' }), h('span', { text: '←' }), h('bdi', { text: n.new || 'dzplay' }),
+          h('span', { class: 'admin-meta', text: when(n.at) })))),
         section('الشبكات والحسابات المشتركة', d.shared_network_accounts.length,
           h('p', { class: 'admin-meta', text: `بصمات الشبكات: ${d.networks.join('، ') || '—'} (لا تُحفظ عناوين IP الحقيقية).` }),
           ...d.shared_network_accounts.map((a) => h('div', { class: 'admin-line' }, authorLine(a), chip(STATUS[a.status] || a.status)))),
@@ -128,7 +144,7 @@ export function openUser(id) {
           h('code', { dir: 'ltr', text: shortRef(r.id) }), h('span', { class: 'admin-meta', text: when(r.at) })))),
         section('المحادثات', d.conversations.length, ...d.conversations.map((c) => h('button', {
           type: 'button', class: 'admin-line admin-line--btn', onclick: () => openConversation(c.id),
-        }, h('span', { text: c.started_by_user ? 'بدأها ←' : '← بدأها الطرف الآخر' }), authorLine(c.peer),
+        }, chip(c.kind === 'direct' ? 'مباشرة' : 'مجهولة'), h('span', { text: c.started_by_user ? 'بدأها ←' : '← بدأها الطرف الآخر' }), authorLine(c.peer),
         h('span', { class: 'admin-meta', text: `${fmt(c.messages_stored)} رسالة · ${when(c.last_message_at)}` })))),
         section('بلاغات ضده', d.reports_against.length, ...d.reports_against.map(reportLine)),
         section('بلاغات قدّمها', d.reports_by.length, ...d.reports_by.map(reportLine)),

@@ -153,3 +153,24 @@ def test_privacy_switches_server_side(hx):
                                          "searchable_by_name": False})
     assert r.json() == {"accept_anonymous": False, "accept_direct": "nobody", "accept_calls": False, "searchable_by_name": False}
     assert c.patch("/api/me/privacy", json={"accept_direct": "friends"}).status_code == 400
+
+
+def test_admin_sees_name_history_id_and_search_by_name_or_id(make_harness):
+    hx = make_harness()
+    c = hx.user()
+    c.patch(NAME, json={"display_name": "Yacine"})
+    with hx.db() as db:
+        uid = db.scalar(select(User.id).where(User.display_name == "Yacine"))
+        pid = db.get(User, uid).public_id
+    from app.services import admin_access
+
+    with hx.db() as db:
+        d = admin_access.user_detail(db, uid)
+        assert d["user"]["display_name"] == "Yacine" and d["user"]["public_id"] == pid
+        assert d["name_history"][0]["old"] is None and d["name_history"][0]["new"] == "Yacine"
+        assert d["user"]["privacy"]["accept_calls"] is True
+        assert [u["id"] for u in admin_access.users_search(db, q=pid.lower())["users"]] == [uid]
+        assert [u["id"] for u in admin_access.users_search(db, q="yaci")["users"]] == [uid]
+        admin_access.delete_account(db, uid)
+    with hx.db() as db:
+        assert db.scalar(select(NameHistory).where(NameHistory.user_id == uid)) is None

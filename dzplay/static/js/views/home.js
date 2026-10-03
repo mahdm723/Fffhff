@@ -91,7 +91,7 @@ function renderIdeasPane(page, { config, navigate }) {
       h('span', { class: 'idea-composer__icon' }, icon('bulb')),
       h('div', {},
         h('h1', { id: 'idea-title', class: 'idea-composer__title', text: 'شارك فكرة' }),
-        h('p', { class: 'idea-composer__sub', text: 'يقرؤها الجميع، ويظهر اسمك dzplay فقط.' }),
+        h('p', { class: 'idea-composer__sub', text: 'يقرؤها الجميع، ويظهر معها اسمك الذي اخترته.' }),
       ),
     ),
     textarea,

@@ -2,16 +2,24 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
+import logging
+import time
+from collections.abc import Awaitable, Callable
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.concurrency import run_in_threadpool
 
+from app import clock
+from app.models import Conversation
 from app.security.sessions import resolve_session
 
 router = APIRouter()
+log = logging.getLogger("dzplay.ws")
 
 PING_INTERVAL = 25
+_PEER_CACHE_SECONDS = 30
 
 
 def _origin_allowed(ws: WebSocket) -> bool:
@@ -23,6 +31,80 @@ def _origin_allowed(ws: WebSocket) -> bool:
     if urlsplit(origin).netloc == host:
         return True
     return origin.rstrip("/") in st.settings.allowed_origins
+
+
+class Connection:
+    """One authenticated socket. Client → server messages are small JSON objects
+    ({"type": ...}); everything else closes the socket. Every handler re-checks
+    authorization server-side: the client is never trusted."""
+
+    def __init__(self, ws: WebSocket, user_id: str) -> None:
+        self.ws = ws
+        self.st = ws.app.state.dz
+        self.user_id = user_id
+        self._window = (0.0, 0)  # (start, count) for WS_MSGS_PER_10S
+        self._typing: list[float] = []
+        self._peers: dict[str, tuple[float, str | None]] = {}
+
+    def allow(self) -> bool:
+        now = time.monotonic()
+        start, count = self._window
+        if now - start >= 10:
+            start, count = now, 0
+        self._window = (start, count + 1)
+        return count + 1 <= self.st.settings.WS_MSGS_PER_10S
+
+    async def chat_peer(self, conversation_id: str) -> str | None:
+        """The other member of an active conversation of mine that may receive live
+        signals from me (None otherwise). Cached briefly per connection."""
+        now = time.monotonic()
+        hit = self._peers.get(conversation_id)
+        if hit and now - hit[0] < _PEER_CACHE_SECONDS:
+            return hit[1]
+
+        def _lookup() -> str | None:
+            with self.st.database.session() as db:
+                c = db.get(Conversation, conversation_id)
+                if (c is None or not c.is_participant(self.user_id) or c.status != "active"
+                        or c.expires_at <= clock.utcnow()):
+                    return None
+                peer = c.peer_of(self.user_id)
+                if c.hidden_for(self.user_id) or c.hidden_for(peer):
+                    return None
+                if c.is_direct and (c.request_state or "accepted") != "accepted" and self.user_id != c.recipient_id:
+                    return None  # an unanswered request: the recipient sees nothing live
+                return peer
+
+        peer = await run_in_threadpool(_lookup)
+        if len(self._peers) > 200:
+            self._peers.clear()
+        self._peers[conversation_id] = (now, peer)
+        return peer
+
+
+async def _typing(conn: Connection, data: dict) -> None:
+    cid, on = data.get("conversation_id"), data.get("on")
+    if not isinstance(cid, str) or not 0 < len(cid) <= 32 or not isinstance(on, bool):
+        return
+    now = time.monotonic()
+    conn._typing = [t for t in conn._typing if now - t < 60]
+    if len(conn._typing) >= conn.st.settings.TYPING_EVENTS_PER_MINUTE:
+        return
+    conn._typing.append(now)
+    peer = await conn.chat_peer(cid)
+    if peer:
+        conn.st.hub.notify([peer], {"type": "typing", "conversation_id": cid, "on": on})
+
+
+async def _noop(conn: Connection, data: dict) -> None:
+    return None
+
+
+# type -> handler. Unknown types are ignored (forward compatible clients).
+HANDLERS: dict[str, Callable[[Connection, dict], Awaitable[None]]] = {
+    "ping": _noop,
+    "typing": _typing,
+}
 
 
 @router.websocket("/api/ws")
@@ -45,11 +127,36 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
     await ws.accept()
     queue = st.hub.connect(user_id)
+    conn = Connection(ws, user_id)
 
     async def reader() -> None:
-        # Client messages are only keep-alives; reading also detects disconnects.
+        # Reading also detects disconnects. Any abuse closes the socket.
         while True:
-            await ws.receive_text()
+            msg = await ws.receive()
+            if msg["type"] == "websocket.disconnect":
+                return
+            text = msg.get("text")
+            if text is None:
+                await ws.close(code=1003)  # binary frames are not accepted
+                return
+            if len(text.encode()) > st.settings.WS_MAX_MESSAGE_BYTES:
+                await ws.close(code=1009)
+                return
+            if not conn.allow():
+                await ws.close(code=1008)
+                return
+            try:
+                data = json.loads(text)
+            except ValueError:
+                continue
+            if not isinstance(data, dict) or not isinstance(data.get("type"), str):
+                continue
+            handler = HANDLERS.get(data["type"])
+            if handler is not None:
+                try:
+                    await handler(conn, data)
+                except Exception:  # noqa: BLE001 - one bad message never kills the socket
+                    log.exception("ws handler %s failed", data["type"][:20])
 
     reader_task = asyncio.create_task(reader())
     try:

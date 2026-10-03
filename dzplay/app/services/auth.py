@@ -318,7 +318,7 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
 
     _check_registration_quota(db, settings, ctx)
     user = User(email=email_n, google_sub=sub, password_hash=None, registration_ip_hash=ctx.ip_hash,
-                privacy_ack_version=PRIVACY_VERSION)
+                privacy_ack_version=PRIVACY_VERSION, onboarding_required=True)
     db.add(user)
     try:
         db.flush()

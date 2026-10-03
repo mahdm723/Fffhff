@@ -31,6 +31,53 @@ export function avatar(size = '') {
   return h('div', { class: `avatar ${size ? 'avatar--' + size : ''}`, 'aria-hidden': 'true' }, icon('mask'));
 }
 
+const AVATAR_TONES = 6;
+
+/** Round avatar with the person's initial; the dzplay mask for anonymous / default-named people. */
+export function personAvatar(name, { size = '', anonymous = false, active = false } = {}) {
+  const cls = `avatar ${size ? 'avatar--' + size : ''}`;
+  let el;
+  if (anonymous || !name || name === 'dzplay') el = h('div', { class: cls, 'aria-hidden': 'true' }, icon('mask'));
+  else {
+    const letter = (Array.from(name.trim())[0] || '?').toLocaleUpperCase('ar');
+    let n = 0;
+    for (const ch of name) n = (n * 31 + ch.codePointAt(0)) >>> 0;
+    el = h('div', { class: `${cls} avatar--letter avatar--t${n % AVATAR_TONES}`, 'aria-hidden': 'true' }, h('span', { text: letter }));
+  }
+  if (active) el.append(h('span', { class: 'avatar__online' }));
+  return el;
+}
+
+const GENDER = { male: ['male', 'رجل'], female: ['female', 'أنثى'] };
+
+/** Small gender icon next to a name (nothing for "prefer not to say"). */
+export function genderMark(gender) {
+  const g = GENDER[gender];
+  if (!g) return null;
+  return h('span', { class: `gender gender--${gender}`, title: g[1] }, icon(g[0]), h('span', { class: 'sr-only', text: g[1] }));
+}
+
+/** A display name as plain text (dir="auto": Arabic or Latin) + gender icon. */
+export function nameLine(name, gender, cls = '') {
+  return h('span', { class: `name-line ${cls}` }, h('bdi', { class: 'name-line__text', text: name || 'dzplay' }), genderMark(gender));
+}
+
+export async function copyText(text, done = 'نُسخ.') {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(done);
+  } catch {
+    toast(text, 'info', 6000);
+  }
+}
+
+/** "DZ-XXXXXX" chip with a copy button. */
+export function idChip(publicId) {
+  if (!publicId) return null;
+  return h('button', { class: 'id-chip', type: 'button', 'aria-label': `نسخ المعرّف ${publicId}`, onclick: () => copyText(publicId, 'نُسخ المعرّف.') },
+    h('span', { dir: 'ltr', text: publicId }), icon('copy'));
+}
+
 export function wordmark(large = false) {
   return h('div', { class: `wordmark ${large ? 'wordmark--lg' : ''}`, 'aria-label': 'dzplay' }, 'dzplay', h('span', { class: 'wordmark__dot' }));
 }
@@ -42,7 +89,7 @@ export function toast(message, type = 'info', ms = 3200) {
   setTimeout(() => t.remove(), ms);
 }
 
-export function sheet(build, onClose = null) {
+export function sheet(build, onClose = null, { dismissible = true } = {}) {
   const prev = document.activeElement;
   const backdrop = h('div', { class: 'sheet-backdrop' });
   const panel = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true' }, h('div', { class: 'sheet__grip' }));
@@ -55,8 +102,8 @@ export function sheet(build, onClose = null) {
     if (onClose) onClose();
     if (prev && prev.focus) prev.focus();
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+  const onKey = (e) => { if (e.key === 'Escape' && dismissible) close(); };
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop && dismissible) close(); });
   document.addEventListener('keydown', onKey);
   build(panel, close);
   backdrop.append(panel);

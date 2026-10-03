@@ -58,6 +58,9 @@ def public_config(request: Request) -> dict:
         "reset_code_hours": max(1, s.RESET_CODE_TTL // 3600),
         "reset_max_attempts": s.RESET_MAX_CODE_ATTEMPTS,
         "footer_text": s.FOOTER_TEXT,
+        "names": {"min": s.NAME_MIN_LENGTH, "max": s.NAME_MAX_LENGTH, "cooldown_days": s.NAME_CHANGE_COOLDOWN_DAYS,
+                  "default": s.DEFAULT_DISPLAY_NAME},
+        "direct_before_reply": s.DIRECT_MSG_BEFORE_REPLY_LIMIT,
     }
 
 

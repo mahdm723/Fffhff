@@ -69,7 +69,9 @@ export function clearCache() {
 // ---------------------------------------------------------------- selectors
 export const getConversation = (id) => state.conversations.find((c) => c.id === id) || null;
 export const getMessages = (id) => state.messages[id] || [];
-export const unreadTotal = () => state.conversations.reduce((n, c) => n + (c.unread || 0), 0);
+export const isRequest = (c) => !!(c && c.request && c.request.pending_for_me);
+export const unreadTotal = () => state.conversations.reduce((n, c) => n + (c.unread && !c.muted ? c.unread : 0), 0);
+export const requestCount = () => state.conversations.filter(isRequest).length;
 
 function upsertConversation(conv) {
   const i = state.conversations.findIndex((c) => c.id === conv.id);
@@ -115,7 +117,9 @@ export async function sync({ full = false } = {}) {
       for (const [cid, list] of Object.entries(byConv)) mergeMessages(cid, list);
       for (const c of state.conversations) applyPeerRead(c);
       state.serverTime = data.server_time;
-      const incoming = since ? data.messages.filter((m) => !m.mine && !known.has(m.id)).length : 0;
+      const muted = new Set(state.conversations.filter((c) => c.muted).map((c) => c.id));
+      const incoming = since
+        ? data.messages.filter((m) => !m.mine && !known.has(m.id) && m.kind !== 'system' && !muted.has(m.conversation_id)).length : 0;
       save();
       emit('sync');
       if (incoming) emit('incoming', incoming);
@@ -173,6 +177,28 @@ export async function sendAnonymous(content) {
     }
     throw err;
   }
+}
+
+/** First message to someone found by their public ID (starts a message request). */
+export async function sendDirect(publicId, content) {
+  const res = await api.post(`/api/people/${encodeURIComponent(publicId)}/messages`, { content, client_id: newClientId() });
+  applySent(res);
+  return res.conversation;
+}
+
+export async function answerRequest(cid, action) {
+  await api.post(`/api/conversations/${encodeURIComponent(cid)}/request`, { action });
+  if (action === 'ignore') removeConversationLocally(cid);
+  else await loadConversation(cid);
+}
+
+/** Apply a local change to a conversation summary (mute / reveal) without waiting for a sync. */
+export function patchConversation(cid, patch) {
+  const c = getConversation(cid);
+  if (!c) return;
+  Object.assign(c, patch);
+  save();
+  emit('sync');
 }
 
 function applySent(res) {
@@ -271,7 +297,8 @@ function connect() {
   ws.onmessage = (e) => {
     let msg;
     try { msg = JSON.parse(e.data); } catch { return; }
-    if (msg.type !== 'sync') return;
+    if (msg.type === 'typing') { emit('typing', msg); return; }
+    if (msg.type !== 'sync') { if (msg.type && msg.type !== 'ping' && msg.type !== 'hello') emit('ws', msg); return; }
     if (msg.reason === 'comment') emit('comment'); // ideas: no message sync needed
     else scheduleSync(msg.reason === 'message' ? 0 : 150);
   };
@@ -284,6 +311,14 @@ function connect() {
   };
   ws.onerror = () => { try { ws.close(); } catch { /* ignore */ } };
 }
+
+/** Small JSON message to the server over the socket (typing, later call signaling). */
+export function sendWS(obj) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  try { ws.send(JSON.stringify(obj)); return true; } catch { return false; }
+}
+
+export function sendTyping(cid, on) { return sendWS({ type: 'typing', conversation_id: cid, on: !!on }); }
 
 function onOnline() { state.online = true; emit('connection'); backoff = 1000; connect(); flushOutbox(); scheduleSync(0); }
 function onOffline() { state.online = false; emit('connection'); }

@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import { icon } from './icons.js';
 import * as store from './store.js';
-import { REPORT_REASONS, autoGrow, avatar, confirmSheet, formatListTime, h, sheet, toast } from './ui.js';
+import { REPORT_REASONS, autoGrow, confirmSheet, formatListTime, h, nameLine, personAvatar, sheet, toast } from './ui.js';
 
 const CLAMP_CHARS = 420;
 
@@ -27,12 +27,12 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   const card = h('article', { class: 'post-card glass', 'data-post': post.id });
 
   const authorBtn = h('button', {
-    class: 'post-card__author', type: 'button', 'aria-label': 'عرض ملف dzplay',
+    class: 'post-card__author', type: 'button', 'aria-label': `عرض ملف ${state.author.name}`,
     onclick: () => navigate && navigate(state.mine ? '#/profile' : `#/u/${state.author.ref}`),
   },
-  avatar('sm'),
+  personAvatar(state.author.name, { size: 'sm' }),
   h('span', { class: 'post-card__who' },
-    h('span', { class: 'post-card__name', text: state.author.name }),
+    nameLine(state.author.name, state.author.gender, 'post-card__name'),
     h('span', { class: 'post-card__time', text: formatListTime(state.created_at) }),
   ));
   const moreBtn = h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'خيارات المنشور' }, icon('more'));
@@ -151,10 +151,10 @@ export function postCard(post, { navigate, onRemoved } = {}) {
 
   function commentItem(c, list) {
     const li = h('li', { class: 'comment' },
-      avatar('sm'),
+      personAvatar(c.author, { size: 'sm' }),
       h('div', { class: 'comment__main' },
         h('div', { class: 'comment__head' },
-          h('span', { class: 'comment__name', text: c.author }),
+          nameLine(c.author, null, 'comment__name'),
           h('span', { class: 'comment__time', text: formatListTime(c.created_at) }),
         ),
         h('p', { class: 'comment__body', text: c.content }),

@@ -61,12 +61,14 @@ class Run:
         print(f"  ✓ {text}", flush=True)
 
 
-def register(run: Run, page: Page, email: str, shot: str | None = None) -> None:
+def register(run: Run, page: Page, email: str, shot: str | None = None, gender: str = "أفضّل عدم الذكر") -> None:
     page.goto(run.base + "/")
     page.get_by_role("tab", name="حساب جديد").click()
     page.locator("#email").fill(email)
     page.locator("#password").fill(PASSWORD)
     page.locator("#password_confirm").fill(PASSWORD)
+    page.locator(".gender-pick__opt", has_text=gender).click()
+    page.locator("#age_confirmed").check()
     page.locator(".antibot").click()
     expect(page.locator(".antibot")).to_have_attribute("data-state", "done", timeout=20000)
     if shot:
@@ -182,7 +184,7 @@ def main() -> int:
             item = b.locator(".conv-item").first
             expect(item).to_be_visible(timeout=10000)
             expect(item.locator(".conv-item__name")).to_have_text("dzplay")
-            expect(item.locator(".badge")).to_have_text("1")
+            expect(item.locator(".unread-dot")).to_have_count(1)
             run.shot(b, "09-messages-list")
             item.click()
             expect(b.locator(".bubble-row.theirs .bubble").first).to_contain_text("أحتاج أن أتحدث مع شخص اليوم.")
@@ -197,7 +199,7 @@ def main() -> int:
             a.locator(".conv-item").first.click()
             expect(a.locator(".bubble-row.theirs .bubble").last).to_contain_text("أنا هنا، ماذا حدث؟", timeout=10000)
             # B's message status reaches "read" once A has the chat open.
-            expect(b.locator(".bubble-row.mine .status").last).to_have_class("status status--read", timeout=10000)
+            expect(b.locator(".bubble__status--read")).to_have_count(1, timeout=10000)
             run.step("A received the reply live; B sees it was read")
 
             a.locator(".chat__composer textarea").fill("شكرًا لأنك هنا. يومي كان صعبًا.")
@@ -212,14 +214,14 @@ def main() -> int:
             expect(b.locator(".chat__composer")).to_be_visible()
             b.locator(".chat__composer textarea").fill("رسالة أثناء انقطاع الإنترنت")
             b.locator(".send-btn").click()
-            expect(b.locator(".bubble-row.mine .status--pending")).to_have_count(1)
+            expect(b.locator(".bubble__status--pending")).to_have_count(1)
             run.shot(b, "12-offline-pending")
             time.sleep(1.5)
             expect(a.get_by_text("رسالة أثناء انقطاع الإنترنت")).to_have_count(0)
             ctx_b.set_offline(False)
             b.evaluate("window.dispatchEvent(new Event('online'))")
             expect(a.locator(".bubble-row.theirs .bubble").last).to_contain_text("رسالة أثناء انقطاع الإنترنت", timeout=15000)
-            expect(b.locator(".bubble-row.mine .status--pending")).to_have_count(0, timeout=10000)
+            expect(b.locator(".bubble__status--pending")).to_have_count(0, timeout=10000)
             run.step("Message queued offline was delivered once back online (no duplicates)")
             assert a.locator(".bubble-row.theirs .bubble", has_text="رسالة أثناء انقطاع الإنترنت").count() == 1
 
@@ -239,9 +241,9 @@ def main() -> int:
             print("Report + block")
             b.goto(base + "/#/messages")
             b.locator(".conv-item").first.click()
-            b.get_by_role("button", name="خيارات").click()
+            b.get_by_role("button", name="معلومات وخيارات").click()
             run.shot(b, "14-chat-menu")
-            b.get_by_role("button", name="الإبلاغ عن المحادثة").click()
+            b.locator(".sheet").get_by_role("button", name="إبلاغ").click()
             b.get_by_text("تحرش أو مضايقة").click()
             run.shot(b, "15-report")
             b.get_by_role("button", name="إرسال البلاغ").click()

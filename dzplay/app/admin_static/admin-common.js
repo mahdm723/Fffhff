@@ -146,5 +146,6 @@ export function authorLine(author) {
   return h('span', { class: 'admin-author' },
     author.team ? h('b', { text: author.team === 'official' ? 'DZPLAY الرسمي' : 'حساب نظام (dzplay)' })
       : userRef(author.id, author.email || shortRef(author.id)),
+    author.display_name && !author.team ? h('bdi', { class: 'admin-meta', text: author.display_name }) : null,
     teamBadge(author));
 }

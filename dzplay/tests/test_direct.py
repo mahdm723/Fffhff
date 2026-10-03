@@ -126,6 +126,7 @@ def test_ignore_and_block_requests(hx):
     assert b.post(f"/api/conversations/{conv}/request", json={"action": "ignore"}).json() == {"state": "ignored"}
     assert b.get("/api/conversations").json()["conversations"] == []  # ignored requests disappear
     assert reply(a, conv, "هل وصلت؟").status_code == 201  # sender is not told
+    assert a.get("/api/conversations").json()["conversations"][0]["request"]["state"] == "pending"
     assert b.get("/api/conversations").json()["conversations"] == []
     # only the recipient can answer a request
     assert a.post(f"/api/conversations/{conv}/request", json={"action": "accept"}).status_code == 404

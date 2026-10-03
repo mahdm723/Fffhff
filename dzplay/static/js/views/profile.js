@@ -3,9 +3,16 @@ import { icon } from '../icons.js';
 import { profilePosts } from '../ideas.js';
 import { privacySheet } from '../privacy.js';
 import { notificationsEnabled, setNotifications } from '../notify.js';
-import { avatar, confirmSheet, formatDay, h, isAndroidApp, sheet, toast } from '../ui.js';
+import { genderPicker } from '../onboarding.js';
+import { confirmAge, searchBox } from '../people.js';
+import { avatar, confirmSheet, formatDay, h, idChip, isAndroidApp, nameLine, personAvatar, sheet, toast } from '../ui.js';
+
+const dateFmt = new Intl.DateTimeFormat('ar-DZ', { day: 'numeric', month: 'long' });
 
 export function renderProfile(page, { config, onLogout, navigate, onMe }) {
+  let me = null;
+  const idCard = h('section', { class: 'id-card glass' }, avatar('xl'), h('div', { class: 'id-card__name' }, nameLine('dzplay')));
+  const ageItem = h('li', { hidden: true });
   const statsBox = h('div', { class: 'stats' });
   const msgStats = h('p', { class: 'msg-stats' });
   const postsSlot = h('div');
@@ -15,10 +22,103 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     return h('div', { class: 'stat glass' }, h('div', { class: 'stat__num', text: String(num) }), h('div', { class: 'stat__label', text: label }));
   }
 
+  function drawCard() {
+    idCard.replaceChildren(
+      personAvatar(me.display_name, { size: 'xl' }),
+      h('div', { class: 'id-card__name' }, nameLine(me.display_name, me.gender === 'unspecified' ? null : me.gender)),
+      idChip(me.public_id),
+      h('p', { class: 'id-card__hint', text: me.has_custom_name
+        ? 'يظهر اسمك في الأفكار والتعليقات والمحادثات المباشرة. في الرسائل العشوائية تبقى dzplay حتى تكشف هويتك.'
+        : 'اسمك الآن dzplay. اختر اسمًا ليعرفك أصدقاؤك، أو شارك معرّفك DZ.' }),
+      h('div', { class: 'id-card__actions' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: editSheet }, icon('edit'), 'تعديل الملف')),
+    );
+    ageItem.hidden = me.age_confirmed !== false;
+  }
+
+  function editSheet() {
+    const names = config.names || { min: 3, max: 20, cooldown_days: 14 };
+    sheet((panel, close) => {
+      const locked = !!me.next_name_change_at;
+      const input = h('input', {
+        class: 'input', id: 'display-name', dir: 'auto', maxlength: String(names.max), autocomplete: 'nickname',
+        value: me.has_custom_name ? me.display_name : '', placeholder: 'dzplay', disabled: locked,
+      });
+      const err = h('div', { class: 'form-error', role: 'alert' });
+      const save = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'حفظ');
+      const submit = async (body) => {
+        err.textContent = '';
+        if (!Object.keys(body).length) { close(); return; }
+        save.disabled = true;
+        try {
+          me = { ...me, ...(await api.patch('/api/me/profile', body)) };
+          if (onMe) onMe(me);
+          drawCard();
+          close();
+          toast('حُفظ ملفك.');
+        } catch (e) { err.textContent = e.message; save.disabled = false; }
+      };
+      save.addEventListener('click', () => {
+        const body = {};
+        const name = input.value.trim().replace(/\s+/g, ' ');
+        if (!locked && name !== (me.has_custom_name ? me.display_name : '')) body.display_name = name;
+        const gender = panel.querySelector('input[name="edit-gender"]:checked')?.value;
+        if (gender && gender !== me.gender) body.gender = gender;
+        submit(body);
+      });
+      panel.append(
+        h('h2', { text: 'تعديل الملف' }),
+        h('div', { class: 'field' },
+          h('label', { for: 'display-name', text: 'الاسم الظاهر' }),
+          input,
+          h('small', { class: 'field__hint', text: locked
+            ? `يمكنك تغيير الاسم مجددًا يوم ${dateFmt.format(new Date(me.next_name_change_at))}.`
+            : `من ${names.min} إلى ${names.max} حرفًا: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط. يمكن تغييره مرة كل ${names.cooldown_days} يومًا.` }),
+        ),
+        me.has_custom_name
+          ? h('button', { class: 'link-btn', type: 'button', onclick: () => submit({ display_name: '' }) }, 'العودة إلى الاسم dzplay')
+          : null,
+        h('div', { class: 'field' }, h('label', { text: 'الجنس' }), genderPicker('edit-gender', me.gender)),
+        err,
+        h('div', { class: 'actions' }, save, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')),
+      );
+    });
+  }
+
+  function contactSheet() {
+    const rows = [
+      ['accept_anonymous', 'استقبال الرسائل المجهولة', 'عند الإيقاف لن تُختار لاستقبال رسائل عشوائية، ويبقى بإمكانك الإرسال.'],
+      ['accept_direct', 'استقبال الرسائل المباشرة', 'من يعرف اسمك أو معرّفك يستطيع إرسال طلب مراسلة.'],
+      ['accept_calls', 'استقبال المكالمات', 'المكالمات الصوتية والمرئية من محادثاتك.'],
+      ['searchable_by_name', 'الظهور في البحث بالاسم', 'عند الإيقاف يبقى بالإمكان إيجادك بمعرّفك DZ فقط.'],
+    ];
+    sheet((panel, close) => {
+      const isOn = (k) => (k === 'accept_direct' ? me.privacy[k] === 'everyone' : !!me.privacy[k]);
+      const list = h('ul', { class: 'menu' }, ...rows.map(([key, label, hint]) => {
+        const sw = h('span', { class: 'switch', role: 'switch', 'aria-checked': String(isOn(key)), 'aria-label': label });
+        const btn = h('button', { class: 'menu__item menu__item--setting', type: 'button' },
+          h('span', {}, h('b', { text: label }), h('small', { text: hint })), sw);
+        btn.addEventListener('click', async () => {
+          const on = !isOn(key);
+          btn.disabled = true;
+          try {
+            const privacy = await api.patch('/api/me/privacy', { [key]: key === 'accept_direct' ? (on ? 'everyone' : 'nobody') : on });
+            me.privacy = privacy;
+            sw.setAttribute('aria-checked', String(isOn(key)));
+          } catch (e) { toast(e.message, 'error'); }
+          btn.disabled = false;
+        });
+        return h('li', {}, btn);
+      }));
+      panel.append(h('h2', { text: 'الخصوصية والتواصل' }), list,
+        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'تم')));
+    });
+  }
+
   async function load() {
     try {
-      const me = await api.get('/api/profile');
+      me = await api.get('/api/profile');
       if (onMe) onMe(me);
+      drawCard();
       statsBox.replaceChildren(
         stat(me.ideas.posts, 'منشورات'),
         stat(me.ideas.likes, 'إعجاب'),
@@ -59,7 +159,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
         list.replaceChildren(...blocks.map((b) => {
           const li = h('li', {}, h('div', { class: 'menu__item' },
             avatar('sm'),
-            h('span', {}, h('b', { text: 'dzplay', dir: 'ltr' }), h('br'), h('small', { text: `حُظر ${formatDay(b.created_at)}` })),
+            h('span', {}, h('b', { text: b.name || 'dzplay', dir: 'auto' }), h('br'), h('small', { text: `حُظر ${formatDay(b.created_at)}` })),
             h('button', { class: 'btn btn--ghost', onclick: async () => {
               try { await api.del(`/api/blocks/${encodeURIComponent(b.id)}`); li.remove(); toast('تم إلغاء الحظر.'); }
               catch (err) { toast(err.message, 'error'); }
@@ -94,17 +194,16 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
 
   page.replaceChildren(
     h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: 'حسابي' })),
-    h('section', { class: 'id-card glass' },
-      avatar('xl'),
-      h('div', { class: 'id-card__name', text: 'dzplay' }),
-      h('p', { class: 'id-card__hint', text: 'هذه هي هويتك الظاهرة للجميع. لا يعرف المستخدمون الآخرون من أنت.' }),
-    ),
+    idCard,
     statsBox,
     msgStats,
+    searchBox(navigate),
     h('ul', { class: 'menu glass' },
       isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
+      item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
+      ageItem,
       item('block', 'المحظورون', blockedSheet),
-      item('shield', 'الخصوصية', privacySheet),
+      item('shield', 'سياسة الخصوصية', privacySheet),
       config && config.android_apk_url ? item('send', 'مشاركة تطبيق DZPLAY', shareApp) : null,
       item('logout', 'تسجيل الخروج', logout, h('span'), 'menu__item--danger'),
     ),
@@ -112,6 +211,9 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     h('p', { class: 'version', text: 'DZPLAY · نسخة تجريبية' }),
     ...(config && config.footer_text ? [h('p', { class: 'profile-footer', text: config.footer_text })] : []), // replaceChildren would print null
   );
+  ageItem.replaceChildren(item('check', 'تأكيد العمر (18+)', async () => {
+    if (await confirmAge()) { me.age_confirmed = true; drawCard(); toast('شكرًا. تم التأكيد.'); }
+  }).firstChild);
   statsBox.replaceChildren(stat('–', 'منشورات'), stat('–', 'إعجاب'), stat('–', 'عدم إعجاب'));
   load();
 }

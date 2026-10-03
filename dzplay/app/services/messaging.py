@@ -95,14 +95,20 @@ def serialize_message(m: Message, viewer_id: str) -> dict:
     }
 
 
+# "Active now" = a request seen within this window (sessions are touched every 5 minutes).
+PRESENCE_WINDOW = timedelta(minutes=6)
+
+
 def peer_card(c: Conversation, viewer_id: str, peer: User | None) -> dict:
     """How the other participant appears to the viewer (never internal ids or e-mail)."""
     peer_id = c.peer_of(viewer_id)
     shown = c.is_direct or c.revealed(peer_id)
     if peer is None or not shown:
-        return {"name": names.default_name(), "public_id": None, "gender": None, "profile_ref": None, "anonymous": True}
+        return {"name": names.default_name(), "public_id": None, "gender": None, "profile_ref": None, "anonymous": True,
+                "active": False}
+    active = peer.last_active_at is not None and clock.utcnow() - peer.last_active_at < PRESENCE_WINDOW
     return {"name": names.shown_name(peer), "public_id": peer.public_id, "gender": names.public_gender(peer),
-            "profile_ref": None, "anonymous": False}
+            "profile_ref": None, "anonymous": False, "active": bool(active)}
 
 
 def _request_view(c: Conversation, viewer_id: str) -> dict | None:
@@ -110,6 +116,8 @@ def _request_view(c: Conversation, viewer_id: str) -> dict | None:
         return None
     state = c.request_state or "accepted"
     incoming = viewer_id == c.recipient_id
+    if state == "ignored" and not incoming:
+        state = "pending"  # the sender is never told that a request was ignored
     return {"state": state, "incoming": incoming, "pending_for_me": incoming and state == "pending"}
 
 
@@ -155,6 +163,8 @@ def _require_can_send(user: User) -> None:
         raise AppError(403, "account_suspended", "حسابك موقوف مؤقتًا للمراجعة بسبب بلاغات. لا يمكنك إرسال رسائل حاليًا.")
     if user.status != "active":
         raise AppError(403, "account_banned", "تم إيقاف هذا الحساب.")
+    if user.onboarding_required:
+        raise AppError(403, "onboarding_required", "أكمل إنشاء حسابك أولًا (الجنس وتأكيد العمر).")
 
 
 def _get_visible_conversation(db: Session, user: User, conversation_id: str) -> Conversation:
@@ -597,6 +607,7 @@ def profile(user: User, settings: Settings | None = None) -> dict:
         "gender": user.gender or "unspecified",
         "next_name_change_at": iso(nxt) if nxt and nxt > clock.utcnow() else None,
         "needs_gender": user.gender_asked_at is None,
+        "needs_onboarding": bool(user.onboarding_required),
         "age_confirmed": user.age_confirmed_at is not None,
         "privacy": privacy_view(user),
         "status": user.status,

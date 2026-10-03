@@ -4,6 +4,7 @@ import { icon } from './icons.js';
 import { disableForLogout, refreshPushSubscription, showLocalNotification } from './notify.js';
 import * as store from './store.js';
 import { h, toast } from './ui.js';
+import { runOnboarding } from './onboarding.js';
 import { showPrivacyNotice } from './privacy.js';
 import { clearMediaCache, resetFeed as resetReelsFeed, startPrefetch, stopPrefetch } from './reels-prefetch.js';
 import { renderAuth } from './views/auth.js';
@@ -32,6 +33,8 @@ function parseRoute() {
   if (m) return { name: 'chat', id: m[1] };
   const u = location.hash.match(/^#\/u\/([A-Za-z0-9_-]{1,32})$/);
   if (u) return { name: 'user', ref: u[1] };
+  const p = location.hash.match(/^#\/id\/(DZ-[A-Z0-9]{6})$/i);
+  if (p) return { name: 'user', publicId: p[1].toUpperCase() };
   const name = location.hash.replace(/^#\//, '');
   return { name: TABS.some((t) => t.id === name) ? name : 'home' };
 }
@@ -50,7 +53,7 @@ function setTabBadge(tab, n) {
 function updateBadges() {
   const n = store.unreadTotal();
   document.title = n ? `(${n}) DZPLAY` : 'DZPLAY';
-  setTabBadge('messages', n);
+  setTabBadge('messages', n || store.requestCount());
   setTabBadge('profile', (store.state.me && store.state.me.unseen_comments) || 0);
 }
 
@@ -94,14 +97,19 @@ function route() {
   }
   const ctx = {
     config: store.state.config, navigate, onLogout: logout,
-    onMe: (me) => { store.state.me = { ...store.state.me, ...me }; updateBadges(); },
+    onMe,
   };
   if (r.name === 'home') cleanupView = renderHome(shell.page, ctx) || null;
   else if (r.name === 'messages') cleanupView = renderMessages(shell.page, ctx) || null;
-  else if (r.name === 'user') cleanupView = renderUser(shell.page, { ...ctx, ref: r.ref }) || null;
+  else if (r.name === 'user') cleanupView = renderUser(shell.page, { ...ctx, ref: r.ref, publicId: r.publicId }) || null;
   else cleanupView = renderProfile(shell.page, ctx) || null;
   updateBadges();
   updateConnectionBanner();
+}
+
+function onMe(me) {
+  store.state.me = { ...store.state.me, ...me };
+  updateBadges();
 }
 
 async function logout() {
@@ -143,7 +151,7 @@ function startSession(me) {
   store.sync({ full: true }).catch(() => {});
   store.flushOutbox();
   refreshPushSubscription();
-  showPrivacyNotice(me);
+  showPrivacyNotice(me, () => runOnboarding(me, { onMe, onLogout: logout }));
   // Warm up Reels in the background whatever page the user opened (low priority, see reels-prefetch.js).
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 800));
   idle(() => startPrefetch(store.state.config), { timeout: 2500 });

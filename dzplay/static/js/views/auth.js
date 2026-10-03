@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { createAntibot } from '../antibot.js';
+import { genderPicker } from '../onboarding.js';
 import { privacySheet } from '../privacy.js';
 import { canOfferAndroidApp, h, wordmark } from '../ui.js';
 
@@ -156,6 +157,8 @@ export function renderAuth(root, { config, onAuthenticated }) {
     const honeypot = h('input', { class: 'hp', type: 'text', name: 'website', tabindex: '-1', autocomplete: 'off', 'aria-hidden': 'true' });
     const error = h('div', { class: 'form-error', role: 'alert' });
     const submit = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, isRegister ? 'إنشاء الحساب' : 'دخول');
+    const gender = isRegister ? genderPicker('reg-gender') : null;
+    const adult = isRegister ? h('input', { type: 'checkbox', id: 'age_confirmed', name: 'age_confirmed' }) : null;
 
     const forgot = !isRegister && config.password_reset_enabled
       ? h('button', { type: 'button', class: 'link-btn auth__forgot', onclick: () => { mode = 'reset'; draw(); } }, 'نسيت كلمة السر؟')
@@ -164,6 +167,8 @@ export function renderAuth(root, { config, onAuthenticated }) {
       h('div', { class: 'field' }, h('label', { for: 'email', text: 'البريد الإلكتروني' }), email),
       h('div', { class: 'field' }, h('label', { for: 'password', text: 'كلمة المرور' }), password),
       confirm && h('div', { class: 'field' }, h('label', { for: 'password_confirm', text: 'تأكيد كلمة المرور' }), confirm),
+      gender && h('div', { class: 'field' }, h('label', { text: 'الجنس' }), gender),
+      adult && h('label', { class: 'choice choice--adult', for: 'age_confirmed' }, adult, h('span', { text: 'أؤكد أن عمري 18 سنة أو أكثر وأوافق على شروط الاستخدام.' })),
       honeypot,
       antibot.el,
       error,
@@ -179,6 +184,9 @@ export function renderAuth(root, { config, onAuthenticated }) {
       if (isRegister && password.value.length < config.password_min_length) {
         error.textContent = `كلمة المرور يجب أن تكون ${config.password_min_length} أحرف على الأقل.`; return;
       }
+      const genderValue = isRegister ? form.querySelector('input[name="reg-gender"]:checked')?.value : null;
+      if (isRegister && !genderValue) { error.textContent = 'اختر: رجل، أنثى، أو أفضّل عدم الذكر.'; return; }
+      if (isRegister && !adult.checked) { error.textContent = 'يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام DZPLAY.'; return; }
       submit.disabled = true;
       const label = submit.textContent;
       try {
@@ -190,7 +198,9 @@ export function renderAuth(root, { config, onAuthenticated }) {
         submit.textContent = '…';
         const body = { email: email.value.trim(), password: password.value, antibot: solution };
         const me = isRegister
-          ? await api.post('/api/auth/register', { ...body, password_confirm: confirm.value, website: honeypot.value || null })
+          ? await api.post('/api/auth/register', {
+            ...body, password_confirm: confirm.value, website: honeypot.value || null, gender: genderValue, age_confirmed: adult.checked,
+          })
           : await api.post('/api/auth/login', body);
         onAuthenticated(me);
       } catch (err) {
@@ -248,7 +258,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
       formSlot,
       config.google_client_id ? h('div', { class: 'divider', text: 'أو' }) : null,
       config.google_client_id ? googleSlot : null,
-      h('p', { class: 'auth__foot' }, 'لن يرى المستخدمون الآخرون بريدك أو أي معلومة عنك. الجميع هنا يظهر باسم dzplay فقط. ',
+      h('p', { class: 'auth__foot' }, 'لا يرى الآخرون بريدك أبدًا: يظهر فقط الاسم الذي تختاره (أو dzplay)، وفي الرسائل العشوائية تبقى مجهولًا. ',
         'يطّلع فريق الإدارة على الحسابات والمحتوى للإشراف وحماية المستخدمين. ',
         h('button', { type: 'button', class: 'link-btn', onclick: privacySheet }, 'سياسة الخصوصية')),
       canOfferAndroidApp(config)

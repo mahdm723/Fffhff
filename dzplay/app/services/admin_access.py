@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, false, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app import clock
@@ -24,6 +24,7 @@ from app.models import (
     ContentFlag,
     Conversation,
     Message,
+    NameHistory,
     PasswordReset,
     Post,
     PostReaction,
@@ -56,7 +57,7 @@ def _who(u: User | None) -> dict | None:
     if u is None:
         return None
     return {"id": u.id, "email": None if (u.is_official or u.is_system) else u.email, "team": _team_label(u),
-            "status": u.status}
+            "status": u.status, "display_name": u.display_name, "public_id": u.public_id}
 
 
 def _users_by_id(db: Session, ids) -> dict[str, User]:
@@ -88,8 +89,13 @@ def users_search(db: Session, *, q: str = "", status: str = "", method: str = ""
         stmt = stmt.where(User.is_official.is_not(True), User.is_system.is_not(True))
     q = (q or "").strip()
     if q:
+        from app.services import names
+
         ref_owner = select(ProfileRef.user_id).where(ProfileRef.ref == q)
-        stmt = stmt.where(or_(User.email.ilike(_like(q.lower()), escape="\\"), User.id == q, User.id.in_(ref_owner)))
+        key = names.search_key(q)
+        stmt = stmt.where(or_(User.email.ilike(_like(q.lower()), escape="\\"), User.id == q, User.id.in_(ref_owner),
+                              User.public_id == q.upper(),
+                              User.name_norm.like(_like(key), escape="\\") if len(key) >= 2 else false()))
     if status in ("active", "suspended", "banned"):
         stmt = stmt.where(User.status == status)
     if method == "google":
@@ -115,6 +121,7 @@ def users_search(db: Session, *, q: str = "", status: str = "", method: str = ""
     return {"total": total, "page": page, "size": size, "users": [{
         "id": u.id, "email": u.email, "method": "google" if u.google_sub and not u.password_hash else
         ("google+email" if u.google_sub else "email"),
+        "display_name": u.display_name, "public_id": u.public_id, "gender": u.gender,
         "status": u.status, "created_at": iso(u.created_at), "last_active_at": iso(u.last_active_at),
         "team": _team_label(u), "networks": [n[:12] for n in networks_of(db, u.id)][:5],
         "stats": {"posts": posts.get(u.id, 0), "messages_sent": u.messages_sent, "messages_received": u.messages_received,
@@ -152,20 +159,28 @@ def user_detail(db: Session, user_id: str) -> dict:
     ref = db.scalar(select(ProfileRef.ref).where(ProfileRef.user_id == u.id))
     sessions = db.scalar(select(func.count()).select_from(AuthSession).where(
         AuthSession.user_id == u.id, AuthSession.expires_at > clock.utcnow())) or 0
+    history = db.execute(select(NameHistory).where(NameHistory.user_id == u.id)
+                         .order_by(NameHistory.changed_at.desc()).limit(50)).scalars()
+    from app.services.messaging import privacy_view
     return {
         "user": {"id": u.id, "email": u.email, "team": _team_label(u), "status": u.status,
                  "method": "google" if u.google_sub and not u.password_hash else ("google+email" if u.google_sub else "email"),
                  "created_at": iso(u.created_at), "last_active_at": iso(u.last_active_at), "profile_ref": ref,
+                 "display_name": u.display_name, "public_id": u.public_id, "gender": u.gender,
+                 "age_confirmed_at": iso(u.age_confirmed_at), "privacy": privacy_view(u),
                  "sessions_active": sessions, "stats": {"messages_sent": u.messages_sent, "messages_received": u.messages_received,
                                                         "conversations": u.conversations_count}},
         "networks": [n[:12] for n in nets],
         "shared_network_accounts": shared,
+        # admin only: every display-name change (users never see each other's history)
+        "name_history": [{"old": h.old_name, "new": h.new_name, "at": iso(h.changed_at)} for h in history],
         "posts": [_post(p) for p in posts],
         "idea_comments": [{"id": c.id, "post_id": c.post_id, "content": c.content, "created_at": iso(c.created_at)} for c in comments],
         "reel_comments": [{"id": c.id, "reel_id": c.reel_id, "content": c.content, "created_at": iso(c.created_at)} for c in rcomments],
         "reactions": [{"target": "idea", "id": i, "reaction": r, "at": iso(t)} for i, r, t in reactions]
         + [{"target": "reel", "id": i, "reaction": r, "at": iso(t)} for i, r, t in rreactions],
-        "conversations": [{"id": c.id, "peer": _who(peers.get(c.peer_of(u.id))), "started_by_user": c.initiator_id == u.id,
+        "conversations": [{"id": c.id, "kind": "direct" if c.is_direct else "anonymous",
+                           "peer": _who(peers.get(c.peer_of(u.id))), "started_by_user": c.initiator_id == u.id,
                            "status": c.status, "messages_stored": msg_counts.get(c.id, 0), "created_at": iso(c.created_at),
                            "last_message_at": iso(c.last_message_at)} for c in convs],
         "reports_against": [_report(r) for r in rep_against],
@@ -224,6 +239,7 @@ def delete_account(db: Session, user_id: str) -> None:
     reels_touched = set(db.execute(select(ReelReaction.reel_id).where(ReelReaction.user_id == u.id)).scalars())
     reels_touched |= set(db.execute(select(ReelComment.reel_id).where(ReelComment.author_id == u.id)).scalars())
     db.execute(delete(PasswordReset).where(PasswordReset.user_id == u.id))
+    db.execute(delete(NameHistory).where(NameHistory.user_id == u.id))
     db.execute(update(SecurityEvent).where(SecurityEvent.user_id == u.id).values(user_id=None))
     db.delete(u)  # FK cascades: sessions, posts (+their comments/reactions), comments, reactions, conversations…
     db.flush()

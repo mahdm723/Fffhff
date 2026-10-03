@@ -88,6 +88,30 @@ def confirm_age(body: ConfirmAgeBody, request: Request) -> dict:
         return {"age_confirmed": True}
 
 
+class OnboardingBody(_Body):
+    gender: str = Field(max_length=12)
+    age_confirmed: bool
+
+
+@router.post("/me/onboarding")
+def complete_onboarding(body: OnboardingBody, request: Request) -> dict:
+    """New Google accounts: the same two answers e-mail registration asks for."""
+    st = get_state(request)
+    with st.database.session() as db:
+        user = _me(st, db, request)
+        if body.age_confirmed is not True:
+            from app.errors import AppError
+
+            raise AppError(400, "age_required", "يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام DZPLAY.")
+        names.set_gender(user, body.gender)
+        now = clock.utcnow()
+        user.gender_asked_at = user.gender_asked_at or now
+        user.age_confirmed_at = user.age_confirmed_at or now
+        user.onboarding_required = None
+        db.flush()
+        return ideas.own_profile(db, user, st.settings)
+
+
 @router.get("/people/search")
 def search_people(request: Request, q: str = Query(max_length=60), page: int = Query(default=0, ge=0, le=50)) -> dict:
     st = get_state(request)

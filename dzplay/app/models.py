@@ -99,6 +99,8 @@ class User(Base):
     accept_direct: Mapped[str | None] = mapped_column(String(12), nullable=True)  # everyone|nobody (default everyone)
     accept_calls: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
     searchable_by_name: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
+    # New Google accounts: gender + 18+ must be completed before messaging (old accounts stay NULL).
+    onboarding_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class NameHistory(Base):
