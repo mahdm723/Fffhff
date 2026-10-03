@@ -1,6 +1,7 @@
 // DZPLAY client entry point: boot, routing and the app shell.
 import { api } from './api.js';
 import { initCalls } from './call.js';
+import { forgetNative, initNative } from './native.js';
 import { icon } from './icons.js';
 import { disableForLogout, refreshPushSubscription, showLocalNotification } from './notify.js';
 import * as store from './store.js';
@@ -115,6 +116,7 @@ function onMe(me) {
 
 async function logout() {
   await disableForLogout();
+  await forgetNative();
   try { await api.post('/api/auth/logout'); } catch { /* clear locally anyway */ }
   store.stopRealtime();
   store.clearCache();
@@ -150,6 +152,7 @@ function startSession(me) {
   route();
   store.startRealtime();
   if (store.state.config && store.state.config.calls_enabled) initCalls();
+  initNative();
   store.sync({ full: true }).catch(() => {});
   store.flushOutbox();
   refreshPushSubscription();

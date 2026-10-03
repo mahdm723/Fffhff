@@ -135,6 +135,17 @@ class Block(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
+class FcmToken(Base):
+    """Firebase token of an installed Android app (rings it when closed). One row per device."""
+
+    __tablename__ = "fcm_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token: Mapped[str] = mapped_column(String(512), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
 CALL_ACTIVE_STATES = ("calling", "ringing", "connected")
 
 

@@ -23,6 +23,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api import admin as admin_api
 from app.api import auth as auth_api
 from app.api import calls as calls_api
+from app.api import download as download_api
 from app.api import messages as messages_api
 from app.api import people as people_api
 from app.api import posts as posts_api
@@ -170,6 +171,8 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
                 await cleanup_task
         await state.hub.stop()
         state.push.shutdown()
+        if state.fcm is not None:
+            state.fcm.shutdown()
         if state.bot is not None:
             state.bot.shutdown()
 
@@ -246,6 +249,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(messages_api.router)
     app.include_router(people_api.router)
     app.include_router(calls_api.router)
+    app.include_router(download_api.router)
     app.include_router(posts_api.router)
     app.include_router(reels_api.router)
     app.include_router(telegram_api.router)

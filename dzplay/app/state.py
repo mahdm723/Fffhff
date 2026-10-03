@@ -44,6 +44,15 @@ class AppState:
         state = cls(settings=settings, database=database, limiter=limiter, hub=Hub(settings.REDIS_URL),
                     push=PushNotifier(settings, database), media=media, telegram_transport=telegram_transport)
         holder["state"] = state
+        if settings.fcm_enabled:
+            from app.services.fcm import FcmNotifier
+
+            try:
+                state.fcm = FcmNotifier(settings, database)
+            except Exception:  # noqa: BLE001 - a broken key file must not stop the app
+                import logging
+
+                logging.getLogger("dzplay.fcm").exception("FCM disabled: cannot load FCM_SERVICE_ACCOUNT_FILE")
         if settings.telegram_enabled:  # .env values; panel values are applied at startup (load_runtime_config)
             state.configure_telegram(settings.TELEGRAM_BOT_TOKEN, settings.TELEGRAM_ADMIN_CHAT_ID,
                                      settings.TELEGRAM_WEBHOOK_SECRET, "env")
@@ -94,3 +103,5 @@ class AppState:
         for user_id in dict.fromkeys(effects.push_to):
             if not self.hub.is_online(user_id):
                 self.push.notify_user(user_id)
+                if self.fcm is not None:
+                    self.fcm.notify_message(user_id)

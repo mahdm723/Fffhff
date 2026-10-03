@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, Request
+import re
 
+from fastapi import APIRouter, Query, Request
+from pydantic import Field
+from sqlalchemy import delete, select
+
+from app import clock
 from app.api.deps import current_user, get_state
-from app.api.schemas import PushSubscribeBody, PushUnsubscribeBody, ReportBody, SendBody
+from app.api.schemas import PushSubscribeBody, PushUnsubscribeBody, ReportBody, SendBody, _Body
 from app.errors import AppError
-from app.models import PushSubscription
+from app.models import FcmToken, PushSubscription
 from app.services import ideas, messaging
 from app.services.messaging import Effects
 from app.services.push import push_endpoint_allowed
@@ -169,4 +174,44 @@ def push_unsubscribe(body: PushUnsubscribeBody, request: Request) -> dict:
         user = current_user(request, db)
         db.query(PushSubscription).filter(PushSubscription.endpoint == body.endpoint,
                                           PushSubscription.user_id == user.id).delete()
+    return {"ok": True}
+
+
+# ----------------------------------------------------------------- Android app (Firebase Cloud Messaging)
+
+_FCM_TOKEN_RE = re.compile(r"^[A-Za-z0-9_:\-]{20,512}$")
+_FCM_PER_USER = 10
+
+
+class FcmBody(_Body):
+    token: str = Field(max_length=512)
+
+
+@router.post("/push/fcm")
+def fcm_register(body: FcmBody, request: Request) -> dict:
+    """The Android app registers its Firebase token so a call can ring it while it is closed."""
+    st = get_state(request)
+    if not _FCM_TOKEN_RE.match(body.token):
+        raise AppError(400, "invalid_token", "رمز غير صالح.")
+    with st.database.session() as db:
+        user = current_user(request, db)
+        row = db.scalar(select(FcmToken).where(FcmToken.token == body.token))
+        if row is None:
+            db.add(FcmToken(user_id=user.id, token=body.token, created_at=clock.utcnow()))
+        else:  # same phone, maybe another account now
+            row.user_id, row.created_at = user.id, clock.utcnow()
+        db.flush()
+        ids = list(db.execute(select(FcmToken.id).where(FcmToken.user_id == user.id)
+                              .order_by(FcmToken.created_at.desc()).offset(_FCM_PER_USER)).scalars())
+        if ids:
+            db.execute(delete(FcmToken).where(FcmToken.id.in_(ids)))
+    return {"ok": True, "enabled": st.fcm is not None}
+
+
+@router.post("/push/fcm/remove")
+def fcm_remove(body: FcmBody, request: Request) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        user = current_user(request, db)
+        db.execute(delete(FcmToken).where(FcmToken.token == body.token, FcmToken.user_id == user.id))
     return {"ok": True}

@@ -51,6 +51,7 @@ def public_config(request: Request) -> dict:
         "password_min_length": s.PASSWORD_MIN_LENGTH,
         "links_allowed": s.LINK_POLICY != "reject",
         "android_apk_url": "/download/dzplay.apk" if _APK.is_file() else None,
+        "download_page": "/download",
         "max_reel_comment_length": s.MAX_REEL_COMMENT_LENGTH,
         "reels_prefetch": {"count": s.PREFETCH_COUNT, "ahead": s.PREFETCH_AHEAD, "device_cache_mb": s.DEVICE_MEDIA_CACHE_MB},
         # the bot is enough: without SMTP the admin receives the code in Telegram and sends it by hand

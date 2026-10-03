@@ -654,6 +654,11 @@ function showIncoming(call) {
   c.stopTone = makeTone('ring');
   if (navigator.vibrate) { navigator.vibrate([600, 400, 600]); c.vibrate = setInterval(() => navigator.vibrate([600, 400, 600]), 2500); }
   sendSignal('call.ringing');
+  // answered from the Android ring notification ("رد"): pick it up right away
+  try {
+    const answered = native() && native().takePendingAnswer ? native().takePendingAnswer() : '';
+    if (answered && answered === call.id) { setTimeout(() => acceptIncoming(call.kind === 'video'), 300); return; }
+  } catch { /* ignore */ }
   if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker?.ready.then((reg) => reg.showNotification('DZPLAY', {
       body: 'مكالمة واردة على DZPLAY', tag: 'dz-call', renotify: true, requireInteraction: true, data: { url: '/#/messages' },
@@ -743,7 +748,13 @@ function teardown(text) {
   try { c.pc && c.pc.close(); } catch { /* ignore */ }
   if (c.local) c.local.getTracks().forEach((t) => t.stop());
   if (c.wakeLock) c.wakeLock.release().catch(() => {});
-  try { if (native()) { native().keepScreenOn && native().keepScreenOn(false); native().setSpeaker && native().setSpeaker(false); } } catch { /* ignore */ }
+  try {
+    if (native()) {
+      if (native().keepScreenOn) native().keepScreenOn(false);
+      if (native().endCallAudio) native().endCallAudio(); // back to normal audio (Reels on the loudspeaker)
+      else if (native().setSpeaker) native().setSpeaker(false);
+    }
+  } catch { /* ignore */ }
   c.ui.status.textContent = text;
   c.ui.banner.hidden = true;
   c.ui.controls.replaceChildren();
@@ -828,14 +839,21 @@ export function initCalls() {
     if (!cur) return;
     const path = cur.phase === 'incoming' ? 'decline' : 'hangup';
     fetch(`/api/calls/${encodeURIComponent(cur.id)}/${path}`, {
-      method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      method: 'POST', keepalive: true, credentials: 'same-origin', body: '{}',
+      headers: { 'Content-Type': 'application/json', 'X-DZ-Requested': '1' }, // the API's CSRF guard
     }).catch(() => {});
   });
   watchRemoteVideo();
-  // Opened from a ring notification (or reloaded): pick up a call that is still ringing for me.
+  checkActive(true);
+  // Back in the foreground (e.g. opened from the ring notification): a call may be ringing for me.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkActive(false); });
+}
+
+function checkActive(firstLoad) {
+  if (cur) return;
   api.get('/api/calls/active').then(({ call }) => {
     if (!call || cur) return;
     if (!call.outgoing && (call.state === 'calling' || call.state === 'ringing')) showIncoming(call);
-    else api.post(`/api/calls/${encodeURIComponent(call.id)}/hangup`, { reason: 'failed' }).catch(() => {}); // this page lost it
+    else if (firstLoad) api.post(`/api/calls/${encodeURIComponent(call.id)}/hangup`, { reason: 'failed' }).catch(() => {}); // this page lost it
   }).catch(() => {});
 }

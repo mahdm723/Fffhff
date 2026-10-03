@@ -262,7 +262,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
         'يطّلع فريق الإدارة على الحسابات والمحتوى للإشراف وحماية المستخدمين. ',
         h('button', { type: 'button', class: 'link-btn', onclick: privacySheet }, 'سياسة الخصوصية')),
       canOfferAndroidApp(config)
-        ? h('a', { class: 'btn btn--ghost btn--block app-download', href: config.android_apk_url, download: 'DZPLAY.apk' }, 'تحميل تطبيق أندرويد')
+        ? h('a', { class: 'btn btn--ghost btn--block app-download', href: config.download_page || '/download' }, 'تحميل تطبيق أندرويد')
         : null,
     ),
   );

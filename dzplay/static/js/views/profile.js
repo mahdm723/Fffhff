@@ -172,8 +172,8 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   }
 
   async function shareApp() {
-    const url = `${location.origin}${config.android_apk_url}`;
-    const text = 'جرّب DZPLAY: شارك أفكارك وتحدث مع شخص مجهول. ثبّت تطبيق أندرويد من هنا:';
+    const url = `${location.origin}${config.download_page || '/download'}`;
+    const text = 'جرّب DZPLAY: شارك أفكارك، تحدّث وتكلّم صوتًا وصورة دون أن ينكشف رقمك. حمّل التطبيق من هنا:';
     try {
       if (window.DZPLAYAndroid) { window.DZPLAYAndroid.share(`${text} ${url}`); return; } // native share sheet in the app
       if (navigator.share) { await navigator.share({ title: 'DZPLAY', text, url }); return; }

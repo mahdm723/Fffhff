@@ -260,6 +260,9 @@ class Settings(BaseSettings):
     CALL_MAX_PER_HOUR: int = 20  # calls a user may start per hour
     CALL_QUALITY_REPORT_SECONDS: int = 10  # clients send a quality summary this often (stats every 2 s locally)
     CALL_TICK_SECONDS: int = 2  # ring-timeout / dead-call watchdog interval (0 = off)
+    # Optional Firebase Cloud Messaging: rings the Android app when it is closed (and new-message alerts).
+    FCM_SERVICE_ACCOUNT_FILE: str = ""  # SECRET file (never in the repo): Firebase service-account JSON path
+    FCM_PROJECT_ID: str = ""  # empty = read from the service-account file
 
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
@@ -358,6 +361,12 @@ class Settings(BaseSettings):
     @property
     def calls_enabled(self) -> bool:
         return bool(self.CALLS_ENABLED and self.TURN_SECRET and self.turn_host)
+
+    @property
+    def fcm_enabled(self) -> bool:
+        import os
+
+        return bool(self.FCM_SERVICE_ACCOUNT_FILE) and os.path.isfile(self.FCM_SERVICE_ACCOUNT_FILE)
 
     @property
     def push_enabled(self) -> bool:
