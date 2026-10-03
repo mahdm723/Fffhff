@@ -38,8 +38,9 @@ class Connection:
     ({"type": ...}); everything else closes the socket. Every handler re-checks
     authorization server-side: the client is never trusted."""
 
-    def __init__(self, ws: WebSocket, user_id: str) -> None:
+    def __init__(self, ws: WebSocket, user_id: str, token: str | None = None) -> None:
         self.ws = ws
+        self.token = token
         self.st = ws.app.state.dz
         self.user_id = user_id
         self._window = (0.0, 0)  # (start, count) for WS_MSGS_PER_10S
@@ -100,10 +101,31 @@ async def _noop(conn: Connection, data: dict) -> None:
     return None
 
 
+async def _call(conn: Connection, data: dict) -> None:
+    """Call signaling (accept / decline / hangup / SDP / ICE / audio↔video / quality).
+    The session is re-checked on every message: a revoked session or a banned account stops at once."""
+    from app.services import calls
+    from app.services.messaging import Effects
+
+    effects = Effects()
+
+    def _run() -> None:
+        with conn.st.database.session() as db:
+            user = resolve_session(db, conn.st.settings, conn.token)
+            if user is None or user.id != conn.user_id:
+                return
+            calls.handle_signal(db, conn.st.settings, user, data, effects)
+
+    await run_in_threadpool(_run)
+    conn.st.dispatch(effects)
+
+
 # type -> handler. Unknown types are ignored (forward compatible clients).
 HANDLERS: dict[str, Callable[[Connection, dict], Awaitable[None]]] = {
     "ping": _noop,
     "typing": _typing,
+    **{t: _call for t in ("call.ringing", "call.accept", "call.decline", "call.hangup", "call.sdp", "call.ice",
+                          "call.media", "call.quality")},
 }
 
 
@@ -127,7 +149,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
     await ws.accept()
     queue = st.hub.connect(user_id)
-    conn = Connection(ws, user_id)
+    conn = Connection(ws, user_id, token)
 
     async def reader() -> None:
         # Reading also detects disconnects. Any abuse closes the socket.

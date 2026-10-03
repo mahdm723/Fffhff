@@ -44,9 +44,14 @@ HOUR, DAY = 3600, 86400
 class Effects:
     signals: list[tuple[list[str], str]] = field(default_factory=list)  # (user ids, reason)
     push_to: list[str] = field(default_factory=list)
+    events: list[tuple[list[str], dict]] = field(default_factory=list)  # realtime events with a payload (calls)
+    call_push: list[tuple[str, str]] = field(default_factory=list)  # (user id, call id): ring a closed app
 
     def signal(self, user_ids: list[str] | str, reason: str) -> None:
         self.signals.append(([user_ids] if isinstance(user_ids, str) else list(user_ids), reason))
+
+    def event(self, user_ids: list[str] | str, payload: dict) -> None:
+        self.events.append(([user_ids] if isinstance(user_ids, str) else list(user_ids), payload))
 
 
 def iso(dt: datetime | None) -> str | None:
@@ -488,7 +493,8 @@ def hide_conversation(db: Session, user: User, conversation_id: str, effects: Ef
 # ---------------------------------------------------------------------------
 
 
-def block_conversation(db: Session, user: User, conversation_id: str, effects: Effects) -> None:
+def block_conversation(db: Session, user: User, conversation_id: str, effects: Effects,
+                       settings: Settings | None = None) -> None:
     conv = _get_visible_conversation(db, user, conversation_id)
     peer_id = conv.peer_of(user.id)
     if not db.scalar(select(Block.id).where(Block.blocker_id == user.id, Block.blocked_id == peer_id)):
@@ -507,6 +513,9 @@ def block_conversation(db: Session, user: User, conversation_id: str, effects: E
     conv.set_hidden(user.id, True)
     log_event(db, "block", None, user.id)
     effects.signal([user.id, peer_id], "conversation")
+    from app.services import calls
+
+    calls.end_between(db, settings, user.id, peer_id, "blocked", effects)  # blocking ends a live call at once
 
 
 def list_blocks(db: Session, user: User) -> list[dict]:

@@ -24,6 +24,7 @@ class AppState:
     telegram_secret: str = ""  # X-Telegram-Bot-Api-Secret-Token expected on the webhook
     telegram_source: str = "none"  # panel | env | none
     telegram_transport: object | None = None  # tests only (httpx.MockTransport)
+    fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (incoming calls to the Android app)
 
     @classmethod
     def build(cls, settings: Settings, telegram_transport=None) -> "AppState":
@@ -83,6 +84,13 @@ class AppState:
         """Fire realtime signals / push after a successful commit."""
         for user_ids, reason in effects.signals:
             self.hub.notify(user_ids, {"type": "sync", "reason": reason})
+        for user_ids, event in effects.events:
+            self.hub.notify(user_ids, event)
+        for user_id, _call_id in effects.call_push:
+            if not self.hub.is_online(user_id):
+                self.push.notify_call(user_id, self.settings.CALL_RING_TIMEOUT)
+                if self.fcm is not None:
+                    self.fcm.notify_call(user_id, _call_id, self.settings.CALL_RING_TIMEOUT)
         for user_id in dict.fromkeys(effects.push_to):
             if not self.hub.is_online(user_id):
                 self.push.notify_user(user_id)

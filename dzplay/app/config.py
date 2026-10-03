@@ -243,6 +243,24 @@ class Settings(BaseSettings):
     WS_MAX_MESSAGE_BYTES: int = 16_384  # client → server WebSocket message size cap
     WS_MSGS_PER_10S: int = 60  # client → server WebSocket messages per connection per 10 s
 
+    # --- V4: 1:1 voice / video calls (WebRTC through our own TURN server) --------
+    CALLS_ENABLED: bool = True  # effective only when TURN_SECRET is set (calls always go through TURN)
+    TURN_SECRET: str = ""  # SECRET (.env): shared with coturn "static-auth-secret" (use-auth-secret)
+    TURN_HOST: str = ""  # public host of coturn; empty = the host of PUBLIC_URL
+    TURN_PORT: int = 3478  # UDP + TCP
+    TURN_TLS_PORT: int = 5349  # TURN over TLS (needs the domain certificate); 0 = off
+    TURN_TTL: int = 3600  # lifetime of the temporary TURN credentials (seconds)
+    TURN_MIN_PORT: int = 49160  # coturn relay port range (open these UDP ports in the firewall)
+    TURN_MAX_PORT: int = 49200
+    CALL_FORCE_RELAY: bool = True  # iceTransportPolicy "relay": no side ever learns the other's IP
+    CALL_RING_TIMEOUT: int = 35  # seconds before an unanswered call becomes "missed"
+    CALL_RECONNECT_TIMEOUT: int = 20  # seconds the clients try ICE restarts before giving up
+    CALL_MAX_UNANSWERED: int = 3  # unanswered calls in a row to the same person ...
+    CALL_COOLDOWN: int = 1800  # ... then wait this many seconds before calling them again
+    CALL_MAX_PER_HOUR: int = 20  # calls a user may start per hour
+    CALL_QUALITY_REPORT_SECONDS: int = 10  # clients send a quality summary this often (stats every 2 s locally)
+    CALL_TICK_SECONDS: int = 2  # ring-timeout / dead-call watchdog interval (0 = off)
+
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
     MODERATION_EXTRA_WORDS: str = ""  # extra words/phrases, comma separated ("word*" = starts with)
@@ -330,6 +348,16 @@ class Settings(BaseSettings):
         if v not in ("starttls", "ssl", "none"):
             raise ValueError("SMTP_SECURITY must be starttls, ssl or none")
         return v
+
+    @property
+    def turn_host(self) -> str:
+        from urllib.parse import urlsplit
+
+        return self.TURN_HOST or (urlsplit(self.PUBLIC_URL).hostname or "")
+
+    @property
+    def calls_enabled(self) -> bool:
+        return bool(self.CALLS_ENABLED and self.TURN_SECRET and self.turn_host)
 
     @property
     def push_enabled(self) -> bool:

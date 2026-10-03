@@ -135,6 +135,41 @@ class Block(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
+CALL_ACTIVE_STATES = ("calling", "ringing", "connected")
+
+
+class Call(Base):
+    """One 1:1 call. Metadata only: media is end-to-end DTLS-SRTP through TURN and never recorded."""
+
+    __tablename__ = "calls"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    # plain reference: the call log outlives the conversation's TTL
+    conversation_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    caller_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    callee_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(8))  # audio | video (as started)
+    video_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    # calling → ringing → connected → ended | declined | missed | busy | failed | canceled
+    state: Mapped[str] = mapped_column(String(12), index=True)
+    end_reason: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    ended_by_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+    ringing_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    duration: Mapped[int | None] = mapped_column(Integer, nullable=True)  # seconds connected
+    caller_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # last quality heartbeat
+    callee_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    quality: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON aggregate of client getStats summaries
+
+    def is_member(self, user_id: str) -> bool:
+        return user_id in (self.caller_id, self.callee_id)
+
+    def peer_of(self, user_id: str) -> str:
+        return self.callee_id if user_id == self.caller_id else self.caller_id
+
+
 class Report(Base):
     __tablename__ = "reports"
 
@@ -147,6 +182,7 @@ class Report(Base):
     post_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     reel_comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    call_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # V4: report made about a call
     reason: Mapped[str] = mapped_column(String(32))
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Minimal evidence: only the reported content, copied so it survives TTL.

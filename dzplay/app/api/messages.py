@@ -89,7 +89,7 @@ def block(conversation_id: str, request: Request) -> dict:
     effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        messaging.block_conversation(db, user, conversation_id, effects)
+        messaging.block_conversation(db, user, conversation_id, effects, st.settings)
     st.dispatch(effects)
     return {"ok": True}
 

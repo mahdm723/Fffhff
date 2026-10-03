@@ -61,6 +61,7 @@ def public_config(request: Request) -> dict:
         "names": {"min": s.NAME_MIN_LENGTH, "max": s.NAME_MAX_LENGTH, "cooldown_days": s.NAME_CHANGE_COOLDOWN_DAYS,
                   "default": s.DEFAULT_DISPLAY_NAME},
         "direct_before_reply": s.DIRECT_MSG_BEFORE_REPLY_LIMIT,
+        "calls_enabled": s.calls_enabled,
     }
 
 

@@ -20,6 +20,8 @@ from app.models import PushSubscription
 log = logging.getLogger("dzplay.push")
 
 PUSH_PAYLOAD = {"title": "DZPLAY", "body": "لديك رسالة جديدة على DZPLAY", "url": "/#/messages"}
+# Incoming call: still no caller name or anything identifying on the lock screen.
+CALL_PAYLOAD = {"title": "DZPLAY", "body": "مكالمة واردة على DZPLAY", "url": "/#/messages", "tag": "dz-call", "call": True}
 
 
 def push_endpoint_allowed(settings: Settings, endpoint: str) -> bool:
@@ -50,7 +52,12 @@ class PushNotifier:
         if self._pool is not None:
             self._pool.submit(self._send, user_id)
 
-    def _send(self, user_id: str) -> None:
+    def notify_call(self, user_id: str, ttl: int) -> None:
+        """Ring a closed PWA: high urgency, expires with the ring timeout (never a stale ring)."""
+        if self._pool is not None:
+            self._pool.submit(self._send, user_id, CALL_PAYLOAD, max(10, ttl), "high")
+
+    def _send(self, user_id: str, payload: dict = PUSH_PAYLOAD, ttl: int = 24 * 3600, urgency: str = "normal") -> None:
         from pywebpush import WebPushException, webpush
 
         with self.database.session() as db:
@@ -63,10 +70,11 @@ class PushNotifier:
                 try:
                     webpush(
                         subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
-                        data=json.dumps(PUSH_PAYLOAD, ensure_ascii=False),
+                        data=json.dumps(payload, ensure_ascii=False),
                         vapid_private_key=self.settings.VAPID_PRIVATE_KEY,
                         vapid_claims={"sub": self.settings.VAPID_SUBJECT},
-                        ttl=24 * 3600,
+                        ttl=ttl,
+                        headers={"Urgency": urgency},
                         timeout=10,
                     )
                 except WebPushException as exc:

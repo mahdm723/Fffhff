@@ -22,6 +22,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import admin as admin_api
 from app.api import auth as auth_api
+from app.api import calls as calls_api
 from app.api import messages as messages_api
 from app.api import people as people_api
 from app.api import posts as posts_api
@@ -113,6 +114,26 @@ async def _engagement_loop(state: AppState) -> None:
             log.exception("engagement tick failed")
 
 
+async def _calls_loop(state: AppState) -> None:
+    """Unanswered calls become "missed" after CALL_RING_TIMEOUT; dead connected calls are closed."""
+    from app.services import calls
+    from app.services.messaging import Effects
+
+    while True:
+        await asyncio.sleep(state.settings.CALL_TICK_SECONDS)
+        try:
+            effects = Effects()
+
+            def _run() -> None:
+                with state.database.session() as db:
+                    calls.tick(db, state.settings, effects)
+
+            await run_in_threadpool(_run)
+            state.dispatch(effects)
+        except Exception:  # noqa: BLE001 - keep the loop alive
+            log.exception("calls tick failed")
+
+
 def create_app(settings: Settings | None = None, telegram_transport=None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -133,7 +154,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         await state.hub.start()
         cleanup_task = asyncio.create_task(_cleanup_loop(state)) if settings.CLEANUP_INTERVAL > 0 else None
         engagement_task = asyncio.create_task(_engagement_loop(state)) if settings.ENGAGEMENT_TICK_SECONDS > 0 else None
+        calls_task = asyncio.create_task(_calls_loop(state)) if settings.CALL_TICK_SECONDS > 0 else None
         yield
+        if calls_task:
+            calls_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await calls_task
         if engagement_task:
             engagement_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -174,7 +200,8 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         h["X-Content-Type-Options"] = "nosniff"
         h["Referrer-Policy"] = "no-referrer"
         h["X-Frame-Options"] = "DENY"
-        h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        # calls: our own pages only (never an embedded third party)
+        h["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
         h["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
         if not path.startswith("/media/"):
             # No other site may embed our responses. Not on /media/: Chromium blocks the later Range
@@ -218,6 +245,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(auth_api.router)
     app.include_router(messages_api.router)
     app.include_router(people_api.router)
+    app.include_router(calls_api.router)
     app.include_router(posts_api.router)
     app.include_router(reels_api.router)
     app.include_router(telegram_api.router)

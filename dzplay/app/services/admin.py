@@ -111,8 +111,9 @@ def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dic
             "details": r.details,
             "evidence": json.loads(r.snapshot or "[]"),
             "reported_user_ref": r.reported_user_id,
-            "target": ("reel_comment" if r.reel_comment_id else "comment" if r.comment_id else "post" if r.post_id
-                       else "message" if r.message_id else "conversation"),
+            "target": ("call" if r.call_id else "reel_comment" if r.reel_comment_id else "comment" if r.comment_id
+                       else "post" if r.post_id else "message" if r.message_id else "conversation"),
+            "call_id": r.call_id,
             "reported_user_reports_total": _count(db, Report, Report.reported_user_id == r.reported_user_id),
             "reported_user_flags_total": _count(db, ContentFlag, ContentFlag.offender_id == r.reported_user_id),
             "status": r.status,
@@ -122,7 +123,7 @@ def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dic
     return out
 
 
-def resolve_report(db: Session, report_id: str, action: str) -> dict:
+def resolve_report(db: Session, report_id: str, action: str, effects=None, settings=None) -> dict:
     """dismiss | warn | remove (hide the reported post / delete the comment) | suspend | ban"""
     if action not in ("dismiss", "warn", "remove", "suspend", "ban"):
         raise AppError(400, "invalid_action", "invalid action")
@@ -146,11 +147,11 @@ def resolve_report(db: Session, report_id: str, action: str) -> dict:
             if post:
                 post.status = "removed"
     if action in ("suspend", "ban"):
-        set_user_status(db, rep.reported_user_id, "suspended" if action == "suspend" else "banned")
+        set_user_status(db, rep.reported_user_id, "suspended" if action == "suspend" else "banned", effects, settings)
     return {"id": rep.id, "status": rep.status, "resolution": action}
 
 
-def set_user_status(db: Session, user_ref: str, status: str) -> dict:
+def set_user_status(db: Session, user_ref: str, status: str, effects=None, settings=None) -> dict:
     if status not in ("active", "suspended", "banned"):
         raise AppError(400, "invalid_status", "invalid status")
     user = db.get(User, user_ref)
@@ -159,6 +160,10 @@ def set_user_status(db: Session, user_ref: str, status: str) -> dict:
     user.status = status
     if status == "banned":
         revoke_all_sessions(db, user.id)
+    if status != "active" and effects is not None:
+        from app.services import calls
+
+        calls.end_for_user(db, settings, user.id, f"account_{status}", effects)  # a live call ends now
     db.add(SecurityEvent(type=f"admin_set_{status}", user_id=user.id, created_at=clock.utcnow()))
     return {"user_ref": user.id, "status": status}
 

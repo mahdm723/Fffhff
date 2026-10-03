@@ -1,5 +1,5 @@
 // DZPLAY service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v6';
+const VERSION = 'dz-v7';
 const MEDIA_CACHE = 'dz-media-v1'; // filled by js/reels-prefetch.js; survives app updates
 const SHELL = [
   '/', '/css/app.css', '/manifest.webmanifest',
@@ -81,8 +81,10 @@ self.addEventListener('push', (event) => {
     if (windows.some((w) => w.visibilityState === 'visible')) return; // the open app already shows it
     await self.registration.showNotification(data.title || 'DZPLAY', {
       body: data.body || 'لديك رسالة جديدة على DZPLAY',
-      tag: 'dz-message',
+      tag: data.call ? 'dz-call' : 'dz-message',
       renotify: true,
+      requireInteraction: !!data.call,
+      vibrate: data.call ? [400, 200, 400, 200, 400] : undefined,
       icon: '/icons/icon-192.png',
       data: { url: data.url || '/#/messages' },
     });

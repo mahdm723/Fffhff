@@ -161,10 +161,13 @@ def reports(request: Request, status: str = Query(default="open", max_length=16)
 
 @router.post("/reports/{report_id}/resolve")
 def resolve(report_id: str, body: ResolveReportBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
-        result = admin_service.resolve_report(db, report_id, body.action)
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = admin_service.resolve_report(db, report_id, body.action, effects, st.settings)
         _record(db, ac, f"report_{body.action}", target_type="report", target_id=report_id)
-        return result
+    st.dispatch(effects)
+    return result
 
 
 @router.get("/flags")
@@ -200,10 +203,13 @@ def user_conversations(user_ref: str, request: Request, reason: str = Query(defa
 
 @router.post("/users/{user_ref}/status")
 def user_status(user_ref: str, body: UserStatusBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
-        result = admin_service.set_user_status(db, user_ref, body.status)
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = admin_service.set_user_status(db, user_ref, body.status, effects, st.settings)
         _record(db, ac, f"user_{body.status}", target_type="user", target_id=user_ref)
-        return result
+    st.dispatch(effects)
+    return result
 
 
 @router.get("/security-events")
@@ -574,9 +580,15 @@ def access_revoke(user_id: str, request: Request, ac: AdminContext = Depends(SUP
 
 @router.delete("/access/users/{user_id}")
 def access_delete_user(user_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        from app.services import calls
+
+        calls.end_for_user(db, st.settings, user_id[:32], "account_deleted", effects)
         admin_access.delete_account(db, user_id)
         _record(db, ac, "user_delete", target_type="user", target_id=user_id)
+    st.dispatch(effects)
     return {"ok": True}
 
 
@@ -859,3 +871,27 @@ def smtp_remove(body: StepUpBody, request: Request, ac: AdminContext = Depends(S
         runtime_config.clear_smtp(db)
         _record(db, ac, "smtp_remove", target_type="smtp")
     return _smtp_status(st)
+
+
+# ----------------------------------------------------------------- V4: calls (metadata + quality only)
+
+
+@router.get("/calls")
+def calls_log(request: Request, user_id: str = Query(default="", max_length=32), state: str = Query(default="", max_length=12),
+              page: int = Query(default=0, ge=0, le=1000), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    from app.services import calls
+
+    with get_state(request).database.session() as db:
+        result = calls.admin_log(db, user_id=user_id, state=state, page=page)
+        _record(db, ac, "view_calls", detail=f"user={user_id or '-'} state={state or '-'}")
+        return result
+
+
+@router.get("/calls/stats")
+def calls_stats(request: Request, days: int = Query(default=7, ge=1, le=90), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    from app.services import calls
+
+    st = get_state(request)
+    with st.database.session() as db:
+        return {**calls.admin_stats(db, days), "enabled": st.settings.calls_enabled,
+                "force_relay": st.settings.CALL_FORCE_RELAY}

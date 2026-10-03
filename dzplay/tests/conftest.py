@@ -76,6 +76,9 @@ def make_settings(tmp_path, **overrides) -> Settings:
         LOG_LEVEL="WARNING",
         ADMIN_PATH=ADMIN_PATH,
         ENGAGEMENT_TICK_SECONDS=0,  # tests advance gradual jobs explicitly
+        CALL_TICK_SECONDS=0,  # tests run calls.tick explicitly
+        TURN_SECRET="test-turn-secret",
+        TURN_HOST="turn.example.test",
         MEDIA_CACHE_DIR=str(tmp_path / "media-cache"),
         FFMPEG_BINARY=ffmpeg_binary(),
         FFPROBE_BINARY="ffprobe" if __import__("shutil").which("ffprobe") else ffprobe_shim(),
