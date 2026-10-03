@@ -1,0 +1,2 @@
+source: f32605a54b9f777e781fc969bdcc4c81c1384456
+689a5edcd85e9d03c24e00f9987efe3e4f2b93ff17c3980b6e03eacbcfec0148  out/dzplay-unsigned.apk
