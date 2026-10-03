@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appName">DZPLAY</string>
+    <string name="shareTitle">مشاركة DZPLAY</string>
+    <string name="callChannel">المكالمات الواردة</string>
+    <string name="messageChannel">الرسائل الجديدة</string>
+    <string name="incomingCall">مكالمة واردة على DZPLAY</string>
+    <string name="newMessage">لديك رسالة جديدة على DZPLAY</string>
+    <string name="answer">رد</string>
+    <string name="decline">رفض</string>
+</resources>

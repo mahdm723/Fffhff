@@ -1,0 +1,8 @@
+.env
+*.env
+!.env.example
+*.jks
+*.keystore
+__pycache__/
+*.pyc
+dump.rdb

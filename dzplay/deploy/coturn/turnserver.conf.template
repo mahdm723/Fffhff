@@ -1,0 +1,53 @@
+# DZPLAY TURN server (coturn) — rendered at container start by deploy/coturn/start.sh.
+# The shared secret (TURN_SECRET in .env) is appended at start; it is never stored here.
+#
+# Calls use relay candidates only (CALL_FORCE_RELAY=true): both phones send their media
+# to this server, so neither learns the other's IP. Media stays end-to-end DTLS-SRTP:
+# coturn only forwards encrypted packets and cannot read or record them.
+
+listening-port=__TURN_PORT__
+min-port=__TURN_MIN_PORT__
+max-port=__TURN_MAX_PORT__
+realm=__REALM__
+server-name=__REALM__
+
+# temporary credentials from the app (HMAC of "<expiry>:<ref>", valid TURN_TTL seconds)
+use-auth-secret
+
+# hardening: no open relay into private networks, no admin CLI, no software banner
+fingerprint
+no-cli
+no-multicast-peers
+no-software-attribute
+no-tcp-relay
+no-tlsv1
+no-tlsv1_1
+stale-nonce=600
+user-quota=12
+total-quota=1200
+max-bps=4000000
+denied-peer-ip=0.0.0.0-0.255.255.255
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=100.64.0.0-100.127.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.0.0.0-192.0.0.255
+denied-peer-ip=192.0.2.0-192.0.2.255
+denied-peer-ip=192.88.99.0-192.88.99.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=198.18.0.0-198.19.255.255
+denied-peer-ip=198.51.100.0-198.51.100.255
+denied-peer-ip=203.0.113.0-203.0.113.255
+denied-peer-ip=224.0.0.0-255.255.255.255
+denied-peer-ip=::1
+denied-peer-ip=::ffff:0.0.0.0-::ffff:255.255.255.255
+denied-peer-ip=64:ff9b::-64:ff9b::ffff:ffff
+denied-peer-ip=100::-100::ffff:ffff:ffff:ffff
+denied-peer-ip=2001::-2001:1ff:ffff:ffff:ffff:ffff:ffff:ffff
+denied-peer-ip=2002::-2002:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+
+log-file=stdout
+simple-log

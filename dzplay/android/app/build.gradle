@@ -1,0 +1,65 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The DZPLAY server this app opens (see gradle.properties).
+def appHost = project.property('appHost')
+// Firebase (incoming calls while the app is closed) is optional: only with google-services.json.
+def withFcm = file('google-services.json').exists()
+
+android {
+    namespace 'io.dzplay.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.dzplay.app'
+        minSdk 23
+        targetSdk 35
+        versionCode Integer.parseInt(project.property('appVersionCode'))
+        versionName project.property('appVersionName')
+
+        buildConfigField 'String', 'APP_HOST', "\"${appHost}\""
+        buildConfigField 'boolean', 'FCM', "${withFcm}"
+        resValue 'bool', 'fcm_enabled', "${withFcm}"
+        manifestPlaceholders = [hostName: appHost]
+    }
+
+    sourceSets {
+        main {
+            if (withFcm) {
+                java.srcDirs += 'src/fcm/java'
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+        resValues true
+    }
+
+    buildTypes {
+        release {
+            // Signed outside CI with the private release key (never stored in the repository).
+            minifyEnabled false
+            debuggable false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint {
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    if (withFcm) {
+        implementation platform('com.google.firebase:firebase-bom:33.7.0')
+        implementation 'com.google.firebase:firebase-messaging'
+    }
+}
+// Without google-services.json there are no third-party dependencies at all (framework WebView only).
+if (withFcm) {
+    apply plugin: 'com.google.gms.google-services'
+}

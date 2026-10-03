@@ -1,0 +1,12 @@
+# Automatic HTTPS (Let's Encrypt) in front of DZPLAY.
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 64KB
+	}
+	# Caddy is the only proxy: overwrite any client-supplied X-Forwarded-For.
+	reverse_proxy app:8000 {
+		header_up X-Forwarded-For {remote_host}
+	}
+	# No access log: DZPLAY does not keep request logs with IP addresses.
+}
