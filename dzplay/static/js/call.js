@@ -118,6 +118,8 @@ export function mungeVideoStart(sdp, kbps = 600) {
   return out;
 }
 
+const scrubRaddr = (s) => s.replace(/ raddr \S+ rport \d+/g, ' raddr 0.0.0.0 rport 0');
+
 function preferCodecs(transceiver) {
   if (!transceiver || !transceiver.setCodecPreferences || !window.RTCRtpReceiver || !RTCRtpReceiver.getCapabilities) return;
   const caps = RTCRtpReceiver.getCapabilities('video');
@@ -268,7 +270,12 @@ function createPC() {
     iceServers: cur.ice.ice_servers, iceTransportPolicy: cur.ice.ice_transport_policy, bundlePolicy: 'max-bundle',
   });
   cur.pc = pc;
-  pc.onicecandidate = (e) => { if (e.candidate) sendSignal('call.ice', { candidate: e.candidate.toJSON() }); };
+  pc.onicecandidate = (e) => {
+    if (!e.candidate) return;
+    const c = e.candidate.toJSON();
+    c.candidate = scrubRaddr(c.candidate || ''); // never send my own public IP (the server scrubs it too)
+    sendSignal('call.ice', { candidate: c });
+  };
   pc.ontrack = (e) => {
     const stream = cur.remoteStream || (cur.remoteStream = new MediaStream());
     if (!stream.getTracks().includes(e.track)) stream.addTrack(e.track);
@@ -329,7 +336,7 @@ async function makeOffer(iceRestart = false) {
   const offer = await cur.pc.createOffer(iceRestart ? { iceRestart: true } : undefined);
   offer.sdp = mungeVideoStart(mungeOpus(offer.sdp));
   await cur.pc.setLocalDescription(offer);
-  sendSignal('call.sdp', { sdp: { type: 'offer', sdp: cur.pc.localDescription.sdp } });
+  sendSignal('call.sdp', { sdp: { type: 'offer', sdp: scrubRaddr(cur.pc.localDescription.sdp) } });
 }
 
 async function onRemoteSdp(sdp) {
@@ -341,7 +348,7 @@ async function onRemoteSdp(sdp) {
     const answer = await pc.createAnswer();
     answer.sdp = mungeVideoStart(mungeOpus(answer.sdp));
     await pc.setLocalDescription(answer);
-    sendSignal('call.sdp', { sdp: { type: 'answer', sdp: pc.localDescription.sdp } });
+    sendSignal('call.sdp', { sdp: { type: 'answer', sdp: scrubRaddr(pc.localDescription.sdp) } });
   } else if (sdp.type === 'answer' && pc.signalingState === 'have-local-offer') {
     await pc.setRemoteDescription(sdp);
   }
@@ -350,6 +357,7 @@ async function onRemoteSdp(sdp) {
 }
 
 function onRemoteIce(candidate) {
+  if (cur.seen.length < 60) cur.seen.push(candidate.candidate || ''); // test / diagnostics: what the peer revealed
   if (!cur.pc || !cur.pc.remoteDescription) { cur.pendingIce.push(candidate); return; }
   cur.pc.addIceCandidate(candidate).catch(() => {});
 }
@@ -606,7 +614,7 @@ async function blockFromCall(call) {
 function newCall(call, phase) {
   cur = {
     id: call.id, conversationId: call.conversation_id, kind: call.kind, outgoing: !!call.outgoing, peer: call.peer,
-    phase, outbox: [], pendingIce: [], level: 0, facing: 'user', speaker: false, ui: buildScreen(),
+    phase, outbox: [], pendingIce: [], seen: [], level: 0, facing: 'user', speaker: false, ui: buildScreen(),
   };
   drawPeer();
   drawControls();
@@ -821,6 +829,8 @@ function debugState() {
     ice: cur.pc ? cur.pc.iceConnectionState : null, policy: cur.ice ? cur.ice.ice_transport_policy : null,
     remoteVideo: !!cur.remoteVideo, selfVideo: !!(cur.videoTrack && cur.videoTrack.enabled),
     muted: !!(cur.audioTrack && !cur.audioTrack.enabled),
+    remoteCandidates: cur.seen.slice(),
+    remoteSdpCandidates: cur.pc && cur.pc.remoteDescription ? cur.pc.remoteDescription.sdp.split('\r\n').filter((l) => l.startsWith('a=candidate:')) : [],
     capture: cur.videoTrack && cur.videoTrack.getSettings ? (({ width, height, frameRate }) => ({ width, height, frameRate }))(cur.videoTrack.getSettings()) : null,
   };
 }

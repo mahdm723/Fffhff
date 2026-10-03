@@ -242,6 +242,7 @@ class Settings(BaseSettings):
     TYPING_EVENTS_PER_MINUTE: int = 30
     WS_MAX_MESSAGE_BYTES: int = 16_384  # client → server WebSocket message size cap
     WS_MSGS_PER_10S: int = 60  # client → server WebSocket messages per connection per 10 s
+    WS_PING_SECONDS: int = 25  # keep-alive interval; the session is re-checked at each one
 
     # --- V4: 1:1 voice / video calls (WebRTC through our own TURN server) --------
     CALLS_ENABLED: bool = True  # effective only when TURN_SECRET is set (calls always go through TURN)
@@ -260,6 +261,7 @@ class Settings(BaseSettings):
     CALL_MAX_PER_HOUR: int = 20  # calls a user may start per hour
     CALL_QUALITY_REPORT_SECONDS: int = 10  # clients send a quality summary this often (stats every 2 s locally)
     CALL_TICK_SECONDS: int = 2  # ring-timeout / dead-call watchdog interval (0 = off)
+    CALL_LOG_RETENTION_DAYS: int = 90  # call metadata (who / when / duration / quality) is then deleted
     # Optional Firebase Cloud Messaging: rings the Android app when it is closed (and new-message alerts).
     FCM_SERVICE_ACCOUNT_FILE: str = ""  # SECRET file (never in the repo): Firebase service-account JSON path
     FCM_PROJECT_ID: str = ""  # empty = read from the service-account file

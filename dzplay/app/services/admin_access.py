@@ -24,6 +24,7 @@ from app.models import (
     ContentFlag,
     Conversation,
     Message,
+    FcmToken,
     NameHistory,
     PasswordReset,
     Post,
@@ -240,6 +241,7 @@ def delete_account(db: Session, user_id: str) -> None:
     reels_touched |= set(db.execute(select(ReelComment.reel_id).where(ReelComment.author_id == u.id)).scalars())
     db.execute(delete(PasswordReset).where(PasswordReset.user_id == u.id))
     db.execute(delete(NameHistory).where(NameHistory.user_id == u.id))
+    db.execute(delete(FcmToken).where(FcmToken.user_id == u.id))
     db.execute(update(SecurityEvent).where(SecurityEvent.user_id == u.id).values(user_id=None))
     db.delete(u)  # FK cascades: sessions, posts (+their comments/reactions), comments, reactions, conversations…
     db.flush()

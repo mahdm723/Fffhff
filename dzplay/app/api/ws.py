@@ -186,7 +186,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
         while True:
             # Wake up on a new event, on disconnect, or every PING_INTERVAL for a keep-alive.
             get_task = asyncio.ensure_future(queue.get())
-            done, _ = await asyncio.wait({get_task, reader_task}, timeout=PING_INTERVAL,
+            done, _ = await asyncio.wait({get_task, reader_task}, timeout=st.settings.WS_PING_SECONDS,
                                          return_when=asyncio.FIRST_COMPLETED)
             if reader_task in done:
                 get_task.cancel()
@@ -195,6 +195,10 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 event = get_task.result()
             else:
                 get_task.cancel()
+                # keep-alive: also re-check the session (logout elsewhere, ban, password reset)
+                if await run_in_threadpool(_resolve) != user_id:
+                    await ws.close(code=4401)
+                    break
                 event = {"type": "ping"}
             await ws.send_json(event)
     except (WebSocketDisconnect, RuntimeError):

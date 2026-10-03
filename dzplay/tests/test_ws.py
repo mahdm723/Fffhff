@@ -86,3 +86,16 @@ def test_presence_only_for_known_peers(hx):
     a.post(f"/api/conversations/{cid}/reveal")
     conv = b.get(f"/api/conversations/{cid}").json()["conversation"]
     assert conv["peer_card"]["active"] is True and conv["peer"] == "Amine"
+
+
+def test_socket_closes_when_the_session_ends(make_harness):
+    hx = make_harness(WS_PING_SECONDS=1)
+    a = hx.user()
+    with a.websocket_connect("/api/ws", headers=ORIGIN) as ws:
+        assert ws.receive_json() == {"type": "hello"}
+        assert ws.receive_json() == {"type": "ping"}  # still valid
+        assert a.post("/api/auth/logout").status_code in (200, 204)
+        with pytest.raises(WebSocketDisconnect) as e:
+            for _ in range(5):
+                ws.receive_json()
+        assert e.value.code == 4401

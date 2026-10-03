@@ -7,12 +7,12 @@ if [ -z "${TURN_SECRET:-}" ]; then
 fi
 REALM="${TURN_REALM:?TURN_REALM missing}"
 conf=/tmp/turnserver.conf
+umask 077  # the rendered file holds the shared secret
 sed -e "s|__REALM__|${REALM}|g" \
     -e "s|__TURN_PORT__|${TURN_PORT:-3478}|g" \
     -e "s|__TURN_MIN_PORT__|${TURN_MIN_PORT:-49160}|g" \
     -e "s|__TURN_MAX_PORT__|${TURN_MAX_PORT:-49200}|g" \
     /etc/coturn/turnserver.conf.template > "$conf"
-umask 077
 echo "static-auth-secret=${TURN_SECRET}" >> "$conf"
 if [ -n "${TURN_EXTERNAL_IP:-}" ]; then
   echo "external-ip=${TURN_EXTERNAL_IP}" >> "$conf"

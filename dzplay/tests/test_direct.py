@@ -193,3 +193,13 @@ def test_mute_stops_push(hx):
     b.post(f"/api/conversations/{conv}/request", json={"action": "accept"})
     assert b.post(f"/api/conversations/{conv}/mute", json={"muted": True}).json() == {"muted": True}
     assert b.get("/api/conversations").json()["conversations"][0]["muted"] is True
+
+
+def test_opening_dz_ids_is_rate_limited_like_search(make_harness):
+    hx = make_harness(SEARCH_PER_MINUTE=3)
+    me, other = hx.user(), named(hx, "Target")
+    target = pid(other)
+    for _ in range(3):
+        assert me.get(f"/api/people/{target}").status_code == 200
+    assert me.get("/api/people/DZ-ABCDEF").status_code == 429  # unknown IDs count too: no fast walking
+    assert dm(me, "DZ-ABCDEG").status_code == 429

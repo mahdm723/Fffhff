@@ -33,6 +33,15 @@ def card(db: Session, u: User) -> dict:
             "profile_ref": ideas.profile_ref_for(db, u.id)}
 
 
+def check_lookup(settings: Settings, limiter, viewer: User) -> None:
+    """Every people lookup (search, opening a DZ-ID, first message by DZ-ID) counts against the same
+    per-user limits: walking the ID space is as slow as searching."""
+    decision = limiter.check_and_hit([Limit(f"people_min:{viewer.id}", settings.SEARCH_PER_MINUTE, 60),
+                                      Limit(f"people_day:{viewer.id}", settings.SEARCH_PER_DAY, 86400)])
+    if not decision.allowed:
+        raise rate_limited(decision.retry_after, "عمليات بحث كثيرة. انتظر قليلًا.")
+
+
 def search(db: Session, settings: Settings, limiter, viewer: User, q: object, page: int = 0) -> dict:
     if not isinstance(q, str):
         raise AppError(400, "invalid_input", "طلب غير صالح.")
@@ -40,10 +49,7 @@ def search(db: Session, settings: Settings, limiter, viewer: User, q: object, pa
     page = max(0, int(page or 0))
     if page >= settings.SEARCH_MAX_PAGES:
         raise AppError(400, "too_many_pages", "نتائج كثيرة: اكتب بحثًا أدق.")
-    decision = limiter.check_and_hit([Limit(f"people_min:{viewer.id}", settings.SEARCH_PER_MINUTE, 60),
-                                      Limit(f"people_day:{viewer.id}", settings.SEARCH_PER_DAY, 86400)])
-    if not decision.allowed:
-        raise rate_limited(decision.retry_after, "عمليات بحث كثيرة. انتظر قليلًا.")
+    check_lookup(settings, limiter, viewer)
 
     blocked = exists().where(or_(and_(Block.blocker_id == viewer.id, Block.blocked_id == User.id),
                                  and_(Block.blocker_id == User.id, Block.blocked_id == viewer.id)))

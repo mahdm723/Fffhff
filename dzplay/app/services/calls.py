@@ -257,6 +257,15 @@ def active_call_excluding(db: Session, user_id: str, call_id: str) -> Call | Non
 # ---------------------------------------------------------------------------
 
 
+# A relay candidate's "raddr/rport" is the caller's own public address as seen by TURN (browsers fill it
+# once camera/microphone permission is granted). It is informational only: always scrub it.
+_RADDR = re.compile(r" raddr \S+ rport \d+")
+
+
+def scrub_candidate(candidate: str) -> str:
+    return _RADDR.sub(" raddr 0.0.0.0 rport 0", candidate)
+
+
 def _relay_candidate_ok(settings: Settings, candidate: str) -> bool:
     return not settings.CALL_FORCE_RELAY or not candidate or " typ relay" in candidate
 
@@ -264,9 +273,10 @@ def _relay_candidate_ok(settings: Settings, candidate: str) -> bool:
 def _filter_sdp(settings: Settings, sdp: str) -> str:
     """Drop every non-relay a=candidate line (defense in depth: honest clients never gather them)."""
     if not settings.CALL_FORCE_RELAY:
-        return sdp
+        return "\r\n".join(scrub_candidate(ln) if ln.startswith("a=candidate:") else ln for ln in sdp.split("\r\n"))
     lines = sdp.split("\r\n")
-    return "\r\n".join(ln for ln in lines if not ln.startswith("a=candidate:") or " typ relay" in ln)
+    return "\r\n".join(scrub_candidate(ln) if ln.startswith("a=candidate:") else ln
+                         for ln in lines if not ln.startswith("a=candidate:") or " typ relay" in ln)
 
 
 def accept(db: Session, settings: Settings, user: User, call: Call, device: object, effects: Effects) -> None:
@@ -398,7 +408,7 @@ def handle_signal(db: Session, settings: Settings, user: User, data: dict, effec
         if not _relay_candidate_ok(settings, cand):
             return
         effects.event(peer, {"type": "call.ice", "call_id": call.id,
-                             "candidate": {"candidate": cand, "sdpMid": mid, "sdpMLineIndex": idx}})
+                             "candidate": {"candidate": scrub_candidate(cand), "sdpMid": mid, "sdpMLineIndex": idx}})
     elif kind == "call.media":
         video = data.get("video")
         if not isinstance(video, bool):

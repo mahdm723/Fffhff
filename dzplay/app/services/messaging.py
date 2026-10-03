@@ -698,6 +698,11 @@ def existing_direct(db: Session, a: str, b: str) -> Conversation | None:
     return conv
 
 
+def existing_direct_by_public_id(db: Session, viewer: User, public_id: object) -> Conversation | None:
+    target = find_person(db, public_id)
+    return existing_direct(db, viewer.id, target.id) if target is not None and target.id != viewer.id else None
+
+
 def person_card(db: Session, viewer: User, public_id: object) -> dict:
     target = direct_target(db, viewer, public_id)
     from app.services import ideas

@@ -125,6 +125,7 @@ def person(public_id: str, request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
         user = _me(st, db, request)
+        people.check_lookup(st.settings, st.limiter, user)  # no fast walking of the DZ-ID space
         return messaging.person_card(db, user, public_id[:16])
 
 
@@ -134,6 +135,8 @@ def message_person(public_id: str, body: SendBody, request: Request) -> dict:
     effects = Effects()
     with st.database.session() as db:
         user = _me(st, db, request)
+        if messaging.existing_direct_by_public_id(db, user, public_id[:16]) is None:
+            people.check_lookup(st.settings, st.limiter, user)  # a first message by DZ-ID is a lookup too
         result = messaging.send_direct(db, st.settings, st.limiter, user, public_id[:16], content=body.content,
                                        client_id=body.client_id, effects=effects)
     st.dispatch(effects)

@@ -155,7 +155,11 @@ def main() -> int:
                 assert s["local_type"] == "relay" and s["remote_type"] == "relay", (who, s)
                 assert set(s["local_candidate_types"]) == {"relay"}, (who, s["local_candidate_types"])  # no host / srflx ever
                 assert s["srtp_cipher"], (who, s)
-            run.step(f"Connected through TURN only (relay↔relay), DTLS-SRTP {da['stats']['srtp_cipher']}")
+                seen = d["remoteCandidates"] + d["remoteSdpCandidates"]
+                assert seen, (who, "no remote candidates seen")
+                for cand in seen:  # what the other phone revealed through signaling
+                    assert " typ relay" in cand and ("raddr" not in cand or "raddr 0.0.0.0 rport 0" in cand), (who, cand)
+            run.step(f"Connected through TURN only (relay↔relay, no host/srflx, raddr scrubbed), DTLS-SRTP {da['stats']['srtp_cipher']}")
             a.wait_for_function("document.querySelector('.call-remote').videoWidth > 0", timeout=20000)
             b.wait_for_function("document.querySelector('.call-remote').videoWidth > 0", timeout=20000)
             expect(a.locator(".call-screen.has-remote-video")).to_be_visible(timeout=10000)

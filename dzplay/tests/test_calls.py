@@ -20,7 +20,9 @@ from tests.conftest import reply, send
 
 ORIGIN = {"Origin": "http://testserver"}
 HOST_CAND = "candidate:1 1 udp 2122260223 192.168.1.20 54321 typ host generation 0"
-RELAY_CAND = "candidate:3 1 udp 41885439 203.0.113.7 49170 typ relay raddr 0.0.0.0 rport 0 generation 0"
+# raddr = the caller's own public address as seen by TURN: must never reach the other side
+RELAY_CAND = "candidate:3 1 udp 41885439 203.0.113.7 49170 typ relay raddr 198.51.100.23 rport 51111 generation 0"
+RELAY_SCRUBBED = RELAY_CAND.replace("raddr 198.51.100.23 rport 51111", "raddr 0.0.0.0 rport 0")
 
 
 def me(c) -> dict:
@@ -138,10 +140,11 @@ def test_full_call_flow_over_websocket_relay_only(hx):
         wa.send_json({"type": "call.sdp", "call_id": call["id"], "sdp": {"type": "offer", "sdp": offer}})
         got = wb.receive_json()
         assert got["type"] == "call.sdp" and "192.168.1.20" not in got["sdp"]["sdp"] and "typ relay" in got["sdp"]["sdp"]
+        assert "198.51.100.23" not in got["sdp"]["sdp"] and "raddr 0.0.0.0 rport 0" in got["sdp"]["sdp"]
         wa.send_json({"type": "call.ice", "call_id": call["id"], "candidate": {"candidate": HOST_CAND, "sdpMid": "0", "sdpMLineIndex": 0}})
         wa.send_json({"type": "call.ice", "call_id": call["id"], "candidate": {"candidate": RELAY_CAND, "sdpMid": "0", "sdpMLineIndex": 0}})
         got = wb.receive_json()
-        assert got["type"] == "call.ice" and got["candidate"]["candidate"] == RELAY_CAND  # the host one was dropped
+        assert got["type"] == "call.ice" and got["candidate"]["candidate"] == RELAY_SCRUBBED  # host dropped, raddr scrubbed
         wb.send_json({"type": "call.media", "call_id": call["id"], "video": False})
         assert wa.receive_json() == {"type": "call.media", "call_id": call["id"], "video": False}
         wa.send_json({"type": "call.quality", "call_id": call["id"],
@@ -309,3 +312,16 @@ def test_report_a_call_and_admin_log(hx):
         assert "sdp" not in json.dumps(log)  # metadata only
         stats = calls.admin_stats(db)
         assert stats["total"] == 1 and stats["answered"] == 1
+
+
+def test_call_log_is_deleted_after_retention(make_harness):
+    from app.services.cleanup import run_cleanup
+
+    hx = make_harness(CALL_LOG_RETENTION_DAYS=30)
+    a, b, cid = pair(hx)
+    call_id = start(a, cid).json()["call"]["id"]
+    a.post(f"/api/calls/{call_id}/hangup", json={})
+    clock.advance(31 * 86400)
+    with hx.db() as db:
+        assert run_cleanup(db, hx.settings)["calls"] == 1
+        assert db.get(Call, call_id) is None
