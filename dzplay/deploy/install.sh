@@ -98,6 +98,8 @@ fi
 env_has() { grep -q "^$1=.\+" .env; }
 env_has ADMIN_PATH || { set_env ADMIN_PATH "/panel-$(openssl rand -hex 8)"; ok "Generated a secret admin panel path"; }
 env_has TELEGRAM_WEBHOOK_SECRET || set_env TELEGRAM_WEBHOOK_SECRET "$(openssl rand -hex 32)"
+# The old default footer line is no longer shown (a text you set yourself is kept).
+sed -i 's|^FOOTER_TEXT=صُنع في ولاية سعيدة / حساسنة / قرية تامسنة$|FOOTER_TEXT=|' .env
 env_has TURN_SECRET || { set_env TURN_SECRET "$(openssl rand -hex 32)"; ok "Generated the TURN secret (voice/video calls)"; }
 if ! env_has PUBLIC_IP && [ -n "$PUBLIC_IP" ]; then set_env PUBLIC_IP "$PUBLIC_IP"; fi
 NEW_BACKUP_PASS=0

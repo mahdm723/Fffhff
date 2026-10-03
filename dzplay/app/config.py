@@ -222,7 +222,7 @@ class Settings(BaseSettings):
     ENGAGEMENT_MAX_COMMENTS: int = 200  # per target per operation
 
     # --- profile ---------------------------------------------------------------------
-    FOOTER_TEXT: str = "صُنع في ولاية سعيدة / حساسنة / قرية تامسنة"
+    FOOTER_TEXT: str = ""  # optional line at the bottom of «حسابي» (empty = none)
 
     # --- V4: names, public ID, search, direct messages ---------------------------
     DEFAULT_DISPLAY_NAME: str = "dzplay"
