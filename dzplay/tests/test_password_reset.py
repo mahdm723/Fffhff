@@ -246,3 +246,80 @@ def test_no_codes_or_passwords_in_logs(rx, caplog):
     with rx.db() as db:
         r = db.scalar(select(PasswordReset))
         assert r.status == "used" and r.token_hash is None
+
+
+# ----------------------------------------------------------------- manual mode + SMTP from the admin panel
+
+
+@pytest.fixture
+def manual(make_harness):
+    """Bot connected, no e-mail server: the admin gets the code in Telegram and sends it by hand."""
+    fake = tg.FakeTelegram()
+    hx = make_harness(telegram_transport=fake.transport, TELEGRAM_BOT_TOKEN=tg.TOKEN,
+                      TELEGRAM_ADMIN_CHAT_ID=str(tg.ADMIN_ID), TELEGRAM_WEBHOOK_SECRET="s3cret-hook",
+                      ADMIN_SESSION_IDLE=7 * 24 * 3600, ADMIN_SESSION_TTL=7 * 24 * 3600)
+    hx.tg = fake
+    return hx
+
+
+def test_recovery_works_without_smtp_admin_sends_the_code(manual):
+    c = manual.client()
+    assert c.get("/api/config").json()["password_reset_enabled"] is True  # the link is shown
+    manual.user("me@example.com")
+    assert ask(manual, c, "me@example.com").status_code == 200
+    prompt = next(m for m in manual.tg.sent if "طلب استعادة" in m["text"])
+    assert "ترسله أنت" in prompt["text"]
+    rid = request_id(manual)
+    bot(manual, tg.callback(f"rgen:{rid}"))
+    reply = manual.tg.last_text()
+    assert "me@example.com" in reply and "أرسل هذا الرمز بنفسك" in reply
+    code = re.search(r"الرمز: ([A-Z0-9]+)", reply).group(1)
+    with manual.db() as db:
+        r = db.scalar(select(PasswordReset))
+        assert r.status == "sent" and code not in r.code_hash
+    v = c.post("/api/auth/reset/verify", json={"email": "me@example.com", "code": code})
+    assert v.status_code == 200
+    done = c.post("/api/auth/reset/complete", json={"reset_token": v.json()["reset_token"], "password": NEW_PASSWORD,
+                                                    "password_confirm": NEW_PASSWORD, "antibot": manual.challenge(c, "reset")})
+    assert done.status_code == 200
+    assert manual.login(manual.client(), "me@example.com", NEW_PASSWORD).status_code == 200
+
+
+def _step_up(hx) -> str:
+    from app import clock
+    from app.security import totp
+
+    clock.advance(totp.STEP)
+    return totp.code_at(hx.admin_secrets["owner"], totp.current_step(clock.timestamp()))
+
+
+def test_smtp_from_the_panel_sends_codes_automatically(manual, smtp):
+    from app.models import AppSetting
+
+    admin = manual.admin()
+    body = {"host": "localhost", "port": smtp.port, "security": "none", "username": "", "password": "smtp-pass-123",
+            "sender": "DZPLAY <no-reply@dzplay.test>", "test_to": "owner@example.com"}
+    assert admin.put("/api/admin/smtp", json={**body, "code": "000000"}).status_code == 403  # 2FA step-up
+    assert admin.get("/api/admin/smtp").json()["configured"] is False
+    r = admin.put("/api/admin/smtp", json={**body, "code": _step_up(manual)})
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["source"] == "panel" and out["password_set"] is True and out["test_error"] is None
+    assert "smtp-pass-123" not in r.text and "smtp-pass-123" not in admin.get("/api/admin/smtp").text
+    assert smtp.messages[-1]["to"] == ["owner@example.com"]  # the test e-mail
+    with manual.db() as db:
+        assert "smtp-pass-123" not in str([s.value for s in db.execute(select(AppSetting)).scalars()])
+
+    # now the recovery code goes out by e-mail, live (no restart)
+    c = manual.client()
+    manual.user("me@example.com")
+    ask(manual, c, "me@example.com")
+    bot(manual, tg.callback(f"rgen:{request_id(manual)}"))
+    assert any("أُرسل رمز الاستعادة" in t for t in manual.tg.texts())
+    assert smtp.messages[-1]["to"] == ["me@example.com"]
+    assert admin.post("/api/admin/smtp/test", json={"to": "x@example.com"}).json() == {"ok": True}
+
+    # bad values are refused; removing falls back to manual mode
+    assert admin.put("/api/admin/smtp", json={**body, "host": "bad host!", "code": _step_up(manual)}).status_code == 400
+    assert admin.post("/api/admin/smtp/remove", json={"code": _step_up(manual)}).json()["configured"] is False
+    assert manual.client().get("/api/config").json()["password_reset_enabled"] is True

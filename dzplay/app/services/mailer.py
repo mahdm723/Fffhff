@@ -1,7 +1,7 @@
 """Outgoing e-mail (SMTP from settings). Used only for password-recovery codes.
 
 The message contains the code and nothing else about the account. SMTP
-credentials come from .env only and are never logged.
+credentials (from .env or the admin panel, sealed in the database) are never logged.
 """
 
 from __future__ import annotations
@@ -53,19 +53,37 @@ def _reset_bodies(app_name: str, code: str, hours: int) -> tuple[str, str]:
     return text, body
 
 
+def _message(settings: Settings, to_email: str, subject: str) -> EmailMessage:
+    msg = EmailMessage()
+    from_name, from_addr = parseaddr(settings.SMTP_FROM)
+    msg["From"] = formataddr((from_name or settings.APP_NAME, from_addr))
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg["Message-ID"] = make_msgid(domain=from_addr.split("@")[-1] if "@" in from_addr else None)
+    return msg
+
+
 def send_reset_code(settings: Settings, to_email: str, code: str) -> None:
     if not settings.smtp_enabled:
         raise MailError("SMTP is not configured")
     hours = max(1, settings.RESET_CODE_TTL // 3600)
     text, body = _reset_bodies(settings.APP_NAME, code, hours)
-    msg = EmailMessage()
-    from_name, from_addr = parseaddr(settings.SMTP_FROM)
-    msg["From"] = formataddr((from_name or settings.APP_NAME, from_addr))
-    msg["To"] = to_email
-    msg["Subject"] = f"رمز استعادة حساب {settings.APP_NAME}"
-    msg["Message-ID"] = make_msgid(domain=from_addr.split("@")[-1] if "@" in from_addr else None)
+    msg = _message(settings, to_email, f"رمز استعادة حساب {settings.APP_NAME}")
     msg.set_content(text)
     msg.add_alternative(body, subtype="html")
+    _deliver(settings, msg)
+
+
+def send_test(settings: Settings, to_email: str) -> None:
+    """A short message to check the SMTP settings from the admin panel."""
+    if not settings.smtp_enabled:
+        raise MailError("SMTP is not configured")
+    msg = _message(settings, to_email, f"{settings.APP_NAME}: بريد تجربة")
+    msg.set_content(f"إعدادات البريد في {settings.APP_NAME} تعمل. ستصل رموز استعادة الحسابات بهذه الطريقة.")
+    _deliver(settings, msg)
+
+
+def _deliver(settings: Settings, msg: EmailMessage) -> None:
     try:
         if settings.SMTP_SECURITY == "ssl":
             server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT,

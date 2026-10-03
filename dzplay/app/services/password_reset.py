@@ -36,7 +36,7 @@ from app.models import PasswordReset, SecurityEvent, User
 from app.security.crypto import keyed_hash, new_token, sha256_hex
 from app.security.passwords import hash_password, verify_password
 from app.security.sessions import revoke_all_sessions
-from app.services import audit
+from app.services import audit, runtime_config
 from app.services.auth import ClientContext, _check_antibot, log_event, normalize_email, validate_new_password
 from app.services.mailer import MailError, send_reset_code
 from app.services.rate_limit import Limit
@@ -127,16 +127,19 @@ def request_reset(db: Session, settings: Settings, ctx: ClientContext, *, email:
 # ---------------------------------------------------------------------------
 
 
-def admin_prompt(db: Session, reset_id: str) -> tuple[str, dict] | None:
+def admin_prompt(db: Session, reset_id: str, manual: bool = False) -> tuple[str, dict] | None:
     r = db.get(PasswordReset, reset_id)
     user = db.get(User, r.user_id) if r else None
     if r is None or user is None:
         return None
+    how = ("اضغط «توليد رمز» فيظهر لك الرمز هنا لترسله أنت إلى هذا البريد (البريد التلقائي غير مُعدّ)"
+           if manual else "اضغط «توليد رمز» ليُرسَل رمز عشوائي إلى البريد")
     text = (f"🔑 طلب استعادة حساب\n"
             f"البريد: {user.email}\n"
             f"رقم الطلب: {r.short_id}\n\n"
-            f"اضغط «توليد رمز» ليُرسَل رمز عشوائي إلى البريد، أو اكتب:\n/code {r.short_id} <الرمز>")
-    keyboard = {"inline_keyboard": [[{"text": "🎲 توليد رمز وإرساله", "callback_data": f"rgen:{r.short_id}"}],
+            f"{how}، أو اكتب:\n/code {r.short_id} <الرمز>")
+    keyboard = {"inline_keyboard": [[{"text": "🎲 توليد رمز" if manual else "🎲 توليد رمز وإرساله",
+                                      "callback_data": f"rgen:{r.short_id}"}],
                                     [{"text": "✖️ رفض الطلب", "callback_data": f"rdeny:{r.short_id}"}]]}
     return text, keyboard
 
@@ -169,8 +172,22 @@ def set_code_and_send(database, settings: Settings, short_id: str, code: str | N
         r.expires_at = r.code_set_at + timedelta(seconds=settings.RESET_CODE_TTL)
         email, sid = user.email, r.short_id
         audit.record(db, "telegram", "reset_code_set", target_type="reset", target_id=sid)
+        eff = runtime_config.effective_settings(db, settings)  # SMTP set in the admin panel applies live
+    if not eff.smtp_enabled:
+        # Manual mode (no e-mail server configured): the admin sends the code to the user themselves.
+        with database.session() as db:
+            r = _find_active(db, sid)
+            if r is not None and r.status in ACTIVE:
+                r.status = "sent"
+            audit.record(db, "telegram", "reset_code_manual", target_type="reset", target_id=sid)
+        hours = max(1, settings.RESET_CODE_TTL // 3600)
+        return (f"📋 أرسل هذا الرمز بنفسك إلى صاحب الطلب {sid}:\n"
+                f"البريد: {email}\n"
+                f"الرمز: {code}\n\n"
+                f"صالح {hours} ساعة ولمرة واحدة. يكتبه في التطبيق ثم يختار كلمة مرور جديدة.\n"
+                "(لإرسال الرمز تلقائيًا: لوحة التحكم ← الأمان والنظام ← البريد)")
     try:
-        send_reset_code(settings, email, code)
+        send_reset_code(eff, email, code)
     except MailError as exc:
         log.warning("reset e-mail failed for request %s: %s", sid, exc)
         with database.session() as db:
@@ -304,7 +321,8 @@ def install(bot) -> None:
 def notify_admin(bot, reset_id: str) -> None:
     """Background: send the request to the admin's chat (never blocks the HTTP answer)."""
     with bot.database.session() as db:
-        prompt = admin_prompt(db, reset_id)
+        manual = not runtime_config.effective_settings(db, bot.settings).smtp_enabled
+        prompt = admin_prompt(db, reset_id, manual)
     if prompt:
         text, keyboard = prompt
         bot.say(text, reply_markup=keyboard)

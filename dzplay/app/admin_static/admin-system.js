@@ -43,9 +43,8 @@ export async function renderSystem(main) {
 
   body.replaceChildren(
     botSection(),
+    smtpSection(),
     h('div', { class: 'admin-groups' },
-      card('البريد (استعادة كلمة المرور)', 'bell', rows([
-        ['SMTP', d.smtp_configured ? 'مُعدّ' : 'غير مُعدّ — الرموز تُرسل عبر Telegram فقط', d.smtp_configured ? 'admin-ok' : 'admin-warn']])),
       card('ذاكرة الوسائط المؤقتة', 'reels',
         h('div', { class: 'admin-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct),
           'aria-label': 'استخدام الذاكرة المؤقتة' }, fill),
@@ -146,6 +145,85 @@ function botSection() {
 
   load();
   return card('بوت Telegram', 'send', h('p', { class: 'admin-meta', text: 'لرفع الفيديوهات والصور (Reels) واستقبال طلبات استعادة كلمات المرور.' }), status, h('div', { class: 'admin-actions' }, testBtn, removeBtn), form);
+}
+
+// ------------------------------------------------------------------ e-mail for recovery codes (password is write-only)
+
+function smtpSection() {
+  const status = h('div', {}, spinner());
+  const host = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: '253', placeholder: 'smtp.gmail.com' });
+  const port = h('input', { class: 'input', dir: 'ltr', type: 'number', min: '1', max: '65535', value: '587', inputmode: 'numeric' });
+  const security = h('select', { class: 'input admin-select', dir: 'ltr' },
+    h('option', { value: 'starttls', text: 'STARTTLS (587)' }), h('option', { value: 'ssl', text: 'SSL (465)' }));
+  const user = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: '200', placeholder: 'you@gmail.com' });
+  const pass = h('input', { class: 'input', dir: 'ltr', type: 'password', autocomplete: 'new-password', maxlength: '200' });
+  const sender = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', maxlength: '200', placeholder: 'DZPLAY <you@gmail.com>' });
+  const testTo = h('input', { class: 'input', dir: 'ltr', type: 'email', autocomplete: 'off', maxlength: '254', placeholder: 'you@gmail.com' });
+  const code = h('input', { class: 'input', dir: 'ltr', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '6', placeholder: '123456' });
+  const save = h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, icon('bell'), 'حفظ وإرسال بريد تجربة');
+  const removeBtn = h('button', { type: 'button', class: 'btn btn--danger btn--sm', hidden: true }, 'إزالة إعداد البريد');
+  const gmail = h('button', { type: 'button', class: 'btn btn--ghost btn--sm' }, 'إعداد Gmail');
+  gmail.addEventListener('click', () => {
+    host.value = 'smtp.gmail.com'; port.value = '587'; security.value = 'starttls';
+    if (!sender.value && user.value) sender.value = `DZPLAY <${user.value}>`;
+    user.focus();
+  });
+  user.addEventListener('change', () => { if (!sender.value && user.value.includes('@')) sender.value = `DZPLAY <${user.value.trim()}>`; });
+
+  const paint = (s) => {
+    status.replaceChildren(rows(s.configured
+      ? [['الحالة', 'يعمل — تُرسل رموز الاستعادة بالبريد تلقائيًا', 'admin-ok'], ['المصدر', SOURCE[s.source] || s.source],
+        ['الخادم', `${s.host}:${s.port} (${s.security})`], ['المرسل', s.sender || '—'], ['كلمة المرور', s.password_set ? 'محفوظة' : '—']]
+      : [['الحالة', 'غير مُعدّ — وضع يدوي: يصلك رمز الاستعادة في Telegram لترسله أنت إلى المستخدم', 'admin-warn']]));
+    if (s.configured) {
+      host.value = s.host || ''; port.value = String(s.port || 587); security.value = s.security === 'ssl' ? 'ssl' : 'starttls';
+      user.value = s.username || ''; sender.value = s.sender || '';
+      pass.placeholder = s.password_set ? 'اتركها فارغة للإبقاء على الحالية' : '';
+    }
+    removeBtn.hidden = s.source !== 'panel';
+  };
+  const load = async () => { const s = await attempt(() => call('GET', '/api/admin/smtp')); if (s) paint(s); };
+
+  const form = h('form', {
+    class: 'admin-form',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      if (!/^[0-9]{6}$/.test(code.value.trim())) { toast('اكتب رمز التحقق من تطبيق المصادقة (6 أرقام).', 'error'); code.focus(); return; }
+      save.disabled = true;
+      const s = await attempt(() => call('PUT', '/api/admin/smtp', {
+        host: host.value.trim(), port: Math.trunc(Number(port.value) || 0), security: security.value, username: user.value.trim(),
+        password: pass.value, sender: sender.value.trim(), test_to: testTo.value.trim(), code: code.value.trim(),
+      }));
+      save.disabled = false;
+      pass.value = '';
+      code.value = '';
+      if (!s) return;
+      paint(s);
+      if (s.test_error) toast(s.test_error, 'error');
+      else toast(testTo.value ? 'حُفظ ✅ — تحقق من وصول بريد التجربة.' : 'حُفظ ✅');
+    },
+  },
+  h('p', { class: 'admin-meta', text: 'بدون إعداد البريد تعمل الاستعادة يدويًا: يصلك الرمز في Telegram وترسله أنت. لإرساله تلقائيًا: Gmail ← فعّل التحقق بخطوتين في حساب Google ← أنشئ «كلمة مرور التطبيقات» (App Password) ← الصقها هنا.' }),
+  h('div', { class: 'admin-actions' }, gmail),
+  h('div', { class: 'admin-filters__row' }, field('الخادم (SMTP)', host), field('المنفذ', port)),
+  field('التشفير', security),
+  field('اسم المستخدم (بريدك)', user),
+  field('كلمة المرور (App Password)', pass),
+  field('اسم وعنوان المرسل', sender),
+  field('أرسل بريد تجربة إلى (اختياري)', testTo),
+  field('رمز التحقق من تطبيق المصادقة', code),
+  save);
+
+  removeBtn.addEventListener('click', async () => {
+    if (!/^[0-9]{6}$/.test(code.value.trim())) { toast('اكتب رمز التحقق أولًا.', 'error'); code.focus(); return; }
+    if (!(await confirmDanger('إزالة إعداد البريد؟', 'تعود الاستعادة إلى الوضع اليدوي (أو إعداد ملف .env إن وُجد).', 'إزالة'))) return;
+    const s = await attempt(() => call('POST', '/api/admin/smtp/remove', { code: code.value.trim() }));
+    code.value = '';
+    if (s) { paint(s); toast('أُزيل إعداد البريد.'); }
+  });
+
+  load();
+  return card('البريد (رموز استعادة كلمة المرور)', 'bell', status, h('div', { class: 'admin-actions' }, removeBtn), form);
 }
 
 function blocksSection(blocks) {

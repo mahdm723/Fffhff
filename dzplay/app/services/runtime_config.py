@@ -73,3 +73,67 @@ def save_telegram(db: Session, settings: Settings, token: str, chat_id: str, act
 
 def clear_telegram(db: Session) -> None:
     db.execute(delete(AppSetting).where(AppSetting.key.in_(_KEYS)))
+
+
+# ---------------------------------------------------------------------------
+# e-mail (SMTP) for password-recovery codes
+# ---------------------------------------------------------------------------
+
+_SMTP_KEYS = ("smtp.host", "smtp.port", "smtp.security", "smtp.username", "smtp.password", "smtp.from")
+_HOST_RE = re.compile(r"^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$")
+_EMAIL_RE = re.compile(r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$")
+
+
+def smtp_config(db: Session, settings: Settings) -> dict:
+    """The effective SMTP settings: panel values first, then .env. The password is included (server side only)."""
+    host = _get(db, "smtp.host")
+    if host:
+        sealed = _get(db, "smtp.password")
+        return {"host": host, "port": int(_get(db, "smtp.port") or 587), "security": _get(db, "smtp.security") or "starttls",
+                "username": _get(db, "smtp.username") or "", "from": _get(db, "smtp.from") or "",
+                "password": (unseal(settings.SECRET_KEY, _PURPOSE, sealed) or "") if sealed else "", "source": "panel"}
+    if settings.smtp_enabled:
+        return {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT, "security": settings.SMTP_SECURITY,
+                "username": settings.SMTP_USERNAME, "from": settings.SMTP_FROM, "password": settings.SMTP_PASSWORD,
+                "source": "env"}
+    return {"host": "", "port": 587, "security": "starttls", "username": "", "from": "", "password": "", "source": "none"}
+
+
+def effective_settings(db: Session, settings: Settings) -> Settings:
+    """Settings with the SMTP values set in the panel (if any) applied."""
+    cfg = smtp_config(db, settings)
+    if cfg["source"] != "panel":
+        return settings
+    return settings.model_copy(update={"SMTP_HOST": cfg["host"], "SMTP_PORT": cfg["port"], "SMTP_SECURITY": cfg["security"],
+                                       "SMTP_USERNAME": cfg["username"], "SMTP_PASSWORD": cfg["password"],
+                                       "SMTP_FROM": cfg["from"]})
+
+
+def save_smtp(db: Session, settings: Settings, *, host: object, port: object, security: object, username: object,
+              password: object, sender: object, actor: str) -> None:
+    host = host.strip() if isinstance(host, str) else ""
+    security = security if security in ("starttls", "ssl", "none") else ""
+    username = username.strip() if isinstance(username, str) else ""
+    sender = sender.strip() if isinstance(sender, str) else ""
+    if not _HOST_RE.match(host):
+        raise AppError(400, "invalid_host", "عنوان خادم البريد غير صالح (مثال: smtp.gmail.com).")
+    if not isinstance(port, int) or not 1 <= port <= 65535:
+        raise AppError(400, "invalid_port", "المنفذ غير صالح (عادة 587).")
+    if not security or (security == "none" and settings.ENV == "production"):
+        raise AppError(400, "invalid_security", "اختر STARTTLS أو SSL.")
+    from email.utils import parseaddr
+
+    if len(sender) > 200 or not _EMAIL_RE.match(parseaddr(sender)[1] or ""):
+        raise AppError(400, "invalid_from", "عنوان المرسل غير صالح (مثال: DZPLAY <you@gmail.com>).")
+    if len(username) > 200 or (isinstance(password, str) and len(password) > 200):
+        raise AppError(400, "invalid_input", "طلب غير صالح.")
+    for key, value in (("smtp.host", host), ("smtp.port", str(port)), ("smtp.security", security),
+                       ("smtp.username", username), ("smtp.from", sender)):
+        _put(db, key, value, actor)
+    if isinstance(password, str) and password:  # empty = keep the stored password
+        _put(db, "smtp.password", seal(settings.SECRET_KEY, _PURPOSE, password), actor)
+    db.flush()
+
+
+def clear_smtp(db: Session) -> None:
+    db.execute(delete(AppSetting).where(AppSetting.key.in_(_SMTP_KEYS)))

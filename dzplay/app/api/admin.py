@@ -655,7 +655,7 @@ def system_status(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> 
         media_bytes = st.media.total_size(db)
         return {
             "bot": bot,
-            "smtp_configured": st.settings.smtp_enabled,
+            "smtp_configured": runtime_config.smtp_config(db, st.settings)["source"] != "none",
             "media_cache": {"bytes": media_bytes, "limit_bytes": int(st.settings.MEDIA_CACHE_MAX_GB * 1024 ** 3)},
             "ip_blocks": admin_content.ip_blocks(db, st.settings),
             "failed_logins": admin_access.failed_logins(db, 50),
@@ -780,3 +780,82 @@ def telegram_remove(body: StepUpBody, request: Request, ac: AdminContext = Depen
     else:
         st.configure_telegram(None)
     return _telegram_status(st, request)
+
+
+# ----------------------------------------------------------------- e-mail (SMTP) settings (password is write-only)
+
+
+class SmtpBody(_Body):
+    host: str = Field(max_length=253)
+    port: int = Field(ge=1, le=65535)
+    security: str = Field(max_length=10)
+    username: str = Field(default="", max_length=200)
+    password: str = Field(default="", max_length=200)  # empty = keep the stored one
+    sender: str = Field(max_length=200)
+    test_to: str = Field(default="", max_length=254)
+    code: str = Field(max_length=12)
+
+
+class SmtpTestBody(_Body):
+    to: str = Field(max_length=254)
+
+
+def _smtp_status(st) -> dict:
+    with st.database.session() as db:
+        cfg = runtime_config.smtp_config(db, st.settings)
+    return {"configured": cfg["source"] != "none", "source": cfg["source"], "host": cfg["host"] or None, "port": cfg["port"],
+            "security": cfg["security"], "username": cfg["username"] or None, "sender": cfg["from"] or None,
+            "password_set": bool(cfg["password"])}
+
+
+def _send_test_mail(st, to: str) -> str | None:
+    from app.services.mailer import MailError, send_test
+
+    to = (to or "").strip()
+    if not runtime_config._EMAIL_RE.match(to):
+        return "عنوان بريد التجربة غير صالح."
+    with st.database.session() as db:
+        eff = runtime_config.effective_settings(db, st.settings)
+    try:
+        send_test(eff, to)
+        return None
+    except MailError as exc:
+        return f"تعذّر إرسال بريد التجربة ({exc}). تحقق من الخادم والمنفذ واسم المستخدم وكلمة المرور."
+
+
+@router.get("/smtp")
+def smtp_get(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    return _smtp_status(get_state(request))
+
+
+@router.put("/smtp")
+def smtp_put(body: SmtpBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+    with st.database.session() as db:
+        runtime_config.save_smtp(db, st.settings, host=body.host, port=body.port, security=body.security,
+                                 username=body.username, password=body.password, sender=body.sender, actor=ac.actor)
+        _record(db, ac, "smtp_update", target_type="smtp", target_id=body.host[:32])
+    out = _smtp_status(st)
+    out["test_error"] = _send_test_mail(st, body.test_to) if body.test_to else None
+    return out
+
+
+@router.post("/smtp/test")
+def smtp_test(body: SmtpTestBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    problem = _send_test_mail(st, body.to)
+    if problem:
+        raise AppError(502, "test_failed", problem)
+    return {"ok": True}
+
+
+@router.post("/smtp/remove")
+def smtp_remove(body: StepUpBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+        runtime_config.clear_smtp(db)
+        _record(db, ac, "smtp_remove", target_type="smtp")
+    return _smtp_status(st)
