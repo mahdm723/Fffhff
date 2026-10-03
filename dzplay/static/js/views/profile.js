@@ -23,7 +23,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   }
 
   function drawCard() {
-    idCard.replaceChildren(
+    idCard.replaceChildren(...[
       personAvatar(me.display_name, { size: 'xl' }),
       h('div', { class: 'id-card__name' }, nameLine(me.display_name, me.gender === 'unspecified' ? null : me.gender)),
       idChip(me.public_id),
@@ -31,7 +31,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
         ? 'يظهر اسمك في الأفكار والتعليقات والمحادثات المباشرة. في الرسائل العشوائية تبقى dzplay حتى تكشف هويتك.'
         : 'اسمك الآن dzplay. اختر اسمًا ليعرفك أصدقاؤك، أو شارك معرّفك DZ.' }),
       h('div', { class: 'id-card__actions' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: editSheet }, icon('edit'), 'تعديل الملف')),
-    );
+    ].filter(Boolean));
     ageItem.hidden = me.age_confirmed !== false;
   }
 

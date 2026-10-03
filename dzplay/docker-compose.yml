@@ -1,7 +1,8 @@
-# Production-like stack: Caddy (automatic HTTPS) -> DZPLAY -> PostgreSQL + Redis
+# Production-like stack: Caddy (automatic HTTPS) -> DZPLAY -> PostgreSQL + Redis, + coturn (TURN for calls)
 #   1. cp .env.example .env  and set SECRET_KEY, POSTGRES_PASSWORD, DOMAIN
 #   2. docker compose up -d --build
 # Only Caddy publishes ports (80/443); PostgreSQL and Redis are reachable from the app only.
+# coturn uses the host network: 3478/udp+tcp, 5349/tcp (TLS) and the UDP relay range TURN_MIN_PORT-TURN_MAX_PORT.
 
 x-logging: &logging  # bounded container logs (no disk fill-up)
   driver: json-file
@@ -79,6 +80,36 @@ services:
       - caddy_data:/data
     depends_on:
       - app
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    # TURN needs the real public IP and a wide UDP port range: host network, no docker-proxy.
+    network_mode: host
+    # uid 0 only to read Caddy's TLS key (mode 0600); every Linux capability is dropped.
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/etc/coturn/start.sh"]
+    environment:
+      TURN_SECRET: ${TURN_SECRET:-}
+      TURN_REALM: ${TURN_HOST:-${DOMAIN:-}}
+      TURN_EXTERNAL_IP: ${PUBLIC_IP:-}
+      TURN_PORT: ${TURN_PORT:-3478}
+      TURN_TLS_PORT: ${TURN_TLS_PORT:-5349}
+      TURN_MIN_PORT: ${TURN_MIN_PORT:-49160}
+      TURN_MAX_PORT: ${TURN_MAX_PORT:-49200}
+    volumes:
+      - ./deploy/coturn/turnserver.conf.template:/etc/coturn/turnserver.conf.template:ro
+      - ./deploy/coturn/start.sh:/etc/coturn/start.sh:ro
+      - caddy_data:/caddy:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+      - /var/lib/coturn:size=8m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *logging
 
 volumes:
   pgdata:

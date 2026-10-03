@@ -805,3 +805,65 @@ body::before {
 
 .menu__item--setting > span { display: flex; flex-direction: column; gap: 2px; }
 .menu__item--setting small { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+
+/* =====================================================================
+   V4: call screen (outgoing / incoming / in call)
+   ===================================================================== */
+body.in-call { overflow: hidden; }
+body.in-call .nav { display: none; }
+.call-screen {
+  position: fixed; inset: 0; z-index: 45; color: #fff; display: flex; flex-direction: column; align-items: center;
+  background: radial-gradient(120% 80% at 50% 0%, #3a2440 0%, #141726 55%, #07080f 100%); overflow: hidden;
+  animation: fade .2s ease; touch-action: none;
+}
+.call-remote { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; opacity: 0; transition: opacity .3s; }
+.call-screen.has-remote-video .call-remote { opacity: 1; }
+.call-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(0,0,0,.45) 0%, transparent 28%, transparent 62%, rgba(0,0,0,.6) 100%); }
+.call-top { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: calc(56px + var(--safe-t)) 20px 0; text-align: center; }
+.call-face .avatar { box-shadow: 0 0 0 10px rgba(255,255,255,.06), 0 0 0 22px rgba(255,255,255,.03); }
+.call-screen.is-incoming .call-face .avatar { animation: callpulse 1.6s ease-in-out infinite; }
+@keyframes callpulse { 50% { box-shadow: 0 0 0 16px rgba(255,255,255,.1), 0 0 0 34px rgba(255,255,255,.04); } }
+.call-screen.has-remote-video .call-face { display: none; }
+.call-screen.has-remote-video .call-top { padding-top: calc(16px + var(--safe-t)); }
+.call-name { font-size: 26px; font-weight: 700; margin-top: 14px; max-width: 90vw; }
+.call-screen.has-remote-video .call-name { font-size: 18px; margin-top: 0; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.call-meta { display: flex; align-items: center; gap: 8px; }
+.call-status { font-size: 15px; color: rgba(255,255,255,.82); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: plaintext; }
+.call-quality { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.call-quality i { width: 4px; border-radius: 2px; background: rgba(255,255,255,.3); }
+.call-quality i:nth-child(1) { height: 5px; } .call-quality i:nth-child(2) { height: 9px; } .call-quality i:nth-child(3) { height: 14px; }
+.call-quality[data-level="3"] i { background: var(--ok); }
+.call-quality[data-level="2"] i:nth-child(-n+2) { background: #f2c94c; }
+.call-quality[data-level="1"] i:nth-child(1) { background: var(--danger); }
+.call-banner { margin-top: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.55); font-size: 14px; }
+.call-self {
+  position: absolute; z-index: 3; top: calc(16px + var(--safe-t)); inset-inline-start: 16px; width: 104px; height: 152px; object-fit: cover;
+  border-radius: 18px; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,.5); border: 2px solid rgba(255,255,255,.18);
+  transform: scaleX(1); cursor: grab; display: none; touch-action: none;
+}
+.call-self:not(.is-rear) { scale: -1 1; } /* mirror the front camera like a mirror */
+.call-screen.has-self-video .call-self { display: block; }
+.call-controls {
+  position: absolute; z-index: 4; inset-inline: 0; bottom: 0; display: flex; justify-content: center; align-items: flex-end; gap: 10px;
+  flex-wrap: nowrap; padding: 18px 12px calc(28px + var(--safe-b));
+}
+.call-btn {
+  width: 52px; height: 52px; flex: none; border-radius: 50%; border: 0; display: grid; place-items: center; color: #fff;
+  background: rgba(255,255,255,.16); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+}
+.call-btn svg { width: 26px; height: 26px; }
+.call-btn.is-off { background: #fff; color: #111; }
+.call-btn.is-on { background: var(--lilac); }
+.call-btn--end { background: #e5484d; }
+.call-btn--end svg { width: 30px; height: 30px; }
+.call-btn--accept { background: #30a46c; animation: callring 1.2s ease-in-out infinite; }
+.call-btn--ghost { background: rgba(255,255,255,.2); }
+@keyframes callring { 0%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(-12deg); } 20%, 40% { transform: rotate(12deg); } 50% { transform: rotate(0); } }
+.call-screen.is-incoming .call-controls { gap: 44px; padding-bottom: calc(56px + var(--safe-b)); }
+.call-screen.is-incoming .call-btn { width: 68px; height: 68px; }
+.call-answer { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,.85); }
+.call-screen.is-ended .call-status { font-size: 17px; color: #fff; }
+.call-screen.is-ended .call-remote, .call-screen.is-ended .call-self { display: none; }
+.sys-msg--call span { display: inline-flex; align-items: center; gap: 6px; }
+.sys-msg--call svg { width: 15px; height: 15px; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .call-btn--accept, .call-screen.is-incoming .call-face .avatar { animation: none; } }

@@ -5,7 +5,8 @@
 #   sudo /opt/dzplay/dzplay/deploy/harden.sh              firewall + fail2ban + automatic security updates
 #   sudo /opt/dzplay/dzplay/deploy/harden.sh --ssh-keys-only   … and turn off SSH password logins
 #
-# 1. ufw firewall: deny incoming except your SSH port (detected), 80/tcp, 443/tcp+udp.
+# 1. ufw firewall: deny incoming except your SSH port (detected), 80/tcp, 443/tcp+udp,
+#    and for calls: TURN 3478/udp+tcp, 5349/tcp and the relay range 49160-49200/udp.
 #    (Docker publishes only Caddy's 80/443; PostgreSQL and Redis are never published.)
 # 2. fail2ban: bans IPs that keep failing SSH logins.
 # 3. unattended-upgrades: installs security updates automatically.
@@ -43,6 +44,14 @@ ufw allow "$ssh_port"/tcp comment 'ssh' >/dev/null
 ufw allow 80/tcp comment 'http (certificates + redirect)' >/dev/null
 ufw allow 443/tcp comment 'https' >/dev/null
 ufw allow 443/udp comment 'http/3' >/dev/null
+# voice/video calls (coturn): TURN ports + the UDP relay range only
+envv() { grep "^$1=" "$APP_DIR/.env" 2>/dev/null | cut -d= -f2- || true; }
+tp="$(envv TURN_PORT)"; tp="${tp:-3478}"; tt="$(envv TURN_TLS_PORT)"; tt="${tt:-5349}"
+tmin="$(envv TURN_MIN_PORT)"; tmin="${tmin:-49160}"; tmax="$(envv TURN_MAX_PORT)"; tmax="${tmax:-49200}"
+ufw allow "$tp"/udp comment 'turn' >/dev/null
+ufw allow "$tp"/tcp comment 'turn' >/dev/null
+[ "$tt" = "0" ] || ufw allow "$tt"/tcp comment 'turn tls' >/dev/null
+ufw allow "$tmin:$tmax"/udp comment 'turn relay' >/dev/null
 ufw --force enable >/dev/null
 ok "incoming allowed only on SSH ($ssh_port), 80, 443"
 

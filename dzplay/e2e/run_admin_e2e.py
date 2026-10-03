@@ -309,6 +309,8 @@ class Run:
         self.shot(page, "09-content-dark")
         page.get_by_role("tab", name="المحادثات").click()
         expect(page.locator(".admin-card--tap").first).to_be_visible()
+        page.get_by_role("tab", name="المكالمات").click()
+        expect(page.locator("#admin-main .admin-group", has_text="آخر 7 أيام")).to_be_visible()
         page.get_by_role("tab", name="بحث").click()
         page.get_by_placeholder("ابحث في الأفكار والتعليقات والرسائل والأوصاف").fill("مزعجة")
         page.locator("#admin-main form").get_by_role("button", name="بحث").click()

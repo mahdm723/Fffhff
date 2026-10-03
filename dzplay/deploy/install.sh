@@ -98,6 +98,8 @@ fi
 env_has() { grep -q "^$1=.\+" .env; }
 env_has ADMIN_PATH || { set_env ADMIN_PATH "/panel-$(openssl rand -hex 8)"; ok "Generated a secret admin panel path"; }
 env_has TELEGRAM_WEBHOOK_SECRET || set_env TELEGRAM_WEBHOOK_SECRET "$(openssl rand -hex 32)"
+env_has TURN_SECRET || { set_env TURN_SECRET "$(openssl rand -hex 32)"; ok "Generated the TURN secret (voice/video calls)"; }
+if ! env_has PUBLIC_IP && [ -n "$PUBLIC_IP" ]; then set_env PUBLIC_IP "$PUBLIC_IP"; fi
 NEW_BACKUP_PASS=0
 env_has BACKUP_PASSPHRASE || { set_env BACKUP_PASSPHRASE "$(openssl rand -hex 32)"; NEW_BACKUP_PASS=1; ok "Generated a backup encryption passphrase"; }
 if grep -q '^ADMIN_API_TOKEN=' .env; then
@@ -118,10 +120,21 @@ for port in 80 443; do
     Stop it (e.g. 'systemctl stop nginx' or 'systemctl stop apache2') and run this command again."
   fi
 done
+TURN_PORT_V="$(grep '^TURN_PORT=' .env | cut -d= -f2- || true)"; TURN_PORT_V="${TURN_PORT_V:-3478}"
+TURN_TLS_V="$(grep '^TURN_TLS_PORT=' .env | cut -d= -f2- || true)"; TURN_TLS_V="${TURN_TLS_V:-5349}"
+TURN_MIN_V="$(grep '^TURN_MIN_PORT=' .env | cut -d= -f2- || true)"; TURN_MIN_V="${TURN_MIN_V:-49160}"
+TURN_MAX_V="$(grep '^TURN_MAX_PORT=' .env | cut -d= -f2- || true)"; TURN_MAX_V="${TURN_MAX_V:-49200}"
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow 80/tcp >/dev/null && ufw allow 443/tcp >/dev/null
-  ok "Firewall (ufw): opened ports 80 and 443"
+  # calls (coturn): only the TURN ports and the UDP relay range
+  ufw allow "$TURN_PORT_V"/udp comment 'turn' >/dev/null && ufw allow "$TURN_PORT_V"/tcp comment 'turn' >/dev/null
+  [ "$TURN_TLS_V" = "0" ] || ufw allow "$TURN_TLS_V"/tcp comment 'turn tls' >/dev/null
+  ufw allow "$TURN_MIN_V:$TURN_MAX_V"/udp comment 'turn relay' >/dev/null
+  ok "Firewall (ufw): opened 80, 443, TURN $TURN_PORT_V udp/tcp, $TURN_TLS_V/tcp and relay $TURN_MIN_V-$TURN_MAX_V/udp"
 fi
+holder="$(ss -lunpH "( sport = :$TURN_PORT_V )" 2>/dev/null | grep -v turnserver | head -1 || true)"
+[ -z "$holder" ] || warn "Port $TURN_PORT_V/udp is used by another program ($holder): calls need it for coturn."
+ok "If your VPS provider has its own firewall, also open: $TURN_PORT_V/udp+tcp, $TURN_TLS_V/tcp, $TURN_MIN_V-$TURN_MAX_V/udp"
 ok "Ports 80/443 available"
 
 # --- 5. build & start ---------------------------------------------------------------
@@ -157,6 +170,24 @@ else
   warn "Check that your VPS provider's firewall/security group allows TCP 80 and 443."
   warn "Certificate logs: cd $APP_DIR && docker compose logs caddy"
 fi
+
+# Calls: coturn reads Caddy's certificate at start; restart it now that HTTPS is up, and weekly after renewals.
+if [ "$public_ok" -eq 1 ]; then
+  docker compose restart coturn >/dev/null 2>&1 </dev/null || true
+  sleep 2
+  if docker compose logs --tail 30 coturn 2>/dev/null </dev/null | grep -q "TURN over TLS on port"; then
+    ok "Calls: TURN server running (UDP/TCP $TURN_PORT_V, TLS $TURN_TLS_V)"
+  else
+    ok "Calls: TURN server running (UDP/TCP $TURN_PORT_V)"
+  fi
+fi
+cat > /etc/cron.d/dzplay-turn <<CRON
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# reload coturn's TLS certificate after Caddy renewed it (live calls recover with an ICE restart)
+41 4 * * 1 root cd $APP_DIR && docker compose restart coturn >/dev/null 2>&1
+CRON
+chmod 644 /etc/cron.d/dzplay-turn
 
 # Telegram bot (Reels uploads, password recovery): tell Telegram where to deliver updates.
 if grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && grep -q '^TELEGRAM_ADMIN_CHAT_ID=.\+' .env; then
@@ -217,6 +248,8 @@ cat <<EOF
   $BACKUP_NOTE
   Hardening (firewall, fail2ban, auto-updates):   sudo $APP_DIR/deploy/harden.sh
   Telegram bot (Reels uploads):   admin panel → الأمان والنظام → بوت Telegram
+  Calls (TURN):  open in your VPS provider's firewall too: $TURN_PORT_V/udp+tcp, $TURN_TLS_V/tcp, $TURN_MIN_V-$TURN_MAX_V/udp
+  Android app download page:   $PUBLIC_URL/download
 
   Update to the latest version:   run the same install command again
   Logs:      cd $APP_DIR && docker compose logs -f app

@@ -46,12 +46,12 @@ export function renderUser(page, { ref, publicId, navigate }) {
       msgBtn.disabled = true;
       msgBtn.title = 'لا يستقبل رسائل مباشرة';
     }
-    card.replaceChildren(
+    card.replaceChildren(...[
       personAvatar(p.name, { size: 'xl' }),
       h('div', { class: 'id-card__name' }, nameLine(p.name, p.gender)),
       idChip(p.public_id),
       msgBtn ? h('div', { class: 'id-card__actions' }, msgBtn) : null,
-    );
+    ].filter(Boolean));
     stats.replaceChildren(stat(p.stats.posts, 'منشورات'), stat(p.stats.likes, 'إعجاب'), stat(p.stats.dislikes, 'عدم إعجاب'));
     posts.replaceChildren(
       h('h2', { class: 'section-title', text: 'منشوراته' }),

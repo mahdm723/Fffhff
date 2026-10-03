@@ -9,11 +9,12 @@ function readDraft() { try { return localStorage.getItem(DRAFT_KEY) || ''; } cat
 function writeDraft(v) { try { v ? localStorage.setItem(DRAFT_KEY, v) : localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
 
 const SYSTEM_PREVIEW = { reveal: 'كُشفت الهوية' };
+// last_message.preview already carries the call summary text for call events
 
 function previewText(c) {
   const last = c.last_message;
   if (!last) return c.request && c.request.state === 'pending' && !c.request.incoming ? 'بانتظار قبول طلب المراسلة' : '';
-  if (last.kind === 'system') return SYSTEM_PREVIEW.reveal;
+  if (last.kind === 'system') return /مكالمة/.test(last.preview || '') ? last.preview : SYSTEM_PREVIEW.reveal;
   return last.mine ? `أنت: ${last.preview}` : last.preview;
 }
 

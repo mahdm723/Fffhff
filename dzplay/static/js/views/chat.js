@@ -27,6 +27,12 @@ function statusIcon(status) {
 
 function systemText(m) {
   const meta = m.meta || {};
+  if (meta.event === 'call') {
+    if (['missed', 'canceled'].includes(meta.outcome)) return m.mine ? 'لم يرد على مكالمتك' : m.content;
+    if (meta.outcome === 'busy') return m.mine ? 'كان الطرف الآخر في مكالمة أخرى' : m.content;
+    if (meta.outcome === 'declined') return m.mine ? 'رُفضت مكالمتك' : 'رفضت المكالمة';
+    return m.content;
+  }
   if (meta.event === 'reveal') {
     return m.mine
       ? 'كشفتَ هويتك. يرى هذا الشخص الآن اسمك ومعرّفك.'
@@ -75,7 +81,9 @@ export function renderChat(root, { conversationId, navigate }) {
     else sub = [icon('lock'), 'هوية مخفية للطرفين'];
     headSub.replaceChildren(...sub);
     const allowed = canCall(conv);
+    const enabled = !!(store.state.config && store.state.config.calls_enabled);
     for (const b of [callBtn, videoBtn]) {
+      b.hidden = !enabled;
       b.disabled = !allowed;
       b.title = allowed ? '' : 'تتاح المكالمة بعد أن يرد الطرف الآخر';
     }
@@ -187,7 +195,11 @@ export function renderChat(root, { conversationId, navigate }) {
     msgs.forEach((m, i) => {
       const d = formatDay(m.created_at);
       if (d !== day) { nodes.push(h('div', { class: 'day-sep', text: d })); day = d; }
-      if (m.kind === 'system') nodes.push(h('div', { class: 'sys-msg', role: 'note' }, h('span', { text: systemText(m) })));
+      if (m.kind === 'system') {
+        const isCall = m.meta && m.meta.event === 'call';
+        nodes.push(h('div', { class: `sys-msg ${isCall ? 'sys-msg--call' : ''}`, role: 'note' },
+          h('span', {}, isCall ? icon(m.meta.kind === 'video' ? 'video' : 'phone') : null, systemText(m))));
+      }
       else nodes.push(bubble(m, msgs[i - 1], msgs[i + 1], conv, lastMine && lastMine.id));
     });
     if (peerTyping) nodes.push(typingRow);

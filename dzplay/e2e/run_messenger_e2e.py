@@ -29,7 +29,8 @@ def start_server(port: int) -> tuple[subprocess.Popen, str, str]:
     tmp = tempfile.mkdtemp(prefix="dz-e2e-v4-")
     db = f"{tmp}/e2e.db"
     env = dict(os.environ, DATABASE_URL=f"sqlite:///{db}", SECRET_KEY="e2e-secret", ENV="development",
-               CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10")
+               CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10",
+               TURN_SECRET="e2e-turn", TURN_HOST="127.0.0.1")  # calls enabled (buttons shown)
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"], cwd=ROOT, env=env)
     base = f"http://127.0.0.1:{port}"

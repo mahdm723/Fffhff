@@ -40,10 +40,10 @@ export function renderContent(main) {
     h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onclick: () => {
       selection.ids.clear(); document.querySelectorAll('.admin-select-box').forEach((b) => { b.checked = false; }); paintSelection();
     } }, 'إلغاء التحديد'));
-  const show = { ideas: showIdeas, reels: showReels, conversations: showConversations, search: showSearch };
+  const show = { ideas: showIdeas, reels: showReels, conversations: showConversations, calls: showCalls, search: showSearch };
   main.replaceChildren(
     sectionHead('المحتوى'),
-    segmented([['ideas', 'الأفكار'], ['reels', 'Reels'], ['conversations', 'المحادثات'], ['search', 'بحث']], view.tab,
+    segmented([['ideas', 'الأفكار'], ['reels', 'Reels'], ['conversations', 'المحادثات'], ['calls', 'المكالمات'], ['search', 'بحث']], view.tab,
       (v) => { view.tab = v; show[v](body); }, 'نوع المحتوى'),
     body, selectionBar);
   show[view.tab](body);
@@ -221,4 +221,55 @@ function showSearch(body) {
   };
   body.replaceChildren(searchForm('search', 'ابحث في الأفكار والتعليقات والرسائل والأوصاف', run), out);
   if (view.q.search.length >= 2) run(view.q.search);
+}
+
+// ------------------------------------------------------------------ calls (metadata + quality only, never media)
+
+const CALL_STATE = {
+  ended: 'انتهت', missed: 'فائتة', declined: 'مرفوضة', busy: 'مشغول', failed: 'فشلت', canceled: 'أُلغيت',
+  calling: 'يتصل', ringing: 'يرن', connected: 'جارية',
+};
+
+function callParty(p) {
+  if (!p) return h('span', { class: 'admin-meta', text: 'حساب محذوف' });
+  return h('button', { type: 'button', class: 'admin-link', onclick: () => hooks.openUser && hooks.openUser(p.id) },
+    h('bdi', { text: p.display_name || 'dzplay' }), ' ', h('code', { dir: 'ltr', text: p.public_id || '' }));
+}
+
+function qualityLine(q) {
+  if (!q) return null;
+  const side = (label, s) => (s ? `${label}: RTT ${s.rtt_ms ?? '–'} ms · فقد ${s.loss_pct ?? '–'}% · ${s.kbps_out ?? '–'} kbit/s${s.relay === false ? ' · ⚠️ غير مُرحَّل' : ''}${s.codec_video ? ` · ${s.codec_video}` : ''}${s.height_max ? ` ${s.height_max}p` : ''}` : null);
+  return h('span', { class: 'admin-meta', dir: 'auto', text: [side('المتصل', q.caller), side('المستقبِل', q.callee)].filter(Boolean).join(' — ') });
+}
+
+async function showCalls(body) {
+  body.replaceChildren(spinner());
+  const [stats, log] = await Promise.all([
+    attempt(() => call('GET', '/api/admin/calls/stats?days=7')),
+    attempt(() => call('GET', '/api/admin/calls')),
+  ]);
+  if (!stats || !log) { body.replaceChildren(emptyState('تعذّر التحميل.')); return; }
+  const summary = h('section', { class: 'admin-group glass' },
+    h('h3', { text: `آخر 7 أيام${stats.enabled ? '' : ' — المكالمات غير مفعّلة (TURN_SECRET غير مضبوط)'}` }),
+    h('dl', { class: 'admin-group__rows' },
+      ...[['كل المكالمات', fmt(stats.total)], ['تم الرد', fmt(stats.answered)], ['مجموع الدقائق', fmt(stats.total_minutes)],
+        ['متوسط المدة', stats.avg_duration_s == null ? '—' : `${Math.round(stats.avg_duration_s)} ث`],
+        ['متوسط RTT', stats.avg_rtt_ms == null ? '—' : `${stats.avg_rtt_ms} ms`], ['متوسط الفقد', stats.avg_loss_pct == null ? '—' : `${stats.avg_loss_pct}%`],
+        ['متوسط الإرسال', stats.avg_kbps_out == null ? '—' : `${stats.avg_kbps_out} kbit/s`],
+        ['عبر TURN فقط', stats.all_relay ? 'نعم (لا تنكشف عناوين IP)' : '⚠️ لا'],
+        ['النتائج', Object.entries(stats.by_state).map(([k, v]) => `${CALL_STATE[k] || k} ${fmt(v)}`).join(' · ') || '—']]
+        .map(([k, v]) => h('div', { class: 'admin-row' }, h('dt', { text: k }), h('dd', { dir: 'auto', text: String(v) })))),
+    h('p', { class: 'admin-meta', text: 'لا تُسجَّل المكالمات أبدًا: يُحفظ فقط من اتصل بمن ومتى والمدة وجودة الاتصال.' }));
+  const list = log.calls.length ? log.calls.map((c) => h('article', { class: 'admin-card glass' },
+    h('div', { class: 'admin-card__head' },
+      callParty(c.caller), h('span', { text: '←' }), callParty(c.callee),
+      chip(c.kind === 'video' || c.video_used ? 'فيديو' : 'صوت'),
+      chip(CALL_STATE[c.state] || c.state, ['failed', 'busy'].includes(c.state) ? 'chip--hot' : ''),
+      c.reported ? chip('مُبلَّغ عنها', 'chip--hot') : null),
+    h('div', { class: 'admin-card__meta' },
+      h('span', { text: when(c.created_at) }),
+      c.duration != null ? h('span', { text: `المدة ${Math.floor(c.duration / 60)}:${String(c.duration % 60).padStart(2, '0')}` }) : null,
+      c.end_reason ? h('span', { text: `السبب: ${c.end_reason}` }) : null),
+    qualityLine(c.quality))) : [emptyState('لا توجد مكالمات بعد.')];
+  body.replaceChildren(summary, h('p', { class: 'admin-meta', text: `${fmt(log.total)} مكالمة` }), ...list);
 }

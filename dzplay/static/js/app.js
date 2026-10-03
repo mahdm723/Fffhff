@@ -1,5 +1,6 @@
 // DZPLAY client entry point: boot, routing and the app shell.
 import { api } from './api.js';
+import { initCalls } from './call.js';
 import { icon } from './icons.js';
 import { disableForLogout, refreshPushSubscription, showLocalNotification } from './notify.js';
 import * as store from './store.js';
@@ -148,6 +149,7 @@ function startSession(me) {
   try { localStorage.setItem('dz:session', '1'); } catch { /* ignore */ }
   route();
   store.startRealtime();
+  if (store.state.config && store.state.config.calls_enabled) initCalls();
   store.sync({ full: true }).catch(() => {});
   store.flushOutbox();
   refreshPushSubscription();
