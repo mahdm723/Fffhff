@@ -15,6 +15,8 @@ import { renderChat } from './views/chat.js';
 import { renderHome, resetFeedCache } from './views/home.js';
 import { renderMessages } from './views/messages.js';
 import { renderProfile } from './views/profile.js';
+import { renderSupport, renderTicket } from './views/support.js';
+import { renderVerify } from './views/verify.js';
 import { renderUser } from './views/user.js';
 
 const root = document.getElementById('app');
@@ -38,6 +40,10 @@ function parseRoute() {
   if (u) return { name: 'user', ref: u[1] };
   const p = location.hash.match(/^#\/id\/(DZ-[A-Z0-9]{6})$/i);
   if (p) return { name: 'user', publicId: p[1].toUpperCase() };
+  const t = location.hash.match(/^#\/support\/(\d{1,9})$/);
+  if (t) return { name: 'ticket', id: Number(t[1]) };
+  if (location.hash === '#/support') return { name: 'support' };
+  if (location.hash === '#/verify') return { name: 'verify' };
   const name = location.hash.replace(/^#\//, '');
   return { name: TABS.some((t) => t.id === name) ? name : 'home' };
 }
@@ -94,7 +100,7 @@ function route() {
     shell = buildShell();
     root.replaceChildren(shell.el);
   }
-  const activeTab = r.name === 'user' ? 'home' : r.name;
+  const activeTab = r.name === 'user' ? 'home' : ['support', 'ticket', 'verify'].includes(r.name) ? 'profile' : r.name;
   for (const btn of shell.nav.querySelectorAll('.nav__btn')) {
     if (btn.dataset.tab === activeTab) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
@@ -105,6 +111,9 @@ function route() {
   if (r.name === 'home') cleanupView = renderHome(shell.page, ctx) || null;
   else if (r.name === 'messages') cleanupView = renderMessages(shell.page, ctx) || null;
   else if (r.name === 'user') cleanupView = renderUser(shell.page, { ...ctx, ref: r.ref, publicId: r.publicId }) || null;
+  else if (r.name === 'support') cleanupView = renderSupport(shell.page, ctx) || null;
+  else if (r.name === 'ticket') cleanupView = renderTicket(shell.page, { ...ctx, ticketId: r.id }) || null;
+  else if (r.name === 'verify') cleanupView = renderVerify(shell.page, ctx) || null;
   else cleanupView = renderProfile(shell.page, ctx) || null;
   updateBadges();
   updateConnectionBanner();
@@ -177,6 +186,13 @@ store.subscribe((type, detail) => {
     updateBadges();
     if (document.visibilityState !== 'visible') showLocalNotification();
     else toast('وصلك تعليق خاص جديد على إحدى أفكارك');
+  } else if (type === 'account') { // V5: the blue star was granted / revoked, a request was decided
+    api.get('/api/me').then((me) => onMe(me)).catch(() => {});
+    document.dispatchEvent(new CustomEvent('dz:account'));
+  } else if (type === 'support') {
+    if (store.state.me) store.state.me.support_unread = (store.state.me.support_unread || 0) + 1;
+    if (!['support', 'ticket'].includes(parseRoute().name)) toast('ردّ فريق الدعم على تذكرتك. افتح حسابي ← الدعم.');
+    document.dispatchEvent(new CustomEvent('dz:support'));
   } else if (type === 'queued-sent') {
     toast('أُرسلت رسالتك التي كانت في الانتظار.');
   } else if (type === 'queued-failed') {

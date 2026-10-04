@@ -75,7 +75,7 @@ export function renderChat(root, { conversationId, navigate }) {
     const anon = isAnonymous(conv);
     const card = (conv && conv.peer_card) || {};
     headAvatar.replaceChildren(personAvatar(conv ? conv.peer : 'dzplay', { size: 'sm', anonymous: anon, active: !!card.active }));
-    headName.replaceChildren(nameLine(conv ? conv.peer : 'dzplay', card.gender));
+    headName.replaceChildren(nameLine(conv ? conv.peer : 'dzplay', card.gender, '', card.verified));
     let sub;
     if (!conv) sub = [];
     else if (!anon && card.active) sub = [h('span', { class: 'online-dot' }), 'نشط الآن'];

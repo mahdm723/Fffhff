@@ -17,6 +17,8 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   const msgStats = h('p', { class: 'msg-stats' });
   const postsSlot = h('div');
   const notifSwitch = h('span', { class: 'switch', role: 'switch', 'aria-checked': 'false' });
+  const supportBadge = h('span', { class: 'menu__end' }, icon('chev', 'chev'));
+  const paintSupport = (n) => supportBadge.replaceChildren(...[n ? h('span', { class: 'chip chip--hot', text: 'رد جديد' }) : null, icon('chev', 'chev')].filter(Boolean));
 
   function stat(num, label) {
     return h('div', { class: 'stat glass' }, h('div', { class: 'stat__num', text: String(num) }), h('div', { class: 'stat__label', text: label }));
@@ -25,7 +27,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   function drawCard() {
     idCard.replaceChildren(...[
       personAvatar(me.display_name, { size: 'xl' }),
-      h('div', { class: 'id-card__name' }, nameLine(me.display_name, me.gender === 'unspecified' ? null : me.gender)),
+      h('div', { class: 'id-card__name' }, nameLine(me.display_name, me.gender === 'unspecified' ? null : me.gender, '', me.verified)),
       idChip(me.public_id),
       h('p', { class: 'id-card__hint', text: me.has_custom_name
         ? 'يظهر اسمك في الأفكار والتعليقات والمحادثات المباشرة. في الرسائل العشوائية تبقى dzplay حتى تكشف هويتك.'
@@ -119,6 +121,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       me = await api.get('/api/profile');
       if (onMe) onMe(me);
       drawCard();
+      paintSupport(me.support_unread);
       statsBox.replaceChildren(
         stat(me.ideas.posts, 'منشورات'),
         stat(me.ideas.likes, 'إعجاب'),
@@ -200,6 +203,8 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     searchBox(navigate),
     h('ul', { class: 'menu glass' },
       isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
+      item('verified', 'النجمة الزرقاء (التوثيق)', () => navigate('#/verify')),
+      item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,
       item('block', 'المحظورون', blockedSheet),

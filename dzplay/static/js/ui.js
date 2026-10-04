@@ -59,8 +59,14 @@ export function genderMark(gender) {
 }
 
 /** A display name as plain text (dir="auto": Arabic or Latin) + gender icon. */
-export function nameLine(name, gender, cls = '') {
-  return h('span', { class: `name-line ${cls}` }, h('bdi', { class: 'name-line__text', text: name || 'dzplay' }), genderMark(gender));
+export function nameLine(name, gender, cls = '', verified = false) {
+  return h('span', { class: `name-line ${cls}` }, h('bdi', { class: 'name-line__text', text: name || 'dzplay' }),
+    verified ? starMark() : null, genderMark(gender));
+}
+
+/** V5: the blue star (an official, trusted account — not an identity check). */
+export function starMark() {
+  return h('span', { class: 'star-mark', title: 'حساب موثّق' }, icon('verified'), h('span', { class: 'sr-only', text: 'حساب موثّق' }));
 }
 
 export async function copyText(text, done = 'نُسخ.') {

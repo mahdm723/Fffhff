@@ -20,7 +20,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api import account as account_api
 from app.api import admin as admin_api
+from app.api import admin_v5 as admin_v5_api
 from app.api import auth as auth_api
 from app.api import calls as calls_api
 from app.api import download as download_api
@@ -283,8 +285,10 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(reels_api.router)
     app.include_router(telegram_api.router)
     app.include_router(uploads_api.router)
+    app.include_router(account_api.router)
     if settings.admin_enabled:
         app.include_router(admin_api.router, prefix=admin_prefix)
+        app.include_router(admin_v5_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)
 
     @app.get("/.well-known/assetlinks.json", include_in_schema=False)

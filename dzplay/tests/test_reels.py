@@ -408,7 +408,7 @@ def test_reel_comments_are_public_paginated_deletable_reportable(make_harness):
     first = c.get(f"/api/reels/{rid}/comments").json()  # a third user sees everyone's comments
     assert [x["content"] for x in first["comments"]] == ["تعليق عام 3", "تعليق عام 2", "تعليق عام 1"]
     assert first["total"] == 4 and first["next_cursor"]
-    assert all(x["author"] == {"name": "dzplay", "official": False, "gender": None} and x["mine"] is False for x in first["comments"])
+    assert all(x["author"] == {"name": "dzplay", "official": False, "gender": None, "verified": False} and x["mine"] is False for x in first["comments"])
     more = c.get(f"/api/reels/{rid}/comments", params={"cursor": first["next_cursor"]}).json()
     assert [x["content"] for x in more["comments"]] == ["تعليق عام 0"] and more["next_cursor"] is None
     assert "@example.com" not in str(first) and "author_id" not in str(first)

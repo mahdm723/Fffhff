@@ -102,6 +102,11 @@ class User(Base):
     # New Google accounts: gender + 18+ must be completed before messaging (old accounts stay NULL).
     onboarding_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
+    # --- V5: blue star ("official, trusted account" — NOT identity verification). Written ONLY by admin
+    # services (app.services.verification.grant / revoke): no user endpoint accepts these fields.
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    verified_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
 
 class NameHistory(Base):
     """Previous display names (shown in the admin panel only)."""
@@ -553,6 +558,60 @@ class MediaCacheEntry(Base):
     size: Mapped[int] = mapped_column(BigInteger, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     last_access: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+
+
+class SupportTicket(Base):
+    """V5 support ticket. Its number (id) is shown to the user (#1024) and in the e-mail subject."""
+
+    __tablename__ = "support_tickets"
+    __table_args__ = (Index("ix_ticket_user_time", "user_id", "updated_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    category: Mapped[str] = mapped_column(String(16))  # technical|account|verification|payment|report|suggestion|other
+    subject: Mapped[str] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(10), default="open", index=True)  # open|answered|closed
+    user_unread: Mapped[bool] = mapped_column(Boolean, default=False)  # a reply the user has not seen yet
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+    __table_args__ = (Index("ix_support_msg_ticket", "ticket_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("support_tickets.id", ondelete="CASCADE"))
+    author: Mapped[str] = mapped_column(String(8))  # user|support
+    admin: Mapped[str | None] = mapped_column(String(80), nullable=True)  # who answered (panel only)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class VerificationRequest(Base):
+    """V5 blue-star request with its (manual, crypto) payment. No personal data is asked."""
+
+    __tablename__ = "verification_requests"
+    __table_args__ = (Index("ux_verif_txid", "txid", unique=True),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    account_type: Mapped[str] = mapped_column(String(12))  # writer|creator|page|other
+    description: Mapped[str] = mapped_column(Text)
+    reason: Mapped[str] = mapped_column(Text)
+    amount: Mapped[str] = mapped_column(String(32))  # decimal as text, e.g. "5.00"
+    currency: Mapped[str] = mapped_column(String(16))
+    network: Mapped[str] = mapped_column(String(16))
+    wallet: Mapped[str] = mapped_column(String(128))  # the address shown when the user paid
+    txid: Mapped[str] = mapped_column(String(160))  # unique across all requests (one payment = one request)
+    status: Mapped[str] = mapped_column(String(10), default="pending", index=True)  # pending|accepted|rejected|needs_fix
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)  # reason for rejection / what to fix
+    stats: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON snapshot of the conditions at submission
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class MediaItem(Base):

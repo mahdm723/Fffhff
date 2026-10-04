@@ -48,7 +48,7 @@ export function renderUser(page, { ref, publicId, navigate }) {
     }
     card.replaceChildren(...[
       personAvatar(p.name, { size: 'xl' }),
-      h('div', { class: 'id-card__name' }, nameLine(p.name, p.gender)),
+      h('div', { class: 'id-card__name' }, nameLine(p.name, p.gender, '', p.verified)),
       idChip(p.public_id),
       msgBtn ? h('div', { class: 'id-card__actions' }, msgBtn) : null,
     ].filter(Boolean));

@@ -26,7 +26,7 @@ def test_official_comment_on_reel_is_public_with_badge(hx):
     for viewer in (hx.user(), hx.user()):
         c = viewer.get(f"/api/reels/{rid}/comments").json()["comments"][0]
         assert c["content"] == "أهلًا بكم في DZPLAY 👋"
-        assert c["author"] == {"name": "DZPLAY الرسمي", "official": True, "gender": None} and c["mine"] is False
+        assert c["author"] == {"name": "DZPLAY الرسمي", "official": True, "gender": None, "verified": False} and c["mine"] is False
     with hx.db() as db:
         official = db.scalars(select(User).where(User.is_official.is_(True))).all()
         assert len(official) == 1 and official[0].password_hash is None and official[0].google_sub is None

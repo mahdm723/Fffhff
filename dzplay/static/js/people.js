@@ -64,7 +64,7 @@ export async function messagePerson(publicId, navigate, known = null) {
       }
     });
     panel.append(
-      h('div', { class: 'peer-info peer-info--row' }, personAvatar(card.name, { size: 'sm' }), h('div', {}, nameLine(card.name, card.gender), h('small', { dir: 'ltr', text: card.public_id }))),
+      h('div', { class: 'peer-info peer-info--row' }, personAvatar(card.name, { size: 'sm' }), h('div', {}, nameLine(card.name, card.gender, '', card.verified), h('small', { dir: 'ltr', text: card.public_id }))),
       h('p', { text: 'ستصله رسالتك كطلب مراسلة. لا تستطيع إرسال أكثر من بضع رسائل حتى يقبل أو يرد.' }),
       h('div', { class: 'field' }, text),
       h('div', { class: 'actions' }, go),
@@ -89,7 +89,7 @@ export function searchBox(navigate) {
   function row(p) {
     return h('li', { class: 'person' },
       personAvatar(p.name),
-      h('div', { class: 'person__body' }, nameLine(p.name, p.gender, 'person__name'), h('small', { class: 'person__id', dir: 'ltr', text: p.public_id })),
+      h('div', { class: 'person__body' }, nameLine(p.name, p.gender, 'person__name', p.verified), h('small', { class: 'person__id', dir: 'ltr', text: p.public_id })),
       h('div', { class: 'person__actions' },
         h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => messagePerson(p.public_id, navigate) }, 'مراسلة'),
         h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => navigate(p.profile_ref ? `#/u/${p.profile_ref}` : `#/id/${p.public_id}`) }, 'عرض الملف'),

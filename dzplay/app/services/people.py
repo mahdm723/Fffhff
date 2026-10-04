@@ -30,7 +30,7 @@ def _like(q: str) -> str:
 
 def card(db: Session, u: User) -> dict:
     return {"name": names.shown_name(u), "public_id": u.public_id, "gender": names.public_gender(u),
-            "profile_ref": ideas.profile_ref_for(db, u.id)}
+            "profile_ref": ideas.profile_ref_for(db, u.id), "verified": u.verified_at is not None}
 
 
 def check_lookup(settings: Settings, limiter, viewer: User) -> None:

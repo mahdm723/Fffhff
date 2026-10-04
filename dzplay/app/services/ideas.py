@@ -103,7 +103,8 @@ def _author_view(u: User | None) -> dict:
     from app.services import names
 
     return {"name": names.shown_name(u) if u is not None else PEER_NAME,
-            "gender": names.public_gender(u) if u is not None else None}
+            "gender": names.public_gender(u) if u is not None else None,
+            "verified": bool(u is not None and u.verified_at is not None)}
 
 
 def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | None, author: User | None = None,
@@ -520,6 +521,7 @@ def public_profile(db: Session, viewer: User, ref: str) -> dict:
         "name": names.shown_name(owner),
         "gender": names.public_gender(owner),
         "public_id": owner.public_id,
+        "verified": owner.verified_at is not None,
         "is_me": owner.id == viewer.id,
         "stats": idea_stats(db, owner.id),  # public stats only — never messaging stats or personal data
     }
@@ -548,4 +550,7 @@ def own_profile(db: Session, user: User, settings=None) -> dict:
     data["ref"] = profile_ref_for(db, user.id)
     data["ideas"] = idea_stats(db, user.id)
     data["unseen_comments"] = unseen_comments(db, user.id)
+    from app.services.support import unread_count
+
+    data["support_unread"] = unread_count(db, user.id)  # V5: support replies not read yet
     return data

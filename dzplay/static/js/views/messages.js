@@ -53,7 +53,7 @@ export function renderMessages(page, { config, navigate }) {
         personAvatar(c.peer, { anonymous: anon, active: !!card.active }),
         h('div', { class: 'conv-item__body' },
           h('div', { class: 'conv-item__top' },
-            nameLine(c.peer, card.gender, 'conv-item__name'),
+            nameLine(c.peer, card.gender, 'conv-item__name', card.verified),
             c.kind !== 'direct' ? h('span', { class: 'conv-item__kind', title: 'محادثة مجهولة' }, icon('mask'), 'مجهول') : null,
             c.muted ? h('span', { class: 'conv-item__muted', title: 'مكتومة' }, icon('bellOff')) : null,
             h('span', { class: 'conv-item__time', text: formatListTime(c.last_message_at) }),

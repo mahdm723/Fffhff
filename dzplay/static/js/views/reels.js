@@ -257,7 +257,7 @@ async function react(reel, type, paint) {
 // ------------------------------------------------------------------ public comments
 
 function authorLine(c) {
-  const name = h('b', { class: 'rc-name' }, nameLine(c.author.name, c.author.gender));
+  const name = h('b', { class: 'rc-name' }, nameLine(c.author.name, c.author.gender, '', c.author.verified));
   return c.author.official
     ? h('span', { class: 'rc-author' }, name, h('span', { class: 'official-badge' }, icon('verified'), 'رسمي'))
     : h('span', { class: 'rc-author' }, name);

@@ -124,10 +124,12 @@ def peer_card(c: Conversation, viewer_id: str, peer: User | None) -> dict:
     shown = c.is_direct or c.revealed(peer_id)
     if peer is None or not shown:
         return {"name": names.default_name(), "public_id": None, "gender": None, "profile_ref": None, "anonymous": True,
-                "active": False}
+                "active": False, "verified": False}
     active = peer.last_active_at is not None and clock.utcnow() - peer.last_active_at < PRESENCE_WINDOW
+    # V5: the blue star is shown in direct chats only, never in anonymous ones (even after a reveal)
     return {"name": names.shown_name(peer), "public_id": peer.public_id, "gender": names.public_gender(peer),
-            "profile_ref": None, "anonymous": False, "active": bool(active)}
+            "profile_ref": None, "anonymous": False, "active": bool(active),
+            "verified": bool(c.is_direct and peer.verified_at is not None)}
 
 
 def _request_view(c: Conversation, viewer_id: str) -> dict | None:
@@ -222,6 +224,9 @@ def _check_limits(limiter, limits: list[Limit]) -> None:
         "comment_hour": "وصلت إلى الحد الأقصى للتعليقات في الساعة.",
         "react": "تفاعلات كثيرة بسرعة. انتظر قليلًا.",
         "upload_hour": "رفعت ملفات كثيرة خلال ساعة. حاول لاحقًا.",
+        "support_day": "فتحت تذاكر كثيرة اليوم. أضف ردك إلى تذكرة مفتوحة أو عُد غدًا.",
+        "support_hour": "أرسلت رسائل كثيرة إلى الدعم. حاول بعد قليل.",
+        "verify": "محاولات كثيرة. حاول لاحقًا.",
     }
     kind = (decision.key or "").split(":", 1)[0]
     raise rate_limited(decision.retry_after, messages.get(kind, "محاولات كثيرة. حاول لاحقًا."))
@@ -642,6 +647,7 @@ def profile(user: User, settings: Settings | None = None) -> dict:
         "needs_gender": user.gender_asked_at is None,
         "needs_onboarding": bool(user.onboarding_required),
         "age_confirmed": user.age_confirmed_at is not None,
+        "verified": user.verified_at is not None,
         "privacy": privacy_view(user),
         "status": user.status,
         "stats": {
@@ -739,7 +745,7 @@ def person_card(db: Session, viewer: User, public_id: object) -> dict:
     visible = conv is not None and not conv.hidden_for(viewer.id)
     return {"name": names.shown_name(target), "public_id": target.public_id, "gender": names.public_gender(target),
             "profile_ref": ideas.profile_ref_for(db, target.id), "can_message": can_message,
-            "conversation_id": conv.id if visible else None}
+            "conversation_id": conv.id if visible else None, "verified": target.verified_at is not None}
 
 
 def send_direct(db: Session, settings: Settings, limiter, user: User, public_id: object, *, content: object,

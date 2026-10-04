@@ -74,6 +74,17 @@ def send_reset_code(settings: Settings, to_email: str, code: str) -> None:
     _deliver(settings, msg)
 
 
+def send_text(settings: Settings, to_email: str, subject: str, text: str, reply_to: str | None = None) -> None:
+    """A plain-text notification (V5: support tickets, verification, earnings)."""
+    if not settings.smtp_enabled:
+        raise MailError("SMTP is not configured")
+    msg = _message(settings, to_email, subject[:200])
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.set_content(text)
+    _deliver(settings, msg)
+
+
 def send_test(settings: Settings, to_email: str) -> None:
     """A short message to check the SMTP settings from the admin panel."""
     if not settings.smtp_enabled:

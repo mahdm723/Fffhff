@@ -42,6 +42,8 @@ GROUPS = {
     "chat": "الرسائل وصور المحادثة",
     "moderation": "الإشراف والبلاغات",
     "telegram": "قنوات Telegram",
+    "support": "الدعم",
+    "verify": "التوثيق (النجمة الزرقاء)",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -86,6 +88,15 @@ REGISTRY: list[Tunable] = [
     Tunable("REPORT_AUTO_HIDE_THRESHOLD", "int", "moderation", "عدد المبلّغين لإخفاء المحتوى تلقائيًا (0 = معطل)", 0, 100),
     Tunable("REPORT_AUTO_SUSPEND_THRESHOLD", "int", "moderation", "عدد المبلّغين لإيقاف الحساب تلقائيًا (0 = معطل)", 0, 100),
     Tunable("MAX_REPORTS_PER_HOUR", "int", "moderation", "بلاغات في الساعة لكل مستخدم", 1, 200),
+    # support + verification
+    Tunable("SUPPORT_TICKETS_PER_DAY", "int", "support", "تذاكر جديدة في اليوم لكل مستخدم", 1, 50),
+    Tunable("SUPPORT_MESSAGES_PER_HOUR", "int", "support", "رسائل الدعم في الساعة لكل مستخدم", 1, 200),
+    Tunable("SUPPORT_MAX_LENGTH", "int", "support", "أقصى طول لرسالة الدعم (حرف)", 200, 10000),
+    Tunable("VERIFY_ENABLED", "bool", "verify", "استقبال طلبات التوثيق"),
+    Tunable("VERIFY_MIN_POSTS", "int", "verify", "أقل عدد من الأفكار المنشورة", 0, 10000),
+    Tunable("VERIFY_MIN_LIKES", "int", "verify", "أقل عدد من الإعجابات", 0, 1000000),
+    Tunable("VERIFY_MIN_ACCOUNT_AGE_DAYS", "int", "verify", "أقل عمر للحساب (يوم)", 0, 3650),
+    Tunable("PAYMENT_MIN_AMOUNT", "float", "verify", "أقل مبلغ للدفع (0 = أي مبلغ)", 0, 1000000),
     Tunable("MEDIA_EVIDENCE_RETENTION_DAYS", "int", "moderation", "مدة الاحتفاظ بالوسائط المبلّغ عنها (يوم)", 7, 3650),
 ]
 _BY_KEY = {t.key: t for t in REGISTRY}

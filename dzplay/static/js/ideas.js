@@ -33,7 +33,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   },
   personAvatar(state.author.name, { size: 'sm' }),
   h('span', { class: 'post-card__who' },
-    nameLine(state.author.name, state.author.gender, 'post-card__name'),
+    nameLine(state.author.name, state.author.gender, 'post-card__name', state.author.verified),
     h('span', { class: 'post-card__time', text: formatListTime(state.created_at) }),
   ));
   const moreBtn = h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'خيارات المنشور' }, icon('more'));
@@ -63,8 +63,9 @@ export function postCard(post, { navigate, onRemoved } = {}) {
     likeBtn.disabled = dislikeBtn.disabled = !state.can_react;
     if (state.mine) {
       const c = state.comments || { count: 0, unseen: 0 };
-      commentBtn.replaceChildren(icon('comment'), h('span', { text: 'التعليقات' }),
-        c.count ? h('span', { class: `chip ${c.unseen ? 'chip--hot' : ''}`, text: c.unseen ? `${c.unseen} جديد` : String(c.count) }) : null);
+      commentBtn.replaceChildren(...[icon('comment'), h('span', { text: 'التعليقات' }),
+        c.count ? h('span', { class: `chip ${c.unseen ? 'chip--hot' : ''}`, text: c.unseen ? `${c.unseen} جديد` : String(c.count) }) : null]
+        .filter(Boolean)); // replaceChildren would print "null"
       commentBtn.setAttribute('aria-label', `التعليقات على منشورك${c.count ? `: ${c.count}` : ''}`);
     } else {
       commentBtn.replaceChildren(icon('comment'), h('span', { text: 'تعليق خاص' }));

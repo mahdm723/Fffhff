@@ -41,7 +41,7 @@ def test_search_by_id_and_by_name_with_arabic_normalization(hx):
     assert me.get("/api/people/search", params={"q": "dzplay"}).json()["results"] == []
     # nothing internal leaks
     res = me.get("/api/people/search", params={"q": "احمد"}).json()["results"][0]
-    assert set(res) == {"name", "public_id", "gender", "profile_ref"} and pid(a) == res["public_id"]
+    assert set(res) == {"name", "public_id", "gender", "profile_ref", "verified"} and pid(a) == res["public_id"]
     assert me.get("/api/people/search", params={"q": "a"}).status_code == 400  # 2 letters minimum
 
 

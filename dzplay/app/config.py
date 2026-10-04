@@ -309,6 +309,19 @@ class Settings(BaseSettings):
     MEDIA_EVIDENCE_RETENTION_DAYS: int = 180  # reported / illegal media kept (Telegram) for review, then deleted
     MEDIA_TICK_SECONDS: int = 5  # expiry of chat pictures (0 = off; tests call media_items.tick)
 
+    # --- V5: support tickets ----------------------------------------------------------
+    SUPPORT_INBOX_EMAIL: str = ""  # tickets are e-mailed here (subject has the ticket number, Reply-To = the user)
+    SUPPORT_TICKETS_PER_DAY: int = 3
+    SUPPORT_MESSAGES_PER_HOUR: int = 10
+    SUPPORT_MAX_LENGTH: int = 3000
+
+    # --- V5: blue star (official trusted account; NOT identity verification) -------------
+    VERIFY_ENABLED: bool = True
+    VERIFY_MIN_POSTS: int = 5
+    VERIFY_MIN_LIKES: int = 20
+    VERIFY_MIN_ACCOUNT_AGE_DAYS: int = 14
+    PAYMENT_MIN_AMOUNT: float = 0.0  # 0 = any amount (the wallet itself is set from the panel)
+
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
     MODERATION_EXTRA_WORDS: str = ""  # extra words/phrases, comma separated ("word*" = starts with)

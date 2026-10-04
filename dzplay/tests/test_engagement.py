@@ -161,7 +161,7 @@ def test_manual_library_comments_on_reels_public_no_duplicates(hx):
     viewer = hx.user()
     comments = viewer.get(f"/api/reels/{rid}/comments").json()["comments"]
     assert {c["content"] for c in comments} == {"رائع جدًا", "استمروا"}
-    assert all(c["author"] == {"name": "dzplay", "official": False, "gender": None} for c in comments)  # default appearance
+    assert all(c["author"] == {"name": "dzplay", "official": False, "gender": None, "verified": False} for c in comments)  # default appearance
     usage = {i["text"]: i["usage_count"] for i in admin.get("/api/admin/library").json()["items"]}
     assert usage["رائع جدًا"] == 1
     # the panel knows which ones came from the team

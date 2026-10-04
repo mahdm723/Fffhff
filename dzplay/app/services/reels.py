@@ -342,7 +342,8 @@ def serialize_comment(c: ReelComment, viewer_id: str | None, official: set[str],
     return {
         "id": c.id, "content": c.content, "created_at": iso(c.created_at),
         "author": {"name": name, "official": is_official,
-                   "gender": None if is_official or author is None else names.public_gender(author)},
+                   "gender": None if is_official or author is None else names.public_gender(author),
+                   "verified": bool(not is_official and author is not None and author.verified_at is not None)},
         "mine": c.author_id == viewer_id,
     }
 
