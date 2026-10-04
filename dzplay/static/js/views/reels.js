@@ -109,8 +109,15 @@ export function renderReels(pane, { config }) {
       requestAnimationFrame(() => { more.hidden = text.scrollHeight <= text.clientHeight + 2; });
     }
 
-    el.append(stage, h('div', { class: 'reel__shade', 'aria-hidden': 'true' }), feedback,
-      h('div', { class: 'reel__side' }, likeBtn, dislikeBtn, commentBtn, muteBtn), cap);
+    // V5: a creator reel published with the name: name + star, linked to the profile
+    const author = reel.author ? h('button', { class: 'reel__author', type: 'button', 'aria-label': `ملف ${reel.author.name}`,
+      onclick: (e) => { e.stopPropagation(); location.hash = `#/u/${reel.author.ref}`; } },
+    nameLine(reel.author.name, reel.author.gender, '', reel.author.verified)) : null;
+    const reportBtn = reel.reportable ? h('button', { class: 'reel__act reel__act--mute', type: 'button', 'aria-label': 'إبلاغ',
+      onclick: (e) => { e.stopPropagation(); reportReel(reel); } }, icon('flag')) : null;
+    const bottom = author || cap ? h('div', { class: 'reel__bottom' }, ...[author, cap].filter(Boolean)) : null;
+    el.append(...[stage, h('div', { class: 'reel__shade', 'aria-hidden': 'true' }), feedback,
+      h('div', { class: 'reel__side' }, ...[likeBtn, dislikeBtn, commentBtn, muteBtn, reportBtn].filter(Boolean)), bottom].filter(Boolean));
     paint();
 
     const setSrc = (on) => {
@@ -255,6 +262,23 @@ async function react(reel, type, paint) {
 }
 
 // ------------------------------------------------------------------ public comments
+
+function reportReel(reel) {
+  sheet((panel, close) => {
+    const choices = REPORT_REASONS.map(([value, label], i) =>
+      h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'reel-reason', value, checked: i === 0 }), h('span', { text: label })));
+    const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'إرسال البلاغ');
+    submit.addEventListener('click', async () => {
+      submit.disabled = true;
+      try {
+        await api.post(`/api/reels/${encodeURIComponent(reel.id)}/report`, { reason: panel.querySelector('input[name="reel-reason"]:checked').value });
+        close();
+        toast('شكرًا لك. سيراجع الفريق هذا الفيديو.');
+      } catch (err) { toast(err.message, 'error'); submit.disabled = false; }
+    });
+    panel.append(h('h2', { text: 'الإبلاغ عن فيديو' }), ...choices, h('div', { class: 'actions' }, submit));
+  });
+}
 
 function authorLine(c) {
   const name = h('b', { class: 'rc-name' }, nameLine(c.author.name, c.author.gender, '', c.author.verified));

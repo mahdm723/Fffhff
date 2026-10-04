@@ -322,6 +322,23 @@ class Settings(BaseSettings):
     VERIFY_MIN_ACCOUNT_AGE_DAYS: int = 14
     PAYMENT_MIN_AMOUNT: float = 0.0  # 0 = any amount (the wallet itself is set from the panel)
 
+    # --- V5: creator reels (studio, verified accounts only) --------------------------
+    CREATOR_REELS_ENABLED: bool = True
+    CREATOR_REEL_LIMIT_PER_24H: int = 1
+    REJECTED_COUNTS_TOWARD_LIMIT: bool = True
+    REELS_REQUIRE_APPROVAL: bool = True
+    CREATOR_REEL_MIN_SECONDS: int = 3
+    CREATOR_REEL_MAX_SECONDS: int = 90  # with TELEGRAM_STORE_MAX_MB=18 → ~1.5 Mbit/s at 720p
+    CREATOR_REEL_MAX_MB: float = 150.0  # raw upload from the phone (the server re-encodes to <= 18 MB)
+    CREATOR_UPLOAD_CHAT_TTL: int = 7 * DAY  # a video leaves the studio window after this (the reel stays)
+
+    # --- V5: monetization + «أموالي» ---------------------------------------------------
+    MONETIZE_ENABLED: bool = True
+    MONETIZE_MIN_REELS: int = 3  # published studio reels
+    MONETIZE_MIN_LIKES: int = 100  # likes on those reels
+    EARNINGS_CURRENCY: str = "USDT"
+    EMAIL_CODE_TTL: int = 30 * 60
+
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
     MODERATION_EXTRA_WORDS: str = ""  # extra words/phrases, comma separated ("word*" = starts with)

@@ -7,9 +7,9 @@ from typing import Any
 from fastapi import APIRouter, Request
 from pydantic import Field
 
-from app.api.deps import current_user, get_state
-from app.api.schemas import _Body
-from app.services import support, verification
+from app.api.deps import current_user, get_state, session_token
+from app.api.schemas import ReportBody, _Body
+from app.services import creator_reels, monetization, support, verification
 from app.services.messaging import Effects
 
 router = APIRouter(prefix="/api", tags=["account"])
@@ -105,3 +105,137 @@ def verification_fix(request_id: str, body: VerifyBody, request: Request) -> dic
         result = verification.resubmit(db, st.settings, user, request_id, body.model_dump(), effects)
     st.dispatch(effects)
     return result
+
+
+# ----------------------------------------------------------------- studio (verified creators)
+
+
+class StudioBody(_Body):
+    media_id: str = Field(max_length=40)
+    caption: str | None = Field(default=None, max_length=5000)
+    show_author: bool = False
+    show_on_profile: bool = False
+
+
+class StudioUpdateBody(_Body):
+    show_author: bool | None = None
+    show_on_profile: bool | None = None
+
+
+def _skey(request: Request) -> str:
+    from app.services.reels import session_key
+
+    return session_key(session_token(request))
+
+
+@router.get("/studio")
+def studio(request: Request, all: bool = False) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        user = current_user(request, db)
+        creator_reels.require_creator(st.settings, user)
+        return creator_reels.my_reels(db, st.settings, user, _skey(request), studio_only=not all)
+
+
+@router.post("/studio/reels", status_code=201)
+def studio_submit(body: StudioBody, request: Request) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = current_user(request, db)
+        result = creator_reels.submit(db, st.settings, user, media_id=body.media_id, caption=body.caption,
+                                      show_author=body.show_author, show_on_profile=body.show_on_profile,
+                                      effects=effects, skey=_skey(request))
+    st.dispatch(effects)
+    return result
+
+
+@router.patch("/studio/reels/{reel_id}")
+def studio_update(reel_id: str, body: StudioUpdateBody, request: Request) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        user = current_user(request, db)
+        return creator_reels.update(db, st.settings, user, reel_id, body.model_dump(exclude_none=True), _skey(request))
+
+
+@router.delete("/studio/reels/{reel_id}")
+def studio_delete(reel_id: str, request: Request) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        creator_reels.delete(db, st.media, current_user(request, db), reel_id, effects)
+    st.dispatch(effects)
+    return {"ok": True}
+
+
+@router.post("/reels/{reel_id}/report", status_code=201)
+def report_reel(reel_id: str, body: ReportBody, request: Request) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = current_user(request, db)
+        result = creator_reels.report(db, st.settings, st.limiter, user, reel_id, reason=body.reason,
+                                      details=body.details, effects=effects)
+    st.dispatch(effects)
+    return result
+
+
+@router.get("/profiles/{ref}/reels")
+def profile_reels(ref: str, request: Request) -> dict:
+    """Named creator reels the owner chose to list on their profile (never the ones without the name)."""
+    from app.services.ideas import _user_by_ref
+
+    st = get_state(request)
+    with st.database.session() as db:
+        current_user(request, db)
+        owner = _user_by_ref(db, ref)
+        return {"reels": creator_reels.profile_reels(db, st.settings, owner.id, _skey(request))}
+
+
+# ----------------------------------------------------------------- monetization + «أموالي»
+
+
+class EmailCodeBody(_Body):
+    email: str = Field(max_length=320)
+
+
+class MonetizeBody(_Body):
+    content_type: str = Field(max_length=1000)
+    payout_email: str | None = Field(default=None, max_length=320)
+    code: str | None = Field(default=None, max_length=12)
+    terms: bool = False
+
+
+@router.get("/monetization")
+def monetization_overview(request: Request) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        return monetization.overview(db, st.settings, current_user(request, db))
+
+
+@router.post("/monetization/email-code")
+def monetization_code(body: EmailCodeBody, request: Request) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = monetization.send_email_code(db, st.settings, st.limiter, current_user(request, db), body.email, effects)
+    st.dispatch(effects)
+    return result
+
+
+@router.post("/monetization", status_code=201)
+def monetization_apply(body: MonetizeBody, request: Request) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = monetization.apply(db, st.settings, current_user(request, db), body.model_dump(), effects)
+    st.dispatch(effects)
+    return result
+
+
+@router.get("/money")
+def my_money(request: Request) -> dict:
+    """Read-only: no endpoint lets a user write to the ledger."""
+    st = get_state(request)
+    with st.database.session() as db:
+        return monetization.my_money(db, st.settings, current_user(request, db))

@@ -196,7 +196,8 @@ def _decode_cursor(cursor: str) -> dict:
         raise AppError(400, "invalid_cursor", "طلب غير صالح.") from None
 
 
-def serialize(settings: Settings, reel: Reel, assets: list[ReelAsset], my_reaction: str | None, skey: str) -> dict:
+def serialize(settings: Settings, reel: Reel, assets: list[ReelAsset], my_reaction: str | None, skey: str,
+              author: dict | None = None) -> dict:
     media = []
     for a in assets:
         item = {"type": a.kind, "width": a.width, "height": a.height}
@@ -212,6 +213,9 @@ def serialize(settings: Settings, reel: Reel, assets: list[ReelAsset], my_reacti
         "likes": shown(reel.likes_count, reel.boost_likes), "dislikes": shown(reel.dislikes_count, reel.boost_dislikes),
         "comments": reel.comments_count,
         "my_reaction": my_reaction, "created_at": iso(reel.created_at),
+        # V5: a creator reel published with the name shows it (+ star, profile link); otherwise None
+        "author": author,
+        "reportable": bool(reel.owner_id),  # creator reels can be reported (platform content: via support)
     }
 
 
@@ -237,7 +241,10 @@ def feed(db: Session, settings: Settings, user: User, skey: str, cursor: str | N
             assets.setdefault(a.reel_id, []).append(a)
     mine = dict(db.execute(select(ReelReaction.reel_id, ReelReaction.reaction).where(
         ReelReaction.user_id == user.id, ReelReaction.reel_id.in_(page_ids))).all()) if page_ids else {}
-    items = [serialize(settings, reels[i], assets.get(i, []), mine.get(i), skey) for i in page_ids if i in reels]
+    from app.services.creator_reels import author_of
+
+    authors = author_of(db, list(reels.values()))
+    items = [serialize(settings, reels[i], assets.get(i, []), mine.get(i), skey, authors.get(i)) for i in page_ids if i in reels]
     next_offset = offset + limit
     return {
         "reels": items,

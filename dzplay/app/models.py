@@ -489,6 +489,13 @@ class Reel(Base):
     views_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    # --- V5: creator reels (studio). owner NULL = platform content (Telegram / admins), unchanged.
+    owner_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    source: Mapped[str | None] = mapped_column(String(10), nullable=True)  # None/telegram | studio
+    show_author: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # name + star shown, linked to the profile
+    show_on_profile: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # only possible with show_author
+    review_status: Mapped[str | None] = mapped_column(String(10), nullable=True)  # pending|approved|rejected|removed
+    review_note: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class ReelAsset(Base):
@@ -612,6 +619,61 @@ class VerificationRequest(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
     tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+
+class EmailCode(Base):
+    """V5: one-time code proving a user owns an extra e-mail address (payout e-mail)."""
+
+    __tablename__ = "email_codes"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    purpose: Mapped[str] = mapped_column(String(16))  # payout
+    email: Mapped[str] = mapped_column(String(254))
+    code_hash: Mapped[str] = mapped_column(String(64))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class MonetizationApplication(Base):
+    """V5: a verified creator asks to earn from their reels. Reviewed by the admins."""
+
+    __tablename__ = "monetization_applications"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    content_type: Mapped[str] = mapped_column(String(200))
+    payout_email: Mapped[str] = mapped_column(String(254))  # where Red Packet payouts are sent
+    status: Mapped[str] = mapped_column(String(10), default="pending", index=True)  # pending|accepted|rejected|needs_fix
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stats: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+
+class LedgerEntry(Base):
+    """V5 «أموالي»: an IMMUTABLE ledger. Balance = sum(amount). Nothing is ever updated or deleted;
+    a mistake is corrected by a reversal entry (amount = -original, reverses_id = original)."""
+
+    __tablename__ = "ledger_entries"
+    __table_args__ = (Index("ix_ledger_user_time", "user_id", "created_at"),
+                      Index("ux_ledger_reverses", "reverses_id", unique=True))
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(12))  # earning|payout|adjustment|reversal
+    amount_minor: Mapped[int] = mapped_column(BigInteger)  # cents; earnings > 0, payouts < 0
+    currency: Mapped[str] = mapped_column(String(12))
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    paid_on: Mapped[str | None] = mapped_column(String(10), nullable=True)  # payouts: YYYY-MM-DD of the Red Packet
+    reverses_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
 class MediaItem(Base):

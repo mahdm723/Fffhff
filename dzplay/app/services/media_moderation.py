@@ -164,6 +164,10 @@ def act(db: Session, settings: Settings, item: MediaItem, action: str, actor: st
         item.hidden, item.legal_hold = False, False
         if post is not None and post.status == "hidden":
             post.status = "visible"
+        if reel is not None and reel.review_status == "pending" and item.state == "attached":
+            from app.services import creator_reels
+
+            creator_reels.approve(db, settings, reel, actor, effects)
         if item.state in ("removed", "expired") and item.tg_message_id:
             effects.later(delete_from_storage, item.id)  # no longer needed as evidence
         db.execute(Report.__table__.update().where(Report.media_id == item.id, Report.status == "open")

@@ -44,6 +44,7 @@ GROUPS = {
     "telegram": "قنوات Telegram",
     "support": "الدعم",
     "verify": "التوثيق (النجمة الزرقاء)",
+    "creators": "صنّاع المحتوى والأرباح",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -97,6 +98,18 @@ REGISTRY: list[Tunable] = [
     Tunable("VERIFY_MIN_LIKES", "int", "verify", "أقل عدد من الإعجابات", 0, 1000000),
     Tunable("VERIFY_MIN_ACCOUNT_AGE_DAYS", "int", "verify", "أقل عمر للحساب (يوم)", 0, 3650),
     Tunable("PAYMENT_MIN_AMOUNT", "float", "verify", "أقل مبلغ للدفع (0 = أي مبلغ)", 0, 1000000),
+    # creators + earnings
+    Tunable("CREATOR_REELS_ENABLED", "bool", "creators", "استوديو DZPLAY مفتوح للموثّقين"),
+    Tunable("CREATOR_REEL_LIMIT_PER_24H", "int", "creators", "فيديوهات لكل صانع في 24 ساعة", 0, 50),
+    Tunable("REJECTED_COUNTS_TOWARD_LIMIT", "bool", "creators", "الفيديو المرفوض يُحسب من الحد"),
+    Tunable("REELS_REQUIRE_APPROVAL", "bool", "creators", "فيديوهات الصنّاع تظهر بعد الموافقة"),
+    Tunable("CREATOR_REEL_MIN_SECONDS", "int", "creators", "أقصر مدة للفيديو (ثانية)", 1, 60),
+    Tunable("CREATOR_REEL_MAX_SECONDS", "int", "creators", "أطول مدة للفيديو (ثانية)", 5, 300),
+    Tunable("CREATOR_REEL_MAX_MB", "float", "creators", "أقصى حجم للفيديو المرفوع (MB)", 5, 200),
+    Tunable("CREATOR_UPLOAD_CHAT_TTL", "int", "creators", "بقاء الفيديو في نافذة الاستوديو (ثانية)", 3600, 90 * 86400),
+    Tunable("MONETIZE_ENABLED", "bool", "creators", "استقبال طلبات تحقيق الدخل"),
+    Tunable("MONETIZE_MIN_REELS", "int", "creators", "أقل عدد من الفيديوهات المنشورة لتحقيق الدخل", 0, 10000),
+    Tunable("MONETIZE_MIN_LIKES", "int", "creators", "أقل عدد من الإعجابات لتحقيق الدخل", 0, 10000000),
     Tunable("MEDIA_EVIDENCE_RETENTION_DAYS", "int", "moderation", "مدة الاحتفاظ بالوسائط المبلّغ عنها (يوم)", 7, 3650),
 ]
 _BY_KEY = {t.key: t for t in REGISTRY}

@@ -18,6 +18,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   const postsSlot = h('div');
   const notifSwitch = h('span', { class: 'switch', role: 'switch', 'aria-checked': 'false' });
   const supportBadge = h('span', { class: 'menu__end' }, icon('chev', 'chev'));
+  const creatorItems = h('li', { class: 'menu__group', hidden: true });
   const paintSupport = (n) => supportBadge.replaceChildren(...[n ? h('span', { class: 'chip chip--hot', text: 'رد جديد' }) : null, icon('chev', 'chev')].filter(Boolean));
 
   function stat(num, label) {
@@ -122,6 +123,13 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       if (onMe) onMe(me);
       drawCard();
       paintSupport(me.support_unread);
+      // V5: verified creators get the studio and the earnings page («أموالي» once monetization is accepted)
+      creatorItems.hidden = !me.verified;
+      creatorItems.replaceChildren(...(me.verified ? [
+        h('ul', { class: 'menu menu--inner' },
+          item('video', 'استوديو DZPLAY', () => navigate('#/studio')),
+          item('spark', me.monetized ? 'أموالي' : 'تحقيق الدخل', () => navigate('#/money'))),
+      ] : []));
       statsBox.replaceChildren(
         stat(me.ideas.posts, 'منشورات'),
         stat(me.ideas.likes, 'إعجاب'),
@@ -204,6 +212,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     h('ul', { class: 'menu glass' },
       isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
       item('verified', 'النجمة الزرقاء (التوثيق)', () => navigate('#/verify')),
+      creatorItems,
       item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,

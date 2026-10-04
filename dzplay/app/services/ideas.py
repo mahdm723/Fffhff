@@ -553,4 +553,7 @@ def own_profile(db: Session, user: User, settings=None) -> dict:
     from app.services.support import unread_count
 
     data["support_unread"] = unread_count(db, user.id)  # V5: support replies not read yet
+    from app.services.monetization import is_accepted
+
+    data["monetized"] = is_accepted(db, user)  # V5: «أموالي» is shown
     return data

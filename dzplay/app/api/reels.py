@@ -94,10 +94,11 @@ async def media(asset_id: str, variant: str, request: Request, e: int = Query(de
             user = current_user(request, db)  # the session must still be valid (not logged out / banned)
             asset = db.get(ReelAsset, asset_id)
             cache = "private, max-age=3600"
-            if asset is not None:
-                reel = db.get(Reel, asset.reel_id)
-                if reel is None or reel.status != "visible":
-                    raise not_found()
+            reel = db.get(Reel, asset.reel_id) if asset is not None else None
+            if asset is not None and reel is not None and reel.status == "visible":
+                pass
+            elif asset is not None and (reel is None or not reel.owner_id):
+                raise not_found()
             else:  # V5: a user's picture/video: allowed viewers only, and only while it may be seen
                 asset = db.get(MediaItem, asset_id)
                 cache = media_items.can_view(db, user, asset) if asset is not None else None

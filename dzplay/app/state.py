@@ -86,10 +86,11 @@ class AppState:
         self.telegram = TelegramClient(bot_settings, transport=self.telegram_transport)
         self.bot = BotService(bot_settings, self.database, self.telegram, self.media, self.limiter)
         password_reset.install(self.bot)
-        from app.services import media_moderation, verification
+        from app.services import media_moderation, monetization, verification
 
         media_moderation.install(self)
         verification.install(self)
+        monetization.install(self)
 
     def load_runtime_config(self) -> None:
         """Apply bot settings saved from the admin panel (they take precedence over .env)."""
