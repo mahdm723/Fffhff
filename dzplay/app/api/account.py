@@ -239,3 +239,29 @@ def my_money(request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
         return monetization.my_money(db, st.settings, current_user(request, db))
+
+
+# ----------------------------------------------------------------- «حذف حسابي»
+
+
+class DeleteAccountBody(_Body):
+    password: str | None = Field(default=None, max_length=512)
+    confirm: str | None = Field(default=None, max_length=40)
+
+
+@router.post("/me/delete")
+def delete_my_account(body: DeleteAccountBody, request: Request):
+    from fastapi.responses import JSONResponse
+
+    from app.api.deps import clear_session_cookie
+    from app.services import account_deletion
+
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = current_user(request, db)
+        account_deletion.delete_own(db, user, password=body.password, confirm=body.confirm, effects=effects, store=st.media)
+    st.dispatch(effects)
+    res = JSONResponse({"ok": True})
+    clear_session_cookie(res, request)
+    return res

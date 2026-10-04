@@ -228,13 +228,14 @@ def recount_reels(db: Session, reel_ids) -> None:
         db.execute(update(Reel).where(Reel.id == rid).values(likes_count=likes, dislikes_count=dislikes, comments_count=comments))
 
 
-def delete_account(db: Session, user_id: str) -> None:
+def delete_account(db: Session, user_id: str, effects=None, store=None) -> None:
     """Delete a user and everything they own; counters on other people's content are recomputed."""
     u = db.get(User, user_id[:32])
     if u is None:
         raise not_found()
     if u.is_official:
         raise AppError(400, "protected", "لا يمكن حذف الحساب الرسمي.")
+    _purge_v5(db, u, effects, store)
     posts_touched = set(db.execute(select(PostReaction.post_id).where(PostReaction.user_id == u.id)).scalars())
     posts_touched |= set(db.execute(select(Comment.post_id).where(Comment.author_id == u.id)).scalars())
     reels_touched = set(db.execute(select(ReelReaction.reel_id).where(ReelReaction.user_id == u.id)).scalars())
@@ -248,6 +249,22 @@ def delete_account(db: Session, user_id: str) -> None:
     own = set(db.execute(select(Post.id).where(Post.id.in_(posts_touched))).scalars())
     recount_posts(db, own)
     recount_reels(db, reels_touched)
+
+
+def _purge_v5(db: Session, u: User, effects, store) -> None:
+    """V5: the user's pictures/videos leave the cache and the Telegram storage channel (except copies kept
+    as evidence of a report, until MEDIA_EVIDENCE_RETENTION_DAYS); their creator reels are deleted."""
+    from app.models import MediaItem, Reel
+    from app.services import reels as reels_service
+    from app.services.media_items import discard
+
+    for item in db.execute(select(MediaItem).where(MediaItem.owner_id == u.id)).scalars().all():
+        if item.state not in ("removed", "expired"):
+            discard(db, item, "account_deleted", "removed", effects)
+        item.owner_public_id = item.owner_public_id if item.legal_hold else None
+    for reel in db.execute(select(Reel).where(Reel.owner_id == u.id)).scalars().all():
+        reels_service.delete_reel(db, store, reel)
+    db.flush()
 
 
 # ---------------------------------------------------------------------------

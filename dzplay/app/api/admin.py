@@ -347,7 +347,7 @@ async def admin_media(asset_id: str, variant: str, request: Request, ac: AdminCo
                 raise AppError(503, "media_unavailable", "تعذّر تحميل الملف الآن.") from None
 
     path = await run_in_threadpool(locate)
-    return FileResponse(path, media_type=CONTENT_TYPES[variant], headers={"Cache-Control": "private, max-age=600"})
+    return FileResponse(path, media_type=CONTENT_TYPES[variant], headers={"Cache-Control": "no-store"})
 
 
 @router.get("/ideas")

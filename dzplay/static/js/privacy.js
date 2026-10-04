@@ -2,9 +2,23 @@
 import { api } from './api.js';
 import { h, sheet } from './ui.js';
 
+function v5Section() {
+  return [
+    h('h3', { text: 'الجديد: الصور والتوثيق والأرباح' }),
+    h('ul', {},
+      h('li', { text: 'الصور والفيديوهات تُحفظ في مستودع خاص على Telegram يملكه DZPLAY، ويمرّرها خادمنا فقط. تُحذف منها كل البيانات الوصفية (الموقع ونوع الجهاز والتاريخ) وتُفحص آليًا قبل الحفظ.' }),
+      h('li', { text: 'صور المحادثات مموّهة حتى تفتحها، وتختفي عند الطرفين بعد مدة قصيرة، ولا يراها فريق الإشراف إلا إذا أُبلغ عنها.' }),
+      h('li', { text: 'النجمة الزرقاء علامة حساب رسمي داخل المنصة، وليست تحققًا من الهوية، ولا نطلب أي وثيقة. الدفع بالعملات الرقمية نهائي.' }),
+      h('li', { text: 'يمكنك حذف حسابك بنفسك من حسابي ← حذف حسابي.' }),
+    ),
+    h('p', {}, h('a', { href: '/policies/privacy', target: '_blank', rel: 'noopener' }, 'سياسة الخصوصية كاملة'), ' · ',
+      h('a', { href: '/policies', target: '_blank', rel: 'noopener' }, 'كل السياسات والشروط')),
+  ];
+}
+
 function whatsNewSection() {
   return [
-    h('h3', { text: 'الجديد: الأسماء والمعرّف والمكالمات' }),
+    h('h3', { text: 'الأسماء والمعرّف والمكالمات' }),
     h('ul', {},
       h('li', { text: 'لكل حساب اسم يختاره صاحبه (أو dzplay) ومعرّف عام مثل DZ-7K4P2M يظهران للآخرين. البريد لا يظهر أبدًا.' }),
       h('li', { text: 'الجنس اختياري ويظهر كأيقونة صغيرة فقط، ولا يظهر إن اخترت "أفضّل عدم الذكر".' }),
@@ -32,7 +46,7 @@ function protectionSection() {
 /** `changesFirst`: lead with what changed (the one-time notice). */
 export function privacyContent({ changesFirst = false } = {}) {
   return h('div', { class: 'prose' },
-    changesFirst ? whatsNewSection() : null,
+    changesFirst ? v5Section() : null,
     h('h3', { text: 'ما يراه الآخرون' }),
     h('p', { text: 'اسمك الظاهر ومعرّفك العام DZ وأيقونة الجنس إن اخترتها، في الأفكار والتعليقات والمحادثات المباشرة. في الرسائل العشوائية تظهر باسم dzplay ما لم تكشف هويتك. لا يُعرض لهم بريدك أو رقمك أو موقعك أو أي معرّف داخلي.' }),
     h('h3', { text: 'ما نحتفظ به' }),
@@ -41,7 +55,8 @@ export function privacyContent({ changesFirst = false } = {}) {
       h('li', { text: 'الرسائل مؤقتة: تُحذف من الخادم تلقائيًا بعد قراءتها بوقت قصير أو بعد انتهاء مدتها.' }),
       h('li', { text: 'عناوين IP لا تُحفظ كما هي: نحفظ بصمة مشفّرة غير قابلة للعكس فقط لمنع الإساءة والمحاولات الآلية.' }),
     ),
-    changesFirst ? null : whatsNewSection(),
+    whatsNewSection(),
+    changesFirst ? null : v5Section(),
     protectionSection(),
     h('h3', { text: 'على جهازك' }),
     h('p', { text: 'نسخة من محادثاتك تُحفظ على جهازك لتبقى مرئية لك، وتُمسح عند تسجيل الخروج.' }),
@@ -70,7 +85,7 @@ export function showPrivacyNotice(me, then = () => {}) {
     panel.classList.add('privacy-notice');
     panel.append(
       h('h2', { text: 'تحديث في سياسة الخصوصية' }),
-      h('p', { class: 'privacy-notice__lead', text: 'حدّثنا سياسة الخصوصية مع ميزات الأسماء والمحادثات المباشرة والمكالمات. هذا ما تغيّر، ثم باقي السياسة:' }),
+      h('p', { class: 'privacy-notice__lead', text: 'حدّثنا سياسة الخصوصية مع الصور والتوثيق والأرباح. هذا ما تغيّر، ثم باقي السياسة:' }),
       privacyContent({ changesFirst: true }),
       h('div', { class: 'actions' }, h('button', { class: 'btn btn--primary btn--block', onclick: close }, 'فهمت')),
     );

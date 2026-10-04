@@ -22,13 +22,13 @@ OPTIONAL_MATCHING_RULES = ("no_open_conversation", "not_recent_partner", "inboun
 
 
 # First path segments the app itself uses; ADMIN_PATH may not shadow them.
-RESERVED_PATHS = {"api", "js", "css", "fonts", "icons", "download", "media", "admin", "healthz", ".well-known",
+RESERVED_PATHS = {"api", "js", "css", "fonts", "icons", "download", "media", "admin", "healthz", ".well-known", "policies", "vendor",
                   "sw.js", "manifest.webmanifest", "index.html"}
 
 
 # Bump when the privacy policy changes in a way users must be told about; users
 # who acknowledged an older version see the new notice once (see /api/me).
-PRIVACY_VERSION = 4
+PRIVACY_VERSION = 5  # V5: pictures, Telegram storage, chat pictures, star, payments, earnings, account deletion
 
 
 class Settings(BaseSettings):

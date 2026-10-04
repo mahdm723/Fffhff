@@ -1019,3 +1019,4 @@ body.in-call .nav { display: none; }
 .reel__bottom .reel__caption { position: static; width: 100%; }
 .reel__author .star-mark svg { stroke: #fff; }
 .muted svg { width: 16px; height: 16px; vertical-align: -3px; flex: none; }
+.auth-policies { margin: -4px 0 12px; font-size: 13px; text-align: center; } .auth-policies a { color: var(--lilac); }

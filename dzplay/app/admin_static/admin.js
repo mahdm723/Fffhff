@@ -11,6 +11,7 @@ import { openUser, renderUsers } from './admin-users.js';
 import { openIdea, renderContent } from './admin-content.js';
 import { openEngage, renderEngage } from './admin-engage.js';
 import { renderSystem } from './admin-system.js';
+import { renderMedia, renderMoney, renderSettings, renderSupport, renderVerify } from './admin-v5.js';
 
 const REFRESH_MS = 30_000;
 const app = document.getElementById('app');
@@ -69,6 +70,11 @@ const TABS = [
   ['content', 'المحتوى'],
   ['engage', 'التفاعل'],
   ['reports', 'البلاغات'],
+  ['media', 'الإشراف على الوسائط'],
+  ['verify', 'التوثيق والدفع'],
+  ['money', 'الأرباح'],
+  ['support', 'الدعم'],
+  ['settings', 'الإعدادات'],
   ['system', 'الأمان والنظام'],
   ['logs', 'السجل'],
 ];
@@ -174,6 +180,7 @@ function showTab(id) {
   ({
     overview: renderOverview, users: renderUsers, content: renderContent, engage: renderEngage, reports: renderReports,
     system: renderSystem, logs: renderSecurity,
+    media: renderMedia, verify: renderVerify, money: renderMoney, support: renderSupport, settings: renderSettings,
   })[id](main);
   window.scrollTo({ top: 0 });
 }
@@ -620,6 +627,15 @@ const AUDIT_LABELS = {
   category_add: 'تصنيف: إضافة', category_edit: 'تصنيف: تعديل', category_delete: 'تصنيف: حذف', official_comment: 'تعليق رسمي',
   ip_unblock: 'رفع حظر شبكة', reel_show: 'إظهار Reel', reel_hide: 'إخفاء Reel', reel_pin: 'تثبيت Reel', reel_unpin: 'إلغاء تثبيت Reel',
   reel_caption: 'تعديل وصف Reel', reel_delete: 'حذف Reel', login_failed: 'دخول مشرف فاشل',
+  // V5
+  media_ok: 'وسائط: قبول', media_no: 'وسائط: رفض', media_del: 'وسائط: حذف', media_ban: 'وسائط: حذف + حظر',
+  media_keep: 'وسائط: إبقاء', media_minor: 'وسائط: قاصر (حذف + حظر + دليل)',
+  verify_accept: 'توثيق: قبول', verify_reject: 'توثيق: رفض', verify_fix: 'توثيق: طلب تصحيح',
+  verify_grant: 'منح النجمة', verify_revoke: 'سحب النجمة', payment_settings: 'إعدادات الدفع',
+  support_reply: 'رد على تذكرة', support_open: 'فتح تذكرة', support_closed: 'إغلاق تذكرة', support_answered: 'تذكرة: تم الرد',
+  settings_change: 'تغيير الإعدادات', monetize_accept: 'تحقيق الدخل: قبول', monetize_reject: 'تحقيق الدخل: رفض',
+  monetize_fix: 'تحقيق الدخل: تصحيح', ledger_earning: 'أرباح: إضافة', ledger_payout: 'أرباح: دفعة الظرف الأحمر',
+  ledger_adjustment: 'أرباح: تسوية', ledger_reversal: 'أرباح: إلغاء قيد', account_self_delete: 'حذف حساب بطلب صاحبه',
 };
 const auditLabel = (a) => AUDIT_LABELS[a] || ({ report_: 'بلاغ: ', flag_: 'رصد: ' }[a.replace(/[a-z]+$/, '')] || '') + (RESOLUTIONS[a.split('_').pop()] || a);
 

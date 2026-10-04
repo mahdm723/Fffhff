@@ -28,6 +28,7 @@ from app.api import calls as calls_api
 from app.api import download as download_api
 from app.api import messages as messages_api
 from app.api import people as people_api
+from app.api import policies as policies_api
 from app.api import posts as posts_api
 from app.api import reels as reels_api
 from app.api import telegram as telegram_api
@@ -44,7 +45,7 @@ log = logging.getLogger("dzplay")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
 _ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m in (
-    "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system")}}
+    "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5")}}
 _CSRF_EXEMPT = {"/api/telegram/webhook"}  # authenticated by Telegram's secret header instead
 
 # Don't depend on the host's /etc/mime.types (ES modules require a JS MIME type).
@@ -281,6 +282,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(people_api.router)
     app.include_router(calls_api.router)
     app.include_router(download_api.router)
+    app.include_router(policies_api.router)
     app.include_router(posts_api.router)
     app.include_router(reels_api.router)
     app.include_router(telegram_api.router)

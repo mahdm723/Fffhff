@@ -291,3 +291,39 @@ def ledger_reverse(entry_id: int, body: ReverseBody, request: Request, ac: Admin
         result = monetization.reverse(db, entry_id, ac.actor, body.note, effects)
     st.dispatch(effects)
     return result
+
+
+# ----------------------------------------------------------------- the user page (V5 part)
+# (previews: GET /api/admin/media/<id>/<variant> in app.api.admin also serves V5 media, admin session only)
+
+
+@router.get("/users/{user_ref}/v5")
+def user_v5(user_ref: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """Everything V5 about one account: star, requests, media, creator reels, tickets, earnings."""
+    from app.models import Reel, SupportTicket
+
+    st = get_state(request)
+    with st.database.session() as db:
+        user = db.get(User, user_ref) if len(user_ref) <= 32 else None
+        if user is None:
+            raise not_found()
+        reqs = db.execute(select(VerificationRequest).where(VerificationRequest.user_id == user.id)
+                          .order_by(VerificationRequest.created_at.desc()).limit(20)).scalars().all()
+        media = db.execute(select(MediaItem).where(MediaItem.owner_id == user.id)
+                           .order_by(MediaItem.created_at.desc()).limit(60)).scalars().all()
+        reels = db.execute(select(Reel).where(Reel.owner_id == user.id).order_by(Reel.created_at.desc()).limit(60)).scalars().all()
+        tickets = db.execute(select(SupportTicket).where(SupportTicket.user_id == user.id)
+                             .order_by(SupportTicket.updated_at.desc()).limit(30)).scalars().all()
+        app_ = monetization.latest(db, user.id)
+        return {
+            "verified": user.verified_at is not None, "verified_at": iso(user.verified_at), "verified_by": user.verified_by,
+            "verification": [verification.admin_view(db, r) for r in reqs],
+            "media": [_media_row(db, m) for m in media],
+            "reels": [{"id": r.id, "caption": r.caption, "status": r.status, "review": r.review_status, "show_author": bool(r.show_author),
+                       "show_on_profile": bool(r.show_on_profile), "likes": r.likes_count, "views": r.views_count,
+                       "created_at": iso(r.created_at)} for r in reels],
+            "tickets": [{"id": t.id, "number": support.number(t), "subject": t.subject, "status": t.status,
+                         "updated_at": iso(t.updated_at)} for t in tickets],
+            "monetization": monetization.admin_view(db, app_) if app_ else None,
+            "ledger": monetization.history(db, user.id, 100), "balances": monetization.balance(db, user.id),
+        }

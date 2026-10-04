@@ -124,11 +124,17 @@ def ideas_list(db: Session, limit: int, before: str | None) -> dict:
             "next_before": iso(rows[-1].created_at) if more and rows else None}
 
 
-def asset_for_admin(db: Session, asset_id: str) -> ReelAsset:
+def asset_for_admin(db: Session, asset_id: str):
+    """A reel asset, or (V5) a user's picture / video — including evidence kept after removal."""
     asset = db.get(ReelAsset, asset_id)
-    if asset is None:
+    if asset is not None:
+        return asset
+    from app.models import MediaItem
+
+    item = db.get(MediaItem, asset_id)
+    if item is None or not item.tg_file_id:
         raise not_found()
-    return asset
+    return item
 
 
 # ---------------------------------------------------------------------------

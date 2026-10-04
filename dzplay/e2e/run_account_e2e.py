@@ -17,7 +17,7 @@ import httpx
 from playwright.sync_api import expect, sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from run_e2e import MOBILE, Run, register, start_server  # noqa: E402
+from run_e2e import MOBILE, PASSWORD, Run, register, start_server  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 ADMIN_PATH = "/panel-account-e2e"
@@ -127,6 +127,19 @@ def main() -> int:
             expect(a.locator(".post-card", has_text="أول فكرة لي هنا").locator(".star-mark")).to_be_visible(timeout=10000)
             run.shot(a, "c06-star-on-idea")
             run.step("approved from the panel → star on the profile and on ideas")
+
+            print("Delete my account")
+            a.goto(base + "/#/profile")
+            a.get_by_role("button", name="حذف حسابي").click()
+            expect(a.get_by_text("سيُحذف نهائيًا")).to_be_visible()
+            a.locator("#delete-password").fill("wrong-password-1")
+            a.get_by_role("button", name="حذف حسابي نهائيًا").click()
+            expect(a.get_by_text("كلمة المرور غير صحيحة.")).to_be_visible(timeout=10000)
+            run.shot(a, "c07-delete-account")
+            a.locator("#delete-password").fill(PASSWORD)
+            a.get_by_role("button", name="حذف حسابي نهائيًا").click()
+            expect(a.get_by_role("tab", name="حساب جديد")).to_be_visible(timeout=15000)
+            run.step("«حذف حسابي»: wrong password refused, then the account is gone and the app is signed out")
             browser.close()
     finally:
         proc.terminate()

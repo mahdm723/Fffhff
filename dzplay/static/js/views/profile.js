@@ -195,6 +195,34 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     }
   }
 
+  function deleteAccount() {
+    sheet((panel, close) => {
+      const google = me && me.sign_in_method === 'google';
+      const input = google
+        ? h('input', { class: 'input', id: 'delete-confirm', placeholder: 'اكتب: حذف حسابي', autocomplete: 'off' })
+        : h('input', { class: 'input', id: 'delete-password', type: 'password', placeholder: 'كلمة المرور', autocomplete: 'current-password' });
+      const err = h('div', { class: 'form-error', role: 'alert' });
+      const go = h('button', { class: 'btn btn--danger btn--block', type: 'button' }, icon('trash'), 'حذف حسابي نهائيًا');
+      go.addEventListener('click', async () => {
+        err.textContent = '';
+        go.disabled = true;
+        try {
+          await api.post('/api/me/delete', google ? { confirm: input.value.trim() } : { password: input.value });
+          close();
+          toast('حُذف حسابك. شكرًا لأنك كنت معنا.');
+          onLogout();
+        } catch (e) { err.textContent = e.message; go.disabled = false; }
+      });
+      panel.append(
+        h('h2', { text: 'حذف حسابي' }),
+        h('p', { text: 'سيُحذف نهائيًا ولا يمكن التراجع: حسابك واسمك ومعرّفك، وأفكارك وصورها وتعليقاتها، وتعليقاتك وتفاعلاتك، ومحادثاتك ورسائلك، وتذاكر الدعم، وطلبات التوثيق، وفيديوهات الاستوديو، وسجل الأرباح (الأرباح غير المدفوعة تسقط). وتُحذف صورك وفيديوهاتك من مستودع التخزين.' }),
+        h('p', { class: 'muted', text: 'يبقى فقط ما أُبلغ عنه كدليل لمدة محدودة، والبلاغات التي قدّمها آخرون، وسطر في سجل الإدارة بأن حسابًا حُذف.' }),
+        h('a', { class: 'link-btn', href: '/policies/privacy', target: '_blank', rel: 'noopener' }, 'التفاصيل في سياسة الخصوصية'),
+        h('div', { class: 'field' }, input), err,
+        h('div', { class: 'actions' }, go, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')));
+    });
+  }
+
   async function logout() {
     const ok = await confirmSheet({ title: 'تسجيل الخروج؟', text: 'ستُمسح نسخة المحادثات المحفوظة على هذا الجهاز.', confirm: 'تسجيل الخروج', danger: true });
     if (ok) onLogout();
@@ -218,8 +246,10 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       ageItem,
       item('block', 'المحظورون', blockedSheet),
       item('shield', 'سياسة الخصوصية', privacySheet),
+      item('info', 'السياسات والشروط', () => window.open('/policies', '_blank', 'noopener')),
       config && config.android_apk_url ? item('send', 'مشاركة تطبيق DZPLAY', shareApp) : null,
       item('logout', 'تسجيل الخروج', logout, h('span'), 'menu__item--danger'),
+      item('trash', 'حذف حسابي', deleteAccount, h('span'), 'menu__item--danger'),
     ),
     postsSlot,
     h('p', { class: 'version', text: 'DZPLAY · نسخة تجريبية' }),

@@ -93,7 +93,7 @@ def download_page(request: Request) -> HTMLResponse:
       <p class="dl-url" dir="ltr">{e(page_url)}</p>
     </section>
 
-    <p class="dl-foot"><a href="/">العودة إلى DZPLAY</a></p>
+    <p class="dl-foot"><a href="/">العودة إلى DZPLAY</a> · <a href="/policies/privacy">سياسة الخصوصية</a> · <a href="/policies/terms">شروط الاستخدام</a> · <a href="/policies/guidelines">إرشادات المجتمع</a></p>
   </main>
 </body>
 </html>"""
