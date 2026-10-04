@@ -123,7 +123,7 @@ a { color: var(--lilac); }
 
 /* ---------- buttons & inputs ---------- */
 .btn {
-  border: 0; border-radius: 16px; padding: 14px 20px; font-weight: 700; font-size: 16px;
+  border: 0; text-decoration: none; border-radius: 16px; padding: 14px 20px; font-weight: 700; font-size: 16px;
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   transition: transform .12s ease, opacity .2s, box-shadow .2s;
 }

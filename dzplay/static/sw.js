@@ -1,5 +1,5 @@
 // DZPLAY service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v14';
+const VERSION = 'dz-v15';
 const MEDIA_CACHE = 'dz-media-v1'; // filled by js/reels-prefetch.js; survives app updates
 const SHELL = [
   '/', '/css/app.css', '/manifest.webmanifest',
