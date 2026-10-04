@@ -32,8 +32,11 @@
   --radius: 20px;
   --radius-sm: 14px;
   --nav-h: 68px;
-  --safe-b: env(safe-area-inset-bottom, 0px);
-  --safe-t: env(safe-area-inset-top, 0px);
+  /* system bars: env() in browsers; --dz-safe-* is set by the Android app from the real WindowInsets
+     (Android 15 draws edge-to-edge and the WebView's env() is not always right) */
+  --safe-b: max(env(safe-area-inset-bottom, 0px), var(--dz-safe-bottom, 0px));
+  --safe-t: max(env(safe-area-inset-top, 0px), var(--dz-safe-top, 0px));
+  --kb: 0px; /* on-screen keyboard height when the page is not resized for it (static/js/keyboard.js) */
   --font: "Plex Arabic", system-ui, -apple-system, "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
   color-scheme: dark;
 }
@@ -262,7 +265,11 @@ a { color: var(--lilac); }
 }
 .msg-dock textarea:focus { border-color: var(--lilac); }
 body.is-typing .nav { display: none; }
-body.is-typing .msg-dock { bottom: 0; padding-bottom: calc(12px + var(--safe-b)); }
+body.is-typing .msg-dock { bottom: var(--kb); padding-bottom: calc(12px + var(--safe-b)); }
+/* keyboard open: no bottom navigation, sheets and bars sit above the keyboard */
+body.kb-open .nav { display: none; }
+body.kb-open .sheet-backdrop { padding-bottom: var(--kb); }
+body.kb-open .sheet { max-height: calc(100dvh - var(--kb) - 12px); overflow-y: auto; }
 body:has(.page--with-dock) .toasts { bottom: calc(var(--nav-h) + var(--safe-b) + 130px); }
 .conv-item.is-new { animation: flash 1.6s ease; }
 @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 16%, transparent); } }
@@ -569,7 +576,9 @@ body::before {
 .reel--portrait .reel__video { object-fit: cover; }
 .reel__carousel {
   position: absolute; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden;
-  scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-y: none;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+  /* vertical swipes must chain to the Reels feed (a photo post must never trap scrolling) */
+  touch-action: pan-x pan-y;
 }
 .reel__slide { flex: 0 0 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; display: flex; align-items: center; justify-content: center; }
 .reel__slide img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; user-select: none; -webkit-user-drag: none; }
@@ -867,3 +876,4 @@ body.in-call .nav { display: none; }
 .sys-msg--call span { display: inline-flex; align-items: center; gap: 6px; }
 .sys-msg--call svg { width: 15px; height: 15px; color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .call-btn--accept, .call-screen.is-incoming .call-face .avatar { animation: none; } }
+.call-audio { display: none; } /* plays the remote voice; independent of the picture */

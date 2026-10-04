@@ -167,7 +167,11 @@ async function keepAwake(on) {
 
 // ------------------------------------------------------------------ UI
 function buildScreen() {
-  const remote = h('video', { class: 'call-remote', autoplay: true, playsinline: true });
+  // Remote picture and remote sound are separate elements: hiding / stopping the video (peer camera off)
+  // must never silence the call. The <video> stays muted and in the page; the <audio> plays the voice.
+  const remote = h('video', { class: 'call-remote', autoplay: true, playsinline: true, muted: true });
+  remote.muted = true;
+  const remoteAudio = h('audio', { class: 'call-audio', autoplay: true });
   const self = h('video', { class: 'call-self', autoplay: true, playsinline: true, muted: true });
   self.muted = true;
   const avatarBox = h('div', { class: 'call-face' });
@@ -177,13 +181,13 @@ function buildScreen() {
   const banner = h('div', { class: 'call-banner', hidden: true, role: 'status' });
   const controls = h('div', { class: 'call-controls' });
   const el = h('div', { class: 'call-screen', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'مكالمة' },
-    remote, h('div', { class: 'call-shade' }),
+    remote, remoteAudio, h('div', { class: 'call-shade' }),
     h('div', { class: 'call-top' }, avatarBox, name, h('div', { class: 'call-meta' }, status, quality), banner),
     self, controls);
   makeDraggable(self);
   document.body.append(el);
   document.body.classList.add('in-call');
-  return { el, remote, self, avatarBox, name, status, quality, banner, controls };
+  return { el, remote, remoteAudio, self, avatarBox, name, status, quality, banner, controls };
 }
 
 function makeDraggable(node) {
@@ -279,8 +283,13 @@ function createPC() {
   pc.ontrack = (e) => {
     const stream = cur.remoteStream || (cur.remoteStream = new MediaStream());
     if (!stream.getTracks().includes(e.track)) stream.addTrack(e.track);
-    cur.ui.remote.srcObject = stream;
-    cur.ui.remote.play().catch(() => {});
+    if (e.track.kind === 'audio') {
+      cur.ui.remoteAudio.srcObject = new MediaStream([e.track]);
+      cur.ui.remoteAudio.play().catch(() => {});
+    } else {
+      cur.ui.remote.srcObject = new MediaStream([e.track]);
+      cur.ui.remote.play().catch(() => {});
+    }
   };
   pc.oniceconnectionstatechange = () => onIceState(pc.iceConnectionState);
   return pc;
@@ -445,6 +454,7 @@ async function sampleStats() {
     codec_audio: null,
     codec_video: null,
     local_candidate_types: [...localTypes],
+    audio_bytes_in: inn.audio ? inn.audio.bytesReceived : null,
     limited_by: out.video ? out.video.qualityLimitationReason || null : null, // cpu | bandwidth | none
     fps: out.video && out.video.framesPerSecond ? Math.round(out.video.framesPerSecond) : null,
     dtls_state: dtls ? dtls.state : null,
@@ -828,6 +838,8 @@ function debugState() {
     id: cur.id, phase: cur.phase, mediaUp: !!cur.mediaUp, level: LEVELS[cur.level || 0].label, stats: cur.lastStats || null,
     ice: cur.pc ? cur.pc.iceConnectionState : null, policy: cur.ice ? cur.ice.ice_transport_policy : null,
     remoteVideo: !!cur.remoteVideo, selfVideo: !!(cur.videoTrack && cur.videoTrack.enabled),
+    audioIn: cur.lastStats ? cur.lastStats.audio_bytes_in : null,
+    audioPlaying: !!(cur.ui.remoteAudio.srcObject && !cur.ui.remoteAudio.paused),
     muted: !!(cur.audioTrack && !cur.audioTrack.enabled),
     remoteCandidates: cur.seen.slice(),
     remoteSdpCandidates: cur.pc && cur.pc.remoteDescription ? cur.pc.remoteDescription.sdp.split('\r\n').filter((l) => l.startsWith('a=candidate:')) : [],

@@ -1,6 +1,7 @@
 // DZPLAY client entry point: boot, routing and the app shell.
 import { api } from './api.js';
 import { initCalls } from './call.js';
+import { initKeyboard } from './keyboard.js';
 import { forgetNative, initNative } from './native.js';
 import { icon } from './icons.js';
 import { disableForLogout, refreshPushSubscription, showLocalNotification } from './notify.js';
@@ -188,6 +189,7 @@ window.addEventListener('hashchange', route);
 document.addEventListener('dz:badges', updateBadges);
 
 async function boot() {
+  initKeyboard();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   store.loadCache();
   try {

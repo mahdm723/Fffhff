@@ -369,6 +369,22 @@ def main() -> int:
             swipe(page, 300, 420, -260, 0)  # back to Reels
             page.wait_for_function(f"() => ({PANE_JS})() === 'reels'", timeout=5000)
             run.step("album: swipes turn photos 1→2→3; at the last photo the next swipe opens Ideas; swipe back to Reels")
+            # V5 bug: a vertical swipe that starts ON the photos must still move the feed (up and down)
+            page.wait_for_function(f"(t) => ({ACTIVE_JS})() === t", arg=target)
+            n_reels = page.locator(".reel").count()
+            print(f"    album at {target} of {n_reels}", flush=True)
+            if target < n_reels - 1:
+                swipe(page, 195, 640, 6, -460)  # finger slightly diagonal, mostly up
+                page.wait_for_function(f"(t) => ({ACTIVE_JS})() === t + 1", arg=target, timeout=5000)
+                swipe(page, 195, 260, -6, 460)  # back down onto the album
+                page.wait_for_function(f"(t) => ({ACTIVE_JS})() === t", arg=target, timeout=5000)
+            if target > 0:
+                swipe(page, 195, 260, 0, 460)   # down, starting on the photos
+                page.wait_for_function(f"(t) => ({ACTIVE_JS})() === t - 1", arg=target, timeout=5000)
+                swipe(page, 195, 640, 0, -460)  # and up again onto the album
+                page.wait_for_function(f"(t) => ({ACTIVE_JS})() === t", arg=target, timeout=5000)
+            assert page.evaluate(PANE_JS) == "reels"
+            run.step("vertical swipes starting on a photo post scroll the feed up and down (no trap)")
 
             page.get_by_role("tab", name="الأفكار").click()
             page.wait_for_function(f"() => ({PANE_JS})() === 'ideas'")

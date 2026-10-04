@@ -8,12 +8,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -24,6 +28,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +56,8 @@ public class MainActivity extends Activity {
     private static final int REQ_NOTIFY = 42;
 
     private WebView web;
+    private FrameLayout root;
+    private int topInsetPx = 0;
     private volatile boolean onOwnPage = false;
     private PermissionRequest pendingMedia;
     private List<String> pendingResources;
@@ -63,7 +70,10 @@ public class MainActivity extends Activity {
 
         web = new WebView(this);
         web.setBackgroundColor(Color.parseColor("#0C0E18"));
-        setContentView(web);
+        root = new FrameLayout(this);
+        root.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(root);
+        setupInsets();
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);          // the app is a JavaScript web app
@@ -113,6 +123,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 CookieManager.getInstance().flush();
+                pushInsets();
             }
 
             @Override
@@ -179,6 +190,67 @@ public class MainActivity extends Activity {
             web.destroy();
         }
         super.onDestroy();
+    }
+
+    // ------------------------------------------------------------------ system bars + keyboard
+    //
+    // Android 15 (targetSdk 35) always draws edge-to-edge and then ignores adjustResize, so the
+    // page could slide under the navigation buttons and the keyboard. From Android 11 on we do it
+    // ourselves: the WebView is padded by the real navigation-bar / keyboard insets (the page
+    // shrinks when the keyboard opens, like adjustResize) and the status-bar height is handed to
+    // the page as --dz-safe-top. Older versions keep the classic layout (adjustResize works there).
+
+    private boolean night() {
+        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void paintBars() {
+        int bg = night() ? Color.parseColor("#0C0E18") : Color.parseColor("#F5F2EC");
+        root.setBackgroundColor(bg);
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                c.setSystemBarsAppearance(night() ? 0 : light, light);
+            }
+        }
+    }
+
+    private void setupInsets() {
+        if (Build.VERSION.SDK_INT < 30) {
+            return;
+        }
+        getWindow().setDecorFitsSystemWindows(false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        paintBars();
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            android.graphics.Insets ime = insets.getInsets(WindowInsets.Type.ime());
+            v.setPadding(bars.left, 0, bars.right, Math.max(bars.bottom, ime.bottom));
+            topInsetPx = bars.top;
+            pushInsets();
+            return WindowInsets.CONSUMED;
+        });
+        root.requestApplyInsets();
+    }
+
+    private void pushInsets() {
+        if (web == null || Build.VERSION.SDK_INT < 30) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        int top = Math.round(topInsetPx / density);
+        web.evaluateJavascript("document.documentElement.style.setProperty('--dz-safe-top','" + top + "px');"
+                + "document.documentElement.style.setProperty('--dz-safe-bottom','0px');", null);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (root != null && Build.VERSION.SDK_INT >= 30) {
+            paintBars(); // dark / light theme switched
+        }
     }
 
     static boolean isOwnSite(Uri uri) {
@@ -399,6 +471,21 @@ public class MainActivity extends Activity {
                 return "";
             }
             return getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("fcm_token", "");
+        }
+
+        /** While an ephemeral chat image is open: block screenshots / screen recording of the app window. */
+        @JavascriptInterface
+        public void setSecure(boolean on) {
+            if (!onOwnPage) {
+                return;
+            }
+            runOnUiThread(() -> {
+                if (on) {
+                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                } else {
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                }
+            });
         }
 
         /** The call the user answered from the notification (returned once). */

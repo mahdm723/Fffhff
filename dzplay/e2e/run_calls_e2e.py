@@ -203,6 +203,35 @@ def main() -> int:
             wait_for(b, lambda d: d["remoteVideo"] is True, 15, "B sees A's camera back")
             run.step("Mute, camera off/on (audio↔video) reach the other side")
 
+            def audio_flows(listener, label):
+                """The listener keeps RECEIVING and PLAYING the other side's voice."""
+                first = wait_for(listener, lambda d: d.get("audioIn"), 10, f"{label}: audio stats")["audioIn"]
+                time.sleep(4)
+                d = dbg(listener)
+                assert d["audioPlaying"], (label, d)
+                assert d["audioIn"] > first + 2000, (label, first, d["audioIn"])  # bytes keep arriving
+
+            # V5 bug: turning a camera off must never cut the sound, on either side
+            a.get_by_role("button", name="إيقاف الكاميرا").click()
+            wait_for(b, lambda d: d["remoteVideo"] is False, 10, "B sees A's camera off")
+            audio_flows(b, "B hears A with A's camera off")
+            audio_flows(a, "A hears B while A's camera is off")
+            b.get_by_role("button", name="إيقاف الكاميرا").click()
+            wait_for(a, lambda d: d["remoteVideo"] is False, 10, "A sees B's camera off")
+            audio_flows(a, "A hears B with both cameras off (audio-only)")
+            audio_flows(b, "B hears A with both cameras off")
+            run.shot(a, "c04b-both-cameras-off")
+            a.get_by_role("button", name="كتم الميكروفون").click()
+            audio_flows(a, "A still hears B while A is muted")
+            a.get_by_role("button", name="إلغاء كتم الميكروفون").click()
+            a.get_by_role("button", name="تشغيل الكاميرا").click()
+            b.get_by_role("button", name="تشغيل الكاميرا").click()
+            wait_for(a, lambda d: d["remoteVideo"] is True, 15, "A sees B's camera back")
+            wait_for(b, lambda d: d["remoteVideo"] is True, 15, "B sees A's camera back")
+            audio_flows(a, "A hears B after video→audio→video")
+            audio_flows(b, "B hears A after video→audio→video")
+            run.step("Camera off / on and mute on both sides: the voice keeps playing every time")
+
             print("Quality heartbeat stored server-side (metadata only)")
             time.sleep(5)
             with sqlite3.connect(dbfile) as conn:
