@@ -98,6 +98,13 @@ def _telegram(settings, args, transport=None) -> None:
                 raise SystemExit("TELEGRAM_WEBHOOK_SECRET is missing or too short: openssl rand -hex 32")
             tg.set_webhook(base + "/api/telegram/webhook", settings.TELEGRAM_WEBHOOK_SECRET)
             print(f"Webhook set: {base}/api/telegram/webhook")
+        if args.cmd == "alert":  # V5: server monitoring (deploy/monitor.sh) → the admin's Telegram chat
+            text = " ".join(args.text).strip()[:3500]
+            if not text:
+                raise SystemExit("empty alert")
+            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, f"🚨 DZPLAY — تنبيه الخادم\n{text}")
+            print("Alert sent.")
+            return
         if args.cmd == "bot-test":
             tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, "✅ DZPLAY متصل. أرسل فيديو أو صورة مع وصف لنشرها.\n\n" + HELP)
             print("Test message sent to the admin chat.")
@@ -137,6 +144,8 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
     p.add_argument("public_url")
     sub.add_parser("bot-status")
     sub.add_parser("bot-test")  # send a hello message to TELEGRAM_ADMIN_CHAT_ID
+    p = sub.add_parser("alert")  # V5: send a monitoring alert to the admin's Telegram chat
+    p.add_argument("text", nargs="+")
     p = sub.add_parser("admin-link")  # the secret panel address (+ whether an admin account exists)
     p.add_argument("public_url")
     args = parser.parse_args(argv)
@@ -149,7 +158,7 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
         return
 
     settings = get_settings()
-    if args.cmd in ("set-webhook", "bot-status", "bot-test"):
+    if args.cmd in ("set-webhook", "bot-status", "bot-test", "alert"):
         _telegram(settings, args, telegram_transport)
         return
     database = Database(settings.DATABASE_URL)

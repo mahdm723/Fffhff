@@ -78,6 +78,7 @@ def submit(db: Session, settings: Settings, user: User, *, media_id: object, cap
     _require_can_send(user)
     require_creator(settings, user)
     item = media_items.claim(db, user, media_id, "reel")
+    media_items.lock_user(db, user.id)
     q = quota(db, settings, user)
     if q["remaining"] <= 0:
         raise AppError(429, "reel_limit", "وصلت إلى حد الفيديوهات اليوم.")

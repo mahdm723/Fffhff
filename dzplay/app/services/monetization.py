@@ -263,6 +263,12 @@ def _user_of(db: Session, user_ref: str) -> User:
     return user
 
 
+def _lock_ledger(db: Session, user_id: str) -> None:
+    """Serialize ledger writes of one user (PostgreSQL row lock until commit): two admins paying out
+    at the same moment cannot both pass the balance check."""
+    db.execute(select(User.id).where(User.id == user_id).with_for_update())
+
+
 def record(db: Session, settings: Settings, user_ref: str, *, kind: str, amount: object, currency: str | None,
            note: object, actor: str, paid_on: object = None, effects: Effects) -> dict:
     """Admin: an earning, an adjustment (+/-) or a payout. Payouts never exceed the balance."""
@@ -278,6 +284,7 @@ def record(db: Session, settings: Settings, user_ref: str, *, kind: str, amount:
         minor = -minor
     if not is_accepted(db, user):
         raise AppError(409, "not_monetized", "هذا المستخدم غير مقبول في تحقيق الدخل.")
+    _lock_ledger(db, user.id)
     if kind == "payout":
         if _balance_minor(db, user.id, cur) + minor < 0:
             raise AppError(409, "insufficient_balance", "المبلغ أكبر من الرصيد.")
@@ -303,6 +310,7 @@ def reverse(db: Session, entry_id: int, actor: str, note: object, effects: Effec
         raise not_found()
     if e.kind == "reversal":
         raise AppError(400, "cannot_reverse", "لا يمكن إلغاء قيد إلغاء.")
+    _lock_ledger(db, e.user_id)
     if db.scalar(select(LedgerEntry.id).where(LedgerEntry.reverses_id == e.id)):
         raise AppError(409, "already_reversed", "هذا القيد أُلغي بالفعل.")
     if e.amount_minor > 0 and _balance_minor(db, e.user_id, e.currency) - e.amount_minor < 0:

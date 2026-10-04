@@ -151,8 +151,38 @@ cd /opt/dzplay/dzplay && nano .env && docker compose up -d
 - **النسخ الاحتياطي:** يومي ومشفّر في `/var/backups/dzplay` (يضبطه المثبّت). **احفظ كلمة السر خارج الخادم:** `grep BACKUP_PASSPHRASE /opt/dzplay/dzplay/.env`
   - نسخة فورية: `sudo /opt/dzplay/dzplay/deploy/backup.sh`
   - استعادة: `sudo /opt/dzplay/dzplay/deploy/restore.sh <الملف>`
-- **التحصين:** `sudo /opt/dzplay/dzplay/deploy/harden.sh` يضبط جدارًا ناريًا وfail2ban وتحديثات أمنية تلقائية. بعد إضافة مفتاح SSH، أضف `--ssh-keys-only`.
+- **التحصين:** `sudo /opt/dzplay/dzplay/deploy/harden.sh` يضبط جدارًا ناريًا وfail2ban وتحديثات أمنية تلقائية.
 - أو ثبّت مع التحصين من البداية: `curl … | sudo HARDEN=1 bash`.
+- **المراقبة (V5):** يثبّتها المثبّت تلقائيًا. كل 5 دقائق تصلك رسالة من البوت إذا امتلأ القرص، أو ارتفع الحمل، أو توقفت خدمة، أو تكررت محاولات الاختراق، ثم رسالة «✅ عاد طبيعيًا».
+  - تجربة: `sudo /opt/dzplay/dzplay/deploy/monitor.sh test`
+  - الحالة الآن: `sudo /opt/dzplay/dzplay/deploy/monitor.sh status`
+  - الحدود (اختيارية في `.env`): `MONITOR_DISK_PCT=85` و`MONITOR_LOAD_PER_CPU=2.0` و`MONITOR_MEM_PCT=92` و`MONITOR_BANS_PER_HOUR=20` و`MONITOR_REMIND_HOURS=6`.
+
+### SSH بالمفاتيح فقط (دون أن تفقد الوصول)
+
+نفّذ الخطوات بالترتيب، وأبقِ نافذة SSH الحالية مفتوحة حتى النهاية.
+
+1. **في Termux على هاتفك:**
+   ```bash
+   pkg install openssh
+   ssh-keygen -t ed25519            # اضغط Enter للأسئلة
+   ssh-copy-id root@IP-الخادم        # آخر مرة تكتب فيها كلمة المرور
+   ssh root@IP-الخادم                # يجب أن يدخل الآن بلا كلمة مرور
+   ```
+2. **على الخادم:**
+   ```bash
+   sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh add-user dz   # مستخدم بصلاحية sudo بنفس مفتاحك
+   sudo passwd dz                                              # كلمة مرور لـ sudo فقط (لن تسمح بالدخول عبر SSH)
+   ```
+3. **من نافذة Termux جديدة:** `ssh dz@IP-الخادم` ثم `sudo -v`.
+4. **من نفس النافذة الجديدة:** `sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh apply`
+   - يرفض إن لم يجد دخولك بالمفتاح في سجل SSH؛
+   - يطلب أن تكتب «دخلت بالمفتاح».
+5. **من نافذة ثالثة:**
+   - `ssh dz@IP-الخادم` يجب أن ينجح؛
+   - `ssh root@IP-الخادم` يجب أن يُرفض.
+   - إن نجح الاختبار: `sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh confirm`
+   - إن فشل: `sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh rollback`، أو انتظر 10 دقائق فيعود كل شيء تلقائيًا.
 
 ---
 
@@ -173,6 +203,6 @@ cd /opt/dzplay/dzplay && nano .env && docker compose up -d
 - الأسرار تُولَّد عشوائيًا عند التثبيت وتُحفظ في `.env` بصلاحية قراءة لـ root فقط. لا ترفع هذا الملف إلى GitHub.
 - قاعدة البيانات و Redis غير مكشوفين على الإنترنت؛ فقط المنفذان 80 و 443 عبر Caddy.
 - لا تُسجَّل عناوين IP في سجلات الخادم.
-- يُنصح بالدخول للخادم بمفتاح SSH بدل كلمة المرور (`deploy/harden.sh --ssh-keys-only`).
+- يُنصح بالدخول للخادم بمفتاح SSH فقط: `deploy/ssh-harden.sh` (الخطوات في «SSH بالمفاتيح فقط» أعلاه).
 - الحاويات مُحصّنة: نظام ملفات للقراءة فقط، بلا صلاحيات Linux، ومستخدم غير root.
 - تقرير الفحص الأمني الكامل: [docs/SECURITY_AUDIT.md](../docs/SECURITY_AUDIT.md).

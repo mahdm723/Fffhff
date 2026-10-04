@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from app.config import get_settings
 from app.db import Database
-from app.models import AdminAuditLog, AdminUser, Post, User
+from app.models import AdminAuditLog, AdminUser, LedgerEntry, Post, SupportMessage, SupportTicket, User, VerificationRequest
 from app.services import admin_auth, audit
 
 settings = get_settings()
@@ -18,6 +18,14 @@ with db.session() as s:
         s.add(u)
         s.flush()
         s.add(Post(author_id=u.id, content="فكرة محفوظة في النسخة الاحتياطية"))
+        # V5 tables: support, blue star request, the money ledger
+        t = SupportTicket(user_id=u.id, category="other", subject="تذكرة محفوظة")
+        s.add(t)
+        s.flush()
+        s.add(SupportMessage(ticket_id=t.id, author="user", body="نص التذكرة"))
+        s.add(VerificationRequest(user_id=u.id, account_type="writer", description="d", reason="r", amount="5.00",
+                                  currency="USDT", network="TRC20", wallet="T" + "x" * 33, txid="a" * 64))
+        s.add(LedgerEntry(user_id=u.id, kind="earning", amount_minor=1234, currency="USD", created_by="admin:owner"))
         admin_auth.create_admin(s, settings, "owner", "Roundtrip-Admin-Pass-1")
         audit.record(s, "cli", "create_admin", target_type="admin", target_id="owner")
     elif sys.argv[1] == "wipe":
@@ -27,4 +35,6 @@ with db.session() as s:
     posts = [p.content for p in s.execute(select(Post)).scalars()]
     admins = [a.username for a in s.execute(select(AdminUser)).scalars()]
     chain = audit.verify_chain(s)
-    print(f"users={users} posts={posts} admins={admins} audit_rows={s.scalar(select(func.count()).select_from(AdminAuditLog))} chain_ok={chain['ok']}")
+    v5 = [s.scalar(select(func.count()).select_from(m)) for m in (SupportTicket, SupportMessage, VerificationRequest)]
+    money = s.scalar(select(func.coalesce(func.sum(LedgerEntry.amount_minor), 0)))
+    print(f"users={users} posts={posts} admins={admins} audit_rows={s.scalar(select(func.count()).select_from(AdminAuditLog))} chain_ok={chain['ok']} v5={v5} ledger={money}")

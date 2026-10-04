@@ -208,8 +208,15 @@ def claim(db: Session, user: User, media_id: object, purpose: str) -> MediaItem:
 # ---------------------------------------------------------------------------
 
 
+def lock_user(db: Session, user_id: str) -> None:
+    """Serialize quota checks of one user (PostgreSQL row lock until commit): two publishes sent at the same
+    moment cannot both pass a "1 per 24 h" check."""
+    db.execute(select(User.id).where(User.id == user_id).with_for_update())
+
+
 def claim_for_idea(db: Session, settings: Settings, user: User, media_id: object) -> MediaItem:
     item = claim(db, user, media_id, "idea")
+    lock_user(db, user.id)
     quota = idea_quota(db, settings, user)
     if not quota["enabled"]:
         raise AppError(403, "idea_images_off", "نشر الصور مع الأفكار متوقف حاليًا.")

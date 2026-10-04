@@ -170,13 +170,15 @@ tail /var/log/dzplay-backup.log                           # سجل النسخ ا
 ## 6. تحصين الخادم
 
 ```bash
-sudo deploy/harden.sh                 # جدار ناري (SSH + 80 + 443 فقط)، fail2ban، تحديثات أمنية تلقائية
-sudo deploy/harden.sh --ssh-keys-only # بعد إضافة مفتاح SSH: إيقاف الدخول بكلمة المرور
+sudo deploy/harden.sh                 # جدار ناري (SSH + 80 + 443 + TURN)، fail2ban، تحديثات أمنية تلقائية
+sudo deploy/ssh-harden.sh status      # V5: SSH بالمفاتيح فقط، خطوة بخطوة (add-user → apply → confirm)
+sudo deploy/monitor.sh status         # V5: المراقبة (تعمل كل 5 دقائق، التنبيهات عبر البوت)
+sudo deploy/monitor.sh test           # رسالة تجربة إلى محادثتك مع البوت
 sudo ufw status verbose
 sudo fail2ban-client status sshd
 ```
 
-`--ssh-keys-only` لا يوقف كلمة المرور إذا لم يجد مفتاح SSH مسجّلًا، حتى لا تُقفل خارج خادمك.
+`ssh-harden.sh apply` لا يغيّر شيئًا قبل أن يجد دخولك بالمفتاح في سجل SSH وتكتب «دخلت بالمفتاح». بعدها يعيد الإعدادات القديمة تلقائيًا خلال 10 دقائق ما لم تكتب `confirm`. الخطوات الكاملة في `deploy/README.md` (قسم «SSH بالمفاتيح فقط»).
 
 ---
 

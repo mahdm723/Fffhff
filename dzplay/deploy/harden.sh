@@ -3,15 +3,15 @@
 # DZPLAY — basic VPS hardening (Ubuntu/Debian). Safe to run several times.
 #
 #   sudo /opt/dzplay/dzplay/deploy/harden.sh              firewall + fail2ban + automatic security updates
-#   sudo /opt/dzplay/dzplay/deploy/harden.sh --ssh-keys-only   … and turn off SSH password logins
+#   SSH keys-only / no root login: use deploy/ssh-harden.sh (it proves your key login works first)
 #
 # 1. ufw firewall: deny incoming except your SSH port (detected), 80/tcp, 443/tcp+udp,
 #    and for calls: TURN 3478/udp+tcp, 5349/tcp and the relay range 49160-49200/udp.
 #    (Docker publishes only Caddy's 80/443; PostgreSQL and Redis are never published.)
 # 2. fail2ban: bans IPs that keep failing SSH logins.
 # 3. unattended-upgrades: installs security updates automatically.
-# 4. SSH: reports password/root login settings. With --ssh-keys-only it disables password
-#    logins, but ONLY if an authorized SSH key exists (so you cannot lock yourself out).
+# 4. SSH: only REPORTS password/root login settings. Changing them is done by deploy/ssh-harden.sh,
+#    which refuses to act until a key login is seen in the SSH log AND you confirm it yourself.
 # 5. File permissions: .env readable by root only.
 # =============================================================================
 set -euo pipefail
@@ -87,23 +87,13 @@ for f in /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys; do
   [ -s "$f" ] && grep -qE '^(ssh-|ecdsa-|sk-)' "$f" && has_key=true
 done
 if [ "$KEYS_ONLY" = true ]; then
-  if [ "$has_key" = true ]; then
-    cat > /etc/ssh/sshd_config.d/99-dzplay-hardening.conf <<'EOF'
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PermitRootLogin prohibit-password
-EOF
-    sshd -t && (systemctl reload ssh 2>/dev/null || systemctl reload sshd)
-    ok "password logins disabled (SSH keys only)"
-  else
-    warn "no authorized SSH key found: password logins left ON so you are not locked out."
-    warn "add your key first (ssh-copy-id root@SERVER), then run again with --ssh-keys-only"
-  fi
-else
-  [ "$pw" = "yes" ] && warn "SSH password login is ON. Recommended: add an SSH key, then run: $0 --ssh-keys-only" \
-    || ok "SSH password login is off"
-  [ "$root" = "yes" ] && warn "root may log in with a password (PermitRootLogin yes)" || true
+  warn "--ssh-keys-only moved to deploy/ssh-harden.sh (it first proves that your key login works):"
+  warn "  sudo $APP_DIR/deploy/ssh-harden.sh status"
 fi
+if [ "$pw" = "yes" ]; then warn "SSH password login is ON. When your key works: sudo $APP_DIR/deploy/ssh-harden.sh apply"
+else ok "SSH password login is off"; fi
+if [ "$root" = "no" ]; then ok "root login is off"; else warn "root may log in over SSH (PermitRootLogin $root)"; fi
+[ "$has_key" = true ] || warn "no SSH key installed yet (see the guide: Termux ssh-keygen + ssh-copy-id)"
 
 say "Permissions"
 if [ -f "$APP_DIR/.env" ]; then

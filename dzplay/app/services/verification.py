@@ -111,7 +111,10 @@ def qr_svg(text: str) -> str:
 
 
 def explorer_link(template: str, txid: str) -> str | None:
-    return template.replace("{txid}", txid) if template and "{txid}" in template else None
+    from urllib.parse import quote
+
+    # the TXID is format-checked per network; quoting it as well keeps it inside the template's path
+    return template.replace("{txid}", quote(txid, safe="")) if template and "{txid}" in template else None
 
 
 # ---------------------------------------------------------------------------

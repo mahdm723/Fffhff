@@ -201,7 +201,7 @@ if grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && grep -q '^TELEGRAM_ADMIN_CHAT_ID=.\
 fi
 
 # Daily encrypted database backup (03:17 server time) + a first backup now.
-chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh
+chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh deploy/monitor.sh deploy/ssh-harden.sh
 cat > /etc/cron.d/dzplay-backup <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -222,6 +222,8 @@ if "$APP_DIR/deploy/backup.sh" >> /var/log/dzplay-backup.log 2>&1; then
 else
   warn "The first backup failed: see /var/log/dzplay-backup.log"
 fi
+# Server monitoring every 5 minutes → Telegram alerts (disk, load, a stopped service, intrusion attempts).
+"$APP_DIR/deploy/monitor.sh" install >/dev/null && ok "Monitoring with Telegram alerts (every 5 minutes)"
 if [ "${HARDEN:-0}" = "1" ]; then
   "$APP_DIR/deploy/harden.sh" || warn "Hardening reported a problem (see above)."
 fi
@@ -249,6 +251,8 @@ cat <<EOF
   Backups:   daily + encrypted in /var/backups/dzplay  (restore: $APP_DIR/deploy/restore.sh FILE)
   $BACKUP_NOTE
   Hardening (firewall, fail2ban, auto-updates):   sudo $APP_DIR/deploy/harden.sh
+  SSH keys only (asks you to prove a key login first):   sudo $APP_DIR/deploy/ssh-harden.sh status
+  Monitoring alerts test:   sudo $APP_DIR/deploy/monitor.sh test
   Telegram bot (Reels uploads):   admin panel → الأمان والنظام → بوت Telegram
   Calls (TURN):  open in your VPS provider's firewall too: $TURN_PORT_V/udp+tcp, $TURN_TLS_V/tcp, $TURN_MIN_V-$TURN_MAX_V/udp
   Android app download page:   $PUBLIC_URL/download

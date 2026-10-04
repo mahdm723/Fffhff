@@ -539,3 +539,24 @@ def test_cli_bot_test_and_admin_link(monkeypatch, capsys, tmp_path):
         assert tg.TOKEN not in out
     finally:
         get_settings.cache_clear()
+
+
+def test_cli_alert_goes_to_the_admin_chat(monkeypatch, capsys, tmp_path):
+    """V5 monitoring: deploy/monitor.sh → admin_cli alert → the admin's Telegram chat (token stays server-side)."""
+    from app import admin_cli
+    from app.config import get_settings
+
+    fake = tg.FakeTelegram()
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", tg.TOKEN)
+    monkeypatch.setenv("TELEGRAM_ADMIN_CHAT_ID", str(tg.ADMIN_ID))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path}/cli.db")
+    get_settings.cache_clear()
+    try:
+        admin_cli.main(["alert", "القرص / ممتلئ بنسبة 91%"], telegram_transport=fake.transport)
+        assert str(fake.sent[-1]["chat_id"]) == str(tg.ADMIN_ID)
+        assert fake.sent[-1]["text"].startswith("🚨 DZPLAY") and "91%" in fake.sent[-1]["text"]
+        assert tg.TOKEN not in capsys.readouterr().out
+        with pytest.raises(SystemExit):
+            admin_cli.main(["alert", "   "], telegram_transport=fake.transport)
+    finally:
+        get_settings.cache_clear()

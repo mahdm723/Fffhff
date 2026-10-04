@@ -214,3 +214,47 @@ def test_monetization_email_code_ledger_and_red_packet(dx, clip):
     # users can never write money
     assert a.post(f"/test-panel/api/admin/users/{aid}/ledger", json={"kind": "earning", "amount": "999"}).status_code == 401
     assert a.post("/api/money", json={"balance": 999}).status_code in (404, 405)
+
+
+def test_concurrent_payouts_cannot_overdraw(hx):
+    """Two admins record the same full payout at the same moment: the row lock lets only one through (PostgreSQL)."""
+    import threading
+    import time
+
+    from app import clock
+    from app.errors import AppError
+    from app.models import MonetizationApplication
+    from app.services import monetization
+    from app.services.messaging import Effects
+
+    if hx.state.database.engine.dialect.name != "postgresql":
+        pytest.skip("row locks: PostgreSQL only (SQLite serializes writers anyway)")
+    c = hx.user()
+    user_id = uid(hx, c)
+    with hx.db() as db:
+        db.get(User, user_id).verified_at = clock.utcnow()
+        db.add(MonetizationApplication(user_id=user_id, content_type="x", payout_email="p@example.com", status="accepted"))
+        db.flush()
+        monetization.record(db, hx.state.settings, user_id, kind="earning", amount="10.00", currency="USD",
+                            note=None, actor="test", effects=Effects())
+        db.commit()
+    results: list[str] = []
+    start = threading.Barrier(2)
+
+    def pay():
+        start.wait()
+        try:
+            with hx.state.database.session() as db:
+                monetization.record(db, hx.state.settings, user_id, kind="payout", amount="10.00", currency="USD",
+                                    note=None, actor="test", paid_on="2026-10-04", effects=Effects())
+                time.sleep(0.3)  # keep the transaction open: the other admin's call overlaps it
+            results.append("ok")
+        except AppError as exc:
+            results.append(exc.code)
+
+    threads = [threading.Thread(target=pay) for _ in range(2)]
+    [t.start() for t in threads]
+    [t.join(10) for t in threads]
+    assert sorted(results) == ["insufficient_balance", "ok"]
+    with hx.db() as db:
+        assert monetization._balance_minor(db, user_id, "USD") == 0
