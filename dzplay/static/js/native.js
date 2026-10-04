@@ -45,12 +45,13 @@ async function checkUpdate() {
   const key = `dz:update-seen:${rel.version_name}`;
   try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { /* ignore */ }
   sheet((panel, close) => {
-    panel.append(
+    panel.append(...[
       h('h2', { text: 'تحديث متوفر' }),
-      h('p', { text: `الإصدار ${rel.version_name} من تطبيق DZPLAY متاح (لديك ${mine}). يضيف المكالمات الصوتية والمرئية وتحسينات أخرى.` }),
+      h('p', { text: `الإصدار ${rel.version_name} من تطبيق DZPLAY متاح (لديك ${mine}).` }),
+      (rel.notes || []).length ? h('ul', { class: 'update-notes' }, ...rel.notes.slice(0, 5).map((n) => h('li', { text: n }))) : null,
       h('div', { class: 'actions' },
         h('a', { class: 'btn btn--primary btn--block', href: '/download' }, 'تحميل التحديث'),
         h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'لاحقًا')),
-    );
+    ].filter(Boolean));
   });
 }
