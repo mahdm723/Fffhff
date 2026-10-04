@@ -3,9 +3,10 @@
 // and the conversation menu (reveal my identity, mute, report, block, delete).
 import { api } from '../api.js';
 import { icon } from '../icons.js';
+import { PickError, chooseFile, openViewer, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
 import * as store from '../store.js';
 import {
-  REPORT_REASONS, autoGrow, confirmSheet, formatDay, formatTime, h, idChip, nameLine, personAvatar, sheet, toast,
+  REPORT_REASONS, autoGrow, confirmSheet, formatDay, formatTime, h, idChip, nameLine, newClientId, personAvatar, sheet, toast,
 } from '../ui.js';
 
 const STATUS = {
@@ -42,6 +43,9 @@ function systemText(m) {
 }
 
 const isAnonymous = (conv) => !conv || (conv.kind !== 'direct' && (!conv.peer_card || conv.peer_card.anonymous));
+// V5: pictures in chats unlock like calls — once the other side has replied.
+const canSendImage = (conv) => !!conv && conv.status === 'active' && conv.peer_has_replied && !store.isRequest(conv)
+  && !(conv.request && conv.request.state !== 'accepted');
 const canCall = (conv) => !!conv && conv.status === 'active' && conv.peer_has_replied && !store.isRequest(conv)
   && !(conv.request && conv.request.state !== 'accepted');
 
@@ -121,7 +125,96 @@ export function renderChat(root, { conversationId, navigate }) {
   sendBtn.addEventListener('pointerdown', (e) => e.preventDefault()); // keep the keyboard open
   sendBtn.addEventListener('click', send);
   const requestHint = h('p', { class: 'chat__hint', hidden: true });
-  const composer = h('div', { class: 'chat__composer-wrap' }, requestHint, h('div', { class: 'chat__composer' }, textarea, sendBtn));
+  const imageBtn = h('button', { class: 'icon-btn icon-btn--plain chat__img-btn', type: 'button', 'aria-label': 'إرسال صورة', hidden: true }, icon('image'));
+  const uploadLine = h('p', { class: 'chat__upload', hidden: true });
+  let chatImages = null; // upload config (null until loaded / unavailable)
+  let sendingImage = false;
+  imageBtn.addEventListener('click', () => sendImage());
+  const composer = h('div', { class: 'chat__composer-wrap' }, requestHint, uploadLine,
+    h('div', { class: 'chat__composer' }, imageBtn, textarea, sendBtn));
+  uploadConfig().then((cfg) => { chatImages = cfg.available && cfg.chat.enabled ? cfg : null; draw(); }).catch(() => {});
+
+  async function sendImage() {
+    const conv = store.getConversation(conversationId);
+    if (!canSendImage(conv)) { toast('يمكنك إرسال الصور بعد أن يرد عليك الطرف الآخر.'); return; }
+    if (sendingImage || !chatImages) return;
+    const file = await chooseFile('image/jpeg,image/png,image/webp,image/heic,image/heif');
+    if (!file) return;
+    sendingImage = true;
+    imageBtn.disabled = true;
+    const line = (t) => { uploadLine.hidden = !t; uploadLine.textContent = t || ''; };
+    try {
+      line('جارٍ فحص الصورة…');
+      const picked = await prepareImage(file, chatImages);
+      if (picked.preview) URL.revokeObjectURL(picked.preview); // never kept on the phone
+      await api.post('/api/uploads/precheck', { purpose: 'chat', conversation_id: conversationId });
+      const up = await uploadBlob(picked.blob, {
+        purpose: 'chat', conversationId,
+        onProgress: (f) => line(f < 1 ? `جارٍ رفع الصورة ${Math.round(f * 100)}%` : 'جارٍ الفحص على الخادم…'),
+      });
+      line('جارٍ الفحص على الخادم…');
+      await waitReady(up.id);
+      await api.post(`/api/conversations/${encodeURIComponent(conversationId)}/media`, { media_id: up.id, client_id: newClientId() });
+      await store.loadConversation(conversationId);
+      line('');
+    } catch (err) {
+      line('');
+      toast(err instanceof PickError ? err.message : (err.message || 'تعذّر إرسال الصورة.'), 'error', 4500);
+    }
+    sendingImage = false;
+    draw();
+  }
+
+  // ---------------- ephemeral pictures
+  const secondsLeft = (media) => Math.max(0, Math.ceil((Date.parse(media.view_expires_at) - Date.now()) / 1000));
+
+  async function openImage(m) {
+    let res;
+    try {
+      res = await api.post(`/api/messages/${encodeURIComponent(m.id)}/open`);
+    } catch (err) {
+      if (err.status === 410) { m.media = { kind: 'image', state: 'expired', blur: null }; draw(); }
+      toast(err.message, 'error');
+      return;
+    }
+    m.media = { ...m.media, state: 'open', view_expires_at: res.view_expires_at };
+    draw();
+    let blobUrl = null;
+    try {
+      const r = await fetch(res.url, { credentials: 'same-origin', cache: 'no-store' });
+      if (!r.ok) throw new Error('gone');
+      blobUrl = URL.createObjectURL(await r.blob());
+    } catch {
+      toast('تعذّر تحميل الصورة. حاول مرة أخرى.', 'error');
+      return;
+    }
+    openViewer(blobUrl, {
+      alt: 'صورة مؤقتة', countdown: res.seconds_left, secure: res.secure,
+      onExpire: () => { m.media = { kind: 'image', state: 'expired', blur: null }; draw(); },
+      onReport: () => reportSheet(m.id),
+      onClose: () => URL.revokeObjectURL(blobUrl), // the picture leaves the phone's memory
+    });
+  }
+
+  function imageContent(m) {
+    const media = m.media || { state: 'expired' };
+    let state = media.state;
+    if (state === 'open' && media.view_expires_at && secondsLeft(media) <= 0) state = 'expired';
+    if (state === 'expired') {
+      return { node: h('span', { class: 'img-msg img-msg--gone' }, icon('timer'), h('span', { text: 'انتهت صلاحية الصورة' })), action: null };
+    }
+    const blur = media.blur ? h('img', { class: 'img-msg__blur', src: media.blur, alt: '' }) : null;
+    const timer = state === 'open'
+      ? h('span', { class: 'img-msg__timer', dataset: { expires: media.view_expires_at } }, `${secondsLeft(media)} ث`) : null;
+    let label;
+    if (m.mine) label = state === 'open' ? 'فُتحت · تختفي بعد' : 'صورة · لم تُفتح بعد';
+    else label = state === 'open' ? 'اضغط للعرض · تختفي بعد' : 'اضغط للعرض';
+    return {
+      node: h('span', { class: `img-msg ${m.mine ? 'img-msg--mine' : ''}` }, blur,
+        h('span', { class: 'img-msg__label' }, icon(m.mine ? 'image' : 'eye'), h('span', { text: label }), timer)),
+      action: m.mine ? null : () => openImage(m),
+    };
+  }
 
   function send() {
     const content = textarea.value.trim();
@@ -147,13 +240,16 @@ export function renderChat(root, { conversationId, navigate }) {
     const row = h('div', {
       class: `bubble-row ${m.mine ? 'mine' : 'theirs'} ${first ? 'grp-first' : ''} ${last ? 'grp-last' : ''} ${m.status === 'failed' ? 'failed' : ''} ${expanded.has(key) ? 'show-meta' : ''}`,
     });
-    const b = h('button', { class: 'bubble', type: 'button', 'aria-expanded': String(expanded.has(key)) }, h('span', { text: m.content, dir: 'auto' }));
+    const img = m.kind === 'image' ? imageContent(m) : null;
+    const b = h('button', { class: `bubble ${img ? 'bubble--image' : ''}`, type: 'button', 'aria-expanded': String(expanded.has(key)) },
+      img ? img.node : h('span', { text: m.content, dir: 'auto' }));
     const detail = h('div', { class: 'bubble__detail' },
       h('time', { datetime: m.created_at, text: formatTime(m.created_at) }),
       m.mine && STATUS[m.status] ? h('span', { text: ` · ${STATUS[m.status][1]}` }) : null,
       !m.mine ? h('button', { class: 'link-btn', type: 'button', onclick: () => reportSheet(m.id) }, 'إبلاغ') : null,
     );
     b.addEventListener('click', () => {
+      if (img && img.action) { img.action(); return; }
       if (expanded.has(key)) expanded.delete(key); else expanded.add(key);
       row.classList.toggle('show-meta');
       b.setAttribute('aria-expanded', String(expanded.has(key)));
@@ -232,6 +328,9 @@ export function renderChat(root, { conversationId, navigate }) {
       const n = store.state.config.direct_before_reply;
       requestHint.textContent = `أُرسل طلب مراسلة. ${n ? `يمكنك إرسال ${n} رسائل على الأكثر` : 'يمكنك إرسال رسائل قليلة'} حتى يرد.`;
     }
+    imageBtn.hidden = !chatImages;
+    imageBtn.disabled = sendingImage || !canSendImage(conv);
+    imageBtn.title = canSendImage(conv) ? '' : 'تتاح الصور بعد أن يرد الطرف الآخر';
     if (!composer.isConnected) footer.replaceChildren(composer);
   }
 
@@ -378,6 +477,7 @@ export function renderChat(root, { conversationId, navigate }) {
 
   const unsub = store.subscribe((type, detail) => {
     if (type === 'sync') draw();
+    else if (type === 'media') store.loadConversation(conversationId).catch(() => {});
     else if (type === 'typing' && detail.conversation_id === conversationId) {
       clearTimeout(typingTimer);
       peerTyping = !!detail.on;
@@ -387,6 +487,16 @@ export function renderChat(root, { conversationId, navigate }) {
   });
   // The peer's new message ends their typing indicator.
   const unsubMsg = store.subscribe((type) => { if (type === 'incoming' && peerTyping) { peerTyping = false; draw(); } });
+  // countdowns on opened pictures (both sides); at 0 the bubble turns into "expired"
+  const countdown = setInterval(() => {
+    let ended = false;
+    for (const el of body.querySelectorAll('[data-expires]')) {
+      const left = Math.max(0, Math.ceil((Date.parse(el.dataset.expires) - Date.now()) / 1000));
+      el.textContent = `${left} ث`;
+      if (left <= 0) ended = true;
+    }
+    if (ended) draw();
+  }, 1000);
   const onVis = () => { if (document.visibilityState === 'visible') draw(); };
   document.addEventListener('visibilitychange', onVis);
 
@@ -402,6 +512,7 @@ export function renderChat(root, { conversationId, navigate }) {
 
   return () => {
     stopTyping();
+    clearInterval(countdown);
     clearTimeout(typingTimer);
     unsub();
     unsubMsg();

@@ -10,7 +10,7 @@ from __future__ import annotations
 import secrets
 from functools import lru_cache
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 HOUR = 3600
@@ -266,12 +266,56 @@ class Settings(BaseSettings):
     FCM_SERVICE_ACCOUNT_FILE: str = ""  # SECRET file (never in the repo): Firebase service-account JSON path
     FCM_PROJECT_ID: str = ""  # empty = read from the service-account file
 
+    # --- V5: user media (idea images, ephemeral chat images, creator reels) -----------
+    # Telegram is the file store; the server only relays. Two PRIVATE chats, both with the bot as admin:
+    TELEGRAM_STORAGE_CHANNEL_ID: str = ""  # private channel holding every published file (e.g. -1001234567890)
+    TELEGRAM_MODERATION_CHAT_ID: str = ""  # private group of moderators: each upload arrives with action buttons
+    UPLOAD_TMP_DIR: str = "./upload-tmp"  # size-capped tmpfs in production; files live here seconds only
+    UPLOAD_TMP_MAX_MB: int = 512  # new uploads wait (503) while the temp area holds more than this
+    MEDIA_WORKER: str = "inline"  # inline (in the app process) | queue (separate media-worker container via Redis)
+    MEDIA_WORKER_TIMEOUT: int = 600  # seconds the app waits for a queued job before giving up
+    MEDIA_FFMPEG_MEM_MB: int = 1536  # address-space limit for each ffmpeg/ffprobe run
+    TELEGRAM_STORE_MAX_MB: float = 18.0  # stored files stay under the Bot API's 20 MB download limit
+    UPLOADS_PER_HOUR: int = 20  # any upload, per user
+    UPLOAD_QUEUE_MAX: int = 30  # files waiting for processing; above this new uploads are asked to retry
+    CAPTION_BLOCK_CATEGORIES: str = "sexual,threat,blackmail"  # word-filter categories that refuse a caption
+    UPLOAD_IMAGE_TYPES: str = "jpeg,png,webp,heic"  # checked by magic bytes, never by the file name
+    UPLOAD_VIDEO_TYPES: str = "mp4,mov,webm"
+    UPLOAD_IMAGE_MAX_MB: float = 12.0  # raw upload (the phone already compresses before sending)
+    UPLOAD_IMAGE_MIN_SIDE: int = 64
+    UPLOAD_IMAGE_MAX_SIDE: int = 12000  # also bounded by IMAGE_MAX_PIXELS (decompression bombs)
+    DEVICE_IMAGE_MAX_SIDE: int = 1600  # the phone resizes to this before uploading
+    DEVICE_IMAGE_QUALITY: float = 0.86
+    # On-device + server NSFW check (NSFWJS MobileNetV2; same weights on both sides)
+    DEVICE_NSFW_CHECK: bool = True
+    SERVER_NSFW_CHECK: bool = True
+    NSFW_BLOCK_THRESHOLD: float = 0.70  # P(porn) + P(hentai) at or above this is refused
+    NSFW_SEXY_THRESHOLD: float = 0.92  # P(sexy) at or above this is refused (1.0 = never)
+    NSFW_VIDEO_FRAMES: int = 4  # frames checked per video
+    # idea images
+    IDEA_IMAGES_ENABLED: bool = True
+    IDEA_IMAGE_LIMIT_PER_24H: int = 1
+    IDEA_IMAGE_REQUIRE_APPROVAL: bool = False  # True: an idea with an image appears only after approval
+    # ephemeral chat images
+    CHAT_IMAGES_ENABLED: bool = True
+    CHAT_IMAGE_TTL_AFTER_VIEW: int = 120  # seconds the picture stays visible once opened
+    CHAT_IMAGE_UNOPENED_TTL: int = 24 * HOUR  # never opened: removed after this
+    CHAT_IMAGE_PER_HOUR: int = 10
+    CHAT_IMAGE_REPORT_GRACE: int = 600  # expired pictures stay reportable this long (storage copy only, never shown)
+    CHAT_IMAGE_ARCHIVE: bool = False  # False: expired chat pictures are deleted everywhere (unless reported)
+    CHAT_IMAGE_FLAG_SECURE: bool = True  # Android app blocks screenshots while a chat picture is open
+    # reports on media
+    REPORT_AUTO_HIDE_THRESHOLD: int = 3  # distinct reporters hide a picture/post until reviewed (0 = off)
+    MEDIA_EVIDENCE_RETENTION_DAYS: int = 180  # reported / illegal media kept (Telegram) for review, then deleted
+    MEDIA_TICK_SECONDS: int = 5  # expiry of chat pictures (0 = off; tests call media_items.tick)
+
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
     MODERATION_EXTRA_WORDS: str = ""  # extra words/phrases, comma separated ("word*" = starts with)
 
     # --- derived / validation ----------------------------------------------
     secret_key_generated: bool = Field(default=False, exclude=True)
+    _tunable_env: dict | None = PrivateAttr(default=None)  # .env values of the panel-tunable settings
 
     @field_validator("LOGIN_BLOCK_SCOPE")
     @classmethod
@@ -330,6 +374,21 @@ class Settings(BaseSettings):
     @property
     def telegram_enabled(self) -> bool:
         return bool(self.TELEGRAM_BOT_TOKEN and self.TELEGRAM_ADMIN_CHAT_ID)
+
+    @field_validator("MEDIA_WORKER")
+    @classmethod
+    def _media_worker(cls, v: str) -> str:
+        if v not in ("inline", "queue"):
+            raise ValueError("MEDIA_WORKER must be inline or queue")
+        return v
+
+    @property
+    def image_types(self) -> set[str]:
+        return {t.strip().lower() for t in self.UPLOAD_IMAGE_TYPES.split(",") if t.strip()}
+
+    @property
+    def video_types(self) -> set[str]:
+        return {t.strip().lower() for t in self.UPLOAD_VIDEO_TYPES.split(",") if t.strip()}
 
     @property
     def smtp_enabled(self) -> bool:

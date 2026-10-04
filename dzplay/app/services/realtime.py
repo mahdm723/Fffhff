@@ -31,6 +31,7 @@ class Hub:
         self._redis_url = redis_url
         self._redis = None
         self._listener: asyncio.Task | None = None
+        self.system_handler = None  # called with instance-wide events (e.g. settings changed in the panel)
 
     # lifecycle ---------------------------------------------------------------
     async def start(self) -> None:
@@ -65,6 +66,9 @@ class Hub:
                     continue
                 try:
                     data = json.loads(item["data"])
+                    if "system" in data:
+                        self._system_local(data["system"])
+                        continue
                     self._deliver_local(data["users"], data["event"])
                 except (ValueError, KeyError, TypeError):
                     log.warning("bad realtime payload")
@@ -106,6 +110,23 @@ class Hub:
             except Exception:  # noqa: BLE001 - fall back to local delivery
                 log.exception("redis publish failed")
         self._deliver_local(user_ids, event)
+
+    def notify_system(self, event: dict) -> None:
+        """Thread-safe. Tells every app instance (not users) that something changed, e.g. settings."""
+        if self._redis is not None:
+            try:
+                self._redis.publish(_CHANNEL, json.dumps({"system": event}))
+                return
+            except Exception:  # noqa: BLE001 - fall back to this instance only
+                log.exception("redis publish failed")
+        self._system_local(event)
+
+    def _system_local(self, event: dict) -> None:
+        if self.system_handler is not None:
+            try:
+                self.system_handler(event)
+            except Exception:  # noqa: BLE001
+                log.exception("system event failed")
 
     def _deliver_local(self, user_ids: list[str], event: dict) -> None:
         with self._lock:

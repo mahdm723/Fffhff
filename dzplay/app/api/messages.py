@@ -111,10 +111,13 @@ def report_conversation(conversation_id: str, body: ReportBody, request: Request
 @router.post("/messages/{message_id}/report", status_code=201)
 def report_message(message_id: str, body: ReportBody, request: Request) -> dict:
     st = get_state(request)
+    effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        return messaging.report(db, st.settings, st.limiter, user, conversation_id=None, message_id=message_id,
-                                reason=body.reason, details=body.details)
+        result = messaging.report(db, st.settings, st.limiter, user, conversation_id=None, message_id=message_id,
+                                  reason=body.reason, details=body.details, effects=effects)
+    st.dispatch(effects)
+    return result
 
 
 @router.get("/sync")

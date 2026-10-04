@@ -1,7 +1,13 @@
 # Automatic HTTPS (Let's Encrypt) in front of DZPLAY.
 {$DOMAIN} {
 	encode zstd gzip
-	request_body {
+	# API bodies are tiny JSON documents; only file uploads (V5) may be larger (exact caps in the app).
+	@upload path /api/uploads
+	request_body @upload {
+		max_size 210MB
+	}
+	@small not path /api/uploads
+	request_body @small {
 		max_size 64KB
 	}
 	# Caddy is the only proxy: overwrite any client-supplied X-Forwarded-For.

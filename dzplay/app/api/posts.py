@@ -13,17 +13,25 @@ from app.services.messaging import Effects
 router = APIRouter(prefix="/api", tags=["ideas"])
 
 
+class PostBody(SendBody):
+    media_id: str | None = Field(default=None, max_length=40)  # V5: a finished upload (purpose "idea")
+
+
 class ReactionBody(BaseModel):
     model_config = ConfigDict(extra="ignore")
     reaction: str | None = Field(default=None, max_length=8)  # "like" | "dislike" | null (remove)
 
 
 @router.post("/posts", status_code=201)
-def create_post(body: SendBody, request: Request) -> dict:
+def create_post(body: PostBody, request: Request) -> dict:
     st = get_state(request)
+    effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        return ideas.create_post(db, st.settings, st.limiter, user, content=body.content, client_id=body.client_id)
+        result = ideas.create_post(db, st.settings, st.limiter, user, content=body.content, client_id=body.client_id,
+                                   media_id=body.media_id, effects=effects)
+    st.dispatch(effects)
+    return result
 
 
 @router.get("/posts/feed")
@@ -45,8 +53,10 @@ def get_post(post_id: str, request: Request) -> dict:
 @router.delete("/posts/{post_id}")
 def delete_post(post_id: str, request: Request) -> dict:
     st = get_state(request)
+    effects = Effects()
     with st.database.session() as db:
-        ideas.delete_post(db, current_user(request, db), post_id)
+        ideas.delete_post(db, current_user(request, db), post_id, effects)
+    st.dispatch(effects)
     return {"ok": True}
 
 
@@ -81,9 +91,13 @@ def list_comments(post_id: str, request: Request, before: str | None = Query(def
 @router.post("/posts/{post_id}/report", status_code=201)
 def report_post(post_id: str, body: ReportBody, request: Request) -> dict:
     st = get_state(request)
+    effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        return ideas.report_post(db, st.settings, st.limiter, user, post_id, reason=body.reason, details=body.details)
+        result = ideas.report_post(db, st.settings, st.limiter, user, post_id, reason=body.reason, details=body.details,
+                                   effects=effects)
+    st.dispatch(effects)
+    return result
 
 
 @router.delete("/comments/{comment_id}")

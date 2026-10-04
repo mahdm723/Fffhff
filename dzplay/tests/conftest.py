@@ -80,6 +80,8 @@ def make_settings(tmp_path, **overrides) -> Settings:
         TURN_SECRET="test-turn-secret",
         TURN_HOST="turn.example.test",
         MEDIA_CACHE_DIR=str(tmp_path / "media-cache"),
+        UPLOAD_TMP_DIR=str(tmp_path / "upload-tmp"),
+        MEDIA_TICK_SECONDS=0,  # tests run media_items.tick explicitly
         FFMPEG_BINARY=ffmpeg_binary(),
         FFPROBE_BINARY="ffprobe" if __import__("shutil").which("ffprobe") else ffprobe_shim(),
     )

@@ -26,6 +26,10 @@ class FakeTelegram:
         self.calls: list[str] = []
         self.downloads: list[str] = []
         self.fail_methods: set[str] = set()
+        self.documents: list[dict] = []  # V5: files stored with sendDocument
+        self.copies: list[dict] = []  # copyMessage calls (moderation notices)
+        self.deleted: list[tuple] = []  # deleteMessage calls (chat_id, message_id)
+        self.edited: list[dict] = []
         self._ids = itertools.count(1)
         self.transport = httpx.MockTransport(self._handle)
 
@@ -59,9 +63,11 @@ class FakeTelegram:
             return httpx.Response(401, json={"ok": False, "error_code": 401, "description": "Unauthorized"})
         method = path[len(prefix):]
         self.calls.append(method)
-        body = json.loads(request.content or b"{}")
         if method in self.fail_methods:
             return httpx.Response(400, json={"ok": False, "error_code": 400, "description": f"Bad Request: {method} failed"})
+        if method == "sendDocument":
+            return self._send_document(request)
+        body = json.loads(request.content or b"{}")
         if method == "sendMessage":
             self.sent.append(body)
             return self._ok({"message_id": next(self._ids), "chat": {"id": body.get("chat_id")}, "text": body.get("text")})
@@ -76,7 +82,15 @@ class FakeTelegram:
         if method == "setWebhook":
             self.webhook = body
             return self._ok(True)
-        if method in ("answerCallbackQuery", "editMessageReplyMarkup"):
+        if method in ("answerCallbackQuery", "editMessageReplyMarkup", "editMessageCaption"):
+            self.edited.append({"method": method, **body})
+            return self._ok(True)
+        if method == "copyMessage":
+            mid = next(self._ids)
+            self.copies.append({**body, "result_id": mid})
+            return self._ok({"message_id": mid})
+        if method == "deleteMessage":
+            self.deleted.append((str(body.get("chat_id")), body.get("message_id")))
             return self._ok(True)
         if method == "deleteWebhook":
             self.webhook = None
@@ -87,6 +101,30 @@ class FakeTelegram:
             hook = getattr(self, "webhook", None) or {}
             return self._ok({"url": hook.get("url", ""), "pending_update_count": 0})
         return httpx.Response(404, json={"ok": False, "error_code": 404, "description": "Not Found"})
+
+
+    def _send_document(self, request: httpx.Request) -> httpx.Response:
+        from email.parser import BytesParser
+        from email.policy import default
+
+        raw = request.read()
+        msg = BytesParser(policy=default).parsebytes(
+            b"Content-Type: " + request.headers["content-type"].encode() + b"\r\n\r\n" + raw)
+        fields, doc = {}, None
+        for part in msg.iter_parts():
+            name = part.get_param("name", header="content-disposition")
+            if name == "document":
+                doc = (part.get_filename(), part.get_payload(decode=True), part.get_content_type())
+            else:
+                fields[name] = part.get_content()
+        if doc is None:
+            return httpx.Response(400, json={"ok": False, "error_code": 400, "description": "Bad Request: no document"})
+        file_id = self.add_file(doc[1], name="doc")
+        mid = next(self._ids)
+        self.documents.append({"chat_id": fields.get("chat_id"), "caption": fields.get("caption"), "filename": doc[0],
+                               "mime": doc[2], "content": doc[1], "file_id": file_id, "message_id": mid})
+        return self._ok({"message_id": mid, "chat": {"id": fields.get("chat_id")},
+                         "document": {"file_id": file_id, "file_unique_id": file_id[:10], "file_size": len(doc[1])}})
 
 
 # ----------------------------------------------------------------- update builders
@@ -132,7 +170,9 @@ def photo(file_id: str, size: int, caption: str | None = None, group: str | None
     return update(msg)
 
 
-def callback(data: str, sender: int = ADMIN_ID, message_id: int = 1) -> dict:
+def callback(data: str, sender: int = ADMIN_ID, message_id: int = 1, chat: int | None = None) -> dict:
+    chat_id = chat if chat is not None else sender
     return {"update_id": next(_update_ids), "callback_query": {
         "id": f"cb{next(_update_ids)}", "from": {"id": sender, "is_bot": False, "first_name": "Admin"},
-        "message": {"message_id": message_id, "chat": {"id": sender, "type": "private"}}, "data": data}}
+        "message": {"message_id": message_id, "chat": {"id": chat_id, "type": "private" if chat is None else "supergroup"}},
+        "data": data}}

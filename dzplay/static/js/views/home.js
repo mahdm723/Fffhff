@@ -8,6 +8,7 @@
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { infiniteSentinel, onIdeaChange, postCard } from '../ideas.js';
+import { PickError, chooseFile, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
 import { autoGrow, h, newClientId, toast, wordmark } from '../ui.js';
 import { renderReels } from './reels.js';
 
@@ -86,6 +87,79 @@ function renderIdeasPane(page, { config, navigate }) {
   textarea.value = readDraft();
   const counter = h('span', { class: 'counter' });
   const publish = h('button', { class: 'btn btn--primary btn--sm', type: 'button' }, 'نشر');
+  // V5: one picture per idea (IDEA_IMAGE_LIMIT_PER_24H), checked + compressed on the phone first.
+  const imageBtn = h('button', { class: 'icon-btn icon-btn--plain idea-composer__img', type: 'button', 'aria-label': 'إضافة صورة', hidden: true }, icon('image'));
+  const imageNote = h('span', { class: 'idea-composer__note', hidden: true });
+  const mediaBox = h('div', { class: 'idea-media', hidden: true });
+  let picked = null; // { blob, preview }
+  let quota = null;
+  let quotaTimer = null;
+  let busy = false;
+
+  function paintQuota() {
+    clearInterval(quotaTimer);
+    if (!quota || !quota.enabled) { imageBtn.hidden = true; imageNote.hidden = true; return; }
+    imageBtn.hidden = false;
+    const tickNote = () => {
+      const left = quota.next_at ? Date.parse(quota.next_at) - Date.now() : 0;
+      if (quota.remaining > 0 || left <= 0) {
+        imageBtn.disabled = busy;
+        imageNote.hidden = true;
+        if (quota.remaining <= 0 && left <= 0) { quota.remaining = 1; quota.next_at = null; }
+        clearInterval(quotaTimer);
+        return;
+      }
+      imageBtn.disabled = true;
+      const s = Math.ceil(left / 1000);
+      const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+      const ss = String(s % 60).padStart(2, '0');
+      imageNote.hidden = false;
+      imageNote.textContent = `الصورة التالية بعد ${hh}:${mm}:${ss}`;
+    };
+    tickNote();
+    if (quota.remaining <= 0) quotaTimer = setInterval(tickNote, 1000);
+  }
+  async function refreshQuota() {
+    try { const cfg = await uploadConfig(true); quota = cfg.available ? cfg.idea : null; } catch { quota = null; }
+    paintQuota();
+  }
+
+  function clearPicked() {
+    if (picked && picked.preview) URL.revokeObjectURL(picked.preview);
+    picked = null;
+    mediaBox.hidden = true;
+    mediaBox.replaceChildren();
+    update();
+  }
+  function showPicked(stage = '') {
+    const img = picked.preview ? h('img', { src: picked.preview, alt: 'الصورة المختارة' }) : h('div', { class: 'idea-media__ph' }, icon('image'));
+    const remove = h('button', { class: 'idea-media__x', type: 'button', 'aria-label': 'إزالة الصورة', disabled: busy, onclick: clearPicked }, icon('close'));
+    mediaBox.replaceChildren(...[img, remove, stage ? h('div', { class: 'idea-media__stage', text: stage }) : null].filter(Boolean));
+    mediaBox.hidden = false;
+  }
+  imageBtn.addEventListener('click', async () => {
+    const file = await chooseFile('image/jpeg,image/png,image/webp,image/heic,image/heif');
+    if (!file) return;
+    busy = true;
+    imageBtn.disabled = true;
+    try {
+      const cfg = await uploadConfig();
+      if (picked) clearPicked();
+      picked = { blob: null, preview: null };
+      showPicked('جارٍ فحص الصورة…');
+      picked = await prepareImage(file, cfg, { onStage: () => showPicked('جارٍ فحص الصورة…') });
+      busy = false;
+      showPicked();
+    } catch (err) {
+      busy = false;
+      picked = null;
+      mediaBox.hidden = true;
+      toast(err instanceof PickError ? err.message : (err.message || 'تعذّر تجهيز الصورة.'), 'error', 4500);
+    }
+    paintQuota();
+    update();
+  });
   const composer = h('section', { class: 'idea-composer glass glass--lift', 'aria-labelledby': 'idea-title' },
     h('div', { class: 'idea-composer__head' },
       h('span', { class: 'idea-composer__icon' }, icon('bulb')),
@@ -95,14 +169,16 @@ function renderIdeasPane(page, { config, navigate }) {
       ),
     ),
     textarea,
-    h('div', { class: 'idea-composer__bar' }, counter, publish),
+    mediaBox,
+    h('div', { class: 'idea-composer__bar' }, imageBtn, imageNote, counter, publish),
   );
 
   const update = () => {
     counter.textContent = textarea.value.length ? `${textarea.value.length} / ${max}` : '';
     counter.classList.toggle('is-over', textarea.value.length > max);
-    publish.disabled = !textarea.value.trim() || textarea.value.length > max;
-    composer.classList.toggle('is-active', document.activeElement === textarea || !!textarea.value);
+    const hasImage = !!(picked && picked.blob);
+    publish.disabled = busy || (!textarea.value.trim() && !hasImage) || textarea.value.length > max;
+    composer.classList.toggle('is-active', document.activeElement === textarea || !!textarea.value || hasImage);
     writeDraft(textarea.value);
   };
   textarea.addEventListener('input', update);
@@ -113,24 +189,43 @@ function renderIdeasPane(page, { config, navigate }) {
 
   publish.addEventListener('click', async () => {
     const content = textarea.value.trim();
-    if (!content) return;
+    const withImage = !!(picked && picked.blob);
+    if (!content && !withImage) return;
     publish.disabled = true;
     publish.textContent = '…';
+    busy = true;
     try {
-      const created = await api.post('/api/posts', { content, client_id: newClientId() });
+      let mediaId = null;
+      if (withImage) {
+        await api.post('/api/uploads/precheck', { purpose: 'idea', caption: content || null });
+        showPicked('جارٍ الرفع 0%');
+        const up = await uploadBlob(picked.blob, {
+          purpose: 'idea', onProgress: (f) => showPicked(f < 1 ? `جارٍ الرفع ${Math.round(f * 100)}%` : 'جارٍ الفحص على الخادم…'),
+        });
+        showPicked('جارٍ الفحص على الخادم…');
+        await waitReady(up.id);
+        mediaId = up.id;
+      }
+      const created = await api.post('/api/posts', { content, client_id: newClientId(), media_id: mediaId });
+      busy = false;
+      if (withImage) { clearPicked(); refreshQuota(); }
       textarea.value = '';
       update();
       textarea.blur();
       feedState.posts.unshift(created);
       list.prepend(postCard(created, { navigate, onRemoved: removed }));
       clearEmpty();
-      toast('نُشرت فكرتك ✨');
+      toast(created.status === 'pending' ? 'أُرسلت فكرتك، وستظهر بعد مراجعة الصورة.' : 'نُشرت فكرتك ✨');
     } catch (err) {
+      busy = false;
+      if (picked) showPicked();
       toast(err.message, 'error', 4500);
+      if (err.code === 'idea_image_limit') { clearPicked(); refreshQuota(); }
     }
     publish.textContent = 'نشر';
     update();
   });
+  refreshQuota();
 
   // ------------------------------------------------------------ feed
   const refreshBtn = h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': 'أفكار أخرى' }, icon('refresh'));
@@ -206,6 +301,8 @@ function renderIdeasPane(page, { config, navigate }) {
   page.addEventListener('scroll', onScroll, { passive: true });
 
   return () => {
+    clearInterval(quotaTimer);
+    if (picked && picked.preview) URL.revokeObjectURL(picked.preview);
     sentinel.stop();
     offChange();
     page.removeEventListener('scroll', onScroll);

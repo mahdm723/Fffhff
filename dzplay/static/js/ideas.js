@@ -2,6 +2,7 @@
 // Post text is only ever inserted with textContent.
 import { api } from './api.js';
 import { icon } from './icons.js';
+import { openViewer } from './media-pick.js';
 import * as store from './store.js';
 import { REPORT_REASONS, autoGrow, confirmSheet, formatListTime, h, nameLine, personAvatar, sheet, toast } from './ui.js';
 
@@ -214,11 +215,26 @@ export function postCard(post, { navigate, onRemoved } = {}) {
     });
   }
 
+  // V5: one picture (signed URL bound to this session; full screen on tap)
+  let media = null;
+  if (state.media && state.media.url) {
+    const m = state.media;
+    const img = h('img', { src: m.url, alt: 'صورة مرفقة بالفكرة', loading: 'lazy', decoding: 'async',
+      width: m.width || null, height: m.height || null });
+    media = h('button', { class: 'post-card__media', type: 'button', 'aria-label': 'عرض الصورة بملء الشاشة',
+      onclick: () => openViewer(m.url, { alt: 'صورة مرفقة بالفكرة' }) }, img);
+  }
+  const review = state.status === 'pending' ? 'بانتظار مراجعة الصورة — لا يراها غيرك الآن'
+    : state.status === 'hidden' ? 'مخفية مؤقتًا للمراجعة بعد بلاغات' : null;
+
   paint();
+  if (!state.content) body.hidden = true;
   card.append(...[
     h('header', { class: 'post-card__head' }, authorBtn, moreBtn),
+    review ? h('p', { class: 'post-card__review' }, icon('clock'), review) : null,
     body,
     expandBtn,
+    media,
     h('footer', { class: 'post-card__actions' }, likeBtn, dislikeBtn, h('span', { class: 'post-card__spacer' }), commentBtn),
   ].filter(Boolean));
   card.update = (p) => { state = { ...state, ...p }; paint(); };

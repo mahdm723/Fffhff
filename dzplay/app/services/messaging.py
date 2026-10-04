@@ -36,7 +36,7 @@ from app.services.moderation import flag_content
 from app.services.rate_limit import Limit
 
 PEER_NAME = "dzplay"
-REPORT_REASONS = ("spam", "harassment", "threat", "inappropriate", "other")
+REPORT_REASONS = ("spam", "harassment", "threat", "inappropriate", "minor", "other")  # minor: V5 (content involving a minor)
 HOUR, DAY = 3600, 86400
 
 
@@ -46,6 +46,10 @@ class Effects:
     push_to: list[str] = field(default_factory=list)
     events: list[tuple[list[str], dict]] = field(default_factory=list)  # realtime events with a payload (calls)
     call_push: list[tuple[str, str]] = field(default_factory=list)  # (user id, call id): ring a closed app
+    tasks: list[tuple] = field(default_factory=list)  # V5: (fn, args) run in the background after the commit
+
+    def later(self, fn, *args) -> None:
+        self.tasks.append((fn, args))
 
     def signal(self, user_ids: list[str] | str, reason: str) -> None:
         self.signals.append(([user_ids] if isinstance(user_ids, str) else list(user_ids), reason))
@@ -86,6 +90,16 @@ def _message_status(m: Message) -> str:
 def serialize_message(m: Message, viewer_id: str) -> dict:
     mine = m.sender_id == viewer_id
     system = m.kind == "system"
+    if m.kind == "image":  # V5: ephemeral picture (never a URL here: the recipient opens it explicitly)
+        from sqlalchemy.orm import object_session
+
+        from app.services.media_items import message_media
+
+        db = object_session(m)
+        return {"id": m.id, "conversation_id": m.conversation_id, "mine": mine, "author": "me" if mine else PEER_NAME,
+                "content": "", "created_at": iso(m.created_at), "status": _message_status(m) if mine else None,
+                "client_id": m.client_id if mine else None, "kind": "image", "meta": None,
+                "media": message_media(db, m, viewer_id) if db is not None else {"kind": "image", "state": "expired"}}
     return {
         "id": m.id,
         "conversation_id": m.conversation_id,
@@ -150,8 +164,8 @@ def serialize_conversation(c: Conversation, viewer_id: str, last: Message | None
         "peer_read_at": iso(peer_read),
         "can_reply": c.status == "active",
         "last_message": (
-            {"preview": preview(last.content), "mine": last.sender_id == viewer_id, "created_at": iso(last.created_at),
-             "kind": "system" if last.kind == "system" else "text"}
+            {"preview": "📷 صورة" if last.kind == "image" else preview(last.content), "mine": last.sender_id == viewer_id,
+             "created_at": iso(last.created_at), "kind": last.kind if last.kind in ("system", "image") else "text"}
             if last
             else None
         ),
@@ -207,6 +221,7 @@ def _check_limits(limiter, limits: list[Limit]) -> None:
         "comment_min": "أنت تعلّق بسرعة كبيرة. انتظر قليلًا.",
         "comment_hour": "وصلت إلى الحد الأقصى للتعليقات في الساعة.",
         "react": "تفاعلات كثيرة بسرعة. انتظر قليلًا.",
+        "upload_hour": "رفعت ملفات كثيرة خلال ساعة. حاول لاحقًا.",
     }
     kind = (decision.key or "").split(":", 1)[0]
     raise rate_limited(decision.retry_after, messages.get(kind, "محاولات كثيرة. حاول لاحقًا."))
@@ -543,7 +558,7 @@ def _clean_details(details: object) -> str | None:
 
 
 def report(db: Session, settings: Settings, limiter, user: User, *, conversation_id: str | None,
-           message_id: str | None, reason: object, details: object) -> dict:
+           message_id: str | None, reason: object, details: object, effects: Effects | None = None) -> dict:
     if reason not in REPORT_REASONS:
         raise AppError(400, "invalid_reason", "اختر سبب البلاغ.")
     details_c = _clean_details(details)
@@ -574,12 +589,21 @@ def report(db: Session, settings: Settings, limiter, user: User, *, conversation
     now = clock.utcnow()
     rep = Report(
         reporter_id=user.id, reported_user_id=reported_id, conversation_id=conv.id, message_id=message_id,
+        media_id=evidence[0].media_id if message_id is not None and evidence[0].kind == "image" else None,
         reason=reason, details=details_c,
-        snapshot=json.dumps([{"content": m.content, "created_at": iso(m.created_at)} for m in evidence], ensure_ascii=False),
+        snapshot=json.dumps([{"content": "📷 صورة" if m.kind == "image" else m.content, "created_at": iso(m.created_at)}
+                             for m in evidence], ensure_ascii=False),
         created_at=now, expires_at=now + timedelta(seconds=settings.REPORT_RETENTION),
     )
     db.add(rep)
     db.flush()
+    if rep.media_id:  # V5: a reported chat picture is kept as evidence and sent to the moderators
+        from app.models import MediaItem
+        from app.services.media_moderation import on_report
+
+        item = db.get(MediaItem, rep.media_id)
+        if item is not None and (item.tg_message_id or item.tg_file_id):
+            on_report(db, settings, item, str(reason), effects if effects is not None else Effects())
     log_event(db, "report", None, user.id, reason)
     _maybe_auto_suspend(db, settings, reported_id)
     return {"id": rep.id, "duplicate": False}

@@ -24,10 +24,11 @@ PASSWORD = "Str0ng-Pass!"
 MOBILE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "is_mobile": True, "has_touch": True}
 
 
-def start_server(port: int) -> tuple[subprocess.Popen, str]:
+def start_server(port: int, extra_env: dict | None = None) -> tuple[subprocess.Popen, str]:
     tmp = tempfile.mkdtemp(prefix="dz-e2e-")
     env = dict(os.environ, DATABASE_URL=f"sqlite:///{tmp}/e2e.db", SECRET_KEY="e2e-secret", ENV="development",
-               CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10")
+               CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10",
+               MEDIA_CACHE_DIR=f"{tmp}/media-cache", UPLOAD_TMP_DIR=f"{tmp}/upload-tmp", **(extra_env or {}))
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"],
                             cwd=ROOT, env=env)

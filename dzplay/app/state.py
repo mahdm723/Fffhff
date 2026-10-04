@@ -25,6 +25,7 @@ class AppState:
     telegram_source: str = "none"  # panel | env | none
     telegram_transport: object | None = None  # tests only (httpx.MockTransport)
     fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (incoming calls to the Android app)
+    pipeline: object | None = None  # V5 MediaPipeline (user uploads -> worker -> Telegram storage)
 
     @classmethod
     def build(cls, settings: Settings, telegram_transport=None) -> "AppState":
@@ -44,6 +45,12 @@ class AppState:
         state = cls(settings=settings, database=database, limiter=limiter, hub=Hub(settings.REDIS_URL),
                     push=PushNotifier(settings, database), media=media, telegram_transport=telegram_transport)
         holder["state"] = state
+        from app.services import media_items
+        from app.services.media_pipeline import MediaPipeline
+
+        state.pipeline = MediaPipeline(state)
+        media_items.install(media)
+        state.hub.system_handler = state.on_system_event
         if settings.fcm_enabled:
             from app.services.fcm import FcmNotifier
 
@@ -79,15 +86,30 @@ class AppState:
         self.telegram = TelegramClient(bot_settings, transport=self.telegram_transport)
         self.bot = BotService(bot_settings, self.database, self.telegram, self.media, self.limiter)
         password_reset.install(self.bot)
+        from app.services import media_moderation
+
+        media_moderation.install(self)
 
     def load_runtime_config(self) -> None:
         """Apply bot settings saved from the admin panel (they take precedence over .env)."""
         from app.services import runtime_config
 
+        self.reload_tunables()
         with self.database.session() as db:
             cfg = runtime_config.telegram_config(db, self.settings)
         if cfg["source"] == "panel":
             self.configure_telegram(cfg["token"], cfg["chat_id"], cfg["secret"], "panel")
+
+    def reload_tunables(self) -> None:
+        """Limits/conditions saved from the panel (V5): applied live, here and in the bot's settings copy."""
+        from app.services import tunables
+
+        with self.database.session() as db:
+            tunables.apply(db, self.settings, self.bot.settings if self.bot is not None else None)
+
+    def on_system_event(self, event: dict) -> None:
+        if event.get("type") == "tunables":
+            self.reload_tunables()
 
     def dispatch(self, effects: Effects) -> None:
         """Fire realtime signals / push after a successful commit."""
@@ -100,6 +122,8 @@ class AppState:
                 self.push.notify_call(user_id, self.settings.CALL_RING_TIMEOUT)
                 if self.fcm is not None:
                     self.fcm.notify_call(user_id, _call_id, self.settings.CALL_RING_TIMEOUT)
+        for fn, args in effects.tasks:  # V5: Telegram calls etc., after the commit, off the request thread
+            self.pipeline.background(fn, self, *args)
         for user_id in dict.fromkeys(effects.push_to):
             if not self.hub.is_online(user_id):
                 self.push.notify_user(user_id)

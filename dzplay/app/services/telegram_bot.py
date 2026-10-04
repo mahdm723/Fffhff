@@ -133,6 +133,11 @@ class BotService:
         return (bool(self.admin_id) and chat is not None and sender is not None
                 and str(chat.get("id")) == self.admin_id and str(sender.get("id")) == self.admin_id)
 
+    def _moderation_chat(self, chat: dict | None) -> bool:
+        """The private moderators' group (V5): its members may press the media moderation buttons."""
+        mod = str(self.settings.TELEGRAM_MODERATION_CHAT_ID or "").strip()
+        return bool(mod) and chat is not None and str(chat.get("id")) == mod
+
     def _reject(self, sender: dict | None) -> None:
         decision = self.limiter.check_and_hit([Limit("tg_unauthorized_log", 30, 3600)])
         if not decision.allowed:
@@ -145,7 +150,9 @@ class BotService:
     def handle(self, update: dict) -> None:
         cq = update.get("callback_query")
         if cq:
-            if not self._authorized((cq.get("message") or {}).get("chat"), cq.get("from")):
+            chat = (cq.get("message") or {}).get("chat")
+            moderator = self._moderation_chat(chat) and str(cq.get("data") or "").startswith("md:")
+            if not moderator and not self._authorized(chat, cq.get("from")):
                 self._reject(cq.get("from"))
                 return
             self._callback(cq)
@@ -153,6 +160,8 @@ class BotService:
         msg = update.get("message")
         if not isinstance(msg, dict):
             return
+        if self._moderation_chat(msg.get("chat")):
+            return  # the moderators talk among themselves there; the bot only acts on its buttons
         if not self._authorized(msg.get("chat"), msg.get("from")):
             self._reject(msg.get("from"))
             return

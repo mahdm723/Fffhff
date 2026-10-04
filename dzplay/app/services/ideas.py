@@ -106,7 +106,8 @@ def _author_view(u: User | None) -> dict:
             "gender": names.public_gender(u) if u is not None else None}
 
 
-def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | None, author: User | None = None) -> dict:
+def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | None, author: User | None = None,
+                   media: dict | None = None) -> dict:
     mine = p.author_id == viewer_id
     return {
         "id": p.id,
@@ -121,6 +122,8 @@ def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | 
         "comments": {"count": p.comments_count, "unseen": p.unseen_comments_count} if mine else None,
         "can_comment": not mine,
         "can_react": not mine,
+        "media": media,  # V5: one picture (signed, session-bound URL) or None
+        "status": p.status if mine and p.status != "visible" else None,  # pending (approval) / hidden (reports)
     }
 
 
@@ -133,7 +136,10 @@ def _serialize_many(db: Session, posts: list[Post], viewer_id: str) -> list[dict
         .where(PostReaction.user_id == viewer_id, PostReaction.post_id.in_([p.id for p in posts]))
     ).all())
     authors = _authors(db, {p.author_id for p in posts})
-    return [serialize_post(p, viewer_id, refs[p.author_id], reactions.get(p.id), authors.get(p.author_id)) for p in posts]
+    from app.services.media_items import post_media
+
+    return [serialize_post(p, viewer_id, refs[p.author_id], reactions.get(p.id), authors.get(p.author_id),
+                           post_media(db, p, viewer_id)) for p in posts]
 
 
 def _visible_post(db: Session, post_id: str) -> Post:
@@ -156,24 +162,38 @@ def _blocked_ids(db: Session, user_id: str) -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def create_post(db: Session, settings: Settings, limiter, user: User, *, content: object, client_id: object) -> dict:
+def create_post(db: Session, settings: Settings, limiter, user: User, *, content: object, client_id: object,
+                media_id: object = None, effects: Effects | None = None) -> dict:
+    from app.services import media_items
+
     _require_can_send(user)
-    text = clean_message(content, settings.MAX_POST_LENGTH, settings.LINK_POLICY)
     cid = _clean_client_id(client_id)
     if cid:
         existing = db.scalar(select(Post).where(Post.author_id == user.id, Post.client_id == cid))
         if existing is not None:  # retried request
             return _serialize_many(db, [existing], user.id)[0]
+    item = None
+    if media_id is not None:  # V5: an idea with one picture; the text becomes its caption (may be empty)
+        item = media_items.claim_for_idea(db, settings, user, media_id)
+        text = "" if isinstance(content, str) and not content.strip() else clean_message(
+            content, settings.MAX_POST_LENGTH, settings.LINK_POLICY)
+        media_items.caption_check(settings, text)
+    else:
+        text = clean_message(content, settings.MAX_POST_LENGTH, settings.LINK_POLICY)
     digest = hashlib.sha256(" ".join(text.lower().split()).encode()).hexdigest()[:32]
-    _check_limits(limiter, [
-        Limit(f"post_hour:{user.id}", settings.MAX_POSTS_PER_HOUR, HOUR),
-        Limit(f"post_day:{user.id}", settings.MAX_POSTS_PER_DAY, DAY),
-        Limit(f"dup:{user.id}:post:{digest}", 1, settings.DUPLICATE_MESSAGE_WINDOW),
-    ])
+    limits = [Limit(f"post_hour:{user.id}", settings.MAX_POSTS_PER_HOUR, HOUR),
+              Limit(f"post_day:{user.id}", settings.MAX_POSTS_PER_DAY, DAY)]
+    if text:  # a picture without a caption is not a duplicate text
+        limits.append(Limit(f"dup:{user.id}:post:{digest}", 1, settings.DUPLICATE_MESSAGE_WINDOW))
+    _check_limits(limiter, limits)
     now = clock.utcnow()
-    post = Post(author_id=user.id, content=text, client_id=cid, created_at=now, updated_at=now)
+    post = Post(author_id=user.id, content=text, client_id=cid, created_at=now, updated_at=now,
+                media_id=item.id if item is not None else None)
     db.add(post)
     db.flush()
+    if item is not None:
+        media_items.attach_to_post(db, settings, item, post, effects)
+        db.flush()
     return _serialize_many(db, [post], user.id)[0]
 
 
@@ -181,10 +201,15 @@ def get_post(db: Session, user: User, post_id: str) -> dict:
     return _serialize_many(db, [_visible_post(db, post_id)], user.id)[0]
 
 
-def delete_post(db: Session, user: User, post_id: str) -> None:
-    post = _visible_post(db, post_id)
-    if post.author_id != user.id:
+def delete_post(db: Session, user: User, post_id: str, effects: Effects | None = None) -> None:
+    if not isinstance(post_id, str) or len(post_id) > 32:
         raise not_found()
+    post = db.get(Post, post_id)
+    if post is None or post.author_id != user.id or post.status == "removed":
+        raise not_found()
+    from app.services.media_items import remove_for_post
+
+    remove_for_post(db, post, "owner", effects)  # V5: its picture leaves Telegram + the cache too
     db.delete(post)  # reactions + comments cascade
 
 
@@ -415,12 +440,22 @@ def block_commenter(db: Session, user: User, comment_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def report_post(db: Session, settings: Settings, limiter, user: User, post_id: str, *, reason: object, details: object) -> dict:
+def report_post(db: Session, settings: Settings, limiter, user: User, post_id: str, *, reason: object, details: object,
+                effects: Effects | None = None) -> dict:
     post = _visible_post(db, post_id)
     if post.author_id == user.id:
         raise AppError(400, "cannot_report_own", "لا يمكنك الإبلاغ عن منشورك.")
-    return _file_report(db, settings, limiter, user, reported_id=post.author_id, post_id=post.id, comment_id=None,
-                        evidence=[(post.content, post.created_at)], reason=reason, details=details)
+    result = _file_report(db, settings, limiter, user, reported_id=post.author_id, post_id=post.id, comment_id=None,
+                          evidence=[(post.content, post.created_at)], reason=reason, details=details,
+                          media_id=post.media_id)
+    if post.media_id and not result["duplicate"]:
+        from app.models import MediaItem
+        from app.services.media_moderation import on_report
+
+        item = db.get(MediaItem, post.media_id)
+        if item is not None and item.state == "attached":
+            on_report(db, settings, item, str(reason), effects if effects is not None else Effects())
+    return result
 
 
 def report_comment(db: Session, settings: Settings, limiter, user: User, comment_id: str, *, reason: object,
@@ -432,7 +467,8 @@ def report_comment(db: Session, settings: Settings, limiter, user: User, comment
 
 
 def _file_report(db: Session, settings: Settings, limiter, user: User, *, reported_id: str, post_id: str,
-                 comment_id: str | None, evidence: list[tuple[str, datetime]], reason: object, details: object) -> dict:
+                 comment_id: str | None, evidence: list[tuple[str, datetime]], reason: object, details: object,
+                 media_id: str | None = None) -> dict:
     if reason not in REPORT_REASONS:
         raise AppError(400, "invalid_reason", "اختر سبب البلاغ.")
     details_c = _clean_details(details)
@@ -444,7 +480,7 @@ def _file_report(db: Session, settings: Settings, limiter, user: User, *, report
     _check_limits(limiter, [Limit(f"report:{user.id}", settings.MAX_REPORTS_PER_HOUR, HOUR)])
     now = clock.utcnow()
     rep = Report(
-        reporter_id=user.id, reported_user_id=reported_id, post_id=post_id, comment_id=comment_id,
+        reporter_id=user.id, reported_user_id=reported_id, post_id=post_id, comment_id=comment_id, media_id=media_id,
         reason=reason, details=details_c,
         snapshot=json.dumps([{"content": c, "created_at": iso(t)} for c, t in evidence], ensure_ascii=False),
         created_at=now, expires_at=now + timedelta(seconds=settings.REPORT_RETENTION),

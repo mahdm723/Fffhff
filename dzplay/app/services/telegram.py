@@ -40,6 +40,9 @@ class TelegramClient:
         self.max_file_bytes = settings.TELEGRAM_MAX_FILE_MB * 1024 * 1024
         self._http = httpx.Client(timeout=httpx.Timeout(30.0, connect=10.0), transport=transport,
                                   follow_redirects=False, trust_env=True)
+        # uploads of up to ~18 MB to the storage channel need a longer write timeout
+        self._upload = httpx.Client(timeout=httpx.Timeout(180.0, connect=10.0), transport=transport,
+                                    follow_redirects=False, trust_env=True)
 
     # -------------------------------------------------------------- helpers
     def redact(self, text: object) -> str:
@@ -87,6 +90,34 @@ class TelegramClient:
         """The bot's own account (checks that the token is valid)."""
         return self.call("getMe")
 
+    # -------------------------------------------------------------- V5: storage + moderation chats
+    def send_document(self, chat_id: str | int, path: Path, filename: str, mime: str, caption: str = "") -> dict:
+        """Upload a file as a document (Telegram keeps it byte for byte: no recompression)."""
+        data = {"chat_id": str(chat_id), "caption": caption[:1000], "disable_content_type_detection": "true",
+                "disable_notification": "true"}
+        try:
+            with open(path, "rb") as fh:
+                res = self._upload.post(f"{self._base}/bot{self._token}/sendDocument", data=data,
+                                        files={"document": (filename, fh, mime)})
+            body = res.json()
+        except (httpx.HTTPError, ValueError, OSError) as exc:
+            raise TelegramError(self.redact(f"sendDocument: {type(exc).__name__}: {exc}")) from None
+        if not body.get("ok"):
+            raise TelegramError(self.redact(f"sendDocument: {body.get('error_code')} {body.get('description')}"))
+        return body.get("result") or {}
+
+    def copy_message(self, chat_id: str | int, from_chat_id: str | int, message_id: int, *, caption: str | None = None,
+                     reply_markup: dict | None = None) -> dict:
+        return self.call("copyMessage", chat_id=chat_id, from_chat_id=from_chat_id, message_id=message_id,
+                         caption=caption[:1000] if caption is not None else None, reply_markup=reply_markup)
+
+    def delete_message(self, chat_id: str | int, message_id: int) -> None:
+        self.call("deleteMessage", chat_id=chat_id, message_id=message_id)
+
+    def edit_caption(self, chat_id: str | int, message_id: int, caption: str, reply_markup: dict | None = None) -> None:
+        self.call("editMessageCaption", chat_id=chat_id, message_id=message_id, caption=caption[:1000],
+                  reply_markup=reply_markup or {"inline_keyboard": []})
+
     # -------------------------------------------------------------- files
     def download(self, file_id: str, dest: Path) -> int:
         """Download a file by file_id to `dest`; returns its size. Raises FileTooLarge over the cap."""
@@ -114,3 +145,4 @@ class TelegramClient:
 
     def close(self) -> None:
         self._http.close()
+        self._upload.close()

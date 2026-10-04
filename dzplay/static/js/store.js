@@ -300,6 +300,7 @@ function connect() {
     if (msg.type === 'typing') { emit('typing', msg); return; }
     if (msg.type !== 'sync') { if (msg.type && msg.type !== 'ping' && msg.type !== 'hello') emit('ws', msg); return; }
     if (msg.reason === 'comment') emit('comment'); // ideas: no message sync needed
+    else if (msg.reason === 'media') { emit('media'); scheduleSync(150); } // a chat picture was opened / expired
     else scheduleSync(msg.reason === 'message' ? 0 : 150);
   };
   ws.onclose = () => {

@@ -22,6 +22,7 @@ import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -54,6 +55,7 @@ public class MainActivity extends Activity {
     static final String PREFS = "dzplay";
     private static final int REQ_MEDIA = 41;
     private static final int REQ_NOTIFY = 42;
+    private static final int REQ_FILE = 43;
 
     private WebView web;
     private FrameLayout root;
@@ -62,6 +64,7 @@ public class MainActivity extends Activity {
     private PermissionRequest pendingMedia;
     private List<String> pendingResources;
     private volatile String pendingAnswer = null;
+    private ValueCallback<Uri[]> pendingFiles;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -101,6 +104,28 @@ public class MainActivity extends Activity {
             public void onPermissionRequestCanceled(PermissionRequest request) {
                 if (request == pendingMedia) {
                     pendingMedia = null;
+                }
+            }
+
+            // <input type="file"> (pictures for ideas and chats, videos for the studio): the system
+            // picker returns a content:// URI the page may read once; no storage permission needed.
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (!onOwnPage) {
+                    return false;
+                }
+                if (pendingFiles != null) {
+                    pendingFiles.onReceiveValue(null);
+                }
+                pendingFiles = callback;
+                try {
+                    Intent intent = params.createIntent();
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    startActivityForResult(Intent.createChooser(intent, null), REQ_FILE);
+                    return true;
+                } catch (ActivityNotFoundException e) {
+                    pendingFiles = null;
+                    return false;
                 }
             }
         });
@@ -329,6 +354,18 @@ public class MainActivity extends Activity {
             pendingResources = grant;
             requestPermissions(need.toArray(new String[0]), REQ_MEDIA);
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQ_FILE) {
+            if (pendingFiles != null) {
+                pendingFiles.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
+                pendingFiles = null;
+            }
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override

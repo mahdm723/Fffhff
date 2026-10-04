@@ -53,9 +53,20 @@ class MediaError(Exception):
     """Processing failed; the message is safe to show to the admin."""
 
 
-def _run(args: list[str], timeout: int) -> subprocess.CompletedProcess:
+def limited(args: list[str], mem_mb: int) -> list[str]:
+    """Run at the lowest CPU priority and with an address-space cap (V5: ffmpeg must never starve the app)."""
+    prefix: list[str] = []
+    if shutil.which("nice"):
+        prefix += ["nice", "-n", "19"]
+    if mem_mb > 0 and shutil.which("prlimit"):
+        prefix += ["prlimit", f"--as={mem_mb * 1024 * 1024}", "--"]
+    return prefix + args
+
+
+def _run(args: list[str], timeout: int, mem_mb: int = 0) -> subprocess.CompletedProcess:
     try:
-        return subprocess.run(args, capture_output=True, timeout=timeout, check=False, stdin=subprocess.DEVNULL)
+        return subprocess.run(limited(args, mem_mb), capture_output=True, timeout=timeout, check=False,
+                              stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         raise MediaError("انتهت مهلة معالجة الملف.") from None
     except FileNotFoundError:
@@ -71,7 +82,7 @@ INPUT_GUARD = ["-protocol_whitelist", "file"]
 
 def probe(settings: Settings, src: Path) -> dict:
     res = _run([settings.FFPROBE_BINARY, "-v", "error", *INPUT_GUARD, "-print_format", "json", "-show_streams", "-show_format",
-                str(src)], settings.MEDIA_PROCESS_TIMEOUT)
+                str(src)], settings.MEDIA_PROCESS_TIMEOUT, settings.MEDIA_FFMPEG_MEM_MB)
     if res.returncode != 0:
         raise MediaError("الملف ليس فيديو صالحًا.")
     try:
@@ -126,13 +137,13 @@ def prepare_video(settings: Settings, src: Path, out_mp4: Path, out_poster: Path
             "-profile:v", "high", "-pix_fmt", "yuv420p", "-threads", "2",
             "-c:a", "aac", "-b:a", f"{settings.VIDEO_AUDIO_BITRATE_K}k", "-ac", "2",
         ] + common + [str(out_mp4)]
-    res = _run(args, settings.MEDIA_PROCESS_TIMEOUT)
+    res = _run(args, settings.MEDIA_PROCESS_TIMEOUT, settings.MEDIA_FFMPEG_MEM_MB)
     if res.returncode != 0 or not out_mp4.exists() or out_mp4.stat().st_size == 0:
         raise MediaError("تعذّر تجهيز الفيديو.")
     seek = "0.5" if info["duration"] > 1.0 else "0"
     res = _run([settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-ss", seek,
                 *INPUT_GUARD, "-i", str(out_mp4), "-frames:v", "1", "-vf", f"scale=w='min(iw,{bw})':h=-2", "-q:v", "5",
-                "-map_metadata", "-1", str(out_poster)], settings.MEDIA_PROCESS_TIMEOUT)
+                "-map_metadata", "-1", str(out_poster)], settings.MEDIA_PROCESS_TIMEOUT, settings.MEDIA_FFMPEG_MEM_MB)
     if res.returncode != 0 or not out_poster.exists():
         raise MediaError("تعذّر إنشاء صورة الغلاف.")
     final = probe(settings, out_mp4)
@@ -216,6 +227,24 @@ class MediaStore:
                 else:
                     entry.size, entry.last_access = size, now
         asset.ready = True
+        db.flush()
+
+    def adopt(self, db: Session, asset, files: dict[str, Path]) -> None:
+        """V5: files the media worker already prepared go straight into the cache (no Telegram round trip)."""
+        self.dir.mkdir(parents=True, exist_ok=True)
+        now = clock.utcnow()
+        for variant, src in files.items():
+            final = self.path_for(asset.id, variant)
+            tmp = final.with_name(".tmp-" + final.name)
+            shutil.copyfile(src, tmp)  # the upload area may be another filesystem (tmpfs)
+            os.replace(tmp, final)
+            entry = db.get(MediaCacheEntry, final.name)
+            size = final.stat().st_size
+            if entry is None:
+                db.add(MediaCacheEntry(key=final.name, asset_id=asset.id, size=size, created_at=now, last_access=now))
+            else:
+                entry.size, entry.last_access = size, now
+        asset.ready = all(self.path_for(asset.id, v).exists() for v in VARIANTS.get(asset.kind, ()))
         db.flush()
 
     def touch(self, db: Session, asset_id: str, variant: str) -> None:

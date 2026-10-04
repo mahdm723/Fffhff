@@ -24,6 +24,7 @@ export const REPORT_REASONS = [
   ['harassment', 'تحرش أو مضايقة'],
   ['threat', 'تهديد'],
   ['inappropriate', 'محتوى غير لائق'],
+  ['minor', 'محتوى يخص قاصرًا'],
   ['other', 'سبب آخر'],
 ];
 

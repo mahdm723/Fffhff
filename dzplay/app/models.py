@@ -194,6 +194,7 @@ class Report(Base):
     comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     reel_comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     call_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # V4: report made about a call
+    media_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # V5: reported picture / video
     reason: Mapped[str] = mapped_column(String(32))
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Minimal evidence: only the reported content, copied so it survives TTL.
@@ -378,8 +379,9 @@ class Message(Base):
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # V4: system notices inside a chat (identity revealed, missed call, call ended…)
-    kind: Mapped[str | None] = mapped_column(String(12), nullable=True)  # text (None) | system
+    kind: Mapped[str | None] = mapped_column(String(12), nullable=True)  # text (None) | system | image (V5)
     meta: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON for system messages
+    media_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # V5: ephemeral picture (MediaItem)
 
 
 # ---------------------------------------------------------------------------
@@ -426,6 +428,8 @@ class Post(Base):
     boost_dislikes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
     unseen_comments_count: Mapped[int] = mapped_column(Integer, default=0)  # for the author only
+    # V5: one picture (MediaItem). status may then also be "pending" (awaiting approval) or "hidden" (reported).
+    media_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class PostReaction(Base):
@@ -549,6 +553,55 @@ class MediaCacheEntry(Base):
     size: Mapped[int] = mapped_column(BigInteger, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     last_access: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+
+
+class MediaItem(Base):
+    """A picture or video a user uploaded (V5). The file itself lives in the private Telegram storage
+    channel; we keep its file_id (never sent to clients) and a temporary prepared copy in the media cache.
+
+    `id` is a random internal 128-bit hex id: it names cache files and appears in signed media URLs.
+    """
+
+    __tablename__ = "media_items"
+    __table_args__ = (Index("ix_media_owner_purpose", "owner_id", "purpose", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
+    # Kept (NULL) when the account is deleted: reported media may be legal evidence.
+    owner_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_public_id: Mapped[str | None] = mapped_column(String(12), nullable=True)  # for moderators (DZ-XXXXXX)
+    purpose: Mapped[str] = mapped_column(String(8))  # idea|chat|reel
+    kind: Mapped[str] = mapped_column(String(8))  # image|video
+    # uploaded -> processing -> ready (stored in Telegram) | rejected (checks failed) | failed (error)
+    # then: attached (in use) -> removed (moderation / owner) | expired (chat pictures)
+    state: Mapped[str] = mapped_column(String(12), default="uploaded", index=True)
+    error: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # chat pictures: target chat
+    attached_type: Mapped[str | None] = mapped_column(String(8), nullable=True)  # post|message|reel
+    attached_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    attached_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    review: Mapped[str | None] = mapped_column(String(10), nullable=True)  # pending|approved|rejected (None = not needed)
+    hidden: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # hidden after reports, until reviewed
+    legal_hold: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # reported: kept as evidence, never auto-deleted
+    reports_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # stored (re-encoded) file
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    nsfw_score: Mapped[float | None] = mapped_column(Float, nullable=True)  # server check: max P(porn+hentai)
+    blur: Mapped[str | None] = mapped_column(Text, nullable=True)  # tiny blurred preview (data: URI) for chat pictures
+    tg_file_id: Mapped[str | None] = mapped_column(String(255), nullable=True)  # SERVER ONLY
+    tg_unique_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # in the storage channel
+    tg_mod_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # in the moderation chat
+    ready: Mapped[bool] = mapped_column(Boolean, default=False)  # prepared copy present in the media cache
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+    ready_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)  # chat: unopened TTL
+    viewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    view_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    removed_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 # ---------------------------------------------------------------------------

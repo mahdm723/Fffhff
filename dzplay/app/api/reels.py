@@ -16,8 +16,8 @@ from app.api.deps import current_user, get_state, session_token
 from app.api.posts import ReactionBody
 from app.api.schemas import ReportBody, SendBody
 from app.errors import AppError, not_found
-from app.models import Reel, ReelAsset
-from app.services import reels
+from app.models import MediaItem, Reel, ReelAsset
+from app.services import media_items, reels
 from app.services.media import ASSET_ID, CONTENT_TYPES, VARIANTS, MediaError
 from app.services.telegram import TelegramError
 
@@ -91,16 +91,25 @@ async def media(asset_id: str, variant: str, request: Request, e: int = Query(de
 
     def locate():
         with st.database.session() as db:
-            current_user(request, db)  # the session must still be valid (not logged out / banned)
+            user = current_user(request, db)  # the session must still be valid (not logged out / banned)
             asset = db.get(ReelAsset, asset_id)
-            reel = db.get(Reel, asset.reel_id) if asset else None
-            if asset is None or reel is None or reel.status != "visible" or variant not in VARIANTS.get(asset.kind, ()):
+            cache = "private, max-age=3600"
+            if asset is not None:
+                reel = db.get(Reel, asset.reel_id)
+                if reel is None or reel.status != "visible":
+                    raise not_found()
+            else:  # V5: a user's picture/video: allowed viewers only, and only while it may be seen
+                asset = db.get(MediaItem, asset_id)
+                cache = media_items.can_view(db, user, asset) if asset is not None else None
+                if cache is None:
+                    raise not_found()
+            if variant not in VARIANTS.get(asset.kind, ()):
                 raise not_found()
             try:
-                return st.media.ensure(db, asset, variant)
+                return st.media.ensure(db, asset, variant), cache
             except (MediaError, TelegramError):
                 raise AppError(503, "media_unavailable", "تعذّر تحميل الملف الآن. حاول بعد قليل.") from None
 
-    path = await run_in_threadpool(locate)
+    path, cache = await run_in_threadpool(locate)
     return FileResponse(path, media_type=CONTENT_TYPES[variant],
-                        headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"})
+                        headers={"Cache-Control": cache, "X-Content-Type-Options": "nosniff"})

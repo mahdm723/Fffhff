@@ -29,6 +29,7 @@ from app.api import people as people_api
 from app.api import posts as posts_api
 from app.api import reels as reels_api
 from app.api import telegram as telegram_api
+from app.api import uploads as uploads_api
 from app.api import ws as ws_api
 from app.config import Settings, get_settings
 from app.errors import AppError
@@ -50,6 +51,7 @@ for _ext, _type in {".js": "text/javascript", ".webmanifest": "application/manif
     mimetypes.add_type(_type, _ext)
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 MAX_BODY_BYTES = 64 * 1024  # API bodies are tiny JSON documents
+_UPLOAD_PATH = "/api/uploads"  # V5: file uploads carry their own per-purpose cap (app.services.media_items)
 
 
 def _error(status: int, code: str, message: str, retry_after: int | None = None) -> JSONResponse:
@@ -70,7 +72,8 @@ def _csp(settings: Settings) -> str:
         "style-src": "'self'" + (f" {gsi}style" if g else ""),
         "frame-src": gsi if g else "'none'",
         "connect-src": "'self'" + (f" {gsi}" if g else ""),
-        "img-src": "'self' data:",
+        "img-src": "'self' data: blob:",  # blob: previews of a picture picked on the phone (never uploaded yet)
+        "media-src": "'self' blob:",
         "font-src": "'self'",
         "object-src": "'none'",
         "base-uri": "'none'",
@@ -115,6 +118,26 @@ async def _engagement_loop(state: AppState) -> None:
             log.exception("engagement tick failed")
 
 
+async def _media_loop(state: AppState) -> None:
+    """V5: chat pictures disappear on time (both sides), unused uploads and old evidence are purged."""
+    from app.services import media_items
+    from app.services.messaging import Effects
+
+    while True:
+        await asyncio.sleep(state.settings.MEDIA_TICK_SECONDS)
+        try:
+            effects = Effects()
+
+            def _run() -> None:
+                with state.database.session() as db:
+                    media_items.tick(db, state.settings, effects)
+
+            await run_in_threadpool(_run)
+            state.dispatch(effects)
+        except Exception:  # noqa: BLE001 - keep the loop alive
+            log.exception("media tick failed")
+
+
 async def _calls_loop(state: AppState) -> None:
     """Unanswered calls become "missed" after CALL_RING_TIMEOUT; dead connected calls are closed."""
     from app.services import calls
@@ -156,7 +179,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         cleanup_task = asyncio.create_task(_cleanup_loop(state)) if settings.CLEANUP_INTERVAL > 0 else None
         engagement_task = asyncio.create_task(_engagement_loop(state)) if settings.ENGAGEMENT_TICK_SECONDS > 0 else None
         calls_task = asyncio.create_task(_calls_loop(state)) if settings.CALL_TICK_SECONDS > 0 else None
+        media_task = asyncio.create_task(_media_loop(state)) if settings.MEDIA_TICK_SECONDS > 0 else None
         yield
+        if media_task:
+            media_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await media_task
         if calls_task:
             calls_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -175,6 +203,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
             state.fcm.shutdown()
         if state.bot is not None:
             state.bot.shutdown()
+        state.pipeline.shutdown()
 
     app = FastAPI(title="DZPLAY", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.dz = state
@@ -188,7 +217,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         if in_admin and not admin_auth.ip_allowed(settings, client_ip(request, settings)):
             return _error(404, "not_found", "غير موجود.")  # outside the allowlist the panel does not exist
         is_api = path.startswith("/api/") or (in_admin and path.startswith(admin_prefix + "/api/"))
-        if is_api and int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
+        if is_api and path != _UPLOAD_PATH and int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
             return _error(413, "too_large", "الطلب كبير جدًا.")
         if is_api and request.method not in _SAFE_METHODS and path not in _CSRF_EXEMPT:
             # CSRF defence in depth (cookies are SameSite=Strict as well): a custom
@@ -253,6 +282,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(posts_api.router)
     app.include_router(reels_api.router)
     app.include_router(telegram_api.router)
+    app.include_router(uploads_api.router)
     if settings.admin_enabled:
         app.include_router(admin_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)
