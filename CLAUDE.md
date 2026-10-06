@@ -97,6 +97,6 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
   - رقم الإصدار في `dzplay/android/gradle.properties`.
 
 ### Git
-- كل العمل على الفرع `claude/github-access-check-c1exvo`، بـcommits واضحة ووسم لكل مرحلة (`v6-phase-N`).
+- كل العمل على الفرع `claude/github-access-check-c1exvo`، بـcommits واضحة تبدأ بـ`V6 phase N:`.
 - في نهاية كل مرحلة: الاختبارات، ثم تقرير قصير، ثم التوقف حتى موافقة المالك.
 - الخطة الحالية: [PLAN.md](PLAN.md).
