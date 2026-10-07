@@ -19,7 +19,7 @@ DAY = 24 * HOUR
 
 
 # First path segments the app itself uses; ADMIN_PATH may not shadow them.
-RESERVED_PATHS = {"api", "js", "css", "fonts", "icons", "download", "media", "admin", "healthz", ".well-known", "policies", "vendor",
+RESERVED_PATHS = {"api", "js", "css", "fonts", "icons", "download", "media", "admin", "healthz", ".well-known", "policies", "vendor", "r",
                   "sw.js", "manifest.webmanifest", "index.html"}
 
 
@@ -272,6 +272,17 @@ class Settings(BaseSettings):
     MEMBERSHIP_REFUND_WINDOW_DAYS: int = 7  # from the acceptance of the payment
     MEMBERSHIP_REFUND_FEE: float = 1.0  # kept from the refund (network fee)
     MEMBERSHIP_REQUESTS_PER_DAY: int = 3
+
+    # --- V6 phase 5b: promotional rewards («أرباحي») — separate from membership, amounts in USDT -----
+    REFERRAL_ENABLED: bool = True
+    REFERRAL_REWARD: float = 5.0  # to the inviter when the invitee's membership is accepted
+    REFERRAL_HOLD_DAYS: int = 14  # on hold this long; always longer than MEMBERSHIP_REFUND_WINDOW_DAYS
+    REFERRAL_FLAG_PER_DAY: int = 3  # more invitations than this from one network in a day: admin review
+    WITHDRAW_ENABLED: bool = True
+    WITHDRAW_MIN: float = 10.0
+    WITHDRAW_FEE: float = 1.0  # network fee, deducted from the amount sent (shown before confirming)
+    WITHDRAW_REQUESTS_PER_DAY: int = 2
+    WITHDRAW_NETWORKS: str = "TRC20,BEP20"
 
     # --- e-mail confirmation codes ------------------------------------------------------
     EMAIL_CODE_TTL: int = 30 * 60

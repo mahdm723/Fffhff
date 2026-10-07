@@ -270,6 +270,8 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     h('ul', { class: 'menu glass' },
       isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
       item('verified', 'عضويتي', () => navigate('#/membership')),
+      item('inbox', 'أرباحي', () => navigate('#/earnings')),
+      item('plusUser', 'دعوة الأصدقاء', () => navigate('#/referrals')),
       item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,

@@ -47,6 +47,7 @@ GROUPS = {
     "verify": "التوثيق (النجمة الزرقاء)",
     "market": "السوق",
     "membership": "العضوية",
+    "rewards": "المكافآت والسحب",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -106,6 +107,16 @@ REGISTRY: list[Tunable] = [
     Tunable("MEMBERSHIP_REFUND_WINDOW_DAYS", "int", "membership", "مدة الاسترجاع بعد القبول (يوم)", 1, 90),
     Tunable("MEMBERSHIP_REFUND_FEE", "float", "membership", "رسوم الاسترجاع (USDT)", 0, 1000),
     Tunable("MEMBERSHIP_REQUESTS_PER_DAY", "int", "membership", "طلبات العضوية في اليوم لكل مستخدم", 1, 20),
+    # V6 phase 5b: rewards
+    Tunable("REFERRAL_ENABLED", "bool", "rewards", "مكافأة دعوة الأصدقاء"),
+    Tunable("REFERRAL_REWARD", "float", "rewards", "مكافأة الدعوة (USDT، عند قبول عضوية المدعو)", 0, 10000),
+    Tunable("REFERRAL_HOLD_DAYS", "int", "rewards", "تعليق مكافأة الدعوة (يوم، أطول من مدة الاسترجاع)", 0, 365),
+    Tunable("REFERRAL_FLAG_PER_DAY", "int", "rewards", "دعوات من نفس الشبكة في اليوم قبل المراجعة", 1, 100),
+    Tunable("WITHDRAW_ENABLED", "bool", "rewards", "السماح بسحب المكافآت"),
+    Tunable("WITHDRAW_MIN", "float", "rewards", "أقل مبلغ للسحب (USDT)", 1, 100000),
+    Tunable("WITHDRAW_FEE", "float", "rewards", "رسوم الشبكة على السحب (USDT)", 0, 1000),
+    Tunable("WITHDRAW_REQUESTS_PER_DAY", "int", "rewards", "طلبات السحب في اليوم", 1, 20),
+    Tunable("WITHDRAW_NETWORKS", "text", "rewards", "شبكات السحب (TRC20,BEP20)", max_len=40),
     # V6 phase 2: market
     Tunable("MARKET_ENABLED", "bool", "market", "عرض السوق في الرئيسية"),
     Tunable("MARKET_BASE_URL", "choice", "market", "مصدر الأسعار (نطاق Bybit)",
@@ -212,6 +223,7 @@ def save(db: Session, settings: Settings, changes: dict, actor: str) -> list[str
         if t is None:
             raise AppError(400, "unknown_setting", "إعداد غير معروف.")
         clean[key] = None if value is None else coerce(t, value)
+    _cross_check(settings, clean)
     now = clock.utcnow()
     for key, value in clean.items():
         row = db.get(AppSetting, _PREFIX + key)
@@ -225,6 +237,17 @@ def save(db: Session, settings: Settings, changes: dict, actor: str) -> list[str
             row.value, row.updated_at, row.updated_by = json.dumps(value), now, actor
     db.flush()
     return sorted(clean)
+
+
+def _cross_check(settings: Settings, clean: dict) -> None:
+    """Rules between settings: a referral reward stays on hold longer than a membership can be refunded."""
+    def after(key):
+        if key in clean:
+            return clean[key] if clean[key] is not None else _env_default(settings, key)
+        return getattr(settings, key)
+
+    if after("MEMBERSHIP_REFUNDABLE") and after("REFERRAL_HOLD_DAYS") <= after("MEMBERSHIP_REFUND_WINDOW_DAYS"):
+        raise AppError(400, "hold_too_short", "مدة تعليق مكافأة الدعوة يجب أن تبقى أطول من مدة استرجاع العضوية.")
 
 
 def clear_all(db: Session) -> None:

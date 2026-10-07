@@ -34,6 +34,7 @@ from app.api import notifications as notifications_api
 from app.api import people as people_api
 from app.api import policies as policies_api
 from app.api import posts as posts_api
+from app.api import rewards as rewards_api
 from app.api import telegram as telegram_api
 from app.api import uploads as uploads_api
 from app.api import ws as ws_api
@@ -279,6 +280,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(market_api.router)
     app.include_router(notifications_api.router)
     app.include_router(membership_api.router)
+    app.include_router(rewards_api.router)
     app.include_router(policies_api.router)
     app.include_router(posts_api.router)
     app.include_router(telegram_api.router)

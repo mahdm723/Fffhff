@@ -157,8 +157,20 @@ def submit(db: Session, settings: Settings, limiter, user: User, txid: object, e
 # admin decisions (panel + Telegram) — the only writers of member_since / member_ended_at
 # ---------------------------------------------------------------------------
 
-ON_ACCEPT: list = []  # V6 phase 5b: rewards.on_membership_accepted(db, settings, user, req, effects)
-ON_REFUND: list = []  # V6 phase 5b: rewards.on_membership_refunded(db, settings, user, refund, effects)
+def _on_accept(db, settings, user, req, effects):
+    from app.services import rewards
+
+    rewards.on_membership_accepted(db, settings, user, req, effects)
+
+
+def _on_refund(db, settings, user, refund, effects):
+    from app.services import rewards
+
+    rewards.on_membership_refunded(db, settings, user, refund, effects)
+
+
+ON_ACCEPT: list = [_on_accept]  # V6 phase 5b: the invitee became a member → the inviter's reward
+ON_REFUND: list = [_on_refund]  # V6 phase 5b: refunded within the window → the pending reward is cancelled
 
 
 def decide(db: Session, settings: Settings, req: MembershipRequest, action: str, actor: str, note: str,

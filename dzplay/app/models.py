@@ -62,7 +62,8 @@ def new_public_user_id() -> str:
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (Index("ux_users_public_id", "public_id", unique=True),)
+    __table_args__ = (Index("ux_users_public_id", "public_id", unique=True),
+                      Index("ux_users_referral_code", "referral_code", unique=True))
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
@@ -111,6 +112,9 @@ class User(Base):
     # --- V6 phase 4/5: membership (features only; set by app.services.membership when a payment is accepted)
     member_since: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     member_ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # --- V6 phase 5b: invitations (own code, created on first use) and a coarse device hash (abuse flags only)
+    referral_code: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    device_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class NameHistory(Base):
@@ -605,6 +609,59 @@ class MembershipRefund(Base):
     refund_txid: Mapped[str | None] = mapped_column(String(160), nullable=True)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class Referral(Base):
+    """V6 phase 5b: one-level invitation (an account made through someone's link). The reward is a ledger entry."""
+
+    __tablename__ = "referrals"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    referrer_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    referee_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    status: Mapped[str] = mapped_column(String(10), default="joined", index=True)  # joined|review|rewarded|rejected|reversed
+    flags: Mapped[str | None] = mapped_column(String(200), nullable=True)  # same_network,same_device,burst
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    rewarded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class RewardBatch(Base):
+    """V6 phase 5b: a group reward from the panel (activity criteria only)."""
+
+    __tablename__ = "reward_batches"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    amount_minor: Mapped[int] = mapped_column(BigInteger)
+    criteria: Mapped[str] = mapped_column(Text)  # JSON
+    note: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(10), default="running")
+    count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class WithdrawalRequest(Base):
+    """V6 phase 5b: a withdrawal of rewards; the amount left the balance when it was asked for."""
+
+    __tablename__ = "withdrawal_requests"
+    __table_args__ = (Index("ux_withdraw_txid", "txid", unique=True),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_public_id: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    network: Mapped[str] = mapped_column(String(16))
+    address: Mapped[str] = mapped_column(String(128))
+    amount_minor: Mapped[int] = mapped_column(BigInteger)  # taken from the balance
+    fee_minor: Mapped[int] = mapped_column(BigInteger)  # deducted from what is sent
+    status: Mapped[str] = mapped_column(String(10), default="pending", index=True)  # pending|done|rejected
+    txid: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
 

@@ -75,6 +75,19 @@ def challenge(body: ChallengeBody, request: Request) -> dict:
         return auth_service.issue_challenge(db, st.settings, ctx, body.purpose)
 
 
+def _after_signup(db, st, request: Request, response: Response, user, ctx) -> None:
+    """V6 phase 5b: a coarse device hash (abuse flags only) and the invitation link this person came from."""
+    from app.services import rewards
+
+    if user.device_hash is None:
+        user.device_hash = rewards.device_hash(st.settings, request.headers.get("user-agent"),
+                                               request.headers.get("accept-language"))
+    code = request.cookies.get(rewards.REF_COOKIE)
+    if code:
+        rewards.attach_referral(db, st.settings, user, code, ctx.ip_hash, user.device_hash)
+        response.delete_cookie(rewards.REF_COOKIE, path="/api/auth")
+
+
 @router.post("/auth/register", status_code=201)
 def register(body: RegisterBody, request: Request, response: Response) -> dict:
     st = get_state(request)
@@ -85,6 +98,7 @@ def register(body: RegisterBody, request: Request, response: Response) -> dict:
             antibot_payload=body.antibot, honeypot=body.website, gender=body.gender, age_confirmed=body.age_confirmed,
             display_name=body.display_name,
         )
+        _after_signup(db, st, request, response, user, ctx)
         token = create_session(db, st.settings, user)
         result = profile(user)
     set_session_cookie(response, request, token)
@@ -163,6 +177,7 @@ def google(body: GoogleBody, request: Request, response: Response) -> dict:
     nonce = request.cookies.get(_GOOGLE_NONCE_COOKIE)
     with st.database.session() as db:
         user = auth_service.google_login(db, st.settings, ctx, credential=body.credential, expected_nonce=nonce)
+        _after_signup(db, st, request, response, user, ctx)  # a new Google account may come from an invitation
         token = create_session(db, st.settings, user)
         result = profile(user)
     response.delete_cookie(_GOOGLE_NONCE_COOKIE, path="/api/auth/google")

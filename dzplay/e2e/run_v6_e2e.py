@@ -3,6 +3,7 @@
 * phase 3 — identity: a name is required at registration, 4-tab navigation, «المستخدمون» (list + search,
   tap → public profile → «مراسلة»), no way back to "dzplay". (Profile pictures: e2e/run_media_e2e.py.)
 * phase 4 — public comments + replies, notifications (bell), likers. (Members-only pictures: run_media_e2e.py.)
+* phase 5b — invitation link → member → reward on hold; «أرباحي»; withdrawal with fee, e-mail code, password.
 * phase 2 — market: «السوق | الأفكار» switch on Home (ideas by default, last pane remembered), gainers/losers with
   sparklines from a local fake Bybit, details sheet, stale notice when the source goes away, disclaimer.
 
@@ -14,6 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -21,6 +23,7 @@ from playwright.sync_api import Page, expect, sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fake_bybit import FakeBybit  # noqa: E402
+from run_account_e2e import ADMIN_PATH, admin_client  # noqa: E402
 from run_e2e import MOBILE, Run, register, start_server  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -209,14 +212,93 @@ def phase4_comments(run: Run, a: Page, b: Page) -> None:
     run.step("B: reply notification; public count (2); likers list (dislikers never listed)")
 
 
+def phase5b_rewards(run: Run, browser, a: Page, adm, smtp, suffix) -> None:
+    """Invitation link → the invitee becomes a member → the inviter's reward is on hold; a contest reward;
+    a withdrawal with fee summary, e-mail code and password; the admin records the transfer."""
+    import re as _re
+
+    from run_e2e import PASSWORD
+
+    base = run.base
+    a.goto(base + "/#/referrals")
+    link = a.locator(".ref-link").inner_text().strip()
+    assert "/r/" in link, link
+    run.shot(a, "v6-referrals")
+    c = browser.new_context(**MOBILE, locale="ar").new_page()
+    run.watch(c, "C")
+    c.goto(link)
+    register(run, c, f"v6c{suffix}@example.com", name="Invited Friend")
+    assert adm.put("/api/admin/payment-settings", json={"currency": "USDT", "network": "TRC20",
+                                                        "wallet": "TQ5pZ9aBcDeFgHiJkLmNoPqRsTuVwXyZ12"}).status_code == 200
+    c.goto(base + "/#/membership")
+    c.locator("#mem-txid").fill("e" * 64)
+    c.get_by_role("button", name="إرسال رقم العملية").click()
+    expect(c.get_by_text("طلبك: قيد المراجعة")).to_be_visible(timeout=10000)
+    rid = adm.get("/api/admin/membership?status=pending").json()["requests"][0]["id"]
+    assert adm.post(f"/api/admin/membership/requests/{rid}/decide", json={"action": "accept"}).status_code == 200
+    run.step("an invited friend registered through the link and became a member")
+    lst = adm.get("/api/admin/rewards").json()  # same network as the inviter here (127.0.0.1): admin review
+    ref = lst["referrals"][0]
+    assert ref["status"] == "review" and "same_network" in ref["flags"], ref
+    assert adm.post(f"/api/admin/referrals/{ref['id']}/review", json={"action": "approve"}).status_code == 200
+    uid = ref["referrer"]["ref"]
+    run.step("a suspicious invitation (same network) waits for the admin, who approves it")
+
+    a.goto(base + "/#/earnings")
+    expect(a.locator(".earn-tile").nth(1)).to_contain_text("5.00", timeout=10000)  # on hold
+    expect(a.locator(".earn-item").first).to_contain_text("مكافأة دعوة")
+    assert adm.post(f"/api/admin/users/{uid}/rewards", json={"kind": "contest", "amount": 20, "reason": "فائز مسابقة الأسبوع"}).status_code == 200
+    a.reload()
+    expect(a.locator(".earn-tile--main")).to_contain_text("20.00", timeout=10000)
+    run.shot(a, "v6-earnings")
+    run.step("«أرباحي»: invitation reward on hold (5.00) + contest reward available (20.00)")
+
+    a.get_by_role("button", name="سحب (الحد الأدنى 10.00 USDT)").click()
+    a.locator("#wd-address").fill("TNPeeaaFB7K9cmo4uQpcU32zGK8G8NHxXz")
+    a.locator("#wd-amount").fill("12")
+    expect(a.locator(".wd-summary")).to_contain_text("11.00")
+    a.get_by_role("button", name="أرسل الرمز").click()
+    def code_mail():
+        for m in reversed(smtp.messages):
+            body = m["msg"].get_body(preferencelist=("plain",)).get_content()
+            if "رمز التأكيد" in body:
+                return body
+        return None
+
+    deadline = time.time() + 15
+    while time.time() < deadline and not code_mail():
+        time.sleep(0.3)
+    text = code_mail()
+    a.locator("#wd-code").fill(_re.search(r"\b(\d{6})\b", text).group(1))
+    a.locator("#wd-password").fill(PASSWORD)
+    run.shot(a, "v6-withdraw")
+    a.get_by_role("button", name="تأكيد السحب").click()
+    expect(a.get_by_text("طلب سحب قيد التنفيذ")).to_be_visible(timeout=10000)
+    expect(a.locator(".earn-tile--main")).to_contain_text("8.00")
+    wid = adm.get("/api/admin/withdrawals").json()["withdrawals"][0]["id"]
+    assert adm.post(f"/api/admin/withdrawals/{wid}/decide", json={"action": "done", "txid": "f" * 64}).status_code == 200
+    a.reload()
+    expect(a.get_by_text("تم الإرسال")).to_be_visible(timeout=10000)
+    run.step("withdrawal: fee shown before confirming, e-mail code + password, admin records the transfer")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8773)
     parser.add_argument("--shots", default=str(ROOT / "e2e" / "screenshots-v6"))
     args = parser.parse_args()
     fake = FakeBybit(args.port + 100)
+    sys.path.insert(0, str(ROOT))
+    from tests.smtp_sink import SmtpSink
+
+    smtp = SmtpSink().__enter__()
+    db_file = Path(tempfile.mkdtemp(prefix="dz-v6-e2e-")) / "v6.db"
+    db_url = f"sqlite:///{db_file}"
     proc, base = start_server(args.port, {"MARKET_BASE_URL": fake.url, "MARKET_REFRESH_SECONDS": "10",
-                                          "MARKET_MIN_TURNOVER_24H": "1000"})
+                                          "MARKET_MIN_TURNOVER_24H": "1000", "DATABASE_URL": db_url, "ADMIN_PATH": ADMIN_PATH,
+                                          "SMTP_HOST": "127.0.0.1", "SMTP_PORT": str(smtp.port), "SMTP_SECURITY": "none",
+                                          "SMTP_FROM": "no-reply@dzplay.test", "NO_PROXY": "127.0.0.1,localhost",
+                                          "no_proxy": "127.0.0.1,localhost"})
     run = Run(base, Path(args.shots))
     suffix = os.getpid()
     try:
@@ -231,6 +313,7 @@ def main() -> int:
             run.watch(b, "B")
             phase3_identity(run, a, b, suffix)
             phase4_comments(run, a, b)
+            phase5b_rewards(run, browser, a, admin_client(base, db_url), smtp, suffix)
             phase2_market(run, a, fake)
             browser.close()
     finally:

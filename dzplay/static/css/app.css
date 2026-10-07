@@ -923,3 +923,23 @@ body::before {
 .mem-code input { flex: 1; }
 .mem-note { color: var(--danger); font-size: 14px; }
 .mem-terms { text-align: center; font-size: 13px; }
+
+/* ---------- V6 phase 5b: «أرباحي», invitations ---------- */
+.earn-tiles { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.earn-tile { padding: 12px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.earn-tile small { color: var(--ink-3); font-size: 12px; }
+.earn-tile b { font-size: 18px; font-variant-numeric: tabular-nums; text-align: start; }
+.earn-tile--main b { font-size: 24px; }
+.earn-note { font-size: 12.5px; margin: 4px 0 12px; }
+.earnings .btn--block + .btn--block { margin-top: 8px; }
+.earn-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.earn-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; }
+.earn-item div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.earn-item small { font-size: 12px; color: var(--ink-2); }
+.earn-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.earn-amount.is-pos { color: var(--up); }
+.earn-amount.is-neg { color: var(--down); }
+.wd-summary { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-2); line-height: 1.8; }
+.ref-card { padding: 14px; border-radius: var(--radius); display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.ref-card p { margin: 0; font-size: 14px; line-height: 1.8; color: var(--ink-2); }
+.ref-link { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12.5px; background: var(--surface-2); padding: 8px; border-radius: 8px; }
