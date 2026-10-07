@@ -868,3 +868,41 @@ body::before {
 .user-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .user-row__id { color: var(--ink-3); font-size: 12px; text-align: start; }
 .user-row .chev { width: 18px; height: 18px; color: var(--ink-3); flex: none; }
+
+/* ---------- V6 phase 4: public comments, likers, notifications ---------- */
+.bell-btn { position: relative; }
+.bell-btn .badge { position: absolute; top: -4px; inset-inline-end: -4px; }
+.post-card__likers { display: block; border: 0; background: none; padding: 6px 2px 0; color: var(--ink-3); font: inherit; font-size: 13px; text-align: start; }
+.post-card__likers[hidden] { display: none; }
+.comments-sheet { display: flex; flex-direction: column; max-height: 88vh; max-height: 88dvh; padding-bottom: calc(10px + var(--safe-b)); }
+.comments-sheet__head { display: flex; align-items: center; justify-content: space-between; }
+.comments-sheet__head h2 { margin: 0; }
+.comments-sheet__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 8px -4px; padding: 0 4px; }
+.comments-sheet__composer { border-top: 1px solid var(--line); padding-top: 8px; }
+.comment-composer { display: flex; align-items: flex-end; gap: 8px; }
+.comment-composer textarea { flex: 1; min-height: 44px; resize: none; }
+.comment-reply { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--ink-2); padding: 0 4px 6px; }
+.comment-reply[hidden] { display: none; }
+.comment-thread { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.comment-replies { list-style: none; margin: 0; padding: 0 0 0 0; padding-inline-start: 26px; display: flex; flex-direction: column; gap: 6px; }
+.comment--reply { background: transparent; }
+.comment.is-focus { border-color: var(--accent); }
+.comment__who, .comment__name-btn { border: 0; background: none; padding: 0; color: inherit; font: inherit; }
+.comment__actions { display: flex; align-items: center; gap: 12px; margin-top: 2px; font-size: 13px; }
+.comment__actions .link-btn { font-size: 13px; }
+.comment__more { margin-inline-start: auto; width: 32px; height: 32px; }
+.comment__at { color: var(--lilac); font-weight: 700; }
+.comment__private { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); }
+.comment__private svg { width: 13px; height: 13px; }
+.comment__head .chip { font-size: 11px; padding: 1px 7px; }
+.likers { list-style: none; margin: 4px 0; padding: 0; }
+.notif-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.notif { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border-radius: 16px; border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent); color: var(--ink); font: inherit; text-align: start; }
+.notif.is-unread { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.notif__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.notif__text b { font-size: 14.5px; }
+.notif__preview { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif__time { color: var(--ink-3); font-size: 12px; }
+.notif__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
+.chip--team { background: color-mix(in srgb, var(--lilac) 22%, transparent); color: var(--ink); }

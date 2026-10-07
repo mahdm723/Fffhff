@@ -57,6 +57,9 @@ def run_cleanup(db: Session, settings: Settings, media=None) -> dict[str, int]:
     from app.services.password_reset import purge as purge_resets
 
     counts["password_resets"] = purge_resets(db)
+    from app.services import notify
+
+    counts["notifications"] = notify.purge_old(db)  # V6 phase 4: older than notify.KEEP_DAYS
     if media is not None:
         purged = media.purge(db)
         counts["media_files"] = purged["expired"] + purged["lru"] + purged["orphans"]

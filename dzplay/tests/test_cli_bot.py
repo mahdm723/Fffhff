@@ -134,14 +134,13 @@ def test_every_response_has_corp_including_media(hx):
     assert c.get("/").headers["permissions-policy"].startswith("camera=(), microphone=()")
 
 
-def test_ideas_comments_still_owner_only(hx):
+def test_ideas_comments_are_public_since_v6(hx):
     owner, writer, other = hx.user(), hx.user(), hx.user()
-    pid = owner.post("/api/posts", json={"content": "فكرة خاصة التعليقات"}).json()["id"]
-    assert writer.post(f"/api/posts/{pid}/comments", json={"content": "تعليق لصاحب الفكرة فقط"}).status_code == 201
-    assert "تعليق لصاحب الفكرة فقط" in owner.get(f"/api/posts/{pid}/comments").text
-    for c in (writer, other):
-        r = c.get(f"/api/posts/{pid}/comments")
-        assert r.status_code == 403 and "تعليق لصاحب الفكرة" not in r.text
+    pid = owner.post("/api/posts", json={"content": "فكرة بتعليقات عامة"}).json()["id"]
+    assert writer.post(f"/api/posts/{pid}/comments", json={"content": "تعليق عام"}).status_code == 201
+    for c in (owner, writer, other):
+        assert "تعليق عام" in c.get(f"/api/posts/{pid}/comments").text
+    assert writer.email not in other.get(f"/api/posts/{pid}/comments").text
 
 
 # ----------------------------------------------------------------- admin CLI

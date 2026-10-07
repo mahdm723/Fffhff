@@ -17,6 +17,8 @@ import { renderSupport, renderTicket } from './views/support.js';
 import { renderVerify } from './views/verify.js';
 import { renderUser } from './views/user.js';
 import { renderUsers } from './views/users.js';
+import { renderNotifications } from './views/notifications.js';
+import { renderPost } from './views/post.js';
 
 const root = document.getElementById('app');
 let cleanupView = null;
@@ -42,6 +44,9 @@ function parseRoute() {
   if (p) return { name: 'user', publicId: p[1].toUpperCase() };
   const t = location.hash.match(/^#\/support\/(\d{1,9})$/);
   if (t) return { name: 'ticket', id: Number(t[1]) };
+  const pp = location.hash.match(/^#\/post\/([A-Za-z0-9_-]{1,32})(?:\/([A-Za-z0-9_-]{1,32}))?$/);
+  if (pp) return { name: 'post', id: pp[1], commentId: pp[2] || null };
+  if (location.hash === '#/notifications') return { name: 'notifications' };
   if (location.hash === '#/support') return { name: 'support' };
   if (location.hash === '#/verify') return { name: 'verify' };
   const name = location.hash.replace(/^#\//, '');
@@ -64,6 +69,12 @@ function updateBadges() {
   document.title = n ? `(${n}) DZPLAY` : 'DZPLAY';
   setTabBadge('messages', n || store.requestCount());
   setTabBadge('profile', (store.state.me && store.state.me.unseen_comments) || 0);
+  const bell = (store.state.me && store.state.me.unread_notifications) || 0; // V6: the bell on Home
+  document.querySelectorAll('.bell-btn').forEach((b) => {
+    const badge = b.querySelector('.badge');
+    if (bell) { if (badge) badge.textContent = bell > 99 ? '99+' : String(bell); else b.append(h('span', { class: 'badge', text: bell > 99 ? '99+' : String(bell) })); }
+    else if (badge) badge.remove();
+  });
 }
 
 function updateConnectionBanner() {
@@ -100,7 +111,7 @@ function route() {
     shell = buildShell();
     root.replaceChildren(shell.el);
   }
-  const activeTab = r.name === 'user' ? 'users' : ['support', 'ticket', 'verify'].includes(r.name) ? 'profile' : r.name;
+  const activeTab = ['post', 'notifications'].includes(r.name) ? 'home' : r.name === 'user' ? 'users' : ['support', 'ticket', 'verify'].includes(r.name) ? 'profile' : r.name;
   for (const btn of shell.nav.querySelectorAll('.nav__btn')) {
     if (btn.dataset.tab === activeTab) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
@@ -111,6 +122,8 @@ function route() {
   if (r.name === 'home') cleanupView = renderHome(shell.page, ctx) || null;
   else if (r.name === 'messages') cleanupView = renderMessages(shell.page, ctx) || null;
   else if (r.name === 'users') cleanupView = renderUsers(shell.page, ctx) || null;
+  else if (r.name === 'notifications') cleanupView = renderNotifications(shell.page, ctx) || null;
+  else if (r.name === 'post') cleanupView = renderPost(shell.page, { ...ctx, postId: r.id, commentId: r.commentId }) || null;
   else if (r.name === 'user') cleanupView = renderUser(shell.page, { ...ctx, ref: r.ref, publicId: r.publicId }) || null;
   else if (r.name === 'support') cleanupView = renderSupport(shell.page, ctx) || null;
   else if (r.name === 'ticket') cleanupView = renderTicket(shell.page, { ...ctx, ticketId: r.id }) || null;
@@ -177,8 +190,11 @@ store.subscribe((type, detail) => {
   } else if (type === 'comment') {
     if (store.state.me) store.state.me.unseen_comments = (store.state.me.unseen_comments || 0) + 1;
     updateBadges();
+  } else if (type === 'notify') { // V6: a comment, a reply… (the list is in «الإشعارات»)
+    if (store.state.me) store.state.me.unread_notifications = (store.state.me.unread_notifications || 0) + 1;
+    updateBadges();
     if (document.visibilityState !== 'visible') showLocalNotification();
-    else toast('وصلك تعليق خاص جديد على إحدى أفكارك');
+    else if (parseRoute().name !== 'notifications') toast('لديك إشعار جديد 🔔');
   } else if (type === 'account') { // V5: the blue star was granted / revoked, a request was decided
     api.get('/api/me').then((me) => onMe(me)).catch(() => {});
     document.dispatchEvent(new CustomEvent('dz:account'));

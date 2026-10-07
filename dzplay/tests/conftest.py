@@ -86,6 +86,8 @@ class Harness:
         self._lifespan.__enter__()  # runs startup (create tables, hub)
         self.state = state
         self.admin_secrets: dict[str, str] = {}
+        # V6 phase 4: picture posts are for members; media test harnesses (Telegram configured) start with members
+        self.default_member = telegram_transport is not None
         self._admin_clients: dict[str, AdminClient] = {}
 
     def client(self, ip: str | None = None) -> TestClient:
@@ -116,7 +118,19 @@ class Harness:
         r = self.register(c, email)
         assert r.status_code == 201, r.text
         c.email = email  # type: ignore[attr-defined]
+        if self.default_member:
+            self.make_member(c)
         return c
+
+    def make_member(self, c: TestClient) -> None:
+        """V6: an active membership (as if a payment had been accepted)."""
+        from sqlalchemy import select
+
+        from app.models import User
+
+        with self.db() as db:
+            db.scalar(select(User).where(User.email == c.email)).member_since = clock.utcnow()
+            db.commit()
 
     def db(self):
         return self.state.database.session()

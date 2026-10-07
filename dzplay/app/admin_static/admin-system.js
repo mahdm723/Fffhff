@@ -18,6 +18,7 @@ const BLOCK_SCOPE = { ip: 'شبكة', ipacct: 'شبكة + حساب', acct: 'حس
 const CLEANUP_LABELS = {
   messages: 'رسائل منتهية', conversations: 'محادثات منتهية', sessions: 'جلسات منتهية', challenges: 'تحديات مكافحة الروبوت',
   auth_throttle: 'سجلات حظر الدخول', security_events: 'سجلات أمان قديمة', reports: 'بلاغات قديمة مغلقة', flags: 'رصد قديم مغلق',
+  notifications: 'إشعارات قديمة',
 };
 
 function card(title, iconName, ...children) {

@@ -118,16 +118,22 @@ def test_users_search_detail_and_actions(hx):
 
 
 def test_admin_sees_private_comments_users_still_cannot(hx):
+    from app import clock
+    from app.models import Comment, User
+
     owner, writer, other = hx.user(), hx.user(), hx.user()
     pid = idea(owner)
-    writer.post(f"/api/posts/{pid}/comments", json={"content": "سر بين الكاتب وصاحب الفكرة"})
+    with hx.db() as db:  # an old private comment (before V6 phase 4 comments became public)
+        wid = db.scalar(select(User.id).where(User.email == writer.email))
+        db.add(Comment(post_id=pid, author_id=wid, content="سر بين الكاتب وصاحب الفكرة", created_at=clock.utcnow()))
+        db.commit()
     admin = hx.admin()
     data = admin.get(f"/api/admin/access/ideas/{pid}").json()
     assert data["comments"][0]["content"] == "سر بين الكاتب وصاحب الفكرة"
     assert data["comments"][0]["author"]["email"] == writer.email
     assert data["idea"]["author"]["email"] == owner.email
-    for c in (writer, other):  # users' privacy rules unchanged
-        assert c.get(f"/api/posts/{pid}/comments").status_code == 403
+    assert "سر بين" in writer.get(f"/api/posts/{pid}/comments").text  # its writer
+    assert "سر بين" not in other.get(f"/api/posts/{pid}/comments").text  # nobody else
     listing = admin.get("/api/admin/access/ideas", params={"q": "تجربة"}).json()
     assert listing["total"] == 1 and listing["ideas"][0]["author"]["email"] == owner.email
 

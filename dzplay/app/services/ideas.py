@@ -110,7 +110,7 @@ def _author_view(u: User | None) -> dict:
 
 
 def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | None, author: User | None = None,
-                   media: dict | None = None) -> dict:
+                   media: dict | None = None, public_comments: int = 0) -> dict:
     mine = p.author_id == viewer_id
     return {
         "id": p.id,
@@ -121,9 +121,9 @@ def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | 
         "likes": p.likes_count or 0,
         "dislikes": p.dislikes_count or 0,
         "my_reaction": my_reaction,
-        # Comment counts are private to the author (no public social signal).
-        "comments": {"count": p.comments_count, "unseen": p.unseen_comments_count} if mine else None,
-        "can_comment": not mine,
+        # V6 phase 4: public comments — their real count for everyone; "unseen" for the author only
+        "comments": {"count": public_comments, "unseen": p.unseen_comments_count if mine else 0},
+        "can_comment": True,
         "can_react": not mine,
         "media": media,  # V5: one picture (signed, session-bound URL) or None
         "status": p.status if mine and p.status != "visible" else None,  # pending (approval) / hidden (reports)
@@ -139,10 +139,13 @@ def _serialize_many(db: Session, posts: list[Post], viewer_id: str) -> list[dict
         .where(PostReaction.user_id == viewer_id, PostReaction.post_id.in_([p.id for p in posts]))
     ).all())
     authors = _authors(db, {p.author_id for p in posts})
+    counts = dict(db.execute(select(Comment.post_id, func.count(Comment.id)).where(
+        Comment.post_id.in_([p.id for p in posts]), Comment.visibility == "public", Comment.deleted_at.is_(None))
+        .group_by(Comment.post_id)).all())
     from app.services.media_items import post_media
 
     return [serialize_post(p, viewer_id, refs[p.author_id], reactions.get(p.id), authors.get(p.author_id),
-                           post_media(db, p, viewer_id)) for p in posts]
+                           post_media(db, p, viewer_id), counts.get(p.id, 0)) for p in posts]
 
 
 def _visible_post(db: Session, post_id: str) -> Post:
@@ -355,7 +358,7 @@ def set_reaction(db: Session, settings: Settings, limiter, user: User, post_id: 
 
 
 # ---------------------------------------------------------------------------
-# comments (visible to the post author only)
+# comments (V6 phase 4: public, one level of replies; older private ones stay private)
 # ---------------------------------------------------------------------------
 
 
@@ -364,68 +367,142 @@ def _is_blocked_pair(db: Session, a: str, b: str) -> bool:
         or_(and_(Block.blocker_id == a, Block.blocked_id == b), and_(Block.blocker_id == b, Block.blocked_id == a))).limit(1)))
 
 
+TEAM_NAME = "فريق DZPLAY"
+REPLIES_PER_THREAD = 50
+
+
+def _can_see_comment(c: Comment, post: Post, viewer_id: str) -> bool:
+    if c.deleted_at is not None:
+        return False
+    if c.visibility == "public":
+        return True
+    return viewer_id in (post.author_id, c.author_id)  # an old private comment (V6 keeps it private)
+
+
+def _comment_by_id(db: Session, comment_id: object) -> tuple[Comment, Post]:
+    comment = db.get(Comment, comment_id) if isinstance(comment_id, str) and len(comment_id) <= 32 else None
+    post = db.get(Post, comment.post_id) if comment else None
+    if comment is None or post is None or post.status != "visible":
+        raise not_found()
+    return comment, post
+
+
 def add_comment(db: Session, settings: Settings, limiter, user: User, post_id: str, *, content: object,
-                effects: Effects) -> dict:
+                effects: Effects, parent_id: object = None) -> dict:
+    """V6 phase 4: a public comment (or a reply: one level, a reply to a reply joins the same thread)."""
+    from app.services import notify
+
     _require_can_send(user)
     post = _visible_post(db, post_id)
-    if post.author_id == user.id:
-        raise AppError(400, "own_post", "التعليقات تصلك أنت من الآخرين، لا يمكنك التعليق على منشورك.")
     text = clean_message(content, settings.MAX_COMMENT_LENGTH, settings.LINK_POLICY)
     if _is_blocked_pair(db, user.id, post.author_id):
         raise AppError(403, "comment_blocked", "لا يمكنك التعليق على هذا المنشور.")
+    parent = None
+    if parent_id:
+        parent, parent_post = _comment_by_id(db, parent_id)
+        if parent_post.id != post.id or parent.visibility != "public" or parent.deleted_at is not None:
+            raise not_found()
+        if _is_blocked_pair(db, user.id, parent.author_id):
+            raise AppError(403, "comment_blocked", "لا يمكنك الرد على هذا التعليق.")
     _check_limits(limiter, [
         Limit(f"comment_min:{user.id}", settings.MAX_COMMENTS_PER_MINUTE, 60),
         Limit(f"comment_hour:{user.id}", settings.MAX_COMMENTS_PER_HOUR, HOUR),
     ])
-    comment = Comment(post_id=post.id, author_id=user.id, content=text, created_at=clock.utcnow())
+    thread = parent.parent_id or parent.id if parent is not None else None
+    comment = Comment(post_id=post.id, author_id=user.id, content=text, created_at=clock.utcnow(), visibility="public",
+                      parent_id=thread, reply_to_user_id=parent.author_id if parent is not None else None)
     db.add(comment)
+    own = post.author_id == user.id
     db.execute(update(Post).where(Post.id == post.id).values(
-        comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + 1))
+        comments_count=Post.comments_count + 1,
+        unseen_comments_count=Post.unseen_comments_count + (0 if own else 1)))
     db.flush()
     flag_content(db, settings, target="comment", text=text, offender_id=user.id, victim_id=post.author_id,
                  comment_id=comment.id, post_id=post.id)
-    effects.signal(post.author_id, "comment")
-    # The writer gets no copy back: comments are for the author's eyes only.
-    return {"ok": True, "visible_to": "author_only"}
+    replied_to = parent.author_id if parent is not None else None
+    if replied_to and replied_to != user.id:
+        notify.create(db, replied_to, "reply", effects, actor_id=user.id, post_id=post.id, comment_id=comment.id)
+    if not own and post.author_id != replied_to:
+        notify.create(db, post.author_id, "comment", effects, actor_id=user.id, post_id=post.id, comment_id=comment.id)
+    if not own:
+        effects.signal(post.author_id, "comment")
+    return {"comment": _comment_views(db, post, user.id, [comment])[0]}
+
+
+def _comment_views(db: Session, post: Post, viewer_id: str, rows: list[Comment]) -> list[dict]:
+    from app.services import names
+    from app.services.media_items import avatar_url
+
+    users = _authors(db, {c.author_id for c in rows} | {c.reply_to_user_id for c in rows if c.reply_to_user_id})
+    out = []
+    for c in rows:
+        u = users.get(c.author_id)
+        team = bool(u is not None and (u.is_system or u.is_official))
+        if team:
+            author = {"name": OFFICIAL_NAME if u.is_official else TEAM_NAME, "public_id": None, "avatar_url": None,
+                      "verified": False, "gender": None}
+        else:
+            author = {"name": names.shown_name(u) if u else PEER_NAME, "public_id": u.public_id if u else None,
+                      "avatar_url": avatar_url(u) if u else None, "verified": bool(u and u.verified_at),
+                      "gender": names.public_gender(u) if u else None}
+        to = users.get(c.reply_to_user_id) if c.reply_to_user_id else None
+        out.append({
+            "id": c.id, "author": author, "team": team, "official": bool(u is not None and u.is_official),
+            "content": c.content, "created_at": iso(c.created_at), "parent_id": c.parent_id,
+            "reply_to": (TEAM_NAME if to.is_system or to.is_official else names.shown_name(to)) if to else None,
+            "private": c.visibility is None, "mine": c.author_id == viewer_id,
+            "can_delete": viewer_id in (c.author_id, post.author_id),
+            "can_reply": c.visibility == "public",
+        })
+    return out
 
 
 def list_comments(db: Session, user: User, post_id: str, *, before: str | None = None, limit: int = 50) -> dict:
+    """Everyone sees the public comments (threads, oldest first); old private ones only their two people."""
     post = _visible_post(db, post_id)
-    if post.author_id != user.id:  # server-side owner check — the only way comments are ever returned
-        raise AppError(403, "comments_private", "التعليقات مرئية لصاحب المنشور فقط.")
     limit = max(1, min(limit, 100))
     blocked = _blocked_ids(db, user.id)
-    q = select(Comment).where(Comment.post_id == post.id)
+    base = [Comment.post_id == post.id, Comment.deleted_at.is_(None)]
     if blocked:
-        q = q.where(Comment.author_id.not_in(blocked))
-    before_dt = parse_iso(before)
-    if before_dt:
-        q = q.where(Comment.created_at < before_dt)
-    rows = list(db.execute(q.order_by(Comment.created_at.desc(), Comment.id.desc()).limit(limit + 1)).scalars())
-    if post.unseen_comments_count:
+        base.append(Comment.author_id.not_in(blocked))
+    if post.author_id != user.id:
+        base.append(or_(Comment.visibility == "public", Comment.author_id == user.id))
+    q = select(Comment).where(*base, Comment.parent_id.is_(None))
+    after_dt = parse_iso(before)  # "before" kept as the cursor name: the next page starts after this time
+    if after_dt:
+        q = q.where(Comment.created_at > after_dt)
+    tops = list(db.execute(q.order_by(Comment.created_at, Comment.id).limit(limit + 1)).scalars())
+    page = tops[:limit]
+    replies = list(db.execute(select(Comment).where(*base, Comment.parent_id.in_([c.id for c in page]))
+                              .order_by(Comment.created_at, Comment.id)).scalars()) if page else []
+    if post.author_id == user.id and post.unseen_comments_count:
         post.unseen_comments_count = 0
-    official = set(db.execute(select(User.id).where(User.is_official.is_(True))).scalars())
-    authors = _authors(db, {c.author_id for c in rows[:limit]})
+    views = {v["id"]: v for v in _comment_views(db, post, user.id, page + replies)}
+    by_thread: dict[str, list] = {}
+    for r in replies:
+        by_thread.setdefault(r.parent_id, []).append(views[r.id])
     return {
         "post_id": post.id,
-        "comments": [{"id": c.id, "author": OFFICIAL_NAME if c.author_id in official else _author_view(authors.get(c.author_id))["name"],
-                      "official": c.author_id in official, "content": c.content, "created_at": iso(c.created_at)}
-                     for c in rows[:limit]],
-        "has_more": len(rows) > limit,
+        "comments": [{**views[c.id], "replies": by_thread.get(c.id, [])[:REPLIES_PER_THREAD]} for c in page],
+        "next": iso(page[-1].created_at) if len(tops) > limit and page else None,
+        "has_more": len(tops) > limit,
     }
 
 
 def _own_comment(db: Session, user: User, comment_id: str) -> tuple[Comment, Post]:
-    comment = db.get(Comment, comment_id) if isinstance(comment_id, str) and len(comment_id) <= 32 else None
-    post = db.get(Post, comment.post_id) if comment else None
-    if comment is None or post is None or post.author_id != user.id:
+    """A comment on one of my posts (the owner's moderation tools: block the writer)."""
+    comment, post = _comment_by_id(db, comment_id)
+    if post.author_id != user.id or comment.deleted_at is not None:
         raise not_found()
     return comment, post
 
 
 def delete_comment(db: Session, user: User, comment_id: str) -> None:
-    comment, post = _own_comment(db, user, comment_id)
-    db.delete(comment)
+    """Its writer or the post owner. Soft delete: gone for everyone, kept for reports / moderation."""
+    comment, post = _comment_by_id(db, comment_id)
+    if comment.deleted_at is not None or user.id not in (comment.author_id, post.author_id):
+        raise not_found()
+    comment.deleted_at = clock.utcnow()
     db.execute(update(Post).where(Post.id == post.id).values(
         comments_count=case((Post.comments_count > 0, Post.comments_count - 1), else_=0)))
 
@@ -436,6 +513,29 @@ def block_commenter(db: Session, user: User, comment_id: str) -> None:
             select(Block.id).where(Block.blocker_id == user.id, Block.blocked_id == comment.author_id)):
         db.add(Block(blocker_id=user.id, blocked_id=comment.author_id, created_at=clock.utcnow()))
     log_event(db, "block_commenter", None, user.id)
+
+
+# ---------------------------------------------------------------------------
+# V6 phase 4: who liked (never who disliked)
+# ---------------------------------------------------------------------------
+
+
+def likers(db: Session, user: User, post_id: str, *, cursor: str | None = None, limit: int = 30) -> dict:
+    from app.services import people
+
+    post = _visible_post(db, post_id)
+    limit = max(1, min(limit, 50))
+    blocked = _blocked_ids(db, user.id)
+    q = (select(PostReaction, User).join(User, User.id == PostReaction.user_id)
+         .where(PostReaction.post_id == post.id, PostReaction.reaction_type == "like", User.status == "active"))
+    if blocked:
+        q = q.where(User.id.not_in(blocked))
+    if cursor and cursor.isdigit():
+        q = q.where(PostReaction.id < int(cursor))
+    rows = list(db.execute(q.order_by(PostReaction.id.desc()).limit(limit + 1)).all())
+    page = rows[:limit]
+    return {"likers": [people.list_card(u) for _r, u in page],
+            "next_cursor": str(page[-1][0].id) if len(rows) > limit and page else None}
 
 
 # ---------------------------------------------------------------------------
@@ -463,7 +563,9 @@ def report_post(db: Session, settings: Settings, limiter, user: User, post_id: s
 
 def report_comment(db: Session, settings: Settings, limiter, user: User, comment_id: str, *, reason: object,
                    details: object) -> dict:
-    comment, post = _own_comment(db, user, comment_id)  # only the post author can see (and so report) comments
+    comment, post = _comment_by_id(db, comment_id)
+    if not _can_see_comment(comment, post, user.id) or comment.author_id == user.id:
+        raise not_found()
     return _file_report(db, settings, limiter, user, reported_id=comment.author_id, post_id=post.id,
                         comment_id=comment.id, evidence=[(comment.content, comment.created_at)], reason=reason,
                         details=details)
@@ -557,4 +659,9 @@ def own_profile(db: Session, user: User, settings=None) -> dict:
     from app.services.support import unread_count
 
     data["support_unread"] = unread_count(db, user.id)  # V5: support replies not read yet
+    from app.services import notify
+    from app.services.membership import is_member
+
+    data["unread_notifications"] = notify.unread(db, user.id)  # V6 phase 4
+    data["member"] = is_member(user)
     return data

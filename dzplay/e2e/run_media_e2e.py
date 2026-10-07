@@ -13,6 +13,7 @@ import io
 import itertools
 import json
 import os
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -127,9 +128,11 @@ def main() -> int:
            "TELEGRAM_STORAGE_CHANNEL_ID": STORAGE, "TELEGRAM_MODERATION_CHAT_ID": MODCHAT,
            "CHAT_IMAGE_TTL_AFTER_VIEW": "8", "MEDIA_TICK_SECONDS": "1", "CHAT_IMAGE_REPORT_GRACE": "1",
            "NO_PROXY": "127.0.0.1,localhost", "no_proxy": "127.0.0.1,localhost"}
+    tmp = Path(tempfile.mkdtemp(prefix="dz-media-e2e-"))
+    db_file = tmp / "media-e2e.db"
+    env["DATABASE_URL"] = f"sqlite:///{db_file}"
     proc, base = start_server(args.port, env)
     run = Run(base, Path(args.shots))
-    tmp = Path(tempfile.mkdtemp(prefix="dz-media-e2e-"))
     pic1, pic2 = photo(tmp / "idea.jpg"), photo(tmp / "chat.jpg", (30, 160, 90))
     pic3 = photo(tmp / "avatar.jpg", (200, 120, 40))
     chromium = os.environ.get("PW_CHROMIUM", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
@@ -143,6 +146,10 @@ def main() -> int:
             run.watch(b, "B")
             register(run, a, f"media-a{suffix}@example.com")
             register(run, b, f"media-b{suffix}@example.com")
+            # V6 phase 4: picture posts are for members (membership payments arrive in phase 5): A is one
+            with sqlite3.connect(db_file) as con:
+                con.execute("UPDATE users SET member_since = datetime('now') WHERE email = ?", (f"media-a{suffix}@example.com",))
+            a.reload()
 
             print("Idea picture")
             a.goto(base + "/#/home")
@@ -175,7 +182,10 @@ def main() -> int:
             expect(a.locator(".viewer")).to_have_count(0)
 
             b.goto(base + "/#/home")
-            expect(b.locator("#idea-compose")).to_be_visible(timeout=10000)  # V6: Home = the ideas pane alone
+            expect(b.locator("#idea-compose")).to_be_visible(timeout=10000)
+            expect(b.get_by_role("button", name="الصور للأعضاء")).to_be_visible(timeout=10000)  # B is not a member
+            expect(b.get_by_role("button", name="إضافة صورة")).to_have_count(0)
+            run.step("a non-member sees «الصور للأعضاء» instead of the picture button")
             b.get_by_role("button", name="أفكار أخرى").click()
             bcard = b.locator(".post-card", has_text="غروب جميل اليوم")
             expect(bcard.locator(".post-card__media img")).to_be_visible(timeout=15000)

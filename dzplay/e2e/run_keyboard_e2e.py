@@ -92,8 +92,8 @@ def main() -> int:
             b.get_by_role("button", name="أفكار أخرى").click()
             card = b.locator(".post-card", has_text="فكرة لتجربة لوحة المفاتيح")
             expect(card).to_be_visible(timeout=10000)
-            card.get_by_role("button", name="تعليق خاص").click()
-            check(run, b, b.locator(".sheet textarea"), b.locator(".sheet").get_by_role("button", name="إرسال التعليق"), "comment-sheet")
+            card.get_by_role("button", name="التعليقات").click()
+            check(run, b, b.locator(".comments-sheet textarea"), b.locator(".comments-sheet").get_by_role("button", name="إرسال التعليق"), "comment-sheet")
 
             a.goto(base + "/#/users")
             check(run, a, a.locator(".people-search input"), a.locator(".people-search button"), "people-search")

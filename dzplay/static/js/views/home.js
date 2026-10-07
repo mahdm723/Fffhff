@@ -98,6 +98,12 @@ function renderIdeasPane(page, { config, navigate }) {
   function paintQuota() {
     clearInterval(quotaTimer);
     if (!quota || !quota.enabled) { imageBtn.hidden = true; imageNote.hidden = true; return; }
+    if (!quota.member) { // V6 phase 4: picture posts are a membership feature
+      imageBtn.hidden = true;
+      imageNote.hidden = false;
+      imageNote.replaceChildren(h('button', { class: 'link-btn', type: 'button', onclick: () => navigate('#/membership') }, 'الصور للأعضاء'));
+      return;
+    }
     imageBtn.hidden = false;
     const tickNote = () => {
       const left = quota.next_at ? Date.parse(quota.next_at) - Date.now() : 0;
@@ -268,8 +274,9 @@ function renderIdeasPane(page, { config, navigate }) {
     }
   }
 
+  const bell = h('button', { class: 'icon-btn glass bell-btn', type: 'button', 'aria-label': 'الإشعارات', onclick: () => navigate('#/notifications') }, icon('bell'));
   page.replaceChildren(
-    h('header', { class: 'topbar' }, wordmark()),
+    h('header', { class: 'topbar' }, wordmark(), bell),
     composer,
     h('div', { class: 'section-head' },
       h('h2', { class: 'section-title', text: 'أفكار من الآخرين' }),
@@ -278,6 +285,7 @@ function renderIdeasPane(page, { config, navigate }) {
     list,
     status,
   );
+  requestAnimationFrame(() => document.dispatchEvent(new CustomEvent('dz:badges'))); // paint the bell's count
 
   const fresh = feedState.posts.length && Date.now() - feedState.loadedAt < STALE_MS;
   if (fresh) {

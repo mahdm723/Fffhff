@@ -280,7 +280,7 @@ function connect() {
     if (msg.type !== 'sync') { if (msg.type && msg.type !== 'ping' && msg.type !== 'hello') emit('ws', msg); return; }
     if (msg.reason === 'comment') emit('comment'); // ideas: no message sync needed
     else if (msg.reason === 'media') { emit('media'); scheduleSync(150); } // a chat picture was opened / expired
-    else if (['account', 'support'].includes(msg.reason)) emit(msg.reason); // V5
+    else if (['account', 'support', 'notify'].includes(msg.reason)) emit(msg.reason); // V5 + V6 notifications
     else scheduleSync(msg.reason === 'message' ? 0 : 150);
   };
   ws.onclose = () => {

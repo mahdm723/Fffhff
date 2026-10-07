@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import io
 import os
+import sqlite3
 import sys
 import tempfile
 import time
@@ -54,6 +55,8 @@ def main() -> int:
     try:
         # data: a user with a picture waiting for approval and a support ticket
         u = register(base, "panel-user@example.com")
+        with sqlite3.connect(str(tmp / "panel.db")) as con:  # V6 phase 4: picture posts are for members
+            con.execute("UPDATE users SET member_since = datetime('now') WHERE email = 'panel-user@example.com'")
         mid = u.post("/api/uploads?purpose=idea", content=jpeg(), headers={"Content-Type": "application/octet-stream"}).json()["upload"]["id"]
         for _ in range(100):
             if u.get(f"/api/uploads/{mid}").json()["upload"]["state"] == "ready":

@@ -59,6 +59,8 @@ def precheck(body: PrecheckBody, request: Request) -> dict:
             quota = media_items.idea_quota(db, st.settings, user)
             if not quota["enabled"]:
                 raise AppError(403, "idea_images_off", "نشر الصور مع الأفكار متوقف حاليًا.")
+            if not quota["member"]:
+                raise media_items._members_only()
             if quota["remaining"] <= 0:
                 raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.")
         elif body.purpose == "chat":

@@ -274,9 +274,16 @@ def _post_one(db: Session, settings: Settings, target_type: str, target, item: d
     if target.status != "visible":
         return False
     author = _author_for(db, settings, appearance, target.author_id)
-    db.add(Comment(post_id=target.id, author_id=author.id, content=item["text"], created_at=clock.utcnow()))
+    # V6 phase 4: public, always under the visible «فريق DZPLAY» badge (never passed off as a member)
+    comment = Comment(post_id=target.id, author_id=author.id, content=item["text"], created_at=clock.utcnow(),
+                      visibility="public")
+    db.add(comment)
     db.execute(update(Post).where(Post.id == target.id).values(
         comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + 1))
+    db.flush()
+    from app.services import notify
+
+    notify.create(db, target.author_id, "comment", effects, actor_id=author.id, post_id=target.id, comment_id=comment.id)
     effects.signal(target.author_id, "comment")
     if item.get("library_id"):
         db.execute(update(CannedComment).where(CannedComment.id == item["library_id"])

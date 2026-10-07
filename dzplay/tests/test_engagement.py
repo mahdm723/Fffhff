@@ -90,7 +90,7 @@ def test_manual_library_comments_no_duplicates(hx):
     assert again["targets"][0]["planned"] == 0  # never the same comment twice on the same post
     comments = owner.get(f"/api/posts/{pid}/comments").json()["comments"]
     assert {c["content"] for c in comments} == {"رائع جدًا", "استمروا"}
-    assert all(c["author"] == "dzplay" for c in comments)  # default appearance
+    assert all(c["author"]["name"] == "فريق DZPLAY" and c["team"] for c in comments)  # V6: visible team badge
     usage = {i["text"]: i["usage_count"] for i in admin.get("/api/admin/library").json()["items"]}
     assert usage["رائع جدًا"] == 1
     # the panel knows which ones came from the team
@@ -110,8 +110,8 @@ def test_random_from_category_official_badge_and_ideas_privacy(hx):
     assert [t["posted"] for t in r["targets"]] == [3, 3]
     mine = owner.get(f"/api/posts/{pids[0]}/comments").json()["comments"]
     assert len(mine) == 3 and len({c["content"] for c in mine}) == 3
-    assert all(c["author"] == "DZPLAY الرسمي" and c["official"] for c in mine)
-    assert other.get(f"/api/posts/{pids[0]}/comments").status_code == 403  # still owner-only
+    assert all(c["author"]["name"] == "DZPLAY الرسمي" and c["official"] and c["team"] for c in mine)
+    assert len(other.get(f"/api/posts/{pids[0]}/comments").json()["comments"]) == 3  # V6: public, badged
     assert owner.get("/api/me").json()["unseen_comments"] == 3  # post A's were just read; post B's 3 are new
     # random again can only use what is left (one unused text per post)
     more = admin.post("/api/admin/engagement/comments", json={

@@ -108,6 +108,9 @@ class User(Base):
     verified_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # --- V6 phase 3: profile picture (a MediaItem with purpose "avatar", attached_type "user")
     avatar_media_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # --- V6 phase 4/5: membership (features only; set by app.services.membership when a payment is accepted)
+    member_since: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    member_ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class NameHistory(Base):
@@ -428,6 +431,29 @@ class Comment(Base):
     author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    # --- V6 phase 4: public comments. NULL = a private comment from before (seen by the post owner and its
+    # writer only; never made public by the code). New comments are "public".
+    visibility: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    parent_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)  # one level of replies
+    reply_to_user_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # "@name" inside a thread
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # soft delete (kept for reports)
+
+
+class Notification(Base):
+    """V6 phase 4: in-app notifications (comment, reply; later membership, rewards, withdrawals, giveaway)."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (Index("ix_notif_user_time", "user_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(24))
+    actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    post_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    data: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON (text shown, amounts…)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class MediaCacheEntry(Base):

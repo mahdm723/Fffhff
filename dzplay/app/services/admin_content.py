@@ -63,12 +63,16 @@ def official_comment(db: Session, settings: Settings, *, target: str, target_id:
         if post is None or post.status != "visible":
             raise not_found()
         body = _comment_text(db, settings, text, library_id, settings.MAX_COMMENT_LENGTH)
-        comment = Comment(post_id=post.id, author_id=user.id, content=body, created_at=clock.utcnow())
+        comment = Comment(post_id=post.id, author_id=user.id, content=body, created_at=clock.utcnow(), visibility="public")
         db.add(comment)
         db.execute(update(Post).where(Post.id == post.id).values(
             comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + 1))
         db.flush()
-        effects.signal(post.author_id, "comment")  # like any Ideas comment: only the post owner will see it
+        from app.services import notify
+
+        # V6 phase 4: public like any comment, shown as «DZPLAY الرسمي» with the team badge
+        notify.create(db, post.author_id, "comment", effects, actor_id=user.id, post_id=post.id, comment_id=comment.id)
+        effects.signal(post.author_id, "comment")
         return {"target": "idea", "comment_id": comment.id}
     raise AppError(400, "invalid_target", "invalid target")
 

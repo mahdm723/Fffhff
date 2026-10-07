@@ -60,7 +60,13 @@ def caption_check(settings: Settings, text: str | None) -> None:
         raise AppError(400, "caption_blocked", "الوصف يحتوي كلمات غير مسموحة. عدّله ثم أعد المحاولة.")
 
 
+def _members_only() -> AppError:
+    return AppError(403, "members_only", "نشر الصور مع الأفكار ميزة للأعضاء. اطّلع على «عضويتي» من حسابك.")
+
+
 def idea_quota(db: Session, settings: Settings, user: User) -> dict:
+    from app.services.membership import is_member
+
     limit = settings.IDEA_IMAGE_LIMIT_PER_24H
     since = clock.utcnow() - timedelta(hours=24)
     times = list(db.execute(select(MediaItem.attached_at).where(
@@ -69,7 +75,7 @@ def idea_quota(db: Session, settings: Settings, user: User) -> dict:
     used = len(times)
     next_at = times[used - limit] + timedelta(hours=24) if limit > 0 and used >= limit else None
     return {"enabled": bool(settings.IDEA_IMAGES_ENABLED and limit > 0), "limit": limit, "used": used,
-            "remaining": max(0, limit - used), "next_at": iso(next_at)}
+            "remaining": max(0, limit - used), "next_at": iso(next_at), "member": is_member(user)}
 
 
 def avatar_quota(db: Session, settings: Settings, user: User) -> dict:
@@ -153,6 +159,8 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
         quota = idea_quota(db, settings, user)
         if not quota["enabled"]:
             raise AppError(403, "idea_images_off", "نشر الصور مع الأفكار متوقف حاليًا.")
+        if not quota["member"]:  # V6 phase 4: members only
+            raise _members_only()
         if quota["remaining"] <= 0:
             raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.", retry_after=_retry(quota["next_at"]))
     elif purpose == "avatar":
@@ -231,6 +239,8 @@ def claim_for_idea(db: Session, settings: Settings, user: User, media_id: object
     quota = idea_quota(db, settings, user)
     if not quota["enabled"]:
         raise AppError(403, "idea_images_off", "نشر الصور مع الأفكار متوقف حاليًا.")
+    if not quota["member"]:
+        raise _members_only()
     if quota["remaining"] <= 0:
         raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.", retry_after=_retry(quota["next_at"]))
     return item

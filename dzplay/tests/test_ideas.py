@@ -43,7 +43,7 @@ def test_create_post_and_see_it_in_feed(hx):
     ids, _ = feed_ids(b)
     assert ids == [p["id"]]
     seen_by_b = b.get(f"/api/posts/{p['id']}").json()
-    assert seen_by_b["mine"] is False and seen_by_b["comments"] is None and seen_by_b["can_comment"] is True
+    assert seen_by_b["mine"] is False and seen_by_b["comments"] == {"count": 0, "unseen": 0} and seen_by_b["can_comment"] is True
     # No identity data anywhere in public payloads.
     payload = json.dumps([b.get("/api/posts/feed").json(), seen_by_b, b.get(f"/api/profiles/{p['author']['ref']}").json()])
     assert not any(s in payload for s in _secrets(hx))
@@ -163,7 +163,7 @@ def test_unique_constraint_blocks_duplicate_reaction_rows(hx):
 # ----------------------------------------------------------------- comments
 
 
-def test_comments_visible_only_to_post_owner(hx):
+def test_comments_are_public_with_counts_for_everyone(hx):
     owner, b, c, d = hx.user(), hx.user(), hx.user(), hx.user()
     pid = post(owner).json()["id"]
     assert b.post(f"/api/posts/{pid}/comments", json={"content": "تعليق من B"}).status_code == 201
@@ -172,18 +172,13 @@ def test_comments_visible_only_to_post_owner(hx):
     data = owner.get(f"/api/posts/{pid}/comments").json()
     assert sorted(x["content"] for x in data["comments"]) == ["تعليق من B", "تعليق من C"]
     names_ = {u.get("/api/me").json()["display_name"] for u in (b, c)}
-    assert all(x["author"] in names_ and x["official"] is False and set(x) == {"id", "author", "official", "content", "created_at"}
-               for x in data["comments"])
+    assert all(x["author"]["name"] in names_ and x["official"] is False and x["team"] is False for x in data["comments"])
 
-    # Everyone else: no comment content, no count — in any API.
-    ref = owner.get("/api/profile").json()["ref"]
+    # V6 phase 4: everyone sees the comments and their count — never an e-mail
     for other in (b, c, d):
-        r = other.get(f"/api/posts/{pid}/comments")
-        assert r.status_code == 403
-        payload = json.dumps([other.get(f"/api/posts/{pid}").json(), other.get("/api/posts/feed").json(),
-                              other.get(f"/api/profiles/{ref}/posts").json()])
-        assert "تعليق من" not in payload
-        assert other.get(f"/api/posts/{pid}").json()["comments"] is None
+        assert sorted(x["content"] for x in other.get(f"/api/posts/{pid}/comments").json()["comments"]) == ["تعليق من B", "تعليق من C"]
+        assert other.get(f"/api/posts/{pid}").json()["comments"] == {"count": 2, "unseen": 0}
+        assert not any(s in other.get(f"/api/posts/{pid}/comments").text for s in _secrets(hx))
 
     # Owner sees the count and the unseen badge resets after opening.
     mine = owner.get(f"/api/posts/{pid}").json()
@@ -196,7 +191,7 @@ def test_comment_rules(make_harness):
     hx = make_harness(MAX_COMMENT_LENGTH=20, MAX_COMMENTS_PER_MINUTE=2)
     owner, b = hx.user(), hx.user()
     pid = post(owner).json()["id"]
-    assert owner.post(f"/api/posts/{pid}/comments", json={"content": "تعليقي"}).status_code == 400
+    assert owner.post(f"/api/posts/{pid}/comments", json={"content": "تعليقي"}).status_code == 201  # V6: owners reply too
     assert b.post(f"/api/posts/{pid}/comments", json={"content": "x" * 21}).status_code == 400
     assert b.post(f"/api/posts/{pid}/comments", json={"content": "واحد"}).status_code == 201
     assert b.post(f"/api/posts/{pid}/comments", json={"content": "اثنان"}).status_code == 201

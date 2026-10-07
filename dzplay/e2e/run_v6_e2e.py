@@ -2,6 +2,7 @@
 
 * phase 3 — identity: a name is required at registration, 4-tab navigation, «المستخدمون» (list + search,
   tap → public profile → «مراسلة»), no way back to "dzplay". (Profile pictures: e2e/run_media_e2e.py.)
+* phase 4 — public comments + replies, notifications (bell), likers. (Members-only pictures: run_media_e2e.py.)
 * phase 2 — market: «السوق | الأفكار» switch on Home (ideas by default, last pane remembered), gainers/losers with
   sparklines from a local fake Bybit, details sheet, stale notice when the source goes away, disclaimer.
 
@@ -152,6 +153,62 @@ def phase3_identity(run: Run, a: Page, b: Page, suffix) -> None:
     run.step("the name cannot be emptied (no way back to dzplay)")
 
 
+def phase4_comments(run: Run, a: Page, b: Page) -> None:
+    """A posts; B likes + comments; A gets a notification, replies; B gets a reply notification; likers list."""
+    base = run.base
+    a.goto(base + "/#/home")
+    a.get_by_role("tab", name="الأفكار").click()
+    expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)
+    idea = "BTC يختبر مقاومة 70 ألف، ما رأيكم؟"
+    a.locator("#idea-compose").fill(idea)
+    a.get_by_role("button", name="نشر", exact=True).click()
+    expect(a.locator(".post-card", has_text=idea)).to_be_visible(timeout=10000)
+
+    b.goto(base + "/#/home")
+    b.get_by_role("tab", name="الأفكار").click()
+    b.get_by_role("button", name="أفكار أخرى").click()
+    card = b.locator(".post-card", has_text=idea)
+    expect(card).to_be_visible(timeout=10000)
+    card.locator(".react--like").click()
+    expect(card.locator(".post-card__likers")).to_have_text("أعجب شخصًا واحدًا")
+    card.get_by_role("button", name="التعليقات").click()
+    b.locator(".comments-sheet textarea").fill("أتوقع اختراقًا قريبًا")
+    b.locator(".comments-sheet").get_by_role("button", name="إرسال التعليق").click()
+    expect(b.locator(".comments-sheet .comment__body")).to_have_text("أتوقع اختراقًا قريبًا", timeout=10000)
+    b.keyboard.press("Escape")
+    run.step("B liked and commented publicly")
+
+    expect(a.locator(".bell-btn .badge")).to_have_text("1", timeout=15000)
+    a.locator(".bell-btn").click()
+    expect(a.locator(".notif").first).to_contain_text("Nour Trader علّق على فكرتك")
+    run.shot(a, "v6-notifications")
+    a.locator(".notif").first.click()
+    expect(a.locator(".comments-sheet .comment.is-focus")).to_be_visible(timeout=10000)
+    a.locator(".comments-sheet").get_by_role("button", name="رد").click()
+    a.locator(".comments-sheet textarea").fill("ممكن، لكن الحجم ضعيف")
+    a.locator(".comments-sheet").get_by_role("button", name="إرسال التعليق").click()
+    expect(a.locator(".comment-replies .comment__body")).to_contain_text("ممكن، لكن الحجم ضعيف")
+    expect(a.locator(".comment-replies .comment__at")).to_contain_text("@Nour Trader")
+    run.shot(a, "v6-comments-thread")
+    a.keyboard.press("Escape")
+    run.step("A: bell → notification → the comment highlighted → reply in the thread (@name)")
+
+    expect(b.locator(".bell-btn .badge")).to_have_text("1", timeout=15000)
+    b.locator(".bell-btn").click()
+    expect(b.locator(".notif").first).to_contain_text("ردّ على تعليقك")
+    b.goto(base + "/#/home")
+    b.get_by_role("tab", name="الأفكار").click()
+    b.get_by_role("button", name="أفكار أخرى").click()  # fresh counts (the feed is kept for a few minutes)
+    card = b.locator(".post-card", has_text=idea)
+    expect(card.locator(".react--comment")).to_contain_text("تعليقات (2)", timeout=10000)
+    card.locator(".post-card__likers").click()
+    expect(b.locator(".sheet .user-row")).to_have_count(1)
+    expect(b.locator(".sheet .user-row")).to_contain_text("Nour Trader")
+    run.shot(b, "v6-likers")
+    b.keyboard.press("Escape")
+    run.step("B: reply notification; public count (2); likers list (dislikers never listed)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8773)
@@ -173,6 +230,7 @@ def main() -> int:
             b = browser.new_context(**MOBILE, locale="ar", color_scheme="light").new_page()
             run.watch(b, "B")
             phase3_identity(run, a, b, suffix)
+            phase4_comments(run, a, b)
             phase2_market(run, a, fake)
             browser.close()
     finally:

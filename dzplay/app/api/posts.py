@@ -17,6 +17,10 @@ class PostBody(SendBody):
     media_id: str | None = Field(default=None, max_length=40)  # V5: a finished upload (purpose "idea")
 
 
+class CommentBody(SendBody):
+    parent_id: str | None = Field(default=None, max_length=32)  # V6: reply in a thread
+
+
 class ReactionBody(BaseModel):
     model_config = ConfigDict(extra="ignore")
     reaction: str | None = Field(default=None, max_length=8)  # "like" | "dislike" | null (remove)
@@ -69,12 +73,13 @@ def set_reaction(post_id: str, body: ReactionBody, request: Request) -> dict:
 
 
 @router.post("/posts/{post_id}/comments", status_code=201)
-def add_comment(post_id: str, body: SendBody, request: Request) -> dict:
+def add_comment(post_id: str, body: CommentBody, request: Request) -> dict:
     st = get_state(request)
     effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        result = ideas.add_comment(db, st.settings, st.limiter, user, post_id, content=body.content, effects=effects)
+        result = ideas.add_comment(db, st.settings, st.limiter, user, post_id, content=body.content, effects=effects,
+                                   parent_id=body.parent_id)
     st.dispatch(effects)
     return result
 
@@ -82,10 +87,18 @@ def add_comment(post_id: str, body: SendBody, request: Request) -> dict:
 @router.get("/posts/{post_id}/comments")
 def list_comments(post_id: str, request: Request, before: str | None = Query(default=None, max_length=40),
                   limit: int = Query(default=50, ge=1, le=100)) -> dict:
-    """Owner only — enforced in the service (403 for anyone else)."""
+    """V6: public comments for everyone (old private ones only for the post owner and their writer)."""
     st = get_state(request)
     with st.database.session() as db:
         return ideas.list_comments(db, current_user(request, db), post_id, before=before, limit=limit)
+
+
+@router.get("/posts/{post_id}/likers")
+def post_likers(post_id: str, request: Request, cursor: str | None = Query(default=None, max_length=20)) -> dict:
+    """V6: who liked (name, picture, star). Who disliked is never exposed — the count only."""
+    st = get_state(request)
+    with st.database.session() as db:
+        return ideas.likers(db, current_user(request, db), post_id, cursor=cursor)
 
 
 @router.post("/posts/{post_id}/report", status_code=201)
