@@ -943,3 +943,17 @@ body::before {
 .ref-card { padding: 14px; border-radius: var(--radius); display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .ref-card p { margin: 0; font-size: 14px; line-height: 1.8; color: var(--ink-2); }
 .ref-link { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12.5px; background: var(--surface-2); padding: 8px; border-radius: 8px; }
+
+/* ---------- V6 phase 5c: «الظرف الأحمر» ---------- */
+.gw-head { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border-radius: var(--radius); margin-bottom: 14px; }
+.gw-head h2 { margin: 0 0 4px; font-size: 19px; }
+.gw-head p { margin: 0 0 4px; font-size: 14px; color: var(--ink-2); }
+.gw-emoji { font-size: 40px; line-height: 1; }
+.gw-join { padding: 14px; border-radius: var(--radius); display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.gw-join p { margin: 0; font-size: 14px; line-height: 1.8; color: var(--ink-2); }
+.gw-ok { display: flex; gap: 8px; align-items: center; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.gw-ok svg { width: 18px; height: 18px; color: var(--ok); flex: none; }
+.gw-winners { padding: 14px; border-radius: var(--radius); margin: 14px 0; }
+.gw-winners h3 { margin: 0 0 6px; font-size: 15px; }
+.gw-winners ul { margin: 0; padding-inline-start: 18px; }
+.gw-terms { text-align: center; font-size: 12.5px; }

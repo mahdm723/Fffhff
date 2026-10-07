@@ -272,6 +272,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       item('verified', 'عضويتي', () => navigate('#/membership')),
       item('inbox', 'أرباحي', () => navigate('#/earnings')),
       item('plusUser', 'دعوة الأصدقاء', () => navigate('#/referrals')),
+      item('spark', 'الظرف الأحمر 🧧', () => navigate('#/giveaway')),
       item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,

@@ -2,7 +2,7 @@
 // Rewards, withdrawals (5b) and the red envelope (5c) are added here too. Every action is audited server-side.
 import { h, toast } from '/js/ui.js';
 import {
-  attempt, call, chip, confirmDanger, emptyState, qs, sectionHead, segmented, spinner, userRef, when,
+  attempt, call, chip, confirmDanger, detailSheet, emptyState, qs, sectionHead, segmented, spinner, userRef, when,
 } from './admin-common.js';
 import { paymentSettingsBox, verifyHistory } from './admin-v5.js';
 
@@ -201,3 +201,83 @@ export async function userMoneySection(userId, paintAgain) {
   return box;
 }
 
+
+// ------------------------------------------------------------------ V6 phase 5c: red envelope
+
+export function renderGiveaway(main) {
+  const list = h('div', { class: 'admin-list' }, spinner());
+  const title = input({ placeholder: 'عنوان الجولة', maxlength: '120' });
+  const desc = input({ placeholder: 'وصف (اختياري)', maxlength: '1000' });
+  const winners = input({ dir: 'ltr', inputmode: 'numeric', value: '3' });
+  const ends = h('input', { class: 'input', type: 'datetime-local', dir: 'ltr' });
+  const show = h('input', { type: 'checkbox' });
+  const createBox = h('section', { class: 'admin-group glass' }, h('h3', { text: 'جولة جديدة' }),
+    h('div', { class: 'admin-actions' }, title), h('div', { class: 'admin-actions' }, desc),
+    h('div', { class: 'admin-actions' }, h('label', { text: 'عدد الفائزين' }), winners, h('label', { text: 'تنتهي' }), ends),
+    h('label', { class: 'admin-line' }, show, h('span', { text: 'عرض أسماء الفائزين للمشاركين' })),
+    h('div', { class: 'admin-actions' }, btn('إنشاء', 'btn--primary', async () => {
+      if (!ends.value) { toast('اختر وقت الانتهاء.', 'error'); return; }
+      const r = await attempt(() => call('POST', '/api/admin/giveaway', { title: title.value.trim(), description: desc.value.trim() || null,
+        winners_count: Number(winners.value), ends_at: new Date(ends.value).toISOString(), show_winners: show.checked }));
+      if (r) { toast('أُنشئت الجولة.'); title.value = ''; desc.value = ''; load(); }
+    })));
+
+  function roundCard(r) {
+    const open = () => roundSheet(r.id);
+    return h('button', { type: 'button', class: 'admin-card glass admin-line admin-line--btn', onclick: open },
+      h('b', { dir: 'auto', text: r.title }), chip(r.status_label), h('span', { class: 'admin-meta', text: `${r.confirmed}/${r.entries} مؤكد · ${r.winners_count} فائز · تنتهي ${when(r.ends_at)}` }));
+  }
+
+  function roundSheet(id) {
+    detailSheet('الظرف الأحمر', async (body) => {
+      const paint = async () => {
+        const d = await attempt(() => call('GET', `/api/admin/giveaway/${id}`));
+        if (!d) return;
+        const code = input({ dir: 'ltr', inputmode: 'numeric', maxlength: '6', placeholder: 'رمز المصادقة' });
+        const codes = h('textarea', { class: 'input', rows: '3', dir: 'ltr', placeholder: 'رمز لكل فائز في سطر، أو رمز واحد للجميع' });
+        body.replaceChildren(
+          h('section', { class: 'admin-group glass' }, h('h3', { dir: 'auto', text: d.title }),
+            h('p', { class: 'admin-meta', text: `${d.status_label} · ${d.confirmed} مؤكد من ${d.entries} · ${d.winners_count} فائز · تنتهي ${when(d.ends_at)}` }),
+            d.draw_log ? h('p', { class: 'admin-meta' }, `السحب: ${d.draw_log.entrants} مؤهل · ${when(d.draw_log.at)} · ${d.draw_log.by} · SHA-256 `,
+              h('code', { dir: 'ltr', text: d.draw_log.entrants_sha256.slice(0, 16) + '…' })) : '',
+            d.status === 'open' ? h('div', { class: 'admin-actions' }, code,
+              btn('سحب الفائزين', 'btn--primary', async () => {
+                if (!(await confirmDanger('السحب الآن؟', 'سحب عشوائي بين المؤكدين غير المعلَّمين. لا يمكن إعادته.', 'سحب'))) return;
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/draw`, { code: code.value.trim() }))) { toast('تم السحب.'); paint(); load(); }
+              }),
+              btn('إلغاء الجولة', 'btn--danger', async () => {
+                if (!(await confirmDanger('إلغاء الجولة؟', 'لا يمكن التراجع.'))) return;
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/cancel`))) { paint(); load(); }
+              })) : ''),
+          d.winners.length ? h('section', { class: 'admin-group glass' }, h('h3', { text: 'الفائزون' }),
+            ...d.winners.map((w) => h('div', { class: 'admin-line' }, h('b', { text: w.entry ? w.entry.public_id : '—' }),
+              w.entry ? h('code', { dir: 'ltr', text: w.entry.email }) : '', w.code ? h('code', { dir: 'ltr', text: w.code }) : chip('بلا رمز'),
+              w.sent_at ? chip('أُرسل', 'chip--team') : '')),
+            d.status === 'drawn' ? h('div', { class: 'admin-actions' }, codes,
+              btn('حفظ الرموز', 'btn--ghost', async () => {
+                const list2 = codes.value.split('\n').map((x) => x.trim()).filter(Boolean);
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/codes`, { codes: list2 }))) { toast('حُفظت (مختومة).'); paint(); }
+              }),
+              btn('إرسال بالبريد', 'btn--primary', async () => {
+                if (!(await confirmDanger('إرسال الجوائز؟', 'يصل كل فائز رمزه بالبريد مع إشعار في التطبيق.', 'إرسال'))) return;
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/send`))) { toast('أُرسلت.'); paint(); load(); }
+              })) : '') : '',
+          h('details', { class: 'admin-group glass' }, h('summary', { text: `المشاركون (${d.entrants.length})` }),
+            ...d.entrants.map((e) => h('div', { class: 'admin-line' }, h('b', { text: e.public_id }), e.name ? h('bdi', { text: e.name }) : '',
+              h('code', { dir: 'ltr', text: e.email }), chip(e.confirmed ? 'مؤكد' : 'غير مؤكد'), e.flags ? chip('نفس الشبكة', 'chip--hot') : '',
+              e.status !== 'active' ? chip(e.status) : '', userRef(e.user_ref, 'الصفحة')))));
+      };
+      paint();
+    });
+  }
+
+  async function load() {
+    const d = await attempt(() => call('GET', '/api/admin/giveaway'));
+    if (!d) return;
+    list.replaceChildren(...(d.rounds.length ? d.rounds.map(roundCard) : [emptyState('لا جولات بعد.')]));
+  }
+  main.replaceChildren(sectionHead('الظرف الأحمر'),
+    h('p', { class: 'admin-meta', text: 'المشاركة مجانية ولا تتطلب عضوية. البريد يُؤكد برمز. السحب عشوائي (SystemRandom) بعد الانتهاء، ويُسجَّل مع بصمة قائمة المشاركين. رموز الجوائز مختومة وتظهر للمشرفين فقط.' }),
+    createBox, list);
+  load();
+}

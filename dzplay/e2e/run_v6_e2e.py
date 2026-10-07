@@ -4,6 +4,7 @@
   tap → public profile → «مراسلة»), no way back to "dzplay". (Profile pictures: e2e/run_media_e2e.py.)
 * phase 4 — public comments + replies, notifications (bell), likers. (Members-only pictures: run_media_e2e.py.)
 * phase 5b — invitation link → member → reward on hold; «أرباحي»; withdrawal with fee, e-mail code, password.
+* phase 5c — red envelope: enter with a confirmed e-mail, draw, prize code by e-mail only.
 * phase 2 — market: «السوق | الأفكار» switch on Home (ideas by default, last pane remembered), gainers/losers with
   sparklines from a local fake Bybit, details sheet, stale notice when the source goes away, disclaimer.
 
@@ -282,6 +283,55 @@ def phase5b_rewards(run: Run, browser, a: Page, adm, smtp, suffix) -> None:
     run.step("withdrawal: fee shown before confirming, e-mail code + password, admin records the transfer")
 
 
+def phase5c_giveaway(run: Run, a: Page, adm, smtp) -> None:
+    """A round → A enters with the account e-mail (code) → the round ends → draw (fresh 2FA) → prize code by
+    e-mail only, «ربحت» in the app, winners' names shown."""
+    import re as _re
+    from datetime import datetime, timedelta, timezone
+
+    sys.path.insert(0, str(ROOT))
+    from app.security import totp
+
+    base = run.base
+    ends = (datetime.now(timezone.utc) + timedelta(seconds=25)).isoformat()
+    r = adm.post("/api/admin/giveaway", json={"title": "ظرف الأسبوع", "winners_count": 1, "ends_at": ends, "show_winners": True})
+    assert r.status_code == 200, r.text
+    rid = r.json()["id"]
+    a.goto(base + "/#/giveaway")
+    expect(a.get_by_text("ظرف الأسبوع")).to_be_visible(timeout=10000)
+    n = len(smtp.messages)
+    a.get_by_role("button", name="🧧 شارك الآن").click()
+    deadline = time.time() + 15
+    while time.time() < deadline and len(smtp.messages) <= n:
+        time.sleep(0.3)
+    body = smtp.messages[-1]["msg"].get_body(preferencelist=("plain",)).get_content()
+    a.locator("#gw-code").fill(_re.search(r"\b(\d{6})\b", body).group(1))
+    a.get_by_role("button", name="تأكيد البريد").click()
+    expect(a.get_by_text("أنت مشارك ببريد")).to_be_visible(timeout=10000)
+    run.shot(a, "v6-giveaway-entered")
+    run.step("red envelope: entered with the account e-mail confirmed by code")
+
+    time.sleep(max(0.0, (datetime.fromisoformat(ends) - datetime.now(timezone.utc)).total_seconds() + 1))
+    step = totp.current_step(time.time())
+    while totp.current_step(time.time()) == step:  # step-up codes are single-use: wait for a new 30 s step
+        time.sleep(0.5)
+    code = totp.code_at(adm.totp_secret, totp.current_step(time.time()))
+    d = adm.post(f"/api/admin/giveaway/{rid}/draw", json={"code": code})
+    assert d.status_code == 200, d.text
+    assert d.json()["draw_log"]["entrants"] >= 1 and len(d.json()["winners"]) == 1
+    assert adm.post(f"/api/admin/giveaway/{rid}/codes", json={"codes": ["RED-ENVELOPE-2026"]}).status_code == 200
+    assert adm.post(f"/api/admin/giveaway/{rid}/send").status_code == 200
+    deadline = time.time() + 15
+    while time.time() < deadline and not any("RED-ENVELOPE-2026" in m["msg"].get_body(preferencelist=("plain",)).get_content() for m in smtp.messages):
+        time.sleep(0.3)
+    assert any("RED-ENVELOPE-2026" in m["msg"].get_body(preferencelist=("plain",)).get_content() for m in smtp.messages)
+    a.reload()
+    expect(a.get_by_text("ربحت! أُرسل رمز الجائزة إلى بريدك.")).to_be_visible(timeout=10000)
+    assert "RED-ENVELOPE-2026" not in a.content()  # the prize code is never in the app
+    run.shot(a, "v6-giveaway-won")
+    run.step("draw after the end (fresh 2FA) → prize code by e-mail only; «ربحت» + winners' names in the app")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8773)
@@ -313,7 +363,9 @@ def main() -> int:
             run.watch(b, "B")
             phase3_identity(run, a, b, suffix)
             phase4_comments(run, a, b)
-            phase5b_rewards(run, browser, a, admin_client(base, db_url), smtp, suffix)
+            adm = admin_client(base, db_url)
+            phase5b_rewards(run, browser, a, adm, smtp, suffix)
+            phase5c_giveaway(run, a, adm, smtp)
             phase2_market(run, a, fake)
             browser.close()
     finally:

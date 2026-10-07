@@ -16,6 +16,7 @@ import { renderProfile } from './views/profile.js';
 import { renderSupport, renderTicket } from './views/support.js';
 import { renderMembership } from './views/membership.js';
 import { renderEarnings, renderReferrals } from './views/earnings.js';
+import { renderGiveaway } from './views/giveaway.js';
 import { renderUser } from './views/user.js';
 import { renderUsers } from './views/users.js';
 import { renderNotifications } from './views/notifications.js';
@@ -49,6 +50,7 @@ function parseRoute() {
   if (pp) return { name: 'post', id: pp[1], commentId: pp[2] || null };
   if (location.hash === '#/notifications') return { name: 'notifications' };
   if (location.hash === '#/earnings') return { name: 'earnings' };
+  if (location.hash === '#/giveaway') return { name: 'giveaway' };
   if (location.hash === '#/referrals') return { name: 'referrals' };
   if (location.hash === '#/support') return { name: 'support' };
   if (location.hash === '#/membership' || location.hash === '#/verify') return { name: 'membership' }; // V6: the star comes with the membership
@@ -114,7 +116,7 @@ function route() {
     shell = buildShell();
     root.replaceChildren(shell.el);
   }
-  const activeTab = ['post', 'notifications'].includes(r.name) ? 'home' : r.name === 'user' ? 'users' : ['support', 'ticket', 'membership', 'earnings', 'referrals'].includes(r.name) ? 'profile' : r.name;
+  const activeTab = ['post', 'notifications'].includes(r.name) ? 'home' : r.name === 'user' ? 'users' : ['support', 'ticket', 'membership', 'earnings', 'referrals', 'giveaway'].includes(r.name) ? 'profile' : r.name;
   for (const btn of shell.nav.querySelectorAll('.nav__btn')) {
     if (btn.dataset.tab === activeTab) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
@@ -133,6 +135,7 @@ function route() {
   else if (r.name === 'membership') cleanupView = renderMembership(shell.page, ctx) || null;
   else if (r.name === 'earnings') cleanupView = renderEarnings(shell.page, ctx) || null;
   else if (r.name === 'referrals') cleanupView = renderReferrals(shell.page, ctx) || null;
+  else if (r.name === 'giveaway') cleanupView = renderGiveaway(shell.page, ctx) || null;
   else cleanupView = renderProfile(shell.page, ctx) || null;
   updateBadges();
   updateConnectionBanner();

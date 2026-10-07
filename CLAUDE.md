@@ -44,8 +44,20 @@
 - `services/tunables.py`: كل حد قابل للتعديل من اللوحة دون إعادة تشغيل (يُخزَّن في `AppSetting` باسم `tun.<KEY>`).
 - `services/runtime_config.py`: أسرار تُضبط من اللوحة (SMTP، بوت Telegram)، مختومة بـ`SECRET_KEY`.
 - `migrations.py`: ترحيلات إضافية فقط (`add_missing_columns` + `backfill`). كل عمود جديد nullable، ولا حذف بيانات بدون نسخة احتياطية.
-- `admin_cli.py`: أوامر الإدارة (`create-admin`، `admin-link`، `alert`، `set-webhook`، `stars-count`، `legacy-status`، `export-legacy`، `drop-legacy`، …).
+- `admin_cli.py`: أوامر الإدارة (`create-admin`، `admin-link`، `alert`، `set-webhook`، `market-check`، `stars-count`، `legacy-status`، `export-legacy`، `drop-legacy`، …).
 - `services/legacy_v6.py`: تصدير بيانات الميزات المحذوفة في V6 ثم حذفها (SQL خام، بلا models)؛ يشغّله `deploy/v6-cleanup.sh`.
+- **V6 (المراحل 2–5ج):**
+  - `services/market.py`: السوق من Bybit. الخادم وحده يتصل، و`market_snapshots` مشترك بين النسخ.
+  - `services/notify.py`: الإشعارات (`notifications`)، تُكتب في نفس المعاملة وإشارة `notify` بعدها.
+  - `services/ledger.py`: **الكاتب الوحيد للمبالغ**.
+    - حسابا `membership` و`rewards`؛
+    - قيد `ux_ledger_source` للـidempotency، و`lock_user` قبل أي فحص رصيد؛
+    - أنواع الحركات لا تستعمل أبدًا أنواع V5 المحذوفة (`earning|payout|adjustment|reversal`).
+  - `services/email_codes.py`: رموز البريد (`refund`، `withdraw`، `giveaway`).
+  - `services/membership.py`: العضوية، والاسترجاع، وأزرار Telegram `ms:`.
+  - `services/rewards.py` و`withdrawals.py`: «أرباحي» والدعوات والسحب.
+  - `services/giveaway.py`: الظرف الأحمر.
+  - اللوحة: `admin_static/admin-money.js` + `api/admin_money.py`.
 - **الرسائل:** المباشرة وطلبات المراسلة فقط. الرسائل المجهولة العشوائية (matching، كشف الهوية) حُذفت في المرحلة 1ب. المحادثات المجهولة القديمة (`kind IS NULL`) للقراءة فقط (`messaging.require_open`)، ثم تُصدَّر مشفّرة وتُحذف بعد `LEGACY_ANON_RETENTION_DAYS`.
 
 **الواجهة:**

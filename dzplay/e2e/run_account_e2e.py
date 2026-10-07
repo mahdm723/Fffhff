@@ -40,6 +40,7 @@ def admin_client(base: str, db_url: str) -> httpx.Client:
     r = c.post("/api/admin/login", json={"username": "owner", "password": ADMIN_PASSWORD,
                                          "code": totp.code_at(secret, totp.current_step(time.time()))})
     assert r.status_code == 200, r.text
+    c.totp_secret = secret  # step-up codes (V6 giveaway draw, group rewards) in other e2e scripts
     return c
 
 

@@ -12,7 +12,7 @@ from app.api.deps import get_state
 from app.api.schemas import _Body
 from app.errors import not_found
 from app.models import MembershipRefund, MembershipRequest, User
-from app.services import admin_auth, ledger, membership, rewards, withdrawals
+from app.services import admin_auth, giveaway, ledger, membership, rewards, withdrawals
 from app.services.messaging import Effects
 
 router = APIRouter(prefix="/api/admin", tags=["admin-money"])
@@ -169,3 +169,75 @@ def withdrawal_decide(wid: str, body: DecideBody, request: Request, ac: AdminCon
     st.dispatch(effects)
     return result
 
+
+
+# ----------------------------------------------------------------- V6 phase 5c: red envelope
+
+
+class RoundBody(_Body):
+    title: str = Field(max_length=120)
+    description: str | None = Field(default=None, max_length=1000)
+    winners_count: int
+    ends_at: str = Field(max_length=40)
+    show_winners: bool = False
+
+
+class CodeBody(_Body):
+    code: str | None = Field(default=None, max_length=12)
+
+
+class PrizeCodesBody(_Body):
+    codes: list[str] = Field(max_length=1000)
+
+
+@router.get("/giveaway")
+def giveaway_list(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return giveaway.admin_list(db)
+
+
+@router.post("/giveaway")
+def giveaway_create(body: RoundBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return giveaway.create_round(db, body.model_dump(), f"admin:{ac.actor}")
+
+
+@router.get("/giveaway/{round_id}")
+def giveaway_detail(round_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        return giveaway.admin_view(db, giveaway._round(db, round_id), st.settings, details=True)
+
+
+@router.post("/giveaway/{round_id}/draw")
+def giveaway_draw(round_id: str, body: CodeBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """Random draw (fresh authenticator code required); logged with a fingerprint of the entrants."""
+    st = get_state(request)
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+        giveaway.draw(db, giveaway._round(db, round_id), f"admin:{ac.actor}")
+        return giveaway.admin_view(db, giveaway._round(db, round_id), st.settings, details=True)
+
+
+@router.post("/giveaway/{round_id}/codes")
+def giveaway_codes(round_id: str, body: PrizeCodesBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        giveaway.set_codes(db, st.settings, giveaway._round(db, round_id), body.codes, f"admin:{ac.actor}")
+        return giveaway.admin_view(db, giveaway._round(db, round_id), st.settings, details=True)
+
+
+@router.post("/giveaway/{round_id}/send")
+def giveaway_send(round_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = giveaway.send(db, st.settings, giveaway._round(db, round_id), f"admin:{ac.actor}", effects)
+    st.dispatch(effects)
+    return result
+
+
+@router.post("/giveaway/{round_id}/cancel")
+def giveaway_cancel(round_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    with get_state(request).database.session() as db:
+        return giveaway.cancel(db, giveaway._round(db, round_id), f"admin:{ac.actor}")

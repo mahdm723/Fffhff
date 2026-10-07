@@ -26,6 +26,7 @@ from app.api import admin_money as admin_money_api
 from app.api import admin_v5 as admin_v5_api
 from app.api import auth as auth_api
 from app.api import download as download_api
+from app.api import giveaway as giveaway_api
 from app.api import market as market_api
 from app.api import media as media_api
 from app.api import membership as membership_api
@@ -281,6 +282,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(notifications_api.router)
     app.include_router(membership_api.router)
     app.include_router(rewards_api.router)
+    app.include_router(giveaway_api.router)
     app.include_router(policies_api.router)
     app.include_router(posts_api.router)
     app.include_router(telegram_api.router)

@@ -114,6 +114,7 @@ class User(Base):
     member_ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # --- V6 phase 5b: invitations (own code, created on first use) and a coarse device hash (abuse flags only)
     referral_code: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # V6 5c: confirmed by a code once
     device_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
@@ -664,6 +665,50 @@ class WithdrawalRequest(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class GiveawayRound(Base):
+    """V6 phase 5c: a «الظرف الأحمر» round."""
+
+    __tablename__ = "giveaway_rounds"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    title: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    winners_count: Mapped[int] = mapped_column(Integer)
+    ends_at: Mapped[datetime] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String(10), default="open")  # open|drawn|sent|cancelled
+    show_winners: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    draw_log: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: entrants count + SHA-256, picks, time, admin
+    created_by: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    drawn_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class GiveawayEntry(Base):
+    __tablename__ = "giveaway_entries"
+    __table_args__ = (UniqueConstraint("round_id", "user_id", name="uq_giveaway_user"),
+                      UniqueConstraint("round_id", "email", name="uq_giveaway_email"))
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    round_id: Mapped[str] = mapped_column(ForeignKey("giveaway_rounds.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    email: Mapped[str] = mapped_column(String(254))
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    flags: Mapped[str | None] = mapped_column(String(100), nullable=True)  # dup_network: excluded from the draw
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class GiveawayWinner(Base):
+    __tablename__ = "giveaway_winners"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    round_id: Mapped[str] = mapped_column(ForeignKey("giveaway_rounds.id", ondelete="CASCADE"), index=True)
+    entry_id: Mapped[str] = mapped_column(ForeignKey("giveaway_entries.id", ondelete="CASCADE"), unique=True)
+    code_sealed: Mapped[str | None] = mapped_column(Text, nullable=True)  # prize code, sealed with SECRET_KEY (admins only)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class MediaItem(Base):
