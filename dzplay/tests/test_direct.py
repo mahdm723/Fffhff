@@ -30,18 +30,19 @@ def test_search_by_id_and_by_name_with_arabic_normalization(hx):
     me = hx.user()
     a = named(hx, "أحمد بن علي")
     named(hx, "فاطمة الزهراء")
-    plain = hx.user()  # still "dzplay": only reachable by ID
+    plain = hx.user()
+    plain.patch("/api/me/privacy", json={"searchable_by_name": False})  # hidden from name search: only reachable by ID
     r = me.get("/api/people/search", params={"q": "احمد"}).json()
     assert r["by"] == "name" and [x["name"] for x in r["results"]] == ["أحمد بن علي"]
     assert me.get("/api/people/search", params={"q": "فاطمه"}).json()["results"][0]["name"] == "فاطمة الزهراء"
     assert me.get("/api/people/search", params={"q": "زهرا"}).json()["results"]  # partial
     # exact ID (case-insensitive), works for dzplay-named people too
     got = me.get("/api/people/search", params={"q": pid(plain).lower()}).json()
-    assert got["by"] == "id" and got["results"][0]["public_id"] == pid(plain) and got["results"][0]["name"] == "dzplay"
+    assert got["by"] == "id" and got["results"][0]["public_id"] == pid(plain) and got["results"][0]["name"] == plain.get("/api/me").json()["display_name"]
     assert me.get("/api/people/search", params={"q": "dzplay"}).json()["results"] == []
     # nothing internal leaks
     res = me.get("/api/people/search", params={"q": "احمد"}).json()["results"][0]
-    assert set(res) == {"name", "public_id", "gender", "profile_ref", "verified"} and pid(a) == res["public_id"]
+    assert set(res) == {"name", "public_id", "gender", "profile_ref", "verified", "avatar_url"} and pid(a) == res["public_id"]
     assert me.get("/api/people/search", params={"q": "a"}).status_code == 400  # 2 letters minimum
 
 

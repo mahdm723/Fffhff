@@ -59,7 +59,7 @@ export function renderChat(root, { conversationId, navigate }) {
   function drawHeader(conv) {
     const anon = isAnonymous(conv);
     const card = (conv && conv.peer_card) || {};
-    headAvatar.replaceChildren(personAvatar(conv ? conv.peer : 'dzplay', { size: 'sm', anonymous: anon, active: !!card.active }));
+    headAvatar.replaceChildren(personAvatar(conv ? conv.peer : 'dzplay', { size: 'sm', anonymous: anon, active: !!card.active, url: card.avatar_url }));
     headName.replaceChildren(nameLine(conv ? conv.peer : 'dzplay', card.gender, '', card.verified));
     let sub;
     if (!conv) sub = [];
@@ -236,7 +236,7 @@ export function renderChat(root, { conversationId, navigate }) {
     }
     if (!m.mine) {
       const anon = isAnonymous(conv);
-      row.append(h('div', { class: 'bubble-face' }, last ? personAvatar(conv ? conv.peer : 'dzplay', { size: 'xs', anonymous: anon }) : null));
+      row.append(h('div', { class: 'bubble-face' }, last ? personAvatar(conv ? conv.peer : 'dzplay', { size: 'xs', anonymous: anon, url: conv && conv.peer_card ? conv.peer_card.avatar_url : null }) : null));
     }
     row.append(col);
     return row;
@@ -325,7 +325,7 @@ export function renderChat(root, { conversationId, navigate }) {
       const act = (ic, label, fn, cls = 'btn--ghost') => h('button', { class: `btn ${cls} btn--block`, type: 'button', onclick: () => { close(); fn(); } }, icon(ic), label);
       panel.append(
         h('div', { class: 'peer-info' },
-          personAvatar(conv.peer, { size: 'lg', anonymous: anon, active: !!card.active }),
+          personAvatar(conv.peer, { size: 'lg', anonymous: anon, active: !!card.active, url: card.avatar_url }),
           h('h2', {}, nameLine(conv.peer, card.gender)),
           card.public_id ? idChip(card.public_id) : h('p', { text: 'هوية هذا الشخص مخفية. يظهر باسم dzplay.' }),
         ),

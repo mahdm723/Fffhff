@@ -7,7 +7,7 @@ import {
   BASE, attempt, call, chip, confirmDanger, detailSheet, emptyState, field, fmt, qs, sectionHead, segmented, spinner, userRef, when,
 } from './admin-common.js';
 
-const PURPOSE = { idea: 'صورة فكرة', chat: 'صورة محادثة' };
+const PURPOSE = { idea: 'صورة فكرة', chat: 'صورة محادثة', avatar: 'صورة شخصية' };
 const MEDIA_ACTIONS = [['ok', 'قبول', 'btn--ghost'], ['keep', 'إبقاء', 'btn--ghost'], ['del', 'حذف', 'btn--danger'],
   ['ban', 'حذف + حظر', 'btn--danger'], ['minor', 'قاصر: حذف + حظر + دليل', 'btn--danger']];
 const btn = (label, cls, onclick) => h('button', { type: 'button', class: `btn btn--sm ${cls}`, onclick }, label);
@@ -243,6 +243,11 @@ export async function userV5Section(userId, paintAgain) {
           : btn('منح النجمة يدويًا', 'btn--ghost', async () => {
             if (await attempt(() => call('POST', `/api/admin/users/${encodeURIComponent(userId)}/verified`, { verified: true }))) { toast('مُنحت.'); paintAgain(); }
           }))),
+    d.avatar_id ? h('section', { class: 'admin-group glass' }, h('div', { class: 'admin-line' }, h('b', { text: 'الصورة الشخصية:' }),
+      btn('حذف الصورة', 'btn--danger', async () => {
+        if (!(await confirmDanger('حذف الصورة الشخصية؟', 'تختفي فورًا من كل مكان، وتُحذف من التخزين.'))) return;
+        if (await attempt(() => call('POST', `/api/admin/users/${encodeURIComponent(userId)}/avatar/remove`))) { toast('حُذفت.'); paintAgain(); }
+      }))) : '',
     sec('طلبات التوثيق والدفع', d.verification.length, ...d.verification.map((r) => h('div', { class: 'admin-line' },
       chip(r.status_label), h('span', { dir: 'ltr', text: `${r.amount} ${r.currency} ${r.network}` }), h('code', { dir: 'ltr', text: r.txid.slice(0, 18) + '…' }),
       h('span', { class: 'admin-meta', text: when(r.created_at) })))),

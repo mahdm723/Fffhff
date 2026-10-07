@@ -35,7 +35,7 @@ ACTIONS = {
     "keep": "↩️ أُبقي",
     "minor": "🚨 حُذف وحُظر (قاصر) — محفوظ كدليل",
 }
-TITLES = {"idea": "🖼 صورة مع فكرة", "chat": "💬 صورة محادثة"}
+TITLES = {"idea": "🖼 صورة مع فكرة", "chat": "💬 صورة محادثة", "avatar": "👤 صورة شخصية"}
 MODES = {
     "published": "منشورة",
     "review": "⏳ بانتظار الموافقة",
@@ -162,6 +162,10 @@ def act(db: Session, settings: Settings, item: MediaItem, action: str, actor: st
             post.status = "removed"
         if item.state not in ("removed", "expired"):
             discard(db, item, actor, "removed", effects)
+        if item.attached_type == "user" and item.attached_id:  # V6: a removed profile picture
+            owner = db.get(User, item.attached_id)
+            if owner is not None and owner.avatar_media_id == item.id:
+                owner.avatar_media_id = None
         if action in ("ban", "minor") and item.owner_id:
             owner = db.get(User, item.owner_id)
             if owner is not None and owner.status != "banned":

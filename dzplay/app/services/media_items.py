@@ -37,7 +37,7 @@ from app.services.rate_limit import Limit
 log = logging.getLogger("dzplay.media_items")
 
 MEDIA_ID = re.compile(r"^[a-f0-9]{32}$")
-PURPOSE_KIND = {"idea": "image", "chat": "image"}
+PURPOSE_KIND = {"idea": "image", "chat": "image", "avatar": "image"}
 MB = 1024 * 1024
 # Session key of the current request (set by api.deps.current_user): signed URLs are bound to it.
 MEDIA_KEY: contextvars.ContextVar[str | None] = contextvars.ContextVar("dz_media_key", default=None)
@@ -72,6 +72,23 @@ def idea_quota(db: Session, settings: Settings, user: User) -> dict:
             "remaining": max(0, limit - used), "next_at": iso(next_at)}
 
 
+def avatar_quota(db: Session, settings: Settings, user: User) -> dict:
+    """V6 phase 3: profile pictures set in the last 24 h (AVATAR_CHANGES_PER_DAY)."""
+    limit = settings.AVATAR_CHANGES_PER_DAY
+    since = clock.utcnow() - timedelta(hours=24)
+    times = list(db.execute(select(MediaItem.attached_at).where(
+        MediaItem.owner_id == user.id, MediaItem.purpose == "avatar", MediaItem.attached_at.is_not(None),
+        MediaItem.attached_at > since).order_by(MediaItem.attached_at)).scalars())
+    used = len(times)
+    next_at = times[used - limit] + timedelta(hours=24) if limit > 0 and used >= limit else None
+    return {"limit": limit, "used": used, "remaining": max(0, limit - used), "next_at": iso(next_at)}
+
+
+def _avatar_limit(quota: dict) -> AppError:
+    return AppError(429, "avatar_limit", f"يمكنك تغيير صورتك {quota['limit']} مرات في اليوم. حاول لاحقًا.",
+                    retry_after=_retry(quota["next_at"]))
+
+
 def _chat_sent_last_hour(db: Session, user: User) -> int:
     since = clock.utcnow() - timedelta(seconds=HOUR)
     return db.scalar(select(func.count()).select_from(MediaItem).where(
@@ -90,6 +107,7 @@ def upload_config(db: Session, settings: Settings, user: User, available: bool) 
         "nsfw": {"device": settings.DEVICE_NSFW_CHECK, "block": settings.NSFW_BLOCK_THRESHOLD,
                  "sexy": settings.NSFW_SEXY_THRESHOLD},
         "idea": idea_quota(db, settings, user),
+        "avatar": avatar_quota(db, settings, user),
         "chat": {"enabled": settings.CHAT_IMAGES_ENABLED, "per_hour": settings.CHAT_IMAGE_PER_HOUR,
                  "ttl_after_view": settings.CHAT_IMAGE_TTL_AFTER_VIEW},
     }
@@ -137,6 +155,10 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
             raise AppError(403, "idea_images_off", "نشر الصور مع الأفكار متوقف حاليًا.")
         if quota["remaining"] <= 0:
             raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.", retry_after=_retry(quota["next_at"]))
+    elif purpose == "avatar":
+        quota = avatar_quota(db, settings, user)
+        if quota["remaining"] <= 0:
+            raise _avatar_limit(quota)
     elif purpose == "chat":
         if not settings.CHAT_IMAGES_ENABLED:
             raise AppError(403, "chat_images_off", "إرسال الصور في المحادثات متوقف حاليًا.")
@@ -359,6 +381,52 @@ def open_chat_image(db: Session, settings: Settings, user: User, message_id: obj
 
 
 # ---------------------------------------------------------------------------
+# V6 phase 3: profile pictures
+# ---------------------------------------------------------------------------
+
+
+def avatar_url(user: User | None) -> str | None:
+    """Signed, session-bound URL of the user's profile picture (None: no picture, removed or hidden)."""
+    if user is None or not user.avatar_media_id:
+        return None
+    from sqlalchemy.orm import object_session
+
+    db = object_session(user)
+    item = db.get(MediaItem, user.avatar_media_id) if db is not None else None
+    if item is None or item.state != "attached" or item.hidden or not item.tg_file_id:
+        return None
+    key, settings = MEDIA_KEY.get(), _settings()
+    return media_urls.media_url(settings, item.id, "img", key) if key and settings else None
+
+
+def set_avatar(db: Session, settings: Settings, user: User, media_id: object, effects: Effects) -> dict:
+    _require_can_send(user)
+    item = claim(db, user, media_id, "avatar")
+    lock_user(db, user.id)
+    quota = avatar_quota(db, settings, user)
+    if quota["remaining"] <= 0:
+        raise _avatar_limit(quota)
+    old = db.get(MediaItem, user.avatar_media_id) if user.avatar_media_id else None
+    if old is not None and old.state == "attached":
+        discard(db, old, "owner", "removed", effects)
+    item.state, item.attached_type, item.attached_id, item.attached_at = "attached", "user", user.id, clock.utcnow()
+    user.avatar_media_id = item.id
+    db.flush()
+    from app.services import media_moderation
+
+    effects.later(media_moderation.announce, item.id, "published")
+    return {"avatar_url": avatar_url(user)}
+
+
+def remove_avatar(db: Session, user: User, effects: Effects) -> dict:
+    old = db.get(MediaItem, user.avatar_media_id) if user.avatar_media_id else None
+    if old is not None and old.state == "attached":
+        discard(db, old, "owner", "removed", effects)
+    user.avatar_media_id = None
+    return {"avatar_url": None}
+
+
+# ---------------------------------------------------------------------------
 # who may download a file (/media/<id>/<variant>)
 # ---------------------------------------------------------------------------
 
@@ -374,6 +442,13 @@ def can_view(db: Session, user: User, item: MediaItem) -> str | None:
         if post.author_id == user.id:
             return "private, max-age=600"
         if post.status != "visible" or item.hidden:
+            return None
+        return "private, max-age=3600"
+    if item.attached_type == "user":  # V6: profile picture, seen by any signed-in member
+        if item.attached_id == user.id:
+            return "private, max-age=600"
+        owner = db.get(User, item.attached_id)
+        if item.hidden or owner is None or owner.avatar_media_id != item.id or owner.status == "banned":
             return None
         return "private, max-age=3600"
     if item.attached_type == "message":

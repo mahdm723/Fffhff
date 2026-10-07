@@ -47,7 +47,7 @@ export function renderMessages(page, { navigate }) {
     const label = `${anon ? 'محادثة مجهولة قديمة' : `محادثة مع ${c.peer}`}${c.unread ? `، ${c.unread} رسائل جديدة` : ''}`;
     return h('li', {},
       h('button', { class: `conv-item ${c.unread ? 'is-unread' : ''} ${c.muted ? 'is-muted' : ''}`, onclick: () => navigate(`#/chat/${c.id}`), 'aria-label': label },
-        personAvatar(c.peer, { anonymous: anon, active: !!card.active }),
+        personAvatar(c.peer, { anonymous: anon, active: !!card.active, url: card.avatar_url }),
         h('div', { class: 'conv-item__body' },
           h('div', { class: 'conv-item__top' },
             nameLine(c.peer, card.gender, 'conv-item__name', card.verified),
@@ -77,8 +77,8 @@ export function renderMessages(page, { navigate }) {
         : filter
           ? [icon('search'), h('h2', { text: 'لا نتائج' }), h('p', { text: 'لا توجد محادثة تطابق بحثك.' })]
           : [icon('bubbles'), h('h2', { text: 'لا توجد محادثات بعد' }),
-            h('p', { text: 'ابحث عن شخص بمعرّفه DZ أو باسمه من صفحة حسابي، ثم اضغط «مراسلة».' }),
-            h('button', { type: 'button', class: 'btn btn--primary', onclick: () => navigate('#/profile') }, icon('search'), 'ابحث عن شخص')]));
+            h('p', { text: 'ابحث عن شخص بمعرّفه DZ أو باسمه من «المستخدمون»، ثم اضغط «مراسلة».' }),
+            h('button', { type: 'button', class: 'btn btn--primary', onclick: () => navigate('#/users') }, icon('search'), 'ابحث عن شخص')]));
       if (list.isConnected) list.replaceWith(empty);
       return;
     }
@@ -88,7 +88,7 @@ export function renderMessages(page, { navigate }) {
 
   page.replaceChildren(
     h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: 'الرسائل' }),
-      h('button', { type: 'button', class: 'icon-btn glass', 'aria-label': 'ابحث عن شخص لمراسلته', onclick: () => navigate('#/profile') }, icon('search'))),
+      h('button', { type: 'button', class: 'icon-btn glass', 'aria-label': 'ابحث عن شخص لمراسلته', onclick: () => navigate('#/users') }, icon('search'))),
     search,
     tabs,
     list,

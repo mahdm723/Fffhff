@@ -4,7 +4,8 @@ import { profilePosts } from '../ideas.js';
 import { privacySheet } from '../privacy.js';
 import { notificationsEnabled, setNotifications } from '../notify.js';
 import { genderPicker } from '../onboarding.js';
-import { confirmAge, searchBox } from '../people.js';
+import { PickError, chooseFile, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
+import { confirmAge } from '../people.js';
 import { avatar, confirmSheet, formatDay, h, idChip, isAndroidApp, nameLine, personAvatar, sheet, toast } from '../ui.js';
 
 const dateFmt = new Intl.DateTimeFormat('ar-DZ', { day: 'numeric', month: 'long' });
@@ -24,14 +25,57 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     return h('div', { class: 'stat glass' }, h('div', { class: 'stat__num', text: String(num) }), h('div', { class: 'stat__label', text: label }));
   }
 
+  // V6 phase 3: profile picture — square, checked on the phone, then by the server like every upload.
+  async function pickAvatar(btn) {
+    const file = await chooseFile('image/jpeg,image/png,image/webp,image/heic,image/heif');
+    if (!file) return;
+    btn.setAttribute('aria-busy', 'true');
+    try {
+      const cfg = await uploadConfig(true);
+      if (!cfg.available) throw new PickError('رفع الصور غير متاح الآن. حاول لاحقًا.');
+      if (cfg.avatar && cfg.avatar.remaining <= 0) throw new PickError(`يمكنك تغيير صورتك ${cfg.avatar.limit} مرات في اليوم. حاول لاحقًا.`);
+      const picked = await prepareImage(file, cfg, { square: 512 });
+      if (picked.preview) URL.revokeObjectURL(picked.preview);
+      await api.post('/api/uploads/precheck', { purpose: 'avatar' });
+      toast('جارٍ رفع الصورة وفحصها…');
+      const up = await uploadBlob(picked.blob, { purpose: 'avatar' });
+      await waitReady(up.id);
+      const r = await api.put('/api/me/avatar', { media_id: up.id });
+      me = { ...me, avatar_url: r.avatar_url };
+      if (onMe) onMe(me);
+      drawCard();
+      toast('تم تحديث صورتك.');
+    } catch (err) {
+      toast(err instanceof PickError ? err.message : (err.message || 'تعذّر تحديث الصورة.'), 'error', 4500);
+    }
+    btn.removeAttribute('aria-busy');
+  }
+
+  function avatarSheet() {
+    sheet((panel, close) => {
+      panel.append(h('h2', { text: 'الصورة الشخصية' }),
+        h('p', { text: 'تظهر بجانب اسمك للجميع. تُفحص قبل النشر، ويمكن الإبلاغ عنها.' }),
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn btn--primary btn--block', type: 'button', onclick: () => { close(); pickAvatar(idCard.querySelector('.avatar-edit')); } },
+            icon('image'), me.avatar_url ? 'تغيير الصورة' : 'اختيار صورة'),
+          me.avatar_url ? h('button', { class: 'btn btn--danger btn--block', type: 'button', onclick: async () => {
+            try { await api.del('/api/me/avatar'); me = { ...me, avatar_url: null }; drawCard(); close(); toast('أُزيلت الصورة.'); }
+            catch (e) { toast(e.message, 'error'); }
+          } }, icon('trash'), 'إزالة الصورة') : '',
+          h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')));
+    });
+  }
+
   function drawCard() {
+    const avatarBtn = h('button', { class: 'avatar-edit', type: 'button', 'aria-label': 'تغيير الصورة الشخصية', onclick: avatarSheet },
+      personAvatar(me.display_name, { size: 'xl', url: me.avatar_url }), h('span', { class: 'avatar-edit__badge', 'aria-hidden': 'true' }, icon('image')));
     idCard.replaceChildren(...[
-      personAvatar(me.display_name, { size: 'xl' }),
+      avatarBtn,
       h('div', { class: 'id-card__name' }, nameLine(me.display_name, me.gender === 'unspecified' ? null : me.gender, '', me.verified)),
       idChip(me.public_id),
       h('p', { class: 'id-card__hint', text: me.has_custom_name
-        ? 'يظهر اسمك في الأفكار والتعليقات والمحادثات.'
-        : 'اسمك الآن dzplay. اختر اسمًا ليعرفك أصدقاؤك، أو شارك معرّفك DZ.' }),
+        ? 'يظهر اسمك وصورتك في الأفكار والتعليقات والمحادثات.'
+        : 'اختر اسمًا يظهر للآخرين لتتمكن من النشر والمراسلة.' }),
       h('div', { class: 'id-card__actions' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: editSheet }, icon('edit'), 'تعديل الملف')),
     ].filter(Boolean));
     ageItem.hidden = me.age_confirmed !== false;
@@ -43,7 +87,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       const locked = !!me.next_name_change_at;
       const input = h('input', {
         class: 'input', id: 'display-name', dir: 'auto', maxlength: String(names.max), autocomplete: 'nickname',
-        value: me.has_custom_name ? me.display_name : '', placeholder: 'dzplay', disabled: locked,
+        value: me.has_custom_name ? me.display_name : '', placeholder: 'اسمك الظاهر', disabled: locked,
       });
       const err = h('div', { class: 'form-error', role: 'alert' });
       const save = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'حفظ');
@@ -76,9 +120,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
             ? `يمكنك تغيير الاسم مجددًا يوم ${dateFmt.format(new Date(me.next_name_change_at))}.`
             : `من ${names.min} إلى ${names.max} حرفًا: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط. يمكن تغييره مرة كل ${names.cooldown_days} يومًا.` }),
         ),
-        me.has_custom_name
-          ? h('button', { class: 'link-btn', type: 'button', onclick: () => submit({ display_name: '' }) }, 'العودة إلى الاسم dzplay')
-          : null,
         h('div', { class: 'field' }, h('label', { text: 'الجنس' }), genderPicker('edit-gender', me.gender)),
         err,
         h('div', { class: 'actions' }, save, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')),
@@ -174,7 +215,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
 
   async function shareApp() {
     const url = `${location.origin}${config.download_page || '/download'}`;
-    const text = 'جرّب DZPLAY: شارك أفكارك، تحدّث وتكلّم صوتًا وصورة دون أن ينكشف رقمك. حمّل التطبيق من هنا:';
+    const text = 'جرّب DZPLAY: مجتمع للمتداولين، أفكار وتحليلات وأخبار العملات الرقمية، وتراسل دون أن ينكشف بريدك. حمّل التطبيق من هنا:';
     try {
       if (window.DZPLAYAndroid) { window.DZPLAYAndroid.share(`${text} ${url}`); return; } // native share sheet in the app
       if (navigator.share) { await navigator.share({ title: 'DZPLAY', text, url }); return; }
@@ -226,7 +267,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     idCard,
     statsBox,
     msgStats,
-    searchBox(navigate),
     h('ul', { class: 'menu glass' },
       isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
       item('verified', 'النجمة الزرقاء (التوثيق)', () => navigate('#/verify')),

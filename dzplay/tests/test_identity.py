@@ -20,16 +20,17 @@ def me(c) -> dict:
 # ----------------------------------------------------------------- names
 
 
-def test_default_name_change_and_back_to_dzplay(hx):
+def test_name_change_is_kept_in_history_and_no_way_back_to_dzplay(hx):
     c = hx.user()
-    assert me(c)["display_name"] == "dzplay" and me(c)["has_custom_name"] is False
+    first = me(c)["display_name"]
+    assert me(c)["has_custom_name"] is True
     r = c.patch(NAME, json={"display_name": "  أحمد   علي  "})
     assert r.status_code == 200 and r.json()["display_name"] == "أحمد علي"
-    # back to the default at any time, even inside the cooldown
-    assert c.patch(NAME, json={"display_name": ""}).json()["display_name"] == "dzplay"
+    # V6 phase 3: no going back to the default name
+    assert c.patch(NAME, json={"display_name": ""}).json()["error"]["code"] == "name_required"
     with hx.db() as db:
         hist = [(h.old_name, h.new_name) for h in db.execute(select(NameHistory).order_by(NameHistory.id)).scalars()]
-    assert hist == [(None, "أحمد علي"), ("أحمد علي", None)]
+    assert hist == [(first, "أحمد علي")]
 
 
 def test_name_change_cooldown(hx):
@@ -51,7 +52,7 @@ def test_bad_names_are_refused(hx, bad):
     c = hx.user()
     r = c.patch(NAME, json={"display_name": bad})
     assert r.status_code in (400, 422), (bad, r.text)
-    assert me(c)["display_name"] == "dzplay"
+    assert me(c)["display_name"].startswith("Tester ")
 
 
 def test_names_are_plain_text_everywhere(hx):
@@ -166,7 +167,7 @@ def test_admin_sees_name_history_id_and_search_by_name_or_id(make_harness):
     with hx.db() as db:
         d = admin_access.user_detail(db, uid)
         assert d["user"]["display_name"] == "Yacine" and d["user"]["public_id"] == pid
-        assert d["name_history"][0]["old"] is None and d["name_history"][0]["new"] == "Yacine"
+        assert d["name_history"][0]["old"].startswith("Tester ") and d["name_history"][0]["new"] == "Yacine"
         assert "accept_calls" not in d["user"]["privacy"]
         assert [u["id"] for u in admin_access.users_search(db, q=pid.lower())["users"]] == [uid]
         assert [u["id"] for u in admin_access.users_search(db, q="yaci")["users"]] == [uid]

@@ -183,7 +183,7 @@ def test_upload_needs_session_csrf_and_valid_purpose(mx):
     assert upload(mx, anon, png()).status_code == 401
     r = a.post("/api/uploads?purpose=idea", content=png(), headers={"X-DZ-Requested": ""})
     assert r.status_code == 403  # CSRF header missing
-    assert upload(mx, a, png(), purpose="avatar").status_code == 400
+    assert upload(mx, a, png(), purpose="video").status_code == 400
     assert a.get("/api/uploads/" + "a" * 32).status_code == 404
     other = ready_upload(mx, a, png())
     b = mx.user()

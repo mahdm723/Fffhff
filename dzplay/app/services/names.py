@@ -102,24 +102,27 @@ def clean(raw: object, settings: Settings) -> str:
     return name
 
 
+def require_name(raw: object, settings: Settings) -> str:
+    """V6 phase 3: every account shows a chosen name (no more "dzplay" by default)."""
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        raise AppError(400, "name_required", "اختر اسمًا يظهر للآخرين.")
+    return clean(raw, settings)
+
+
+def name_required(user: User) -> bool:
+    """An account from before V6 phase 3 that never chose a name (team accounts excepted)."""
+    return user.display_name is None and not user.is_system and not user.is_official
+
+
 def change_name(db: Session, settings: Settings, user: User, raw: object) -> dict:
-    """Set a new name, or go back to the default with an empty value / the default name."""
+    """Set a new name (V6: going back to no name / "dzplay" is no longer possible)."""
     now = clock.utcnow()
-    wanted = raw.strip() if isinstance(raw, str) else raw
-    to_default = wanted in ("", None) or (isinstance(wanted, str) and wanted.casefold() == settings.DEFAULT_DISPLAY_NAME.casefold())
     old = user.display_name
-    if to_default:
-        if old is None:
-            return {"display_name": shown_name(user, settings), "next_change_at": _next_change(user, settings)}
-        user.display_name = None
-        user.name_norm = None
-        db.add(NameHistory(user_id=user.id, old_name=old, new_name=None, changed_at=now))
-        return {"display_name": shown_name(user, settings), "next_change_at": _next_change(user, settings)}
-    name = clean(wanted, settings)
+    name = require_name(raw, settings)
     if name == old:
         return {"display_name": name, "next_change_at": _next_change(user, settings)}
     nxt = _next_change(user, settings)
-    if nxt is not None and nxt > now:
+    if old is not None and nxt is not None and nxt > now:
         days = max(1, -(-int((nxt - now).total_seconds()) // 86400))  # whole days, rounded up
         raise AppError(429, "name_cooldown", f"يمكنك تغيير الاسم مرة كل {settings.NAME_CHANGE_COOLDOWN_DAYS} يومًا. "
                                              f"حاول بعد {days} يوم.", retry_after=int((nxt - now).total_seconds()))

@@ -1,5 +1,7 @@
 """V6 browser checks on a phone-sized screen, one section per phase.
 
+* phase 3 — identity: a name is required at registration, 4-tab navigation, «المستخدمون» (list + search,
+  tap → public profile → «مراسلة»), no way back to "dzplay". (Profile pictures: e2e/run_media_e2e.py.)
 * phase 2 — market: «السوق | الأفكار» switch on Home (ideas by default, last pane remembered), gainers/losers with
   sparklines from a local fake Bybit, details sheet, stale notice when the source goes away, disclaimer.
 
@@ -96,6 +98,60 @@ def phase2_market(run: Run, page: Page, fake: FakeBybit) -> None:
     run.step("market: Bybit unreachable → last list kept with a «not updated» notice")
 
 
+def phase3_identity(run: Run, a: Page, b: Page, suffix) -> None:
+    base = run.base
+    b.goto(base + "/")
+    b.get_by_role("tab", name="حساب جديد").click()
+    b.locator("#email").fill(f"v6b{suffix}@example.com")
+    b.locator("#password").fill("Str0ng-Pass!e2e")
+    b.locator("#password_confirm").fill("Str0ng-Pass!e2e")
+    b.locator(".gender-pick__opt", has_text="أنثى").click()
+    b.locator("#age_confirmed").check()
+    b.get_by_role("button", name="إنشاء الحساب").click()
+    expect(b.locator(".form-error")).to_contain_text("اسم")
+    b.locator("#display-name").fill("dzplay")
+    b.locator(".antibot").click()
+    expect(b.locator(".antibot")).to_have_attribute("data-state", "done", timeout=20000)
+    b.get_by_role("button", name="إنشاء الحساب").click()
+    expect(b.locator(".form-error")).to_contain_text("محجوز", timeout=10000)
+    b.locator("#display-name").fill("Nour Trader")
+    b.locator(".antibot").click()
+    expect(b.locator(".antibot")).to_have_attribute("data-state", "done", timeout=20000)
+    b.get_by_role("button", name="إنشاء الحساب").click()
+    expect(b.locator("#idea-compose")).to_be_visible(timeout=15000)
+    run.step("registration refuses an empty or reserved name, then accepts «Nour Trader»")
+
+    tabs = [t.strip() for t in b.locator(".nav__btn").all_inner_texts()]
+    assert tabs == ["الرئيسية", "المستخدمون", "الرسائل", "حسابي"], tabs
+    run.step("bottom navigation: الرئيسية · المستخدمون · الرسائل · حسابي")
+
+    b_id = b.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)")
+    a.locator('[data-tab="users"]').click()
+    row = a.locator(".user-row", has_text=b_id)
+    expect(row).to_be_visible(timeout=10000)
+    expect(row).to_contain_text("Nour Trader")
+    assert "@example.com" not in a.locator(".page").inner_text()
+    run.shot(a, "v6-users")
+    a.locator(".people-search input").fill("nour")
+    a.locator(".people-search input").press("Enter")
+    expect(a.locator(".person .person__id")).to_have_text(b_id, timeout=10000)
+    row.click()
+    expect(a.locator(".id-card__name")).to_contain_text("Nour Trader", timeout=10000)
+    expect(a.get_by_role("button", name="مراسلة")).to_be_visible()
+    expect(a.locator('[data-tab="users"]')).to_have_attribute("aria-current", "page")
+    run.shot(a, "v6-user-profile")
+    run.step("«المستخدمون»: listed by recent activity, search by name, tap → public profile with «مراسلة»")
+
+    b.goto(base + "/#/profile")
+    b.get_by_role("button", name="تعديل الملف").click()
+    expect(b.get_by_role("button", name="العودة إلى الاسم dzplay")).to_have_count(0)
+    b.locator("#display-name").fill("")
+    b.locator(".sheet").get_by_role("button", name="حفظ").click()
+    expect(b.locator(".sheet .form-error")).to_contain_text("اسم", timeout=10000)
+    b.keyboard.press("Escape")
+    run.step("the name cannot be emptied (no way back to dzplay)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8773)
@@ -114,6 +170,9 @@ def main() -> int:
             a = ctx.new_page()
             run.watch(a, "A")
             register(run, a, f"v6a{suffix}@example.com")
+            b = browser.new_context(**MOBILE, locale="ar", color_scheme="light").new_page()
+            run.watch(b, "B")
+            phase3_identity(run, a, b, suffix)
             phase2_market(run, a, fake)
             browser.close()
     finally:

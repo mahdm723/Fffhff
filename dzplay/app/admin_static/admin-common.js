@@ -108,7 +108,8 @@ export function userRef(ref, label = null) {
   if (!ref) return h('span', { class: 'admin-ref', text: '—' });
   return h('button', {
     type: 'button', class: 'admin-ref', dir: 'ltr', title: 'فتح صفحة المستخدم',
-    onclick: async () => {
+    onclick: async (e) => {
+      e.stopPropagation(); // inside a clickable row (e.g. a conversation): open the user only
       if (hooks.openUser) { hooks.openUser(ref); return; }
       try { await navigator.clipboard.writeText(ref); toast('تم نسخ المرجع.'); } catch { toast(ref); }
     },

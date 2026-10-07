@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -64,10 +65,21 @@ class Run:
         print(f"  ✓ {text}", flush=True)
 
 
-def register(run: Run, page: Page, email: str, shot: str | None = None, gender: str = "أفضّل عدم الذكر") -> None:
+def default_name(email: str) -> str:
+    """V6 phase 3: a name is required at registration; e2e users get one from their e-mail."""
+    local = email.split("@")[0]
+    letters = re.sub(r"[^A-Za-z]", "", local)[:12] or "User"
+    digits = re.sub(r"[^0-9]", "", local)[-4:]  # long digit runs look like phone numbers (refused in names)
+    return f"{letters} {digits}".strip() if len(letters) >= 3 or digits else f"User {letters}"
+
+
+def register(run: Run, page: Page, email: str, shot: str | None = None, gender: str = "أفضّل عدم الذكر",
+             name: str | None = None) -> str:
     page.goto(run.base + "/")
     page.get_by_role("tab", name="حساب جديد").click()
     page.locator("#email").fill(email)
+    name = name or default_name(email)
+    page.locator("#display-name").fill(name)
     page.locator("#password").fill(PASSWORD)
     page.locator("#password_confirm").fill(PASSWORD)
     page.locator(".gender-pick__opt", has_text=gender).click()
@@ -78,6 +90,7 @@ def register(run: Run, page: Page, email: str, shot: str | None = None, gender: 
         run.shot(page, shot)
     page.get_by_role("button", name="إنشاء الحساب").click()
     expect(page.locator("#idea-compose")).to_be_visible(timeout=15000)
+    return name
 
 
 def main() -> int:
@@ -106,10 +119,10 @@ def main() -> int:
             run.watch(b, "B")
 
             print("Register")
-            register(run, a, f"alice{suffix}@example.com", shot="01-auth-register")
+            register(run, a, f"alice{suffix}@example.com", shot="01-auth-register", name="Alice")
             run.step("A registered (email + password + anti-bot)")
             run.shot(a, "02-home")
-            register(run, b, f"bob{suffix}@example.com")
+            register(run, b, f"bob{suffix}@example.com", name="Bob")
             run.step("B registered")
 
             print("Public ideas")
@@ -119,8 +132,8 @@ def main() -> int:
             a.get_by_role("button", name="نشر", exact=True).click()
             mine = a.locator(".post-card").first
             expect(mine.locator(".post-card__body")).to_have_text(idea)
-            expect(mine.locator(".post-card__name")).to_have_text("dzplay")
-            run.step("A published an idea (shown as dzplay)")
+            expect(mine.locator(".post-card__name")).to_have_text("Alice")
+            run.step("A published an idea (shown with the chosen name)")
 
             b.get_by_role("button", name="أفكار أخرى").click()
             card = b.locator(".post-card", has_text=idea)
@@ -163,14 +176,14 @@ def main() -> int:
             run.step("A (owner) sees the comment in a private sheet; badge cleared")
 
             card.locator(".post-card__author").click()
-            expect(b.locator(".id-card__name")).to_have_text("dzplay")
+            expect(b.locator(".id-card__name")).to_have_text("Alice")
             expect(b.locator(".stat__num").nth(0)).to_have_text("1")
             expect(b.locator(".stat__num").nth(1)).to_have_text("1")
             expect(b.locator(".stat__num").nth(2)).to_have_text("0")
             expect(b.locator(".post-card", has_text=idea)).to_be_visible()
             assert "فكرة جميلة" not in b.locator(".page").inner_text()
             run.shot(b, "07-public-profile")
-            run.step("B opened A's public profile: dzplay + Posts/Likes/Dislikes + posts only")
+            run.step("B opened A's public profile: name + Posts/Likes/Dislikes + posts only")
 
             print("Direct message by public ID (V6: random anonymous messages were removed)")
             b_id = b.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)")
@@ -193,7 +206,7 @@ def main() -> int:
             req_tab.click()
             item = b.locator(".conv-item").first
             expect(item).to_be_visible(timeout=10000)
-            expect(item.locator(".conv-item__name")).to_have_text("dzplay")
+            expect(item.locator(".conv-item__name")).to_have_text("Alice")
             run.shot(b, "09-messages-list")
             item.click()
             expect(b.locator(".bubble-row.theirs .bubble").first).to_contain_text("أحتاج أن أتحدث مع شخص اليوم.")
@@ -242,11 +255,11 @@ def main() -> int:
 
             print("Profile")
             b.goto(base + "/#/profile")
-            expect(b.locator(".id-card__name")).to_have_text("dzplay")
+            expect(b.locator(".id-card__name")).to_have_text("Bob")
             expect(b.locator(".stat__num").nth(0)).to_have_text("0")  # B published no ideas
             expect(b.locator(".msg-stats")).to_contain_text("أرسلت 2 · استقبلت 2")  # private, owner-only
             run.shot(b, "13-profile")
-            run.step("Profile shows only 'dzplay', idea stats and private messaging stats")
+            run.step("Profile shows the name, idea stats and private messaging stats")
 
             print("Report + block")
             b.goto(base + "/#/messages")

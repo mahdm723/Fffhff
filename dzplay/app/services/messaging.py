@@ -128,7 +128,8 @@ def peer_card(c: Conversation, viewer_id: str, peer: User | None) -> dict:
     # V5: the blue star is shown in direct chats only, never in anonymous ones (even after a reveal)
     return {"name": names.shown_name(peer), "public_id": peer.public_id, "gender": names.public_gender(peer),
             "profile_ref": None, "anonymous": False, "active": bool(active),
-            "verified": bool(c.is_direct and peer.verified_at is not None)}
+            "verified": bool(c.is_direct and peer.verified_at is not None),
+            "avatar_url": avatar_url(peer) if c.is_direct else None}
 
 
 def _request_view(c: Conversation, viewer_id: str) -> dict | None:
@@ -187,6 +188,8 @@ def _require_can_send(user: User) -> None:
         raise AppError(403, "account_banned", "تم إيقاف هذا الحساب.")
     if user.onboarding_required:
         raise AppError(403, "onboarding_required", "أكمل إنشاء حسابك أولًا (الجنس وتأكيد العمر).")
+    if names.name_required(user):  # V6 phase 3
+        raise AppError(403, "name_required", "اختر اسمًا يظهر للآخرين أولًا (حسابي ← تعديل الملف).")
 
 
 def _get_visible_conversation(db: Session, user: User, conversation_id: str) -> Conversation:
@@ -600,6 +603,8 @@ def profile(user: User, settings: Settings | None = None) -> dict:
     return {
         "display_name": names.shown_name(user),
         "has_custom_name": bool(user.display_name),
+        "name_required": names.name_required(user),  # V6 phase 3: a mandatory sheet until a name is chosen
+        "avatar_url": avatar_url(user),
         "public_id": user.public_id,
         "gender": user.gender or "unspecified",
         "next_name_change_at": iso(nxt) if nxt and nxt > clock.utcnow() else None,
@@ -618,6 +623,12 @@ def profile(user: User, settings: Settings | None = None) -> dict:
         # True once for accounts that have not seen the current privacy notice yet.
         "privacy_notice": (user.privacy_ack_version or 0) < PRIVACY_VERSION,
     }
+
+
+def avatar_url(user: User | None) -> str | None:
+    from app.services.media_items import avatar_url as _url
+
+    return _url(user)
 
 
 def privacy_view(user: User) -> dict:
@@ -702,7 +713,8 @@ def person_card(db: Session, viewer: User, public_id: object) -> dict:
     visible = conv is not None and not conv.hidden_for(viewer.id)
     return {"name": names.shown_name(target), "public_id": target.public_id, "gender": names.public_gender(target),
             "profile_ref": ideas.profile_ref_for(db, target.id), "can_message": can_message,
-            "conversation_id": conv.id if visible else None, "verified": target.verified_at is not None}
+            "conversation_id": conv.id if visible else None, "verified": target.verified_at is not None,
+            "avatar_url": avatar_url(target)}
 
 
 def send_direct(db: Session, settings: Settings, limiter, user: User, public_id: object, *, content: object,

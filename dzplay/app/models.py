@@ -106,6 +106,8 @@ class User(Base):
     # services (app.services.verification.grant / revoke): no user endpoint accepts these fields.
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     verified_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # --- V6 phase 3: profile picture (a MediaItem with purpose "avatar", attached_type "user")
+    avatar_media_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class NameHistory(Base):

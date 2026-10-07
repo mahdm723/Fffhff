@@ -238,7 +238,8 @@ class Settings(BaseSettings):
     # idea images
     IDEA_IMAGES_ENABLED: bool = True
     IDEA_IMAGE_LIMIT_PER_24H: int = 1
-    IDEA_IMAGE_REQUIRE_APPROVAL: bool = False  # True: an idea with an image appears only after approval
+    IDEA_IMAGE_REQUIRE_APPROVAL: bool = False
+    AVATAR_CHANGES_PER_DAY: int = 3  # V6 phase 3: new profile pictures per user in 24 h  # True: an idea with an image appears only after approval
     # ephemeral chat images
     CHAT_IMAGES_ENABLED: bool = True
     CHAT_IMAGE_TTL_AFTER_VIEW: int = 120  # seconds the picture stays visible once opened

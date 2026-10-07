@@ -25,6 +25,7 @@ class RegisterBody(_Body):
     website: str | None = Field(default=None, max_length=200)  # honeypot: humans never fill it
     gender: str | None = Field(default=None, max_length=12)  # male|female|unspecified (required)
     age_confirmed: bool = False  # "I am 18+ and accept the terms" (required)
+    display_name: str | None = Field(default=None, max_length=200)  # V6: required (checked by names.clean)
 
 
 class LoginBody(_Body):

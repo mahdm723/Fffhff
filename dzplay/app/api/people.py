@@ -8,8 +8,8 @@ from pydantic import Field
 
 from app import clock
 from app.api.deps import current_user, get_state
-from app.api.schemas import SendBody, _Body
-from app.services import ideas, messaging, names, people
+from app.api.schemas import ReportBody, SendBody, _Body
+from app.services import ideas, media_items, messaging, names, people
 from app.services.messaging import Effects
 
 router = APIRouter(prefix="/api", tags=["people"])
@@ -89,6 +89,7 @@ def confirm_age(body: ConfirmAgeBody, request: Request) -> dict:
 class OnboardingBody(_Body):
     gender: str = Field(max_length=12)
     age_confirmed: bool
+    display_name: str | None = Field(default=None, max_length=200)  # V6: required when the account has none
 
 
 @router.post("/me/onboarding")
@@ -101,6 +102,8 @@ def complete_onboarding(body: OnboardingBody, request: Request) -> dict:
             from app.errors import AppError
 
             raise AppError(400, "age_required", "يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام DZPLAY.")
+        if user.display_name is None or body.display_name is not None:
+            names.change_name(db, st.settings, user, body.display_name)
         names.set_gender(user, body.gender)
         now = clock.utcnow()
         user.gender_asked_at = user.gender_asked_at or now
@@ -108,6 +111,53 @@ def complete_onboarding(body: OnboardingBody, request: Request) -> dict:
         user.onboarding_required = None
         db.flush()
         return ideas.own_profile(db, user, st.settings)
+
+
+class AvatarBody(_Body):
+    media_id: str = Field(max_length=40)
+
+
+@router.put("/me/avatar")
+def set_avatar(body: AvatarBody, request: Request) -> dict:
+    """V6 phase 3: use a finished upload (purpose "avatar") as my profile picture."""
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = _me(st, db, request)
+        result = media_items.set_avatar(db, st.settings, user, body.media_id, effects)
+    st.dispatch(effects)
+    return result
+
+
+@router.delete("/me/avatar")
+def remove_avatar(request: Request) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = media_items.remove_avatar(db, _me(st, db, request), effects)
+    st.dispatch(effects)
+    return result
+
+
+@router.get("/people")
+def list_people(request: Request, q: str | None = Query(default=None, max_length=60),
+                cursor: str | None = Query(default=None, max_length=120)) -> dict:
+    """V6 phase 3: «المستخدمون» — everyone listed, most recently active first (or a search with q)."""
+    st = get_state(request)
+    with st.database.session() as db:
+        user = _me(st, db, request)
+        return people.listing(db, st.settings, st.limiter, user, q, cursor)
+
+
+@router.post("/people/{public_id}/report-avatar", status_code=201)
+def report_avatar(public_id: str, body: ReportBody, request: Request) -> dict:
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = _me(st, db, request)
+        result = people.report_avatar(db, st.settings, st.limiter, user, public_id[:16], body.reason, body.details, effects)
+    st.dispatch(effects)
+    return result
 
 
 @router.get("/people/search")

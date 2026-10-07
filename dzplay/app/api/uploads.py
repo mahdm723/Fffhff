@@ -63,6 +63,10 @@ def precheck(body: PrecheckBody, request: Request) -> dict:
                 raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.")
         elif body.purpose == "chat":
             media_items.chat_target(db, user, body.conversation_id)
+        elif body.purpose == "avatar":
+            quota = media_items.avatar_quota(db, st.settings, user)
+            if quota["remaining"] <= 0:
+                raise media_items._avatar_limit(quota)
         elif body.purpose not in media_items.PURPOSE_KIND:
             raise AppError(400, "invalid_purpose", "طلب غير صالح.")
         db.rollback()

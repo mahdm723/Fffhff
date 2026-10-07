@@ -38,7 +38,7 @@ def test_create_post_and_see_it_in_feed(hx):
     r = post(a)
     assert r.status_code == 201
     p = r.json()
-    assert p["author"]["name"] == "dzplay" and p["mine"] is True
+    assert p["author"]["name"] == a.get("/api/me").json()["display_name"] and p["mine"] is True
     assert p["likes"] == 0 and p["dislikes"] == 0 and p["created_at"]
     ids, _ = feed_ids(b)
     assert ids == [p["id"]]
@@ -171,7 +171,8 @@ def test_comments_visible_only_to_post_owner(hx):
 
     data = owner.get(f"/api/posts/{pid}/comments").json()
     assert sorted(x["content"] for x in data["comments"]) == ["تعليق من B", "تعليق من C"]
-    assert all(x["author"] == "dzplay" and x["official"] is False and set(x) == {"id", "author", "official", "content", "created_at"}
+    names_ = {u.get("/api/me").json()["display_name"] for u in (b, c)}
+    assert all(x["author"] in names_ and x["official"] is False and set(x) == {"id", "author", "official", "content", "created_at"}
                for x in data["comments"])
 
     # Everyone else: no comment content, no count — in any API.
@@ -249,7 +250,8 @@ def test_profiles_show_only_public_idea_stats(hx):
     prof = b.get(f"/api/profiles/{ref}").json()
     pid = prof.pop("public_id")
     assert pid.startswith("DZ-") and len(pid) == 9
-    assert prof == {"ref": ref, "name": "dzplay", "gender": None, "verified": False, "is_me": False, "stats": {"posts": 2, "likes": 2, "dislikes": 1}}
+    assert prof == {"ref": ref, "name": owner.get("/api/me").json()["display_name"], "gender": None, "verified": False,
+                    "avatar_url": None, "is_me": False, "stats": {"posts": 2, "likes": 2, "dislikes": 1}}
     posts = b.get(f"/api/profiles/{ref}/posts").json()["posts"]
     assert [p["content"] for p in posts] == ["الفكرة الثانية", "الفكرة الأولى"]
 

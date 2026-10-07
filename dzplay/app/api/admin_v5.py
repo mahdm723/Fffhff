@@ -242,6 +242,21 @@ def media_action(item_id: str, body: MediaActionBody, request: Request, ac: Admi
     return {"result": label, "item": row}
 
 
+@router.post("/users/{user_ref}/avatar/remove")
+def user_avatar_remove(user_ref: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """V6 phase 3: remove someone's profile picture (same action as the 🗑 button in Telegram, audited)."""
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = db.get(User, user_ref) if len(user_ref) <= 32 else None
+        item = db.get(MediaItem, user.avatar_media_id) if user is not None and user.avatar_media_id else None
+        if item is None:
+            raise not_found()
+        label = media_moderation.act_from_panel(st, db, item, "del", f"admin:{ac.actor}", effects)
+    st.dispatch(effects)
+    return {"result": label}
+
+
 # ----------------------------------------------------------------- the user page (V5 part)
 # (previews: GET /api/admin/media/<id>/<variant> in app.api.admin also serves V5 media, admin session only)
 
@@ -264,6 +279,7 @@ def user_v5(user_ref: str, request: Request, ac: AdminContext = Depends(SUPER_AD
                              .order_by(SupportTicket.updated_at.desc()).limit(30)).scalars().all()
         return {
             "verified": user.verified_at is not None, "verified_at": iso(user.verified_at), "verified_by": user.verified_by,
+            "avatar_id": user.avatar_media_id,
             "verification": [verification.admin_view(db, r) for r in reqs],
             "media": [_media_row(db, m) for m in media],
             "tickets": [{"id": t.id, "number": support.number(t), "subject": t.subject, "status": t.status,

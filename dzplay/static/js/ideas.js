@@ -31,7 +31,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
     class: 'post-card__author', type: 'button', 'aria-label': `عرض ملف ${state.author.name}`,
     onclick: () => navigate && navigate(state.mine ? '#/profile' : `#/u/${state.author.ref}`),
   },
-  personAvatar(state.author.name, { size: 'sm' }),
+  personAvatar(state.author.name, { size: 'sm', url: state.author.avatar_url }),
   h('span', { class: 'post-card__who' },
     nameLine(state.author.name, state.author.gender, 'post-card__name', state.author.verified),
     h('span', { class: 'post-card__time', text: formatListTime(state.created_at) }),

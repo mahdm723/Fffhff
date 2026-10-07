@@ -12,15 +12,15 @@ HOUR = 3600
 
 def test_register_creates_session_and_hides_identity(hx):
     c = hx.client()
-    r = hx.register(c, "Alice@Example.com")
+    r = hx.register(c, "Alice@Example.com", display_name="Lily Rose")
     assert r.status_code == 201
     body = r.json()
-    assert body["display_name"] == "dzplay"
+    assert body["display_name"] == "Lily Rose"
     assert "email" not in r.text.lower() and "alice" not in r.text.lower()
     cookie = r.headers["set-cookie"].lower()
     assert "httponly" in cookie and "samesite=strict" in cookie
     me = c.get("/api/me")
-    assert me.status_code == 200 and me.json()["display_name"] == "dzplay"
+    assert me.status_code == 200 and me.json()["display_name"] == "Lily Rose"
     with hx.db() as db:
         user = db.scalar(select(User))
         assert user.email == "alice@example.com"
@@ -30,7 +30,7 @@ def test_register_creates_session_and_hides_identity(hx):
 def test_register_validation(hx):
     c = hx.client()
     ch = hx.challenge(c, "register")
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": "nope-nope", "antibot": ch, "gender": "male", "age_confirmed": True})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": "nope-nope", "antibot": ch, "gender": "male", "age_confirmed": True, "display_name": "Amine"})
     assert r.status_code == 400 and r.json()["error"]["code"] == "password_mismatch"
     r = hx.register(c, "a@example.com", password="short")
     assert r.json()["error"]["code"] == "weak_password"
@@ -40,21 +40,21 @@ def test_register_validation(hx):
 
 def test_antibot_required_single_use_and_purpose_bound(hx):
     c = hx.client()
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "gender": "male", "age_confirmed": True})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "gender": "male", "age_confirmed": True, "display_name": "Amine"})
     assert r.status_code == 400 and r.json()["error"]["code"] == "antibot_required"
 
     ch = hx.challenge(c, "login")  # wrong purpose
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True, "display_name": "Amine"})
     assert r.json()["error"]["code"] == "antibot_invalid"
 
     ch = hx.challenge(c, "register")
     bad = dict(ch, number=ch["number"] + 1)
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": bad, "gender": "male", "age_confirmed": True})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": bad, "gender": "male", "age_confirmed": True, "display_name": "Amine"})
     assert r.json()["error"]["code"] == "antibot_invalid"
 
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True, "display_name": "Amine"})
     assert r.status_code == 201
-    r = c.post("/api/auth/register", json={"email": "b@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
+    r = c.post("/api/auth/register", json={"email": "b@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True, "display_name": "Amine"})
     assert r.json()["error"]["code"] == "antibot_used"  # replay refused
 
 
@@ -62,7 +62,7 @@ def test_antibot_challenge_expires(hx):
     c = hx.client()
     ch = hx.challenge(c, "register")
     clock.advance(hx.settings.POW_CHALLENGE_TTL + 1)
-    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True})
+    r = c.post("/api/auth/register", json={"email": "a@example.com", "password": PASSWORD, "password_confirm": PASSWORD, "antibot": ch, "gender": "male", "age_confirmed": True, "display_name": "Amine"})
     assert r.json()["error"]["code"] == "antibot_expired"
 
 
@@ -300,6 +300,8 @@ def test_new_google_account_must_complete_gender_and_age(hx, monkeypatch):
     assert r.status_code == 403 and r.json()["error"]["code"] == "onboarding_required"
     assert c.post("/api/me/onboarding", json={"gender": "male", "age_confirmed": False}).status_code == 400
     assert c.post("/api/me/onboarding", json={"gender": "robot", "age_confirmed": True}).status_code == 400
-    done = c.post("/api/me/onboarding", json={"gender": "male", "age_confirmed": True}).json()
+    r = c.post("/api/me/onboarding", json={"gender": "male", "age_confirmed": True})  # V6: a name is required too
+    assert r.status_code == 400 and r.json()["error"]["code"] == "name_required"
+    done = c.post("/api/me/onboarding", json={"gender": "male", "age_confirmed": True, "display_name": "Google User"}).json()
     assert done["needs_onboarding"] is False and done["age_confirmed"] is True and done["gender"] == "male"
     assert c.post(f"/api/people/{other.get('/api/me').json()['public_id']}/messages", json={"content": "مرحبا"}).status_code == 201

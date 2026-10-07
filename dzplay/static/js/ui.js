@@ -34,12 +34,17 @@ export function avatar(size = '') {
 
 const AVATAR_TONES = 6;
 
-/** Round avatar with the person's initial; the dzplay mask for anonymous / default-named people. */
-export function personAvatar(name, { size = '', anonymous = false, active = false } = {}) {
+/** Round avatar: the profile picture (V6, signed URL) when there is one, else the person's initial;
+ *  the dzplay mask for anonymous / default-named people. */
+export function personAvatar(name, { size = '', anonymous = false, active = false, url = null } = {}) {
   const cls = `avatar ${size ? 'avatar--' + size : ''}`;
   let el;
   if (anonymous || !name || name === 'dzplay') el = h('div', { class: cls, 'aria-hidden': 'true' }, icon('mask'));
-  else {
+  else if (url) {
+    const img = h('img', { src: url, alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
+    el = h('div', { class: `${cls} avatar--photo`, 'aria-hidden': 'true' }, img);
+    img.addEventListener('error', () => { el.replaceWith(personAvatar(name, { size, active })); }, { once: true });
+  } else {
     const letter = (Array.from(name.trim())[0] || '?').toLocaleUpperCase('ar');
     let n = 0;
     for (const ch of name) n = (n * 31 + ch.codePointAt(0)) >>> 0;

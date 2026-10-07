@@ -101,9 +101,12 @@ def _authors(db: Session, ids) -> dict[str, User]:
 def _author_view(u: User | None) -> dict:
     from app.services import names
 
+    from app.services.media_items import avatar_url
+
     return {"name": names.shown_name(u) if u is not None else PEER_NAME,
             "gender": names.public_gender(u) if u is not None else None,
-            "verified": bool(u is not None and u.verified_at is not None)}
+            "verified": bool(u is not None and u.verified_at is not None),
+            "avatar_url": avatar_url(u) if u is not None and not u.is_system else None}
 
 
 def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | None, author: User | None = None,
@@ -513,6 +516,7 @@ def unseen_comments(db: Session, user_id: str) -> int:
 
 def public_profile(db: Session, viewer: User, ref: str) -> dict:
     from app.services import names
+    from app.services.media_items import avatar_url
 
     owner = _user_by_ref(db, ref)
     return {
@@ -521,6 +525,7 @@ def public_profile(db: Session, viewer: User, ref: str) -> dict:
         "gender": names.public_gender(owner),
         "public_id": owner.public_id,
         "verified": owner.verified_at is not None,
+        "avatar_url": avatar_url(owner),
         "is_me": owner.id == viewer.id,
         "stats": idea_stats(db, owner.id),  # public stats only — never messaging stats or personal data
     }

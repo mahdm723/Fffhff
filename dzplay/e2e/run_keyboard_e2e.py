@@ -75,7 +75,7 @@ def main() -> int:
 
             # V6: no random-message composer; a direct message request instead
             b_id = b.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)")
-            a.goto(base + "/#/profile")
+            a.goto(base + "/#/users")
             a.locator(".people-search input").fill(b_id)
             a.locator(".people-search input").press("Enter")
             a.locator(".person").get_by_role("button", name="مراسلة").click()
@@ -95,8 +95,9 @@ def main() -> int:
             card.get_by_role("button", name="تعليق خاص").click()
             check(run, b, b.locator(".sheet textarea"), b.locator(".sheet").get_by_role("button", name="إرسال التعليق"), "comment-sheet")
 
-            a.goto(base + "/#/profile")
+            a.goto(base + "/#/users")
             check(run, a, a.locator(".people-search input"), a.locator(".people-search button"), "people-search")
+            a.goto(base + "/#/profile")
             a.get_by_role("button", name="تعديل الملف").click()
             check(run, a, a.locator("#display-name"), a.locator(".sheet").get_by_role("button", name="حفظ"), "edit-profile")
             browser.close()

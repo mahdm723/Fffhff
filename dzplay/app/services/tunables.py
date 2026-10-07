@@ -70,6 +70,7 @@ REGISTRY: list[Tunable] = [
     Tunable("IDEA_IMAGES_ENABLED", "bool", "ideas", "السماح بصورة مع الفكرة"),
     Tunable("IDEA_IMAGE_LIMIT_PER_24H", "int", "ideas", "صور الأفكار لكل مستخدم في 24 ساعة", 0, 50),
     Tunable("IDEA_IMAGE_REQUIRE_APPROVAL", "bool", "ideas", "الفكرة ذات الصورة تظهر بعد الموافقة فقط"),
+    Tunable("AVATAR_CHANGES_PER_DAY", "int", "media", "تغيير الصورة الشخصية في 24 ساعة", 1, 50),
     Tunable("MAX_POSTS_PER_HOUR", "int", "ideas", "أفكار في الساعة", 1, 200),
     Tunable("MAX_POSTS_PER_DAY", "int", "ideas", "أفكار في اليوم", 1, 1000),
     Tunable("MAX_POST_LENGTH", "int", "ideas", "أقصى طول للفكرة (حرف)", 50, 10000),

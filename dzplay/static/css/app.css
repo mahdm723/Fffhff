@@ -110,7 +110,7 @@ a { color: var(--lilac); }
   background: var(--bg-elev); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   border-top: 1px solid var(--line);
 }
-.nav__inner { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.nav__inner { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .nav__btn {
   position: relative; border: 0; background: none; color: var(--ink-3);
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 14px;
@@ -849,3 +849,22 @@ body::before {
 .menu__group { border-bottom: 1px solid var(--line); }
 .muted svg { width: 16px; height: 16px; vertical-align: -3px; flex: none; }
 .auth-policies { margin: -4px 0 12px; font-size: 13px; text-align: center; } .auth-policies a { color: var(--lilac); }
+
+/* ---------- V6 phase 3: profile pictures, «المستخدمون» ---------- */
+.avatar--photo { background: var(--surface-2); overflow: hidden; }
+.avatar--photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.avatar--photo .avatar__online { z-index: 1; }
+.avatar-edit { position: relative; border: 0; padding: 0; background: none; border-radius: 50%; color: inherit; }
+.avatar-edit__badge { position: absolute; inset-inline-end: -2px; bottom: -2px; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--surface-3); border: 2px solid var(--bg); color: var(--ink); }
+.avatar-edit__badge svg { width: 16px; height: 16px; }
+.avatar-edit[aria-busy="true"] { opacity: .6; }
+.users { padding: 4px; border-radius: var(--radius); margin-bottom: 12px; }
+.users-list { display: flex; flex-direction: column; }
+.user-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; background: none; color: var(--ink);
+  font: inherit; text-align: start; border-radius: 14px; min-height: 64px; }
+.user-row + .user-row { border-top: 1px solid var(--line); border-radius: 0; }
+.user-row:active { background: var(--surface-2); }
+.user-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.user-row__id { color: var(--ink-3); font-size: 12px; text-align: start; }
+.user-row .chev { width: 18px; height: 18px; color: var(--ink-3); flex: none; }

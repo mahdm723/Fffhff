@@ -116,10 +116,19 @@ function canvasFor(src, maxSide) {
   return c;
 }
 
+/** Centre square of a canvas, at most `side` px (V6 profile pictures). */
+function squareFrom(src, side) {
+  const s = Math.min(src.width, src.height);
+  const out = document.createElement('canvas');
+  out.width = out.height = Math.max(1, Math.min(side, s));
+  out.getContext('2d').drawImage(src, (src.width - s) / 2, (src.height - s) / 2, s, s, 0, 0, out.width, out.height);
+  return out;
+}
+
 const toBlob = (canvas, type, q) => new Promise((resolve) => canvas.toBlob(resolve, type, q));
 
 /** Checks and compresses a picture. Returns { blob, width, height, preview } or throws PickError (Arabic). */
-export async function prepareImage(file, cfg, { onStage } = {}) {
+export async function prepareImage(file, cfg, { onStage, square = 0 } = {}) {
   if (!file) throw new PickError('لم تُختر صورة.');
   const found = sniff(await head(file));
   if (!found || found.kind !== 'image') throw new PickError('هذا الملف ليس صورة مدعومة (JPEG أو PNG أو WebP أو HEIC).');
@@ -138,8 +147,9 @@ export async function prepareImage(file, cfg, { onStage } = {}) {
   const ht = bitmap.height || bitmap.naturalHeight;
   if (Math.min(w, ht) < cfg.image_min_side) throw new PickError('الصورة صغيرة جدًا.');
   if (Math.max(w, ht) > cfg.image_max_side) throw new PickError('أبعاد الصورة كبيرة جدًا.');
-  const canvas = canvasFor(bitmap, cfg.device_max_side);
+  let canvas = canvasFor(bitmap, cfg.device_max_side);
   if (bitmap.close) bitmap.close();
+  if (square) canvas = squareFrom(canvas, square);
   if (cfg.nsfw && cfg.nsfw.device) {
     onStage && onStage('scan');
     let scores = null;

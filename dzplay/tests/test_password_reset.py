@@ -124,7 +124,7 @@ def test_full_recovery_with_generated_code(rx):
 
     done = c.post("/api/auth/reset/complete", json={"reset_token": token, "password": NEW_PASSWORD,
                                                     "password_confirm": NEW_PASSWORD, "antibot": rx.challenge(c, "reset")})
-    assert done.status_code == 200 and done.json()["display_name"] == "dzplay"
+    assert done.status_code == 200 and done.json()["display_name"].startswith("Tester ")
     assert c.get("/api/me").status_code == 200  # signed in straight away
     # every older session is gone, the old password no longer works, the new one does
     assert victim.get("/api/me").status_code == 401 and other_device.get("/api/me").status_code == 401

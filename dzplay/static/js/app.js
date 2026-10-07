@@ -16,6 +16,7 @@ import { renderProfile } from './views/profile.js';
 import { renderSupport, renderTicket } from './views/support.js';
 import { renderVerify } from './views/verify.js';
 import { renderUser } from './views/user.js';
+import { renderUsers } from './views/users.js';
 
 const root = document.getElementById('app');
 let cleanupView = null;
@@ -23,6 +24,7 @@ let shell = null;
 
 const TABS = [
   { id: 'home', label: 'الرئيسية', icon: 'feather' },
+  { id: 'users', label: 'المستخدمون', icon: 'users' },
   { id: 'messages', label: 'الرسائل', icon: 'chat' },
   { id: 'profile', label: 'حسابي', icon: 'user' },
 ];
@@ -98,7 +100,7 @@ function route() {
     shell = buildShell();
     root.replaceChildren(shell.el);
   }
-  const activeTab = r.name === 'user' ? 'home' : ['support', 'ticket', 'verify'].includes(r.name) ? 'profile' : r.name;
+  const activeTab = r.name === 'user' ? 'users' : ['support', 'ticket', 'verify'].includes(r.name) ? 'profile' : r.name;
   for (const btn of shell.nav.querySelectorAll('.nav__btn')) {
     if (btn.dataset.tab === activeTab) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
@@ -108,6 +110,7 @@ function route() {
   };
   if (r.name === 'home') cleanupView = renderHome(shell.page, ctx) || null;
   else if (r.name === 'messages') cleanupView = renderMessages(shell.page, ctx) || null;
+  else if (r.name === 'users') cleanupView = renderUsers(shell.page, ctx) || null;
   else if (r.name === 'user') cleanupView = renderUser(shell.page, { ...ctx, ref: r.ref, publicId: r.publicId }) || null;
   else if (r.name === 'support') cleanupView = renderSupport(shell.page, ctx) || null;
   else if (r.name === 'ticket') cleanupView = renderTicket(shell.page, { ...ctx, ticketId: r.id }) || null;

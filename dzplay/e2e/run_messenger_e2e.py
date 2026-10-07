@@ -87,7 +87,7 @@ def main() -> int:
 
             print("Register with gender + 18+")
             register(run, a, f"amine{suffix}@example.com", gender="رجل")
-            register(run, b, f"lina{suffix}@example.com", gender="أنثى")
+            register(run, b, f"lina{suffix}@example.com", gender="أنثى", name="Lina")
             run.step("A (رجل) and B (أنثى) registered")
 
             print("Name + DZ-ID")
@@ -115,8 +115,8 @@ def main() -> int:
             a.keyboard.press("Escape")
             run.step("Name is locked until the cooldown ends (date shown)")
 
-            print("Search (profile page)")
-            b.goto(base + "/#/profile")
+            print("Search («المستخدمون»)")
+            b.goto(base + "/#/users")
             b.locator(".people-search input").fill("احمد")  # no hamza: Arabic normalization
             b.locator(".people-search input").press("Enter")
             res = b.locator(".person")
@@ -146,10 +146,10 @@ def main() -> int:
             expect(req_tab.locator(".badge")).to_have_text("1", timeout=10000)
             req_tab.click()
             item = a.locator(".conv-item").first
-            expect(item.locator(".conv-item__name")).to_contain_text("dzplay")
+            expect(item.locator(".conv-item__name")).to_contain_text("Lina")
             item.click()
             expect(a.locator(".request-bar")).to_be_visible()
-            expect(a.locator(".chat__name")).to_contain_text("dzplay")
+            expect(a.locator(".chat__name")).to_contain_text("Lina")
             run.shot(a, "v4-05-request-received")
             a.locator(".request-bar").get_by_role("button", name="قبول").click()
             expect(a.locator(".chat__composer textarea")).to_be_visible(timeout=10000)

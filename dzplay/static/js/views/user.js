@@ -47,7 +47,7 @@ export function renderUser(page, { ref, publicId, navigate }) {
       msgBtn.title = 'لا يستقبل رسائل مباشرة';
     }
     card.replaceChildren(...[
-      personAvatar(p.name, { size: 'xl' }),
+      personAvatar(p.name, { size: 'xl', url: p.avatar_url }),
       h('div', { class: 'id-card__name' }, nameLine(p.name, p.gender, '', p.verified)),
       idChip(p.public_id),
       msgBtn ? h('div', { class: 'id-card__actions' }, msgBtn) : null,

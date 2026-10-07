@@ -131,6 +131,7 @@ def main() -> int:
     run = Run(base, Path(args.shots))
     tmp = Path(tempfile.mkdtemp(prefix="dz-media-e2e-"))
     pic1, pic2 = photo(tmp / "idea.jpg"), photo(tmp / "chat.jpg", (30, 160, 90))
+    pic3 = photo(tmp / "avatar.jpg", (200, 120, 40))
     chromium = os.environ.get("PW_CHROMIUM", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
     suffix = str(int(time.time()))
     try:
@@ -182,9 +183,30 @@ def main() -> int:
                                 timeout=15000)
             run.step("another user sees the picture (own signed URL)")
 
+            print("Profile picture (V6 phase 3)")
+            a.goto(base + "/#/profile")
+            a.get_by_role("button", name="تغيير الصورة الشخصية").click()
+            with a.expect_file_chooser() as fc:
+                a.locator(".sheet").get_by_role("button", name="اختيار صورة").click()
+            fc.value.set_files(str(pic3))
+            expect(a.get_by_text("تم تحديث صورتك")).to_be_visible(timeout=60000)
+            a.wait_for_function("() => { const i = document.querySelector('.id-card .avatar--photo img'); return i && i.naturalWidth > 0; }",
+                                timeout=15000)
+            dims = a.evaluate("() => { const i = document.querySelector('.id-card .avatar--photo img'); return [i.naturalWidth, i.naturalHeight]; }")
+            assert dims[0] == dims[1] and dims[0] <= 512, dims  # square crop on the phone
+            assert any("صورة شخصية" in (c.get("caption") or "") for c in tg.copies), tg.copies
+            run.shot(a, "m02b-avatar")
+            b.goto(base + "/#/users")
+            row = b.locator(".user-row", has_text=a.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)"))
+            expect(row.locator(".avatar--photo img")).to_be_visible(timeout=15000)
+            b.wait_for_function("() => [...document.querySelectorAll('.user-row .avatar--photo img')].some((i) => i.naturalWidth > 0)",
+                                timeout=15000)
+            run.shot(b, "m02c-users-with-avatar")
+            run.step("profile picture: square 512 px on the phone → scanned → moderators notified → shown to others")
+
             print("Ephemeral chat picture")
             b_id = b.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)")
-            a.goto(base + "/#/profile")
+            a.goto(base + "/#/users")
             a.locator(".people-search input").fill(b_id)
             a.locator(".people-search input").press("Enter")
             a.locator(".person").get_by_role("button", name="مراسلة").click()
