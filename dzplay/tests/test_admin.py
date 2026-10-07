@@ -162,7 +162,7 @@ def test_activity_counts_only(hx):
     a, b = hx.user(), hx.user()
     assert post(a, "فكرة سرية لا يجب أن تظهر في اللوحة").status_code == 201
     from tests.conftest import send
-    send(b, "رسالة خاصة جدًا")
+    send(b, a, "رسالة خاصة جدًا")
     hx.login(hx.client(), a.email, "wrong-password-1")
 
     c = hx.admin()

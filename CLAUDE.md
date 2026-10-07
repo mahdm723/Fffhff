@@ -46,7 +46,7 @@
 - `migrations.py`: ترحيلات إضافية فقط (`add_missing_columns` + `backfill`). كل عمود جديد nullable، ولا حذف بيانات بدون نسخة احتياطية.
 - `admin_cli.py`: أوامر الإدارة (`create-admin`، `admin-link`، `alert`، `set-webhook`، `stars-count`، `legacy-status`، `export-legacy`، `drop-legacy`، …).
 - `services/legacy_v6.py`: تصدير بيانات الميزات المحذوفة في V6 ثم حذفها (SQL خام، بلا models)؛ يشغّله `deploy/v6-cleanup.sh`.
-- **الرسائل:** المباشرة وطلبات المراسلة فقط. الرسائل المجهولة العشوائية (`services/matching.py`، كشف الهوية) تُحذف في المرحلة 1ب، والمحادثات المجهولة القديمة تصبح للقراءة فقط ثم تُصدَّر مشفّرة وتُحذف بعد `LEGACY_ANON_RETENTION_DAYS`.
+- **الرسائل:** المباشرة وطلبات المراسلة فقط. الرسائل المجهولة العشوائية (matching، كشف الهوية) حُذفت في المرحلة 1ب. المحادثات المجهولة القديمة (`kind IS NULL`) للقراءة فقط (`messaging.require_open`)، ثم تُصدَّر مشفّرة وتُحذف بعد `LEGACY_ANON_RETENTION_DAYS`.
 
 **الواجهة:**
 - CSP صارم `'self'`: لا inline scripts ولا `style=""`. العرض يُضبط بـ`el.style.width` من JS.
@@ -64,7 +64,7 @@ cp .env.example .env          # ثم SECRET_KEY: .venv/bin/python -m app.admin_c
 ### الاختبارات
 ```bash
 cd dzplay
-.venv/bin/python -m pytest -q                                   # SQLite (301 اختبار)
+.venv/bin/python -m pytest -q                                   # SQLite (أكثر من 290 اختبارًا)
 DZ_TEST_DATABASE_URL=postgresql+psycopg://USER:PW@HOST:PORT/DB \
 DZ_TEST_REDIS_URL=redis://HOST:PORT/0 .venv/bin/python -m pytest -q   # PostgreSQL + Redis
 .venv/bin/pip-audit -r requirements.txt                         # التبعيات
@@ -92,7 +92,9 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
   - `deploy/harden.sh`: ufw وfail2ban والتحديثات التلقائية.
   - `deploy/ssh-harden.sh`: SSH بالمفاتيح فقط، ويرفض التطبيق قبل إثبات دخول بالمفتاح. **لا يُطبَّق قبل موافقة المالك.**
   - `deploy/monitor.sh`: تنبيهات Telegram كل 5 دقائق.
-  - `deploy/v6-cleanup.sh`: نسخة كاملة ← تصدير مشفّر للبيانات القديمة ← تحقق ← حذف (مرة واحدة، آمن للتكرار).
+  - `deploy/v6-cleanup.sh [anon]`: نسخة كاملة ← تصدير مشفّر للبيانات القديمة ← تحقق ← حذف (مرة واحدة، آمن للتكرار).
+    - `anon`: المحادثات المجهولة القديمة بعد `LEGACY_ANON_RETENTION_DAYS`.
+    - cron يومي `/etc/cron.d/dzplay-v6-anon` يثبّته `install.sh`.
 - **التطبيق:**
   - الكود في `/opt/dzplay/dzplay`.
   - السجلات: `docker compose logs -f app`.

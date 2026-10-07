@@ -30,7 +30,7 @@ function reveal(el) {
     if (document.activeElement !== el) return;
     update();
     // the whole composer (field + its send button), not only the field
-    const block = el.closest('[data-kb-block], .idea-composer, .msg-dock, .chat__composer-wrap, form') || el;
+    const block = el.closest('[data-kb-block], .idea-composer, .chat__composer-wrap, form') || el;
     try { block.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch { block.scrollIntoView(); }
   }, 280);
 }

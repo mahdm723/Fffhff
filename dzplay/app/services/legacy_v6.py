@@ -10,6 +10,10 @@ table name, and only when the table exists. Nothing runs automatically at startu
    saved, then deletes / drops in one transaction and records `schema.v6_legacy_dropped`.
 
 Kept on purpose: users (blue stars included), ideas, comments, chats, tickets, star requests, pictures.
+
+V6 phase 1b adds a second stage, "anon": the old random anonymous conversations (kind NULL) are read-only
+from the first start of 1b (`schema.v6_anon_closed_at`) and may be exported + deleted, the same way, once
+LEGACY_ANON_RETENTION_DAYS have passed (`export_anon` / `drop_anon`, flag `schema.v6_anon_dropped`).
 """
 
 from __future__ import annotations
@@ -17,12 +21,16 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+
 from sqlalchemy import Engine, inspect, text
+from sqlalchemy.orm import Session
 
 FLAG = "schema.v6_legacy_dropped"
+ANON_FLAG = "schema.v6_anon_dropped"
+ANON_CLOSED = "schema.v6_anon_closed_at"  # written once by migrations.backfill on the first start of 1b
 
 # whole tables, children first (the order used to drop them)
 DROP_TABLES = ("reel_views", "reel_reactions", "reel_comments", "reel_assets", "reels", "calls",
@@ -99,11 +107,11 @@ def export(engine: Engine) -> tuple[bytes, str, dict[str, int]]:
     return body, hashlib.sha256(body).hexdigest(), {k: len(v) for k, v in data.items()}
 
 
-def already_dropped(engine: Engine) -> bool:
+def already_dropped(engine: Engine, flag: str = FLAG) -> bool:
     if "app_settings" not in set(inspect(engine).get_table_names()):
         return False
     with engine.connect() as conn:
-        return conn.execute(text("SELECT 1 FROM app_settings WHERE key = :k"), {"k": FLAG}).first() is not None
+        return conn.execute(text("SELECT 1 FROM app_settings WHERE key = :k"), {"k": flag}).first() is not None
 
 
 def drop(engine: Engine, expected_sha: str, cache_dir: str | None = None) -> dict[str, int]:
@@ -149,3 +157,81 @@ def stars_count(engine: Engine) -> int:
         return int(conn.execute(text(
             "SELECT COUNT(*) FROM users WHERE verified_at IS NOT NULL "
             "AND (is_official IS NULL OR is_official = :f) AND (is_system IS NULL OR is_system = :f)"), {"f": False}).scalar() or 0)
+
+
+# ----------------------------------------------------------------- V6 phase 1b: old anonymous conversations
+
+_ANON_CONV = "SELECT id FROM conversations WHERE kind IS NULL"
+_ANON_MSG = f"SELECT id FROM messages WHERE conversation_id IN ({_ANON_CONV})"
+# rows to save then delete, in deletion order (everything that points at an anonymous chat goes first)
+ANON_ROWS = {
+    "content_flags": f"conversation_id IN ({_ANON_CONV}) OR message_id IN ({_ANON_MSG})",
+    "reports": f"conversation_id IN ({_ANON_CONV}) OR message_id IN ({_ANON_MSG})",
+    "media_items": f"conversation_id IN ({_ANON_CONV})",
+    "messages": f"conversation_id IN ({_ANON_CONV})",
+    "conversations": "kind IS NULL",
+}
+
+
+def anon_closed_at(db: Session) -> datetime | None:
+    row = db.execute(text("SELECT value FROM app_settings WHERE key = :k"), {"k": ANON_CLOSED}).first()
+    try:
+        return datetime.fromisoformat(row[0]) if row and row[0] else None
+    except ValueError:
+        return None
+
+
+def anon_due_at(db: Session, settings) -> datetime | None:
+    """When the old anonymous chats may be deleted (None before the first start of phase 1b)."""
+    closed = anon_closed_at(db)
+    return closed + timedelta(days=max(0, int(settings.LEGACY_ANON_RETENTION_DAYS))) if closed else None
+
+
+def collect_anon(engine: Engine) -> dict:
+    tables = set(inspect(engine).get_table_names())
+    if "conversations" not in tables:
+        return {}
+    with engine.connect() as conn:
+        return {t: _rows(conn, t, where) for t, where in ANON_ROWS.items() if t in tables}
+
+
+def export_anon(engine: Engine) -> tuple[bytes, str, dict[str, int]]:
+    data = collect_anon(engine)
+    body = json.dumps({"format": "dzplay-v6-anon-export/1", "tables": data}, sort_keys=True, ensure_ascii=False,
+                      separators=(",", ":")).encode()
+    return body, hashlib.sha256(body).hexdigest(), {k: len(v) for k, v in data.items()}
+
+
+def drop_anon(engine: Engine, expected_sha: str, settings, cache_dir: str | None = None) -> dict[str, int]:
+    """Delete exactly what `export_anon` returned (same SHA-256), in one transaction, once the retention passed."""
+    from app import clock
+
+    with Session(engine) as db:
+        due = anon_due_at(db, settings)
+    if due is None or clock.utcnow() < due:
+        raise ValueError(f"too early: old anonymous chats can be deleted after {due.isoformat(timespec='minutes') if due else 'the first start of V6 phase 1b'} (UTC)")
+    _body, sha, counts = export_anon(engine)
+    if sha != (expected_sha or "").strip().lower():
+        raise ValueError("the database changed since the export (SHA-256 differs): export again, then drop")
+    tables = set(inspect(engine).get_table_names())
+    with engine.begin() as conn:
+        media = [r[0] for r in conn.execute(text(f"SELECT id FROM media_items WHERE {ANON_ROWS['media_items']}"))] \
+            if "media_items" in tables else []
+        if media and "media_cache" in tables:
+            for asset_id in media:
+                conn.execute(text("DELETE FROM media_cache WHERE asset_id = :a"), {"a": asset_id})
+        for t, where in ANON_ROWS.items():
+            if t in tables:
+                conn.execute(text(f'DELETE FROM "{t}" WHERE {where}'))
+        conn.execute(text("INSERT INTO app_settings (key, value, updated_at, updated_by) VALUES (:k, :v, :t, 'cli')"),
+                     {"k": ANON_FLAG, "v": sha, "t": clock.utcnow()})
+    if cache_dir and media:
+        import re
+        from pathlib import Path
+
+        base = Path(cache_dir)
+        for asset_id in media:
+            if isinstance(asset_id, str) and re.fullmatch(r"[a-f0-9]{32}", asset_id) and base.is_dir():
+                for f in base.glob(f"{asset_id}.*"):
+                    f.unlink(missing_ok=True)
+    return counts

@@ -1,6 +1,6 @@
 """Central configuration.
 
-Every tunable value (limits, TTLs, matching rules, security knobs) lives here and
+Every tunable value (limits, TTLs, security knobs) lives here and
 is read from environment variables or a `.env` file — nothing is hard-coded in
 the business logic. See `.env.example` for documentation of each value.
 """
@@ -16,9 +16,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 HOUR = 3600
 DAY = 24 * HOUR
 
-# Rules the matcher always applies, whatever MATCHING_RULES says.
-MANDATORY_MATCHING_RULES = ("not_self", "active_status", "not_blocked")
-OPTIONAL_MATCHING_RULES = ("no_open_conversation", "not_recent_partner", "inbound_capacity")
 
 
 # First path segments the app itself uses; ADMIN_PATH may not shadow them.
@@ -84,10 +81,8 @@ class Settings(BaseSettings):
     LINK_POLICY: str = "reject"  # "reject" | "allow_plain" (never clickable)
     MAX_MESSAGES_PER_MINUTE: int = 10
     MAX_MESSAGES_PER_HOUR: int = 120
-    MAX_NEW_CONVERSATIONS_PER_HOUR: int = 5
-    MAX_NEW_CONVERSATIONS_PER_DAY: int = 20
     MAX_CONSECUTIVE_MESSAGES: int = 8  # in a conversation, before the other side replies
-    DUPLICATE_MESSAGE_WINDOW: int = 10 * 60  # identical anonymous messages are rejected
+    DUPLICATE_MESSAGE_WINDOW: int = 10 * 60  # identical ideas posted again within this window are rejected
     MAX_REPORTS_PER_HOUR: int = 10
     REPORT_AUTO_SUSPEND_THRESHOLD: int = 5  # distinct reporters in 24h; 0 disables
 
@@ -109,17 +104,12 @@ class Settings(BaseSettings):
     FEED_SEEN_PENALTY: float = 0.5  # posts you already reacted to
     FEED_OWN_POST_PENALTY: float = 0.5
 
-    # --- matching -----------------------------------------------------------
-    MATCHING_RULES: str = ",".join(OPTIONAL_MATCHING_RULES)
-    MATCH_EXCLUDE_RECENT_PARTNERS: int = 5
-    MATCH_MAX_INBOUND_NEW_PER_DAY: int = 10
-    MATCH_CANDIDATE_POOL: int = 50
-    MATCH_RECENT_ACTIVITY_BOOST: float = 2.0  # weight boost for users active in the last day
-
     # --- temporary storage (TTL) -------------------------------------------
     MESSAGE_TTL: int = 7 * DAY  # max time a message stays on the server
     MESSAGE_TTL_AFTER_READ: int = 1 * DAY  # shortened once the recipient reads it
     CONVERSATION_IDLE_TTL: int = 14 * DAY  # conversation removed after this much inactivity
+    # V6 phase 1b: old anonymous chats stay read-only this long, then deploy/v6-cleanup.sh anon exports + deletes them
+    LEGACY_ANON_RETENTION_DAYS: int = 7
     CLEANUP_INTERVAL: int = 300
     SECURITY_EVENT_RETENTION: int = 30 * DAY
     REPORT_RETENTION: int = 90 * DAY
@@ -319,14 +309,6 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> set[str]:
         return {o.strip().rstrip("/") for o in self.ALLOWED_ORIGINS.split(",") if o.strip()}
-
-    @property
-    def matching_rules(self) -> tuple[str, ...]:
-        chosen = [r.strip() for r in self.MATCHING_RULES.split(",") if r.strip()]
-        unknown = set(chosen) - set(OPTIONAL_MATCHING_RULES)
-        if unknown:
-            raise ValueError(f"Unknown MATCHING_RULES: {', '.join(sorted(unknown))}")
-        return MANDATORY_MATCHING_RULES + tuple(chosen)
 
     @property
     def google_enabled(self) -> bool:

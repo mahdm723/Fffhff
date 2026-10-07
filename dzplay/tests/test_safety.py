@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app import clock
 from app.models import Block, Conversation, Message, Report, User
-from tests.conftest import ADMIN_PATH, reply, send
+from tests.conftest import ADMIN_PATH, chat, reply, send
 
 # ----------------------------------------------------------------- limits
 
@@ -16,7 +16,7 @@ from tests.conftest import ADMIN_PATH, reply, send
 def test_messages_per_minute_limit(make_harness):
     hx = make_harness(MAX_MESSAGES_PER_MINUTE=3, MAX_CONSECUTIVE_MESSAGES=50)
     a, b = hx.user(), hx.user()
-    cid = send(a, "1").json()["conversation"]["id"]
+    cid = chat(a, b, "1")
     assert reply(a, cid, "2").status_code == 201
     assert reply(a, cid, "3").status_code == 201
     r = reply(a, cid, "4")
@@ -28,8 +28,8 @@ def test_messages_per_minute_limit(make_harness):
 
 def test_messages_per_hour_limit(make_harness):
     hx = make_harness(MAX_MESSAGES_PER_HOUR=2, MAX_CONSECUTIVE_MESSAGES=50)
-    a, _b = hx.user(), hx.user()
-    cid = send(a, "1").json()["conversation"]["id"]
+    a, b = hx.user(), hx.user()
+    cid = chat(a, b, "1")
     assert reply(a, cid, "2").status_code == 201
     clock.advance(120)
     assert reply(a, cid, "3").status_code == 429
@@ -37,43 +37,21 @@ def test_messages_per_hour_limit(make_harness):
     assert reply(a, cid, "3").status_code == 201
 
 
-def test_new_conversations_per_hour_limit(make_harness):
-    hx = make_harness(MAX_NEW_CONVERSATIONS_PER_HOUR=2)
+def test_new_direct_conversations_per_day_limit(make_harness):
+    hx = make_harness(DIRECT_NEW_PER_DAY=2)
     a = hx.user()
-    for _ in range(4):
-        hx.user()
-    assert send(a, "أ").status_code == 201
-    assert send(a, "ب").status_code == 201
-    r = send(a, "ج")
-    assert r.status_code == 429
-    clock.advance(3601)
-    assert send(a, "ج").status_code == 201
-
-
-def test_new_conversations_per_day_limit(make_harness):
-    hx = make_harness(MAX_NEW_CONVERSATIONS_PER_HOUR=10, MAX_NEW_CONVERSATIONS_PER_DAY=2)
-    a = hx.user()
-    for _ in range(4):
-        hx.user()
-    send(a, "أ")
-    send(a, "ب")
-    assert send(a, "ج").status_code == 429
-
-
-def test_duplicate_anonymous_message_rejected(make_harness):
-    hx = make_harness(MATCHING_RULES="inbound_capacity")
-    a = hx.user()
-    hx.user()
-    hx.user()
-    assert send(a, "انضموا إلى قناتي").status_code == 201
-    r = send(a, "  انضموا   إلى قناتي ")
-    assert r.status_code == 429 and "مؤخرًا" in r.json()["error"]["message"]
+    others = [hx.user() for _ in range(3)]
+    assert send(a, others[0], "أ").status_code == 201
+    assert send(a, others[1], "ب").status_code == 201
+    assert send(a, others[2], "ج").status_code == 429
+    clock.advance(86401)
+    assert send(a, others[2], "ج").status_code == 201
 
 
 def test_consecutive_messages_limit(make_harness):
     hx = make_harness(MAX_CONSECUTIVE_MESSAGES=3)
     a, b = hx.user(), hx.user()
-    cid = send(a, "1").json()["conversation"]["id"]
+    cid = chat(a, b, "1")
     reply(a, cid, "2")
     reply(a, cid, "3")
     r = reply(a, cid, "4")
@@ -84,8 +62,8 @@ def test_consecutive_messages_limit(make_harness):
 
 def test_rejected_request_does_not_consume_quota(make_harness):
     hx = make_harness(MAX_MESSAGES_PER_MINUTE=2, MAX_CONSECUTIVE_MESSAGES=50)
-    a, _b = hx.user(), hx.user()
-    cid = send(a, "1").json()["conversation"]["id"]
+    a, b = hx.user(), hx.user()
+    cid = chat(a, b, "1")
     for _ in range(3):
         assert reply(a, cid, "<b>x</b>").status_code == 400  # invalid, never counted
     assert reply(a, cid, "2").status_code == 201
@@ -94,9 +72,9 @@ def test_rejected_request_does_not_consume_quota(make_harness):
 # ----------------------------------------------------------------- blocking
 
 
-def test_block_stops_messages_and_matching(hx):
+def test_block_stops_messages_and_new_chats(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a, "مرحبا").json()["conversation"]["id"]
+    cid = send(a, b, "مرحبا").json()["conversation"]["id"]
     assert b.post(f"/api/conversations/{cid}/block").status_code == 200
 
     # The blocker no longer sees it; the blocked side sees a closed conversation.
@@ -107,16 +85,16 @@ def test_block_stops_messages_and_matching(hx):
     assert r.status_code == 403 and r.json()["error"]["code"] == "conversation_closed"
     assert reply(b, cid, "x").status_code == 404
 
-    # They are never matched together again, in either direction.
+    # Neither can start a new chat with the other (indistinguishable from an unknown ID).
     clock.advance(10)
-    assert send(a, "رسالة جديدة").json()["error"]["code"] == "no_recipient"
-    assert send(b, "رسالة أخرى").json()["error"]["code"] == "no_recipient"
+    assert send(a, b, "رسالة جديدة").status_code == 404
+    assert send(b, a, "رسالة أخرى").status_code == 404
 
 
 def test_block_list_and_unblock(make_harness):
-    hx = make_harness(MATCHING_RULES="")  # only the mandatory rules: isolate the block rule
+    hx = make_harness()
     a, b = hx.user(), hx.user()
-    cid = send(a).json()["conversation"]["id"]
+    cid = send(a, b).json()["conversation"]["id"]
     b.post(f"/api/conversations/{cid}/block")
     blocks = b.get("/api/blocks").json()["blocks"]
     assert len(blocks) == 1 and blocks[0]["peer"] == "dzplay"
@@ -124,12 +102,12 @@ def test_block_list_and_unblock(make_harness):
     assert a.delete(f"/api/blocks/{blocks[0]['id']}").status_code == 404  # not A's block
     assert b.delete(f"/api/blocks/{blocks[0]['id']}").status_code == 200
     assert b.get("/api/blocks").json()["blocks"] == []
-    assert send(b, "عدنا").status_code == 201  # matchable again
+    assert b.get(f"/api/people/{a.get('/api/me').json()['public_id']}").status_code == 200  # findable again
 
 
 def test_block_survives_conversation_expiry(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a).json()["conversation"]["id"]
+    cid = send(a, b).json()["conversation"]["id"]
     b.post(f"/api/conversations/{cid}/block")
     clock.advance(hx.settings.CONVERSATION_IDLE_TTL + 10)
     with hx.db() as db:
@@ -138,7 +116,7 @@ def test_block_survives_conversation_expiry(hx):
     with hx.db() as db:
         assert db.get(Conversation, cid) is None
         assert db.scalar(select(Block)) is not None
-    assert send(a, "مرة أخرى").json()["error"]["code"] == "no_recipient"
+    assert send(a, b, "مرة أخرى").status_code == 404
 
 
 # ----------------------------------------------------------------- reporting
@@ -146,7 +124,7 @@ def test_block_survives_conversation_expiry(hx):
 
 def test_report_message_keeps_minimal_evidence(hx):
     a, b = hx.user(), hx.user()
-    r = send(a, "رسالة مسيئة")
+    r = send(a, b, "رسالة مسيئة")
     cid, mid = r.json()["conversation"]["id"], r.json()["message"]["id"]
     assert a.post(f"/api/messages/{mid}/report", json={"reason": "spam"}).status_code == 400  # own message
     r = b.post(f"/api/messages/{mid}/report", json={"reason": "harassment", "details": "يزعجني"})
@@ -168,7 +146,7 @@ def test_report_message_keeps_minimal_evidence(hx):
 
 def test_report_conversation(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a, "أولى").json()["conversation"]["id"]
+    cid = chat(a, b, "أولى")
     reply(a, cid, "ثانية")
     reply(b, cid, "ردي")
     assert b.post(f"/api/conversations/{cid}/report", json={"reason": "threat"}).status_code == 201
@@ -178,26 +156,15 @@ def test_report_conversation(hx):
 
 
 def test_auto_suspend_after_many_distinct_reporters(make_harness):
-    hx = make_harness(REPORT_AUTO_SUSPEND_THRESHOLD=2, MATCHING_RULES="", MAX_NEW_CONVERSATIONS_PER_HOUR=50)
+    hx = make_harness(REPORT_AUTO_SUSPEND_THRESHOLD=2)
     spammer = hx.user("spam@example.com")
     victims = [hx.user(), hx.user(), hx.user()]
-    reported = 0
-    for i in range(12):
-        r = send(spammer, f"إعلان {i}")
-        if r.status_code != 201:
-            continue
-        cid = r.json()["conversation"]["id"]
-        for v in victims:
-            if any(c["id"] == cid for c in v.get("/api/conversations").json()["conversations"]):
-                if v.post(f"/api/conversations/{cid}/report", json={"reason": "spam"}).status_code == 201:
-                    reported += 1
-                break
-        with hx.db() as db:
-            if db.scalar(select(User.status).where(User.email == "spam@example.com")) == "suspended":
-                break
+    for v in victims[:2]:
+        cid = send(spammer, v, "إعلان مزعج").json()["conversation"]["id"]
+        assert v.post(f"/api/conversations/{cid}/report", json={"reason": "spam"}).status_code == 201
     with hx.db() as db:
         assert db.scalar(select(User.status).where(User.email == "spam@example.com")) == "suspended"
-    assert send(spammer, "المزيد").json()["error"]["code"] == "account_suspended"
+    assert send(spammer, victims[2], "المزيد").json()["error"]["code"] == "account_suspended"
 
 
 # ----------------------------------------------------------------- TTL
@@ -205,7 +172,7 @@ def test_auto_suspend_after_many_distinct_reporters(make_harness):
 
 def test_read_messages_expire_sooner_and_cleanup_purges(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a, "سر").json()["conversation"]["id"]
+    cid = send(a, b, "سر").json()["conversation"]["id"]
     b.post(f"/api/conversations/{cid}/read")
     with hx.db() as db:
         msg = db.scalar(select(Message))
@@ -226,7 +193,7 @@ def test_read_messages_expire_sooner_and_cleanup_purges(hx):
 
 def test_unread_message_kept_until_max_ttl(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a, "لم تُقرأ بعد").json()["conversation"]["id"]
+    cid = send(a, b, "لم تُقرأ بعد").json()["conversation"]["id"]
     clock.advance(hx.settings.MESSAGE_TTL - 60)
     assert len(b.get(f"/api/conversations/{cid}").json()["messages"]) == 1
     clock.advance(120)
@@ -239,7 +206,7 @@ def test_unread_message_kept_until_max_ttl(hx):
 
 def test_idle_conversation_expires(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a).json()["conversation"]["id"]
+    cid = send(a, b).json()["conversation"]["id"]
     clock.advance(hx.settings.CONVERSATION_IDLE_TTL + 1)
     assert b.get("/api/conversations").json()["conversations"] == []
     assert b.get(f"/api/conversations/{cid}").status_code == 404
@@ -247,8 +214,8 @@ def test_idle_conversation_expires(hx):
     with hx.db() as db:
         counts = run_cleanup(db, hx.settings)
     assert counts["conversations"] == 1
-    # A and B can be matched again later.
-    assert send(a, "من جديد").status_code == 201
+    # A can write to B again later (a new request).
+    assert send(a, b, "من جديد").status_code == 201
 
 
 def test_cleanup_purges_auth_data(make_harness):
@@ -269,7 +236,7 @@ def test_websocket_signals_new_message(hx):
     a, b = hx.user(), hx.user()
     with b.websocket_connect("/api/ws", headers={"Origin": "http://testserver"}) as ws:
         assert ws.receive_json() == {"type": "hello"}
-        send(a, "هل يصلك هذا؟")
+        send(a, b, "هل يصلك هذا؟")
         event = ws.receive_json()
         assert event == {"type": "sync", "reason": "message"}  # a signal only, no content
         sync = b.get("/api/sync").json()
@@ -295,7 +262,7 @@ def test_websocket_requires_session_and_same_origin(hx):
 def test_admin_api_requires_admin_session_and_hides_content(make_harness):
     hx = make_harness()
     a, b = hx.user(), hx.user()
-    r = send(a, "محتوى خاص جدًا")
+    r = send(a, b, "محتوى خاص جدًا")
     cid = r.json()["conversation"]["id"]
     anon = hx.client()
     assert anon.get(f"{ADMIN_PATH}/api/admin/stats").status_code == 401
@@ -367,7 +334,7 @@ def test_cors_is_closed(hx):
 
 def test_oversized_body_rejected(hx):
     c = hx.user()
-    r = c.post("/api/messages", content=b'{"content": "' + b"a" * 70000 + b'"}', headers={"Content-Type": "application/json"})
+    r = c.post("/api/posts", content=b'{"content": "' + b"a" * 70000 + b'"}', headers={"Content-Type": "application/json"})
     assert r.status_code == 413
 
 

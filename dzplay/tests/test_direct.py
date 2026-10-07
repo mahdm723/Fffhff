@@ -1,12 +1,12 @@
-"""V4: people search, direct messages + message requests, privacy switches, anonymous chats
-staying anonymous and the one-way "reveal my identity"."""
+"""V4: people search, direct messages + message requests, privacy switches. (V6 phase 1b removed the random
+anonymous chats and "reveal my identity": see tests/test_v6_anon.py.)"""
 
 from __future__ import annotations
 
 from sqlalchemy import func, select
 
 from app.models import Conversation
-from tests.conftest import reply, send
+from tests.conftest import reply
 
 
 def pid(c) -> str:
@@ -154,37 +154,7 @@ def test_direct_respects_privacy_and_age(hx):
     assert dm(c, pid(a)).json()["error"]["code"] == "age_required"
 
 
-# ----------------------------------------------------------------- anonymous chats + reveal + privacy
-
-
-def test_anonymous_chat_shows_dzplay_until_one_side_reveals(hx):
-    a = named(hx, "Amine")
-    b = named(hx, "Lina")
-    conv = send(a, "مرحبًا من شخص مجهول").json()["conversation"]
-    assert conv["kind"] == "anonymous" and conv["peer"] == "dzplay" and conv["peer_card"]["public_id"] is None
-    theirs = b.get("/api/conversations").json()["conversations"][0]
-    assert theirs["peer"] == "dzplay"
-    # A reveals: B now sees A's name + ID; A still sees "dzplay" for B
-    assert a.post(f"/api/conversations/{conv['id']}/reveal").json() == {"me_revealed": True}
-    theirs = b.get("/api/conversations").json()["conversations"][0]
-    assert theirs["peer"] == "Amine" and theirs["peer_card"]["public_id"] == pid(a)
-    mine = a.get("/api/conversations").json()["conversations"][0]
-    assert mine["peer"] == "dzplay" and mine["me_revealed"] is True
-    msgs = b.get(f"/api/conversations/{conv['id']}").json()["messages"]
-    sysmsg = [m for m in msgs if m["kind"] == "system"]
-    assert len(sysmsg) == 1 and sysmsg[0]["meta"]["event"] == "reveal" and sysmsg[0]["meta"]["name"] == "Amine"
-    # revealing twice adds nothing; direct chats cannot "reveal"
-    a.post(f"/api/conversations/{conv['id']}/reveal")
-    assert len([m for m in b.get(f"/api/conversations/{conv['id']}").json()["messages"] if m["kind"] == "system"]) == 1
-
-
-def test_turning_off_anonymous_removes_from_matching_but_can_still_send(hx):
-    sender = hx.user()
-    target = hx.user()
-    target.patch("/api/me/privacy", json={"accept_anonymous": False})
-    r = send(sender, "هل يوجد أحد؟")
-    assert r.status_code == 409  # the only other person opted out
-    assert send(target, "أنا أرسل رغم أني لا أستقبل").status_code == 201
+# ----------------------------------------------------------------- mute
 
 
 def test_mute_stops_push(hx):

@@ -249,31 +249,10 @@ a { color: var(--lilac); }
 .comment__time { font-size: 12px; color: var(--ink-3); }
 .comment__body { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.7; color: var(--ink); }
 
-/* messages: fixed anonymous composer */
-.page--with-dock { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 150px); }
-.msg-dock {
-  position: fixed; inset-inline: 0; margin: 0 auto; width: min(560px, 100%); z-index: 19;
-  bottom: calc(var(--nav-h) + var(--safe-b)); padding: 10px 12px 12px; border-radius: 22px 22px 0 0;
-  border-bottom: 0 !important;
-}
-.msg-dock__head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px; }
-.msg-dock__title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
-.msg-dock__title svg { width: 18px; height: 18px; color: var(--accent); }
-.msg-dock__row { display: flex; align-items: flex-end; gap: 8px; }
-.msg-dock textarea {
-  flex: 1; resize: none; border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--surface) 85%, transparent);
-  border-radius: 22px; padding: 10px 16px; max-height: 120px; min-height: 44px; line-height: 1.5; outline: none; font-size: 16px;
-}
-.msg-dock textarea:focus { border-color: var(--lilac); }
-body.is-typing .nav { display: none; }
-body.is-typing .msg-dock { bottom: var(--kb); padding-bottom: calc(12px + var(--safe-b)); }
 /* keyboard open: no bottom navigation, sheets and bars sit above the keyboard */
 body.kb-open .nav { display: none; }
 body.kb-open .sheet-backdrop { padding-bottom: var(--kb); }
 body.kb-open .sheet { max-height: calc(100dvh - var(--kb) - 12px); overflow-y: auto; }
-body:has(.page--with-dock) .toasts { bottom: calc(var(--nav-h) + var(--safe-b) + 130px); }
-.conv-item.is-new { animation: flash 1.6s ease; }
-@keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 16%, transparent); } }
 
 .msg-stats { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--ink-3); font-size: 12px; margin: -10px 0 18px; text-align: center; }
 .msg-stats svg { width: 14px; height: 14px; flex: none; }

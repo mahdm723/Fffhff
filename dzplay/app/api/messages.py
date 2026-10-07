@@ -18,26 +18,13 @@ from app.services.push import push_endpoint_allowed
 router = APIRouter(prefix="/api", tags=["messaging"])
 
 
-@router.post("/messages", status_code=201)
-def send_anonymous(body: SendBody, request: Request) -> dict:
-    """Send a message to a random anonymous person (starts a conversation)."""
-    st = get_state(request)
-    effects = Effects()
-    with st.database.session() as db:
-        user = current_user(request, db)
-        result = messaging.send_anonymous(db, st.settings, st.limiter, user, content=body.content,
-                                          client_id=body.client_id, effects=effects)
-    st.dispatch(effects)
-    return result
-
-
 @router.get("/conversations")
 def list_conversations(request: Request) -> dict:
     st = get_state(request)
     effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        result = {"conversations": messaging.list_conversations(db, user, effects)}
+        result = {"conversations": messaging.list_conversations(db, user, effects, st.settings)}
     st.dispatch(effects)
     return result
 
@@ -49,7 +36,8 @@ def get_conversation(conversation_id: str, request: Request, before: str | None 
     effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        result = messaging.get_conversation(db, user, conversation_id, before=before, limit=limit, effects=effects)
+        result = messaging.get_conversation(db, user, conversation_id, before=before, limit=limit, effects=effects,
+                                            settings=st.settings)
     st.dispatch(effects)
     return result
 
@@ -126,7 +114,7 @@ def sync(request: Request, since: str | None = Query(default=None, max_length=40
     effects = Effects()
     with st.database.session() as db:
         user = current_user(request, db)
-        result = messaging.sync(db, user, since=since, effects=effects)
+        result = messaging.sync(db, user, since=since, effects=effects, settings=st.settings)
     st.dispatch(effects)
     return result
 

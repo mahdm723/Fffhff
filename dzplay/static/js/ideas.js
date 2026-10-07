@@ -176,7 +176,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
           h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: () => { close(); reportSheet({ commentId: c.id }); } }, icon('flag'), 'الإبلاغ عن التعليق'),
           h('button', { class: 'btn btn--danger btn--block', type: 'button', onclick: async () => {
             close();
-            const ok = await confirmSheet({ title: 'حظر صاحب التعليق؟', text: 'لن يستطيع التعليق على أفكارك أو مراسلتك، ولن تُختارا لبعضكما في الرسائل المجهولة.', confirm: 'حظر', danger: true });
+            const ok = await confirmSheet({ title: 'حظر صاحب التعليق؟', text: 'لن يستطيع التعليق على أفكارك أو مراسلتك.', confirm: 'حظر', danger: true });
             if (!ok) return;
             try { await api.post(`/api/comments/${encodeURIComponent(c.id)}/block`); toast('تم الحظر.'); } catch (err) { toast(err.message, 'error'); }
           } }, icon('block'), 'حظر صاحب التعليق'),

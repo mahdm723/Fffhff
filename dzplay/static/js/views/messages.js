@@ -1,12 +1,11 @@
-// Messages: chats (anonymous + direct), message requests, and the fixed composer to a random person.
+// Messages: direct chats and message requests (V6: random anonymous messages were removed; old anonymous
+// chats stay listed, read-only, until they are deleted).
 import { icon } from '../icons.js';
 import * as store from '../store.js';
-import { autoGrow, formatListTime, h, nameLine, personAvatar, toast } from '../ui.js';
+import { formatListTime, h, nameLine, personAvatar } from '../ui.js';
 
-const DRAFT_KEY = 'dz:draft';
-
-function readDraft() { try { return localStorage.getItem(DRAFT_KEY) || ''; } catch { return ''; } }
-function writeDraft(v) { try { v ? localStorage.setItem(DRAFT_KEY, v) : localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
+// the old random-message draft is not used any more
+try { localStorage.removeItem('dz:draft'); } catch { /* ignore */ }
 
 const SYSTEM_PREVIEW = { reveal: 'كُشفت الهوية' };
 
@@ -22,9 +21,8 @@ function normalize(s) {
     .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
 }
 
-export function renderMessages(page, { config, navigate }) {
+export function renderMessages(page, { navigate }) {
   const list = h('ul', { class: 'conv-list' });
-  const max = config.max_message_length;
   let tab = 'chats';
   let filter = '';
 
@@ -46,14 +44,14 @@ export function renderMessages(page, { config, navigate }) {
   function row(c) {
     const anon = c.kind !== 'direct' && (!c.peer_card || c.peer_card.anonymous);
     const card = c.peer_card || {};
-    const label = `${anon ? 'محادثة مجهولة' : `محادثة مع ${c.peer}`}${c.unread ? `، ${c.unread} رسائل جديدة` : ''}`;
+    const label = `${anon ? 'محادثة مجهولة قديمة' : `محادثة مع ${c.peer}`}${c.unread ? `، ${c.unread} رسائل جديدة` : ''}`;
     return h('li', {},
       h('button', { class: `conv-item ${c.unread ? 'is-unread' : ''} ${c.muted ? 'is-muted' : ''}`, onclick: () => navigate(`#/chat/${c.id}`), 'aria-label': label },
         personAvatar(c.peer, { anonymous: anon, active: !!card.active }),
         h('div', { class: 'conv-item__body' },
           h('div', { class: 'conv-item__top' },
             nameLine(c.peer, card.gender, 'conv-item__name', card.verified),
-            c.kind !== 'direct' ? h('span', { class: 'conv-item__kind', title: 'محادثة مجهولة' }, icon('mask'), 'مجهول') : null,
+            c.kind !== 'direct' ? h('span', { class: 'conv-item__kind', title: 'محادثة مجهولة قديمة للقراءة فقط' }, icon('mask'), 'مجهول قديم') : null,
             c.muted ? h('span', { class: 'conv-item__muted', title: 'مكتومة' }, icon('bellOff')) : null,
             h('span', { class: 'conv-item__time', text: formatListTime(c.last_message_at) }),
           ),
@@ -78,7 +76,9 @@ export function renderMessages(page, { config, navigate }) {
         ? [icon('inbox'), h('h2', { text: 'لا توجد طلبات رسائل' }), h('p', { text: 'عندما يراسلك شخص لأول مرة عبر معرّفك أو اسمك تظهر رسالته هنا، ولا يعرف أنك قرأتها حتى تقبل.' })]
         : filter
           ? [icon('search'), h('h2', { text: 'لا نتائج' }), h('p', { text: 'لا توجد محادثة تطابق بحثك.' })]
-          : [icon('bubbles'), h('h2', { text: 'لا توجد محادثات بعد' }), h('p', { text: 'اكتب في الأسفل رسالة لشخص لا تعرفه، أو ابحث عن صديق من صفحة حسابي.' })]));
+          : [icon('bubbles'), h('h2', { text: 'لا توجد محادثات بعد' }),
+            h('p', { text: 'ابحث عن شخص بمعرّفه DZ أو باسمه من صفحة حسابي، ثم اضغط «مراسلة».' }),
+            h('button', { type: 'button', class: 'btn btn--primary', onclick: () => navigate('#/profile') }, icon('search'), 'ابحث عن شخص')]));
       if (list.isConnected) list.replaceWith(empty);
       return;
     }
@@ -86,71 +86,15 @@ export function renderMessages(page, { config, navigate }) {
     list.replaceChildren(...convs.map(row));
   }
 
-  // ------------------------------------------------------------ fixed anonymous composer
-  const textarea = h('textarea', { rows: '1', 'aria-label': 'رسالة لشخص عشوائي', placeholder: 'اكتب رسالة لشخص عشوائي…', maxlength: String(max + 200) });
-  textarea.value = readDraft();
-  const send = h('button', { class: 'send-btn', type: 'button', 'aria-label': 'إرسال لشخص عشوائي' }, icon('send'));
-  const counter = h('span', { class: 'counter' });
-  const dock = h('section', { class: 'msg-dock glass glass--blur', 'aria-label': 'شارك رسالة مع شخص مجهول' },
-    h('div', { class: 'msg-dock__head' },
-      h('span', { class: 'msg-dock__title' }, icon('mask'), 'شارك رسالة مع شخص مجهول'),
-      counter,
-    ),
-    h('div', { class: 'msg-dock__row' }, textarea, send),
-  );
-  const update = () => {
-    const len = textarea.value.length;
-    counter.textContent = len > max * 0.8 ? `${len} / ${max}` : '';
-    counter.classList.toggle('is-over', len > max);
-    send.disabled = !textarea.value.trim() || len > max;
-    writeDraft(textarea.value);
-  };
-  textarea.addEventListener('input', update);
-  // While typing, give the composer the space of the bottom navigation (mobile keyboard open).
-  textarea.addEventListener('focus', () => document.body.classList.add('is-typing'));
-  textarea.addEventListener('blur', () => document.body.classList.remove('is-typing'));
-  autoGrow(textarea, 120);
-  update();
-  // Keep focus (and the keyboard) in the textarea when tapping send: otherwise the blur
-  // brings the navigation back, the dock jumps up and the tap misses the button.
-  send.addEventListener('pointerdown', (e) => e.preventDefault());
-
-  send.addEventListener('click', async () => {
-    const content = textarea.value.trim();
-    if (!content) return;
-    send.disabled = true;
-    try {
-      const res = await store.sendAnonymous(content);
-      textarea.value = '';
-      update();
-      if (res.status === 'queued') toast('لا يوجد اتصال. ستُرسل رسالتك تلقائيًا عند عودة الإنترنت.');
-      else {
-        toast('وصلت رسالتك إلى شخص ما ✨');
-        tab = 'chats';
-        draw();
-        const item = list.querySelector('.conv-item');
-        if (item) item.classList.add('is-new');
-      }
-    } catch (err) {
-      toast(err.message, 'error', 4500);
-      update();
-    }
-  });
-
-  page.classList.add('page--with-dock');
   page.replaceChildren(
-    h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: 'الرسائل' })),
+    h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: 'الرسائل' }),
+      h('button', { type: 'button', class: 'icon-btn glass', 'aria-label': 'ابحث عن شخص لمراسلته', onclick: () => navigate('#/profile') }, icon('search'))),
     search,
     tabs,
     list,
-    dock,
   );
   draw();
   store.sync().catch(() => {});
   const unsub = store.subscribe((type) => { if (type === 'sync') draw(); });
-  return () => {
-    unsub();
-    page.classList.remove('page--with-dock');
-    document.body.classList.remove('is-typing');
-  };
+  return () => unsub();
 }

@@ -67,7 +67,7 @@ def test_scan_extra_words_from_config():
 def test_threatening_message_is_flagged_but_still_delivered(make_harness):
     hx = make_harness()
     a, b = hx.user(), hx.user()
-    r = send(a, "راني نعرف وين تسكن، نقتلك")
+    r = send(a, b, "راني نعرف وين تسكن، نقتلك")
     assert r.status_code == 201
     body = r.text
     assert "flag" not in body and "threat" not in body  # the sender is not told
@@ -92,8 +92,8 @@ def test_threatening_message_is_flagged_but_still_delivered(make_harness):
 
 def test_flag_snapshot_survives_message_ttl(make_harness):
     hx = make_harness()
-    a, _b = hx.user(), hx.user()
-    send(a, "ابعث الدراهم ولا نفضحك")
+    a, b = hx.user(), hx.user()
+    send(a, b, "ابعث الدراهم ولا نفضحك")
     clock.advance(hx.settings.MESSAGE_TTL + 60)
     c = hx.admin()
     assert c.post("/api/admin/cleanup").json()["deleted"]["messages"] == 1
@@ -112,8 +112,8 @@ def test_private_comment_is_flagged(make_harness):
 
 def test_moderation_can_be_disabled(make_harness):
     hx = make_harness(MODERATION_ENABLED=False)
-    a, _b = hx.user(), hx.user()
-    send(a, "نقتلك")
+    a, b = hx.user(), hx.user()
+    send(a, b, "نقتلك")
     with hx.db() as db:
         assert db.scalar(select(ContentFlag.id)) is None
 
@@ -121,7 +121,7 @@ def test_moderation_can_be_disabled(make_harness):
 def test_resolve_flag_remove_deletes_message_and_ban_revokes(make_harness):
     hx = make_harness()
     a, b = hx.user(), hx.user()
-    send(a, "يا كلب")
+    send(a, b, "يا كلب")
     cid = b.get("/api/conversations").json()["conversations"][0]["id"]
     reply(a, cid, "نقتلك")
     c = hx.admin()
@@ -152,7 +152,7 @@ def _ref(hx, client) -> str:
 def test_admin_conversation_views_are_logged(make_harness):
     hx = make_harness()
     a, b = hx.user(), hx.user()
-    send(a, "مرحبا، كيف كان يومك؟")
+    send(a, b, "مرحبا، كيف كان يومك؟")
     cid = b.get("/api/conversations").json()["conversations"][0]["id"]
     reply(b, cid, "جيد، شكرًا")
     c = hx.admin()
@@ -183,8 +183,8 @@ def test_admin_conversation_views_are_logged(make_harness):
 
 def test_flag_alone_opens_review_and_marks_flagged_message(make_harness):
     hx = make_harness()
-    a, _b = hx.user(), hx.user()
-    send(a, "ابعثيلي صورتك")
+    a, b = hx.user(), hx.user()
+    send(a, b, "ابعثيلي صورتك")
     data = hx.admin().get(f"/api/admin/users/{_ref(hx, a)}/conversations", params=REASON).json()
     assert data["conversations"][0]["messages"][0]["flagged"] is True
 
@@ -209,8 +209,8 @@ def test_privacy_notice_for_existing_users_only_once(hx):
 def test_message_model_untouched_by_flagging(make_harness):
     """Flagging keeps a copy; it must not alter or hold the original message."""
     hx = make_harness()
-    a, _b = hx.user(), hx.user()
-    send(a, "نقتلك")
+    a, b = hx.user(), hx.user()
+    send(a, b, "نقتلك")
     with hx.db() as db:
         msg = db.scalar(select(Message))
         assert msg.content == "نقتلك" and msg.expires_at is not None

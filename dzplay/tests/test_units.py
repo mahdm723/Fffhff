@@ -54,7 +54,5 @@ def test_settings_validation():
         Settings(ENV="production", SECRET_KEY="")
     with pytest.raises(ValueError):
         Settings(LOGIN_BLOCK_SCOPE="everything")
-    with pytest.raises(ValueError):
-        _ = Settings(MATCHING_RULES="telepathy").matching_rules
     s = Settings(ENV="production", SECRET_KEY="x" * 40)
     assert s.COOKIE_SECURE is True

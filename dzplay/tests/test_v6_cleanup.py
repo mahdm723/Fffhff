@@ -83,7 +83,7 @@ def test_old_database_export_then_drop(make_harness, monkeypatch, capsysbinary):
     ua, ub = _uid(hx, a), _uid(hx, b)
     assert hx.admin().post(f"/api/admin/users/{ua}/verified", json={"verified": True}).status_code == 200
     pid = a.post("/api/posts", json={"content": "فكرة باقية"}).json()["id"]
-    cid = send(a, "رسالة باقية").json()["conversation"]["id"]
+    cid = send(a, b, "رسالة باقية").json()["conversation"]["id"]
     engine = hx.state.database.engine
     reel_media = secrets.token_hex(16)
     cache_file = Path(hx.settings.MEDIA_CACHE_DIR) / f"{reel_media}.mp4.mp4"

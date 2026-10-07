@@ -365,7 +365,7 @@ def test_unused_upload_is_purged(mx):
 
 def _chat(mx):
     a, b = mx.user(), mx.user()
-    cid = send(a, "مرحبا، كيف الحال؟").json()["conversation"]["id"]
+    cid = send(a, b, "مرحبا، كيف الحال؟").json()["conversation"]["id"]
     return a, b, cid
 
 

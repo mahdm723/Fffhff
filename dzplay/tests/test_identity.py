@@ -147,10 +147,10 @@ def test_existing_users_get_one_gentle_prompt_and_confirm_age_once(hx):
 
 def test_privacy_switches_server_side(hx):
     c = hx.user()
-    assert me(c)["privacy"] == {"accept_anonymous": True, "accept_direct": "everyone", "searchable_by_name": True}
+    assert me(c)["privacy"] == {"accept_direct": "everyone", "searchable_by_name": True}
     r = c.patch("/api/me/privacy", json={"accept_anonymous": False, "accept_direct": "nobody", "accept_calls": False,
-                                         "searchable_by_name": False})  # an old app may still send accept_calls: ignored
-    assert r.json() == {"accept_anonymous": False, "accept_direct": "nobody", "searchable_by_name": False}
+                                         "searchable_by_name": False})  # an old app may still send these two: ignored
+    assert r.json() == {"accept_direct": "nobody", "searchable_by_name": False}
     assert c.patch("/api/me/privacy", json={"accept_direct": "friends"}).status_code == 400
 
 

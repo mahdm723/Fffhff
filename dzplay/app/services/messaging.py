@@ -1,11 +1,12 @@
 """Conversations, messages, blocking and reporting.
 
-Two kinds of conversation:
-* anonymous (random matching, kind None): both sides appear as "dzplay" unless a side chose
-  "كشف هويتي" — that reveals its own name + public ID to the other side only, for good;
-* direct (V4, kind "direct"): started from someone's public ID; the peer's chosen name is shown.
-  A new direct chat is a *message request* for the recipient (accept / ignore / block) and the
-  sender may send at most DIRECT_MSG_BEFORE_REPLY_LIMIT messages until it is accepted or answered.
+Conversations are direct (V4, kind "direct"): started from someone's public ID; the peer's chosen
+name is shown. A new direct chat is a *message request* for the recipient (accept / ignore / block)
+and the sender may send at most DIRECT_MSG_BEFORE_REPLY_LIMIT messages until it is accepted or answered.
+
+V6 phase 1b: random anonymous messages (kind None) were removed. Old anonymous conversations stay
+read-only (no new message, image or typing) until `legacy_v6` exports and deletes them after
+LEGACY_ANON_RETENTION_DAYS; both sides keep appearing as "dzplay" unless one revealed itself before.
 
 No internal user id, e-mail or IP ever leaves this module. Ownership is checked server-side on every call;
 a conversation that is not yours is indistinguishable from one that does not
@@ -17,7 +18,6 @@ layer fires them only after the database transaction committed.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -29,7 +29,7 @@ from app import clock
 from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, not_found, rate_limited
 from app.models import Block, Conversation, Message, Report, User
-from app.services import matching, names
+from app.services import legacy_v6, names
 from app.services.auth import log_event
 from app.services.content import clean_message, preview
 from app.services.moderation import flag_content
@@ -142,7 +142,7 @@ def _request_view(c: Conversation, viewer_id: str) -> dict | None:
 
 
 def serialize_conversation(c: Conversation, viewer_id: str, last: Message | None, unread: int,
-                           peer: User | None = None) -> dict:
+                           peer: User | None = None, anon_deleted_after: datetime | None = None) -> dict:
     peer_read = c.recipient_last_read_at if viewer_id == c.initiator_id else c.initiator_last_read_at
     peer_id = c.peer_of(viewer_id)
     card = peer_card(c, viewer_id, peer)
@@ -163,7 +163,9 @@ def serialize_conversation(c: Conversation, viewer_id: str, last: Message | None
         "expires_at": iso(c.expires_at),
         "unread": unread,
         "peer_read_at": iso(peer_read),
-        "can_reply": c.status == "active",
+        "can_reply": c.status == "active" and c.is_direct,
+        "read_only": not c.is_direct,  # V6: old anonymous chats
+        "deleted_after": iso(anon_deleted_after) if not c.is_direct else None,
         "last_message": (
             {"preview": "📷 صورة" if last.kind == "image" else preview(last.content), "mine": last.sender_id == viewer_id,
              "created_at": iso(last.created_at), "kind": last.kind if last.kind in ("system", "image") else "text"}
@@ -252,9 +254,12 @@ def _existing_by_client_id(db: Session, user: User, client_id: str | None) -> Me
     return db.scalar(select(Message).where(Message.sender_id == user.id, Message.client_id == client_id))
 
 
-def _summaries(db: Session, user: User, conversations: list[Conversation]) -> list[dict]:
+def _summaries(db: Session, user: User, conversations: list[Conversation], settings: Settings | None = None) -> list[dict]:
     if not conversations:
         return []
+    anon_until = None
+    if settings is not None and any(not c.is_direct for c in conversations):
+        anon_until = legacy_v6.anon_due_at(db, settings)
     ids = [c.id for c in conversations]
     ranked = (
         select(Message.id, func.row_number().over(partition_by=Message.conversation_id,
@@ -272,8 +277,8 @@ def _summaries(db: Session, user: User, conversations: list[Conversation]) -> li
     ).all())
     peer_ids = {c.peer_of(user.id) for c in conversations}
     peers = {u.id: u for u in db.execute(select(User).where(User.id.in_(peer_ids))).scalars()} if peer_ids else {}
-    return [serialize_conversation(c, user.id, last_by_conv.get(c.id), unread.get(c.id, 0), peers.get(c.peer_of(user.id)))
-            for c in conversations]
+    return [serialize_conversation(c, user.id, last_by_conv.get(c.id), unread.get(c.id, 0), peers.get(c.peer_of(user.id)),
+                                   anon_until) for c in conversations]
 
 
 def _visible_conversations(db: Session, user: User, limit: int = 200) -> list[Conversation]:
@@ -309,55 +314,6 @@ def _mark_delivered(db: Session, user: User, effects: Effects, conversation_ids:
 # ---------------------------------------------------------------------------
 
 
-def send_anonymous(db: Session, settings: Settings, limiter, user: User, *, content: object,
-                   client_id: object, effects: Effects) -> dict:
-    """Start a new conversation with a random person."""
-    _require_can_send(user)
-    text = clean_message(content, settings.MAX_MESSAGE_LENGTH, settings.LINK_POLICY)
-    cid = _clean_client_id(client_id)
-    existing = _existing_by_client_id(db, user, cid)
-    if existing is not None:  # retried request (offline outbox): do not send twice
-        conv = db.get(Conversation, existing.conversation_id)
-        return {"conversation": _summaries(db, user, [conv])[0], "message": serialize_message(existing, user.id)}
-
-    recipient_id = matching.pick_recipient(db, settings, user.id)
-    if recipient_id is None:
-        raise AppError(409, "no_recipient", "لا يوجد أشخاص متاحون الآن لاستقبال رسالتك. حاول بعد قليل.")
-
-    digest = hashlib.sha256(" ".join(text.lower().split()).encode()).hexdigest()[:32]
-    _check_limits(limiter, _message_limits(settings, user.id) + [
-        Limit(f"newconv_hour:{user.id}", settings.MAX_NEW_CONVERSATIONS_PER_HOUR, HOUR),
-        Limit(f"newconv_day:{user.id}", settings.MAX_NEW_CONVERSATIONS_PER_DAY, DAY),
-        Limit(f"dup:{user.id}:{digest}", 1, settings.DUPLICATE_MESSAGE_WINDOW),
-    ])
-
-    now = clock.utcnow()
-    conv = Conversation(
-        initiator_id=user.id, recipient_id=recipient_id, created_at=now, last_message_at=now, updated_at=now,
-        expires_at=now + timedelta(seconds=settings.CONVERSATION_IDLE_TTL), last_sender_id=user.id, consecutive_count=1,
-        initiator_sent=True,
-    )
-    db.add(conv)
-    db.flush()
-    msg = Message(conversation_id=conv.id, sender_id=user.id, recipient_id=recipient_id, content=text,
-                  client_id=cid, created_at=now, expires_at=now + timedelta(seconds=settings.MESSAGE_TTL))
-    db.add(msg)
-    db.flush()
-    flag_content(db, settings, target="message", text=text, offender_id=user.id, victim_id=recipient_id,
-                 message_id=msg.id, conversation_id=conv.id)
-
-    user.messages_sent += 1
-    user.conversations_count += 1
-    db.execute(update(User).where(User.id == recipient_id).values(
-        messages_received=User.messages_received + 1, conversations_count=User.conversations_count + 1))
-    db.flush()
-
-    effects.signal(recipient_id, "message")
-    effects.push_to.append(recipient_id)
-    effects.signal(user.id, "sent")
-    return {"conversation": _summaries(db, user, [conv])[0], "message": serialize_message(msg, user.id)}
-
-
 def reply(db: Session, settings: Settings, limiter, user: User, conversation_id: str, *, content: object,
           client_id: object, effects: Effects) -> dict:
     _require_can_send(user)
@@ -368,6 +324,7 @@ def reply(db: Session, settings: Settings, limiter, user: User, conversation_id:
     if existing is not None:
         return {"message": serialize_message(existing, user.id)}
 
+    require_open(conv)
     peer_id = conv.peer_of(user.id)
     if conv.status != "active" or _blocked_between(db, user.id, peer_id):
         raise AppError(403, "conversation_closed", "هذه المحادثة لم تعد متاحة.")
@@ -385,6 +342,12 @@ def reply(db: Session, settings: Settings, limiter, user: User, conversation_id:
                  message_id=msg.id, conversation_id=conv.id)
     _after_send(db, settings, conv, user, peer_id, now, effects)
     return {"message": serialize_message(msg, user.id)}
+
+
+def require_open(conv: Conversation) -> None:
+    """V6: an old anonymous conversation can be read, reported or blocked, but nothing new is sent in it."""
+    if not conv.is_direct:
+        raise AppError(403, "anonymous_closed", "هذه محادثة مجهولة قديمة للقراءة فقط.")
 
 
 def _check_direct_request(settings: Settings, conv: Conversation, sender_id: str) -> None:
@@ -427,14 +390,14 @@ def _after_send(db: Session, settings: Settings, conv: Conversation, user: User,
 # ---------------------------------------------------------------------------
 
 
-def list_conversations(db: Session, user: User, effects: Effects) -> list[dict]:
+def list_conversations(db: Session, user: User, effects: Effects, settings: Settings | None = None) -> list[dict]:
     convs = _visible_conversations(db, user)
     _mark_delivered(db, user, effects, [c.id for c in convs])
-    return _summaries(db, user, convs)
+    return _summaries(db, user, convs, settings)
 
 
 def get_conversation(db: Session, user: User, conversation_id: str, *, before: str | None, limit: int,
-                     effects: Effects) -> dict:
+                     effects: Effects, settings: Settings | None = None) -> dict:
     conv = _get_visible_conversation(db, user, conversation_id)
     limit = max(1, min(limit, 100))
     q = select(Message).where(Message.conversation_id == conv.id, Message.expires_at > clock.utcnow())
@@ -446,13 +409,13 @@ def get_conversation(db: Session, user: User, conversation_id: str, *, before: s
     rows = list(reversed(rows[:limit]))
     _mark_delivered(db, user, effects, [conv.id])
     return {
-        "conversation": _summaries(db, user, [conv])[0],
+        "conversation": _summaries(db, user, [conv], settings)[0],
         "messages": [serialize_message(m, user.id) for m in rows],
         "has_more": has_more,
     }
 
 
-def sync(db: Session, user: User, *, since: str | None, effects: Effects) -> dict:
+def sync(db: Session, user: User, *, since: str | None, effects: Effects, settings: Settings | None = None) -> dict:
     """Everything a (re)connecting client needs: all visible conversations plus
     messages created after `since` (clients send their last server_time minus a
     small overlap and de-duplicate by id)."""
@@ -472,7 +435,7 @@ def sync(db: Session, user: User, *, since: str | None, effects: Effects) -> dic
     # Status of my own messages may have changed (delivered/read) — send current statuses.
     return {
         "server_time": iso(server_time),
-        "conversations": _summaries(db, user, convs),
+        "conversations": _summaries(db, user, convs, settings),
         "messages": [serialize_message(m, user.id) for m in messages],
     }
 
@@ -659,7 +622,6 @@ def profile(user: User, settings: Settings | None = None) -> dict:
 
 def privacy_view(user: User) -> dict:
     return {
-        "accept_anonymous": user.accept_anonymous is not False,
         "accept_direct": user.accept_direct or "everyone",
         "searchable_by_name": user.searchable_by_name is not False,
     }
@@ -667,7 +629,7 @@ def privacy_view(user: User) -> dict:
 
 def set_privacy(user: User, body: dict) -> dict:
     """Server-side privacy switches (the UI is never trusted)."""
-    for key in ("accept_anonymous", "searchable_by_name"):
+    for key in ("searchable_by_name",):
         if key in body and body[key] is not None:
             if not isinstance(body[key], bool):
                 raise AppError(400, "invalid_input", "طلب غير صالح.")
@@ -814,24 +776,6 @@ def _system_message(db: Session, settings: Settings, conv: Conversation, actor_i
     conv.updated_at = now
     db.flush()
     return msg
-
-
-def reveal(db: Session, settings: Settings, user: User, conversation_id: str, effects: Effects) -> dict:
-    """Anonymous chat: show MY name and public ID to the other side (one-way, cannot be undone)."""
-    conv = _get_visible_conversation(db, user, conversation_id)
-    if conv.is_direct:
-        raise AppError(400, "not_anonymous", "هذه محادثة مباشرة.")
-    if conv.status != "active":
-        raise AppError(403, "conversation_closed", "هذه المحادثة لم تعد متاحة.")
-    if not conv.revealed(user.id):
-        if user.id == conv.initiator_id:
-            conv.initiator_revealed = True
-        else:
-            conv.recipient_revealed = True
-        _system_message(db, settings, conv, user.id, "reveal", "كُشفت الهوية",
-                        {"name": names.shown_name(user), "public_id": user.public_id})
-        effects.signal([user.id, conv.peer_of(user.id)], "message")
-    return {"me_revealed": True}
 
 
 def set_muted(db: Session, user: User, conversation_id: str, muted: bool) -> dict:

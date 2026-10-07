@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from tests.conftest import reply, send
+from tests.conftest import chat, legacy_anonymous, reply, send
 
 ORIGIN = {"Origin": "http://testserver"}
 
@@ -17,8 +17,8 @@ def pid(c) -> str:
 
 def test_typing_is_relayed_only_to_the_other_member(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a, "مرحبًا").json()["conversation"]["id"]
-    stranger = hx.user()  # created after matching so the message went to b
+    cid = chat(a, b, "مرحبًا")
+    stranger = hx.user()
     with b.websocket_connect("/api/ws", headers=ORIGIN) as wb, a.websocket_connect("/api/ws", headers=ORIGIN) as wa, \
             stranger.websocket_connect("/api/ws", headers=ORIGIN) as ws:
         assert wb.receive_json() == {"type": "hello"}
@@ -80,11 +80,11 @@ def test_oversized_binary_and_flooding_close_the_socket(make_harness):
 def test_presence_only_for_known_peers(hx):
     a, b = hx.user(), hx.user()
     a.patch("/api/me/profile", json={"display_name": "Amine"})
-    cid = send(a, "مجهول").json()["conversation"]["id"]
+    cid = legacy_anonymous(hx, a, b, "مجهول")
     conv = b.get(f"/api/conversations/{cid}").json()["conversation"]
-    assert conv["peer_card"]["active"] is False and conv["peer_card"]["public_id"] is None  # anonymous: nothing
-    a.post(f"/api/conversations/{cid}/reveal")
-    conv = b.get(f"/api/conversations/{cid}").json()["conversation"]
+    assert conv["peer_card"]["active"] is False and conv["peer_card"]["public_id"] is None  # old anonymous chat: nothing
+    direct = send(a, b, "مرحبا").json()["conversation"]["id"]
+    conv = b.get(f"/api/conversations/{direct}").json()["conversation"]
     assert conv["peer_card"]["active"] is True and conv["peer"] == "Amine"
 
 

@@ -192,6 +192,14 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 17 3 * * * root $APP_DIR/deploy/backup.sh >> /var/log/dzplay-backup.log 2>&1
 CRON
 chmod 644 /etc/cron.d/dzplay-backup
+# V6 phase 1b: the old anonymous chats are read-only, then exported (encrypted) and deleted once
+# LEGACY_ANON_RETENTION_DAYS have passed — checked daily; before that, and after it is done, it changes nothing.
+cat > /etc/cron.d/dzplay-v6-anon <<CRON
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+23 4 * * * root $APP_DIR/deploy/v6-cleanup.sh anon >> /var/log/dzplay-backup.log 2>&1
+CRON
+chmod 644 /etc/cron.d/dzplay-v6-anon
 cat > /etc/logrotate.d/dzplay-backup <<'ROTATE'
 /var/log/dzplay-backup.log {
   monthly

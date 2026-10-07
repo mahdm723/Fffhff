@@ -82,7 +82,7 @@ def test_needs_fresh_2fa_code_and_valid_token(panel):
     # Telegram rejects an unknown token (getMe 401)
     assert connect(panel, token="111111111:AAH" + "y" * 32).json()["error"]["code"] == "invalid_token"
     with panel.db() as db:
-        assert db.scalar(select(AppSetting)) is None
+        assert db.scalar(select(AppSetting).where(~AppSetting.key.like("schema.%"))) is None
     assert panel.state.bot is None
 
 
@@ -104,7 +104,7 @@ def test_remove_falls_back_to_env_or_disables(make_harness):
     assert r.status_code == 200 and r.json()["configured"] is False and fake.webhook is None
     assert hx.client().post(WEBHOOK, json={}).status_code == 404
     with hx.db() as db:
-        assert db.scalar(select(AppSetting)) is None
+        assert db.scalar(select(AppSetting).where(~AppSetting.key.like("schema.%"))) is None
 
     # with a bot in .env, the panel value wins while set, and removing it goes back to .env
     hx2 = make_harness(telegram_transport=fake.transport, PUBLIC_URL="https://chat.example.com",

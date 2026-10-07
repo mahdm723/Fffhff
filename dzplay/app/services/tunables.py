@@ -82,7 +82,7 @@ REGISTRY: list[Tunable] = [
     Tunable("CHAT_IMAGE_FLAG_SECURE", "bool", "chat", "منع لقطة الشاشة أثناء عرض الصورة (تطبيق أندرويد)"),
     Tunable("MAX_MESSAGES_PER_MINUTE", "int", "chat", "رسائل في الدقيقة", 1, 120),
     Tunable("MAX_MESSAGES_PER_HOUR", "int", "chat", "رسائل في الساعة", 1, 2000),
-    Tunable("MAX_NEW_CONVERSATIONS_PER_DAY", "int", "chat", "محادثات مجهولة جديدة في اليوم", 1, 500),
+    Tunable("LEGACY_ANON_RETENTION_DAYS", "int", "chat", "حذف المحادثات المجهولة القديمة بعد (يوم من إيقافها)", 0, 90),
     # moderation
     Tunable("REPORT_AUTO_HIDE_THRESHOLD", "int", "moderation", "عدد المبلّغين لإخفاء المحتوى تلقائيًا (0 = معطل)", 0, 100),
     Tunable("REPORT_AUTO_SUSPEND_THRESHOLD", "int", "moderation", "عدد المبلّغين لإيقاف الحساب تلقائيًا (0 = معطل)", 0, 100),

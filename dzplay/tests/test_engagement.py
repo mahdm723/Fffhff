@@ -158,7 +158,9 @@ def test_system_accounts_excluded_everywhere(make_harness):
         assert len(system) == hx.settings.SYSTEM_ACCOUNTS and all(u.password_hash is None for u in system)
         sys_email = system[0].email
     a = hx.user()
-    assert send(a, "مرحبا").status_code == 409  # nobody real available: never matched with a system account
+    with hx.db() as db:
+        sys_pid = db.scalar(select(User.public_id).where(User.email == sys_email))
+    assert send(a, sys_pid or "DZ-000000", "مرحبا").status_code == 404  # a system account is never a recipient
     stats = admin.get("/api/admin/stats").json()
     assert stats["users"]["total"] == 1
     assert admin.get("/api/admin/access/users").json()["total"] == 1

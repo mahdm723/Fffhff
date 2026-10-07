@@ -183,11 +183,6 @@ store.subscribe((type, detail) => {
     if (store.state.me) store.state.me.support_unread = (store.state.me.support_unread || 0) + 1;
     if (!['support', 'ticket'].includes(parseRoute().name)) toast('ردّ فريق الدعم على تذكرتك. افتح حسابي ← الدعم.');
     document.dispatchEvent(new CustomEvent('dz:support'));
-  } else if (type === 'queued-sent') {
-    toast('أُرسلت رسالتك التي كانت في الانتظار.');
-  } else if (type === 'queued-failed') {
-    try { if (!localStorage.getItem('dz:draft')) localStorage.setItem('dz:draft', detail.content); } catch { /* ignore */ }
-    toast(`لم تُرسل رسالتك: ${detail.error}`, 'error', 5000);
   }
 });
 

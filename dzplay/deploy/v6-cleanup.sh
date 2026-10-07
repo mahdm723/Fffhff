@@ -3,7 +3,10 @@
 # DZPLAY V6 — save, then remove, the data of the features V6 removed
 # (Reels, the creator studio + earnings, voice/video calls, the "boost" of likes).
 #
-#   sudo /opt/dzplay/dzplay/deploy/v6-cleanup.sh
+#   sudo /opt/dzplay/dzplay/deploy/v6-cleanup.sh          phase 1: Reels, studio, earnings, calls, boost
+#   sudo /opt/dzplay/dzplay/deploy/v6-cleanup.sh anon     phase 1b: the old anonymous chats (read-only), allowed
+#                                                         LEGACY_ANON_RETENTION_DAYS after the update; before that
+#                                                         it only prints the date. The installer runs it daily (cron).
 #
 # 1. a normal encrypted full backup first (deploy/backup.sh);
 # 2. `admin_cli export-legacy` → encrypted with BACKUP_PASSPHRASE (AES-256)
@@ -34,11 +37,22 @@ DIR="${BACKUP_DIR:-$(env_get BACKUP_DIR)}"; DIR="${DIR:-/var/backups/dzplay}"
 command -v gpg >/dev/null || die "gpg is missing: apt-get install -y gnupg"
 cli() { $COMPOSE exec -T app python -m app.admin_cli "$@" </dev/null; }
 
-if status="$(cli legacy-status)"; then
-  ok "$status"
-  exit 0
-fi
-echo "$status"
+STAGE="${1:-legacy}"
+case "$STAGE" in
+  legacy) FLAGS=(); NAME="v6-legacy"; WHAT="Old Reels / calls / earnings / boost data" ;;
+  anon)   FLAGS=(--anon); NAME="v6-anon"; WHAT="Old anonymous chats" ;;
+  *) die "Unknown stage '$STAGE' (use: anon, or nothing)" ;;
+esac
+
+set +e
+status="$(cli legacy-status "${FLAGS[@]}")"; code=$?
+set -e
+case "$code" in
+  0) ok "$status"; exit 0 ;;
+  2) ok "Not yet: $status"; exit 0 ;;   # anon: before LEGACY_ANON_RETENTION_DAYS have passed
+  1) echo "$status" ;;
+  *) echo "$status" >&2; die "Could not read the status (is the app running?)" ;;
+esac
 
 "$APP_DIR/deploy/backup.sh" || die "The full backup failed: nothing was removed."
 ok "Full encrypted backup taken"
@@ -47,11 +61,11 @@ mkdir -p "$DIR"
 chmod 700 "$DIR"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-out="$DIR/v6-legacy-$(date -u +%Y%m%dT%H%M%SZ).json.gpg"
+out="$DIR/$NAME-$(date -u +%Y%m%dT%H%M%SZ).json.gpg"
 gpg_pass() { gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-fd 3 "$@" 3<<<"$PASSPHRASE"; }
 
 # The export never touches the disk unencrypted.
-cli export-legacy 2>"$work/err" | gpg_pass --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 \
+cli export-legacy "${FLAGS[@]}" 2>"$work/err" | gpg_pass --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 \
   --s2k-count 65011712 --output "$out.part" || { cat "$work/err" >&2; die "The export failed: nothing was removed."; }
 sha="$(grep -o 'sha256=[0-9a-f]\{64\}' "$work/err" | cut -d= -f2 || true)"
 [ -n "$sha" ] || { cat "$work/err" >&2; die "The export did not report its SHA-256: nothing was removed."; }
@@ -62,6 +76,7 @@ chmod 600 "$out"
 ok "Saved (encrypted, verified): $out"
 ok "Rows: $(grep -o 'rows=.*' "$work/err" | cut -d= -f2-)"
 
-cli drop-legacy --sha "$sha" || die "Removal refused (see above). The saved copy stays in $out"
-ok "Old Reels / calls / earnings / boost data removed"
-cli stars-count
+cli drop-legacy "${FLAGS[@]}" --sha "$sha" || die "Removal refused (see above). The saved copy stays in $out"
+ok "$WHAT removed"
+[ "$STAGE" = legacy ] && cli stars-count
+exit 0

@@ -8,7 +8,7 @@ import pytest
 from app import clock
 from app.models import AdminAuditLog, User
 from tests import fake_telegram as tg
-from tests.conftest import send
+from tests.conftest import legacy_anonymous
 from tests.smtp_sink import SmtpSink
 
 TRC_TX = "a" * 64
@@ -203,14 +203,13 @@ def test_star_shown_where_allowed_never_in_anonymous_chats_and_revocable(cx):
     found = b.get("/api/people/search?q=Amine").json()
     assert any(p["verified"] for p in found["results"])
     assert b.get(f"/api/people/{pid(a)}").json()["verified"] is True
-    # direct chat: star; anonymous chat: never (even once identity is revealed)
+    # direct chat: star; an old anonymous chat: never
     cid = b.post(f"/api/people/{pid(a)}/messages", json={"content": "سلام"}).json()["conversation"]["id"]
     assert b.get(f"/api/conversations/{cid}").json()["conversation"]["peer_card"]["verified"] is True
-    c = cx.user()  # b already has an open chat with a: the random match goes to c
-    anon = send(a, "رسالة مجهولة").json()["conversation"]["id"]
-    assert a.post(f"/api/conversations/{anon}/reveal").status_code == 200
+    c = cx.user()
+    anon = legacy_anonymous(cx, a, c, "رسالة مجهولة قديمة")
     card = c.get(f"/api/conversations/{anon}").json()["conversation"]["peer_card"]
-    assert card["name"] == "Amine" and card["verified"] is False
+    assert card["name"] == "dzplay" and card["public_id"] is None and card["verified"] is False
     # revoke
     assert adm.post(f"/api/admin/users/{aid}/verified", json={"verified": False, "reason": "مخالفة"}).status_code == 200
     assert b.get(f"/api/posts/{post['id']}").json()["author"]["verified"] is False

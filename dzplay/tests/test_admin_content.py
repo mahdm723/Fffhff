@@ -49,15 +49,12 @@ def test_official_comment_on_idea_reaches_owner_only(hx):
 def test_official_account_is_not_a_user(hx):
     a = hx.user()
     hx.admin().post("/api/admin/official-comment", json={"target": "idea", "target_id": idea(a), "text": "مرحبًا"})
-    # never a message recipient: with nobody else available, sending fails instead of reaching it
-    assert send(a, "مرحبا").status_code == 409
+    # never a message recipient: its public ID is unknown to the messaging
     b = hx.user()
-    r = send(a, "مرحبا")
-    assert r.status_code == 201
     with hx.db() as db:
-        recipient = db.scalar(select(User.email).where(User.id != db.scalar(select(User.id).where(User.email == a.email)),
-                                                       User.is_official.is_not(True)))
-        assert recipient == b.email
+        official_pid = db.scalar(select(User.public_id).where(User.is_official.is_(True)))
+    assert official_pid and send(a, official_pid, "مرحبا").status_code == 404
+    assert send(a, b, "مرحبا").status_code == 201
     # cannot sign in, not counted, not listed
     assert hx.login(hx.client(), "official@dzplay.invalid", "anything-at-all").status_code == 401
     assert hx.admin().get("/api/admin/stats").json()["users"]["total"] == 2
@@ -128,7 +125,7 @@ def test_admin_ideas_list_is_public_content_only(hx):
 
 def test_users_lists_and_unban(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a, "يا كلب").json()["conversation"]["id"]
+    cid = send(a, b, "يا كلب").json()["conversation"]["id"]
     b.post(f"/api/conversations/{cid}/report", json={"reason": "harassment"})
     admin = hx.admin()
     reported = admin.get("/api/admin/users", params={"filter": "reported"}).json()["users"]

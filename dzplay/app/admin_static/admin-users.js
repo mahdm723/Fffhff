@@ -87,7 +87,7 @@ const GENDER = { male: 'رجل', female: 'أنثى', unspecified: 'أفضّل ع
 
 function privacyText(p) {
   if (!p) return '—';
-  return [p.accept_anonymous ? 'يستقبل المجهولة' : 'لا يستقبل المجهولة', p.accept_direct === 'everyone' ? 'يستقبل المباشرة' : 'لا يستقبل المباشرة',
+  return [p.accept_direct === 'everyone' ? 'يستقبل المباشرة' : 'لا يستقبل المباشرة',
     p.searchable_by_name ? 'يظهر في البحث' : 'مخفي من البحث بالاسم'].join(' · ');
 }
 
@@ -144,7 +144,7 @@ export function openUser(id) {
           h('code', { dir: 'ltr', text: shortRef(r.id) }), h('span', { class: 'admin-meta', text: when(r.at) })))),
         section('المحادثات', d.conversations.length, ...d.conversations.map((c) => h('button', {
           type: 'button', class: 'admin-line admin-line--btn', onclick: () => openConversation(c.id),
-        }, chip(c.kind === 'direct' ? 'مباشرة' : 'مجهولة'), h('span', { text: c.started_by_user ? 'بدأها ←' : '← بدأها الطرف الآخر' }), authorLine(c.peer),
+        }, chip(c.kind === 'direct' ? 'مباشرة' : 'مجهولة قديمة'), h('span', { text: c.started_by_user ? 'بدأها ←' : '← بدأها الطرف الآخر' }), authorLine(c.peer),
         h('span', { class: 'admin-meta', text: `${fmt(c.messages_stored)} رسالة · ${when(c.last_message_at)}` })))),
         section('بلاغات ضده', d.reports_against.length, ...d.reports_against.map(reportLine)),
         section('بلاغات قدّمها', d.reports_by.length, ...d.reports_by.map(reportLine)),

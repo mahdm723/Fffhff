@@ -54,7 +54,9 @@ export function loadCache() {
       state.conversations = raw.conversations || [];
       state.messages = raw.messages || {};
       state.serverTime = raw.serverTime || null;
-      state.outbox = (raw.outbox || []).map((i) => ({ ...i, state: i.state === 'failed' ? 'failed' : 'pending' }));
+      // V6: queued random messages ("new") cannot be sent any more; only replies stay in the outbox
+      state.outbox = (raw.outbox || []).filter((i) => i.kind === 'reply')
+        .map((i) => ({ ...i, state: i.state === 'failed' ? 'failed' : 'pending' }));
     }
   } catch { /* corrupted cache */ }
 }
@@ -163,22 +165,6 @@ export async function markRead(cid) {
 }
 
 // ---------------------------------------------------------------- sending
-export async function sendAnonymous(content) {
-  const client_id = newClientId();
-  try {
-    const res = await api.post('/api/messages', { content, client_id });
-    applySent(res);
-    return { status: 'sent', conversation: res.conversation };
-  } catch (err) {
-    if (err.isRetryable) {
-      state.outbox.push({ kind: 'new', client_id, content, created_at: new Date().toISOString(), state: 'pending' });
-      save();
-      return { status: 'queued' };
-    }
-    throw err;
-  }
-}
-
 /** First message to someone found by their public ID (starts a message request). */
 export async function sendDirect(publicId, content) {
   const res = await api.post(`/api/people/${encodeURIComponent(publicId)}/messages`, { content, client_id: newClientId() });
@@ -192,7 +178,7 @@ export async function answerRequest(cid, action) {
   else await loadConversation(cid);
 }
 
-/** Apply a local change to a conversation summary (mute / reveal) without waiting for a sync. */
+/** Apply a local change to a conversation summary (mute) without waiting for a sync. */
 export function patchConversation(cid, patch) {
   const c = getConversation(cid);
   if (!c) return;
@@ -226,22 +212,15 @@ export async function flushOutbox() {
     for (const item of [...state.outbox]) {
       if (item.state !== 'pending') continue;
       try {
-        const res = item.kind === 'new'
-          ? await api.post('/api/messages', { content: item.content, client_id: item.client_id })
-          : await api.post(`/api/conversations/${encodeURIComponent(item.conversation_id)}/messages`, { content: item.content, client_id: item.client_id });
+        const res = await api.post(`/api/conversations/${encodeURIComponent(item.conversation_id)}/messages`,
+          { content: item.content, client_id: item.client_id });
         state.outbox = state.outbox.filter((i) => i !== item);
         applySent(res);
-        if (item.kind === 'new') emit('queued-sent');
       } catch (err) {
         if (err.isRetryable) break; // still offline / server down: keep order, retry later
         item.state = 'failed';
         item.error = err.message;
-        if (item.kind === 'reply') {
-          mergeMessages(item.conversation_id, [{ id: `local:${item.client_id}`, client_id: item.client_id, status: 'failed', error: err.message, created_at: item.created_at }]);
-        } else {
-          state.outbox = state.outbox.filter((i) => i !== item);
-          emit('queued-failed', item);
-        }
+        mergeMessages(item.conversation_id, [{ id: `local:${item.client_id}`, client_id: item.client_id, status: 'failed', error: err.message, created_at: item.created_at }]);
         save();
         emit('sync');
       }

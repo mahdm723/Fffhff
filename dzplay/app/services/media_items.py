@@ -102,9 +102,10 @@ def upload_config(db: Session, settings: Settings, user: User, available: bool) 
 
 def chat_target(db: Session, user: User, conversation_id: object) -> Conversation:
     """A chat the user may send a picture to: active, not blocked, and the other side has replied."""
-    from app.services.messaging import _get_visible_conversation
+    from app.services.messaging import _get_visible_conversation, require_open
 
     conv = _get_visible_conversation(db, user, conversation_id if isinstance(conversation_id, str) else "")
+    require_open(conv)  # V6: old anonymous chats are read-only
     peer = conv.peer_of(user.id)
     if conv.status != "active" or _blocked_between(db, user.id, peer):
         raise AppError(403, "conversation_closed", "هذه المحادثة لم تعد متاحة.")

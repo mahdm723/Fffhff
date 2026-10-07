@@ -82,7 +82,8 @@ def seed(base: str, db_url: str) -> str:
     b = register(base, "friend-b@example.com")
     pid = a.post("/api/posts", json={"content": "فكرة مخالفة للتجربة: هذا المنشور سيتم الإبلاغ عنه."}).json()["id"]
     assert b.post(f"/api/posts/{pid}/report", json={"reason": "inappropriate", "details": "محتوى مزعج"}).status_code == 201
-    conv = b.post("/api/messages", json={"content": "مرحبا، هذه رسالة مجهولة مزعجة للتجربة."}).json()["conversation"]["id"]
+    a_id = a.get("/api/me").json()["public_id"]
+    conv = b.post(f"/api/people/{a_id}/messages", json={"content": "مرحبا، هذه رسالة مزعجة للتجربة."}).json()["conversation"]["id"]
     assert a.post(f"/api/conversations/{conv}/report", json={"reason": "spam"}).status_code == 201
     # A threatening reply is flagged automatically (and still delivered).
     assert a.post(f"/api/conversations/{conv}/messages", json={"content": "راني نعرف وين تسكن، ابعث الدراهم ولا نفضحك"}).status_code == 201

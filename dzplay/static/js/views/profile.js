@@ -30,7 +30,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       h('div', { class: 'id-card__name' }, nameLine(me.display_name, me.gender === 'unspecified' ? null : me.gender, '', me.verified)),
       idChip(me.public_id),
       h('p', { class: 'id-card__hint', text: me.has_custom_name
-        ? 'يظهر اسمك في الأفكار والتعليقات والمحادثات المباشرة. في الرسائل العشوائية تبقى dzplay حتى تكشف هويتك.'
+        ? 'يظهر اسمك في الأفكار والتعليقات والمحادثات.'
         : 'اسمك الآن dzplay. اختر اسمًا ليعرفك أصدقاؤك، أو شارك معرّفك DZ.' }),
       h('div', { class: 'id-card__actions' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: editSheet }, icon('edit'), 'تعديل الملف')),
     ].filter(Boolean));
@@ -88,7 +88,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
 
   function contactSheet() {
     const rows = [
-      ['accept_anonymous', 'استقبال الرسائل المجهولة', 'عند الإيقاف لن تُختار لاستقبال رسائل عشوائية، ويبقى بإمكانك الإرسال.'],
       ['accept_direct', 'استقبال الرسائل المباشرة', 'من يعرف اسمك أو معرّفك يستطيع إرسال طلب مراسلة.'],
       ['searchable_by_name', 'الظهور في البحث بالاسم', 'عند الإيقاف يبقى بالإمكان إيجادك بمعرّفك DZ فقط.'],
     ];

@@ -262,7 +262,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
       formSlot,
       config.google_client_id ? h('div', { class: 'divider', text: 'أو' }) : null,
       config.google_client_id ? googleSlot : null,
-      h('p', { class: 'auth__foot' }, 'لا يرى الآخرون بريدك أبدًا: يظهر فقط الاسم الذي تختاره (أو dzplay)، وفي الرسائل العشوائية تبقى مجهولًا. ',
+      h('p', { class: 'auth__foot' }, 'لا يرى الآخرون بريدك أبدًا: يظهر فقط الاسم الذي تختاره (أو dzplay). ',
         'يطّلع فريق الإدارة على الحسابات والمحتوى للإشراف وحماية المستخدمين. ',
         h('button', { type: 'button', class: 'link-btn', onclick: privacySheet }, 'سياسة الخصوصية')),
       canOfferAndroidApp(config)

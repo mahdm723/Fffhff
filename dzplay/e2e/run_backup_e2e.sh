@@ -95,4 +95,20 @@ pass "v6-cleanup.sh: encrypted export (600, decrypts), old tables/rows removed, 
 ./deploy/v6-cleanup.sh 2>&1 | grep -q "Already done" || fail "second run not idempotent"
 [ "$(ls -1 "$WORK"/backups/v6-legacy-*.json.gpg | wc -l)" -eq 1 ] || fail "second run exported again"
 pass "second run: Already done, nothing changed"
+# V6 phase 1b: old anonymous chats → read-only → after LEGACY_ANON_RETENTION_DAYS: encrypted export, then removed
+anon() { $COMPOSE exec -T app python - "$1" < e2e/v6_anon_seed.py | tail -1; }
+[ "$(anon seed)" = "anonymous=1 direct=1 messages=2" ] || fail "anon seed"
+./deploy/v6-cleanup.sh anon > "$WORK/anon1.log" 2>&1 || { cat "$WORK/anon1.log" >&2; fail "v6-cleanup.sh anon (not yet) failed"; }
+grep -q "Not yet" "$WORK/anon1.log" || { cat "$WORK/anon1.log" >&2; fail "anon clean-up ran too early"; }
+ls "$WORK"/backups/v6-anon-*.json.gpg >/dev/null 2>&1 && fail "exported before the retention"
+pass "before LEGACY_ANON_RETENTION_DAYS: v6-cleanup.sh anon only reports the date"
+anon backdate >/dev/null
+./deploy/v6-cleanup.sh anon > "$WORK/anon2.log" 2>&1 || { cat "$WORK/anon2.log" >&2; fail "v6-cleanup.sh anon failed"; }
+af="$(ls -1 "$WORK"/backups/v6-anon-*.json.gpg)"
+[ "$(stat -c %a "$af")" = 600 ] || fail "anon export permissions"
+gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 --decrypt "$af" 3<<<"$pp" | grep -q 'رسالة مجهولة قديمة e2e' \
+  || fail "anon export does not decrypt to the old chat"
+[ "$(anon check)" = "anonymous=0 direct=1 messages=1" ] || fail "after anon clean-up: $(anon check)"
+./deploy/v6-cleanup.sh anon 2>&1 | grep -q "Already done" || fail "anon second run not idempotent"
+pass "after it: encrypted export (600, decrypts), old anonymous chats removed, direct chats kept, idempotent"
 echo "BACKUP E2E PASSED"

@@ -1,6 +1,6 @@
 // One conversation, Messenger-style: grouped bubbles, time on tap, day separators,
 // sent / delivered / seen, typing indicator, system messages, message requests,
-// and the conversation menu (reveal my identity, mute, report, block, delete).
+// and the conversation menu (mute, report, block, delete). V6: old anonymous chats are read-only.
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { PickError, chooseFile, openViewer, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
@@ -28,17 +28,13 @@ function statusIcon(status) {
 
 function systemText(m) {
   const meta = m.meta || {};
-  if (meta.event === 'reveal') {
-    return m.mine
-      ? 'كشفتَ هويتك. يرى هذا الشخص الآن اسمك ومعرّفك.'
-      : `كشف الطرف الآخر هويته: ${meta.name || ''}${meta.public_id ? ` · ${meta.public_id}` : ''}`;
-  }
+  if (meta.event === 'reveal') return m.mine ? 'كشفتَ هويتك.' : 'كشف الطرف الآخر هويته.';
   return m.content || '';
 }
 
 const isAnonymous = (conv) => !conv || (conv.kind !== 'direct' && (!conv.peer_card || conv.peer_card.anonymous));
 // V5: pictures in chats unlock once the other side has replied.
-const canSendImage = (conv) => !!conv && conv.status === 'active' && conv.peer_has_replied && !store.isRequest(conv)
+const canSendImage = (conv) => !!conv && conv.status === 'active' && !conv.read_only && conv.peer_has_replied && !store.isRequest(conv)
   && !(conv.request && conv.request.state !== 'accepted');
 
 export function renderChat(root, { conversationId, navigate }) {
@@ -69,9 +65,7 @@ export function renderChat(root, { conversationId, navigate }) {
     if (!conv) sub = [];
     else if (!anon && card.active) sub = [h('span', { class: 'online-dot' }), 'نشط الآن'];
     else if (conv.kind === 'direct') sub = ['محادثة مباشرة'];
-    else if (!anon) sub = [icon('eye'), 'كشف هويته لك'];
-    else if (conv.me_revealed) sub = [icon('lock'), 'هويته مخفية · أنت كشفت هويتك'];
-    else sub = [icon('lock'), 'هوية مخفية للطرفين'];
+    else sub = [icon('lock'), 'محادثة مجهولة قديمة · للقراءة فقط'];
     headSub.replaceChildren(...sub);
   }
 
@@ -260,7 +254,7 @@ export function renderChat(root, { conversationId, navigate }) {
     const direct = conv && conv.kind === 'direct';
     const nodes = [h('p', { class: 'notice' }, icon(direct ? 'info' : 'lock'), direct
       ? 'محادثة مباشرة: يرى كل طرف اسم الآخر ومعرّفه فقط، دون بريد أو رقم. تُحذف الرسائل من الخادم تلقائيًا بعد مدة.'
-      : 'محادثة مجهولة: يظهر كل طرف باسم dzplay حتى يختار هو كشف هويته. تُحذف الرسائل من الخادم تلقائيًا بعد مدة.')];
+      : 'أُوقفت الرسائل المجهولة العشوائية. هذه محادثة قديمة للقراءة فقط وستُحذف قريبًا.')];
     let day = null;
     const lastMine = [...msgs].reverse().find((m) => m.mine && m.kind !== 'system');
     msgs.forEach((m, i) => {
@@ -280,6 +274,11 @@ export function renderChat(root, { conversationId, navigate }) {
   }
 
   function drawFooter(conv) {
+    if (conv && conv.read_only) {
+      const when = conv.deleted_after ? formatDay(conv.deleted_after) : '';
+      footer.replaceChildren(h('div', { class: 'closed-bar', text: `محادثة مجهولة قديمة للقراءة فقط${when ? `، تُحذف في ${when}` : ''}.` }));
+      return;
+    }
     if (conv && conv.status !== 'active') {
       footer.replaceChildren(h('div', { class: 'closed-bar', text: 'هذه المحادثة مغلقة ولم يعد بالإمكان الرد فيها.' }));
       return;
@@ -332,7 +331,6 @@ export function renderChat(root, { conversationId, navigate }) {
         ),
         h('div', { class: 'actions' },
           card.public_id ? act('user', 'عرض الملف', () => navigate(`#/id/${card.public_id}`)) : null,
-          conv.kind !== 'direct' && active && !conv.me_revealed ? act('eye', 'كشف هويتي', revealFlow) : null,
           act(conv.muted ? 'bell' : 'bellOff', conv.muted ? 'إلغاء كتم الإشعارات' : 'كتم الإشعارات', () => setMuted(!conv.muted)),
           act('flag', 'إبلاغ', () => reportSheet(null)),
           active ? act('block', 'حظر', blockFlow, 'btn--danger') : null,
@@ -340,19 +338,6 @@ export function renderChat(root, { conversationId, navigate }) {
         ),
       );
     });
-  }
-
-  async function revealFlow() {
-    const ok = await confirmSheet({
-      title: 'كشف هويتك؟',
-      text: 'سيرى هذا الشخص اسمك ومعرّفك DZ فقط (لا بريد ولا رقم). لا يمكن التراجع عن ذلك، ولن تُكشف هويته هو.',
-      confirm: 'كشف هويتي',
-    });
-    if (!ok) return;
-    try {
-      await api.post(`/api/conversations/${encodeURIComponent(conversationId)}/reveal`);
-      await store.loadConversation(conversationId);
-    } catch (err) { toast(err.message, 'error'); }
   }
 
   async function setMuted(muted) {
@@ -366,7 +351,7 @@ export function renderChat(root, { conversationId, navigate }) {
   async function blockFlow() {
     const ok = await confirmSheet({
       title: 'حظر هذا الشخص؟',
-      text: 'لن يتمكن من مراسلتك أو الاتصال بك أو العثور عليك بالبحث، ولن يُختار لك في الرسائل العشوائية. ستُغلق هذه المحادثة.',
+      text: 'لن يتمكن من مراسلتك أو العثور عليك بالبحث. ستُغلق هذه المحادثة.',
       confirm: 'حظر', danger: true,
     });
     if (!ok) return;

@@ -1,6 +1,6 @@
 """V4 browser test on two phone-sized browsers: names, DZ-ID, people search, message
-requests, Messenger-style chat (typing, seen, time on tap), reveal identity, mute,
-privacy switches and the one-time gender prompt for accounts created before V4.
+requests, Messenger-style chat (typing, seen, time on tap), mute, an old anonymous chat
+(V6 phase 1b: read-only), privacy switches and the one-time gender prompt for accounts created before V4.
 
     python e2e/run_messenger_e2e.py [--shots DIR]
 """
@@ -23,6 +23,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from run_e2e import MOBILE, Run, register  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+
+def seed_old_anonymous(dbfile: str, from_email: str, to_email: str, text: str) -> None:
+    """An old random anonymous chat (from before V6 phase 1b), written straight to the database."""
+    from datetime import timedelta
+
+    from app import clock
+    from app.db import Database
+    from app.models import Conversation, Message, User
+
+    database = Database(f"sqlite:///{dbfile}")
+    now = clock.utcnow()
+    with database.session() as db:
+        a = db.query(User).filter_by(email=from_email).one()
+        c = db.query(User).filter_by(email=to_email).one()
+        conv = Conversation(initiator_id=a.id, recipient_id=c.id, created_at=now, last_message_at=now, updated_at=now,
+                            expires_at=now + timedelta(days=14), last_sender_id=a.id, consecutive_count=1, initiator_sent=True)
+        db.add(conv)
+        db.flush()
+        db.add(Message(conversation_id=conv.id, sender_id=a.id, recipient_id=c.id, content=text, created_at=now,
+                       expires_at=now + timedelta(days=7)))
+    database.engine.dispose()
 
 
 def start_server(port: int) -> tuple[subprocess.Popen, str, str]:
@@ -155,34 +178,27 @@ def main() -> int:
             expect(a.locator(".conv-item.is-muted")).to_have_count(1, timeout=10000)
             run.step("A muted the chat (bell-off in the list)")
 
-            print("Anonymous chat stays dzplay until a reveal")
+            print("An old anonymous chat is read-only (V6 phase 1b)")
             ctx_c = browser.new_context(**MOBILE, color_scheme="dark", locale="ar")
             c = ctx_c.new_page()
             run.watch(c, "C")
-            register(run, c, f"sami{suffix}@example.com")  # A already chats with B: the random message goes to C
-            a.locator(".msg-dock textarea").fill("رسالة عشوائية لشخص مجهول")
-            a.locator(".msg-dock .send-btn").click()
-            expect(a.get_by_text("وصلت رسالتك إلى شخص ما")).to_be_visible(timeout=10000)
+            register(run, c, f"sami{suffix}@example.com")
+            seed_old_anonymous(dbfile, f"amine{suffix}@example.com", f"sami{suffix}@example.com", "رسالة عشوائية قديمة")
             c.goto(base + "/#/messages")
             anon = c.locator(".conv-item").first
-            expect(anon.locator(".conv-item__kind")).to_have_count(1, timeout=10000)
+            expect(anon.locator(".conv-item__kind")).to_contain_text("مجهول قديم", timeout=10000)
             expect(anon.locator(".conv-item__name")).to_have_text("dzplay")
-            a.goto(base + "/#/messages")
-            expect(a.locator(".conv-item")).to_have_count(2)
-            run.shot(a, "v4-09-list-mixed")
-            a.locator(".conv-item", has=a.locator(".conv-item__kind")).click()
-            expect(a.get_by_role("button", name="مكالمة فيديو")).to_have_count(0)  # V6: calls removed
-            a.get_by_role("button", name="معلومات وخيارات").click()
-            a.locator(".sheet").get_by_role("button", name="كشف هويتي").click()
-            a.locator(".sheet").get_by_role("button", name="كشف هويتي").click()
-            expect(a.locator(".sys-msg")).to_contain_text("كشفتَ هويتك", timeout=10000)
-            expect(a.locator(".chat__name")).to_contain_text("dzplay")  # C stays anonymous to A
+            expect(c.locator(".msg-dock")).to_have_count(0)  # no random-message composer any more
             anon.click()
-            expect(c.locator(".sys-msg")).to_contain_text("أحمد", timeout=10000)
-            expect(c.locator(".chat__name")).to_contain_text("أحمد")
-            expect(c.locator(".chat__name .gender--male")).to_have_count(1)
-            run.shot(c, "v4-10-revealed")
-            run.step("A revealed in an anonymous chat: C sees a system message + A's name; C stays dzplay for A")
+            expect(c.locator(".bubble-row.theirs .bubble").first).to_contain_text("رسالة عشوائية قديمة")
+            expect(c.locator(".closed-bar")).to_contain_text("للقراءة فقط", timeout=10000)
+            expect(c.locator(".chat__composer textarea")).to_have_count(0)
+            c.get_by_role("button", name="معلومات وخيارات").click()
+            expect(c.locator(".sheet").get_by_role("button", name="كشف هويتي")).to_have_count(0)
+            expect(c.locator(".sheet").get_by_role("button", name="إبلاغ")).to_have_count(1)
+            run.shot(c, "v4-10-old-anonymous")
+            c.keyboard.press("Escape")
+            run.step("C sees the old anonymous chat read-only (no composer, no reveal; report still there)")
             ctx_c.close()
 
             print("Privacy switches")
@@ -203,7 +219,7 @@ def main() -> int:
             print("Keyboard + RTL")
             assert a.evaluate("document.documentElement.dir") == "rtl"
             a.goto(base + "/#/messages")
-            a.locator(".conv-item").first.click()
+            a.locator(".conv-item:not(:has(.conv-item__kind))").first.click()
             ta = a.locator(".chat__composer textarea")
             ta.focus()
             box = ta.bounding_box()

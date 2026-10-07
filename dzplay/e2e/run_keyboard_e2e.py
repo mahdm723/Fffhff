@@ -73,12 +73,17 @@ def main() -> int:
             a.locator("#idea-compose").fill("فكرة لتجربة لوحة المفاتيح")
             a.get_by_role("button", name="نشر", exact=True).click()
 
-            a.goto(base + "/#/messages")
-            check(run, a, a.locator(".msg-dock textarea"), a.locator(".msg-dock .send-btn"), "anonymous-dock")
-            a.locator(".msg-dock textarea").fill("مرحبا")
-            a.locator(".msg-dock .send-btn").click()
-            expect(a.get_by_text("وصلت رسالتك إلى شخص ما")).to_be_visible(timeout=10000)
-            a.locator(".conv-item").first.click()
+            # V6: no random-message composer; a direct message request instead
+            b_id = b.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)")
+            a.goto(base + "/#/profile")
+            a.locator(".people-search input").fill(b_id)
+            a.locator(".people-search input").press("Enter")
+            a.locator(".person").get_by_role("button", name="مراسلة").click()
+            send_req = a.locator(".sheet").get_by_role("button", name="إرسال طلب المراسلة")
+            check(run, a, a.locator(".sheet textarea"), send_req, "request-sheet")
+            a.locator(".sheet textarea").fill("مرحبا")
+            send_req.click()
+            expect(a.locator(".chat__composer textarea")).to_be_visible(timeout=10000)
             check(run, a, a.locator(".chat__composer textarea"), a.locator(".chat__composer .send-btn"), "chat")
 
             b.goto(base + "/#/home")

@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 
 from app.models import FcmToken
 from app.services import app_release, fcm
-from tests.conftest import send
+from tests.conftest import chat, reply
 
 TOKEN = "fGx1:APA91b" + "x" * 140
 
@@ -63,7 +63,8 @@ def test_offline_recipient_gets_a_message_alert_only(hx):
 
     hx.state.fcm = FakeFcm()
     a, b = hx.user(), hx.user()
-    send(a, "مرحبًا")
+    cid = chat(a, b, "مرحبًا")  # a message request does not push; the accepted chat does
+    reply(a, cid, "هل أنت هنا؟")
     with hx.db() as db:
         from app.models import User
 

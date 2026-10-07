@@ -76,7 +76,7 @@ def test_users_search_detail_and_actions(hx):
     pid = idea(a, "فكرة أليس")
     b.post(f"/api/posts/{pid}/comments", json={"content": "تعليق خاص من بوب"})
     b.put(f"/api/posts/{pid}/reaction", json={"reaction": "like"})
-    cid = send(a, "مرحبا بوب").json()["conversation"]["id"]
+    cid = send(a, b, "مرحبا بوب").json()["conversation"]["id"]
     reply(b, cid, "أهلًا أليس")
     admin = hx.admin()
 
@@ -134,7 +134,7 @@ def test_admin_sees_private_comments_users_still_cannot(hx):
 
 def test_conversations_with_both_participants(hx):
     a, b = hx.user(), hx.user()
-    cid = send(a, "رسالة مجهولة").json()["conversation"]["id"]
+    cid = send(a, b, "رسالة مجهولة").json()["conversation"]["id"]
     reply(b, cid, "رد")
     admin = hx.admin()
     lst = admin.get("/api/admin/access/conversations").json()
@@ -154,7 +154,7 @@ def test_search_and_delete_any_content(hx):
     a, b = hx.user(), hx.user()
     pid = idea(a, "كلمة_بحث في فكرة")
     b.post(f"/api/posts/{pid}/comments", json={"content": "كلمة_بحث في تعليق"})
-    cid = send(a, "كلمة_بحث في رسالة").json()["conversation"]["id"]
+    cid = send(a, b, "كلمة_بحث في رسالة").json()["conversation"]["id"]
     admin = hx.admin()
     res = admin.get("/api/admin/access/search", params={"q": "كلمة_بحث"}).json()
     assert len(res["ideas"]) == 1 and len(res["idea_comments"]) == 1 and len(res["messages"]) == 1

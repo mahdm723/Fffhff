@@ -14,6 +14,7 @@ import logging
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
+from app import clock
 from app.db import Base
 
 log = logging.getLogger("dzplay.migrations")
@@ -58,6 +59,11 @@ def backfill(engine: Engine) -> dict:
             "UPDATE conversations SET recipient_sent = :t WHERE recipient_sent IS NULL AND (last_sender_id = recipient_id "
             "OR EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = conversations.id AND m.sender_id = conversations.recipient_id))"),
             {"t": True})
+        # V6 phase 1b: the moment old anonymous chats became read-only (their deletion is counted from it)
+        if conn.execute(text("SELECT 1 FROM app_settings WHERE key = 'schema.v6_anon_closed_at'")).first() is None:
+            now = clock.utcnow()
+            conn.execute(text("INSERT INTO app_settings (key, value, updated_at, updated_by) "
+                              "VALUES ('schema.v6_anon_closed_at', :v, :t, 'system')"), {"v": now.isoformat(), "t": now})
         missing = [r[0] for r in conn.execute(text("SELECT id FROM users WHERE public_id IS NULL"))]
         if missing:
             taken = {r[0] for r in conn.execute(text("SELECT public_id FROM users WHERE public_id IS NOT NULL"))}

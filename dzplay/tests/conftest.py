@@ -197,8 +197,49 @@ def hx(make_harness) -> Harness:
     return make_harness()
 
 
-def send(c: TestClient, content: str = "أحتاج أن أتحدث مع شخص اليوم.", **extra):
-    return c.post("/api/messages", json={"content": content, **extra})
+def public_id(c: TestClient) -> str:
+    pid = getattr(c, "public_id", None)
+    if pid is None:
+        pid = c.get("/api/me").json()["public_id"]
+        c.public_id = pid  # type: ignore[attr-defined]
+    return pid
+
+
+def send(c: TestClient, to, content: str = "أحتاج أن أتحدث معك اليوم.", **extra):
+    """V6: a direct message to `to` (a client or a public ID). The first one is a message request;
+    random anonymous messages were removed in phase 1b."""
+    pid = to if isinstance(to, str) else public_id(to)
+    return c.post(f"/api/people/{pid}/messages", json={"content": content, **extra})
+
+
+def chat(a: TestClient, b: TestClient, content: str = "أحتاج أن أتحدث معك اليوم.") -> str:
+    """A direct chat from a to b that b already accepted; returns its id."""
+    r = send(a, b, content)
+    assert r.status_code == 201, r.text
+    cid = r.json()["conversation"]["id"]
+    assert b.post(f"/api/conversations/{cid}/request", json={"action": "accept"}).status_code == 200
+    return cid
+
+
+def legacy_anonymous(hx, a: TestClient, b: TestClient, content: str = "رسالة مجهولة قديمة") -> str:
+    """An old random anonymous conversation (kind NULL, from before V6 phase 1b) a → b, written to the database."""
+    from datetime import timedelta
+
+    from app.models import Conversation, Message, User
+
+    now = clock.utcnow()
+    with hx.db() as db:
+        ua = db.query(User).filter_by(email=a.email).one()
+        ub = db.query(User).filter_by(email=b.email).one()
+        conv = Conversation(initiator_id=ua.id, recipient_id=ub.id, created_at=now, last_message_at=now, updated_at=now,
+                            expires_at=now + timedelta(seconds=hx.settings.CONVERSATION_IDLE_TTL), last_sender_id=ua.id,
+                            consecutive_count=1, initiator_sent=True)
+        db.add(conv)
+        db.flush()
+        db.add(Message(conversation_id=conv.id, sender_id=ua.id, recipient_id=ub.id, content=content, created_at=now,
+                       expires_at=now + timedelta(seconds=hx.settings.MESSAGE_TTL)))
+        db.commit()
+        return conv.id
 
 
 def reply(c: TestClient, cid: str, content: str, **extra):

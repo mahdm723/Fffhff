@@ -21,7 +21,6 @@ class ProfileBody(_Body):
 
 
 class PrivacyBody(_Body):
-    accept_anonymous: bool | None = None
     accept_direct: str | None = Field(default=None, max_length=12)
     searchable_by_name: bool | None = None
 
@@ -149,17 +148,6 @@ def answer_request(conversation_id: str, body: RequestBody, request: Request) ->
     with st.database.session() as db:
         user = _me(st, db, request)
         result = messaging.answer_request(db, user, conversation_id, body.action, effects)
-    st.dispatch(effects)
-    return result
-
-
-@router.post("/conversations/{conversation_id}/reveal")
-def reveal(conversation_id: str, request: Request) -> dict:
-    st = get_state(request)
-    effects = Effects()
-    with st.database.session() as db:
-        user = _me(st, db, request)
-        result = messaging.reveal(db, st.settings, user, conversation_id, effects)
     st.dispatch(effects)
     return result
 

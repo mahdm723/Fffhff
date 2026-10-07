@@ -19,7 +19,7 @@ def test_someone_elses_upload_cannot_be_read_attached_or_published(mx):
     assert b.post("/api/posts", json={"content": "سرقة", "media_id": mid}).status_code in (403, 404)
     assert b.post("/api/studio/reels", json={"media_id": mid}).status_code in (404, 405)  # V6: the studio is gone
     # the idea picture cannot be pushed into a chat either (wrong purpose), even by its owner
-    cid = send(a, "مرحبا").json()["conversation"]["id"]
+    cid = send(a, b, "مرحبا").json()["conversation"]["id"]
     reply(b, cid, "أهلا")
     assert a.post(f"/api/conversations/{cid}/media", json={"media_id": mid}).status_code in (400, 404, 409)
     # still the owner's: it can be attached normally
@@ -28,7 +28,7 @@ def test_someone_elses_upload_cannot_be_read_attached_or_published(mx):
 
 def test_signed_chat_picture_url_is_useless_to_anyone_else(mx):
     a, b = mx.user(), mx.user()
-    cid = send(a, "مرحبا، كيف الحال؟").json()["conversation"]["id"]  # anonymous: reaches the only other user
+    cid = send(a, b, "مرحبا، كيف الحال؟").json()["conversation"]["id"]
     reply(b, cid, "بخير")
     stranger = mx.user()
     mid = ready_upload(mx, a, jpeg(), purpose="chat", conversation_id=cid)
@@ -48,7 +48,7 @@ def test_telegram_ids_never_reach_any_client(mx):
     a, b = mx.user(), mx.user()
     mid = ready_upload(mx, a, jpeg())
     a.post("/api/posts", json={"content": "فكرة مع صورة", "media_id": mid})
-    cid = send(a, "سلام").json()["conversation"]["id"]
+    cid = send(a, b, "سلام").json()["conversation"]["id"]
     reply(b, cid, "وعليكم")
     cmid = ready_upload(mx, a, jpeg((1, 2, 3)), purpose="chat", conversation_id=cid)
     msg = a.post(f"/api/conversations/{cid}/media", json={"media_id": cmid}).json()["message"]

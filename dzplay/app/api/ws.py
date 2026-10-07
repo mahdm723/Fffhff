@@ -66,8 +66,8 @@ class Connection:
         def _lookup() -> str | None:
             with self.st.database.session() as db:
                 c = db.get(Conversation, conversation_id)
-                if (c is None or not c.is_participant(self.user_id) or c.status != "active"
-                        or c.expires_at <= clock.utcnow()):
+                if (c is None or not c.is_participant(self.user_id) or c.status != "active" or not c.is_direct
+                        or c.expires_at <= clock.utcnow()):  # V6: old anonymous chats are read-only
                     return None
                 peer = c.peer_of(self.user_id)
                 if c.hidden_for(self.user_id) or c.hidden_for(peer):

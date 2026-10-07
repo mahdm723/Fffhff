@@ -124,6 +124,9 @@ def _legacy(database: Database, settings, args) -> None:
     if args.cmd == "stars-count":
         print(f"blue stars: {legacy_v6.stars_count(engine)}")
         return
+    if getattr(args, "anon", False):
+        _legacy_anon(database, settings, args)
+        return
     if args.cmd == "export-legacy":
         body, sha, counts = legacy_v6.export(engine)
         sys.stdout.buffer.write(body)
@@ -146,6 +149,42 @@ def _legacy(database: Database, settings, args) -> None:
         return
     try:
         counts = legacy_v6.drop(engine, args.sha, settings.MEDIA_CACHE_DIR)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    print("Removed: " + json.dumps(counts, sort_keys=True))
+
+
+def _legacy_anon(database: Database, settings, args) -> None:
+    """V6 phase 1b: the old anonymous chats (read-only), exported then deleted after LEGACY_ANON_RETENTION_DAYS."""
+    from app import clock
+    from app.services import legacy_v6, tunables
+
+    engine = database.engine
+    with database.session() as db:
+        tunables.apply(db, settings)  # the retention can be changed from the panel
+        due = legacy_v6.anon_due_at(db, settings)
+    if args.cmd == "export-legacy":
+        body, sha, counts = legacy_v6.export_anon(engine)
+        sys.stdout.buffer.write(body)
+        sys.stdout.flush()
+        print(f"sha256={sha} rows={json.dumps(counts, sort_keys=True)}", file=sys.stderr)
+        return
+    if legacy_v6.already_dropped(engine, legacy_v6.ANON_FLAG):
+        print("Already done: the old anonymous chats were removed before.")
+        return
+    if args.cmd == "legacy-status":  # exit 0 = nothing (left) to remove, 1 = ready to remove, 2 = not yet
+        _body, _sha, counts = legacy_v6.export_anon(engine)
+        if not any(counts.values()):
+            print("Nothing to remove: no old anonymous chats in this database.")
+            return
+        when = due.isoformat(timespec="minutes") + " UTC" if due else "unknown"
+        if due is None or clock.utcnow() < due:
+            print(f"Old anonymous chats (read-only): {json.dumps(counts, sort_keys=True)}; deletion allowed after {when}.")
+            raise SystemExit(2)
+        print(f"Old anonymous chats ready to export + delete (since {when}): {json.dumps(counts, sort_keys=True)}")
+        raise SystemExit(1)
+    try:
+        counts = legacy_v6.drop_anon(engine, args.sha, settings, settings.MEDIA_CACHE_DIR)
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
     print("Removed: " + json.dumps(counts, sort_keys=True))
@@ -184,10 +223,14 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
     p = sub.add_parser("admin-link")  # the secret panel address (+ whether an admin account exists)
     p.add_argument("public_url")
     # V6 phase 1: data of the removed features (Reels, studio + earnings, calls, boost) — see app.services.legacy_v6
-    sub.add_parser("export-legacy")  # canonical JSON on stdout (deploy/v6-cleanup.sh encrypts it), SHA-256 on stderr
+    # --anon (V6 phase 1b): the old anonymous chats instead, allowed after LEGACY_ANON_RETENTION_DAYS
+    p = sub.add_parser("export-legacy")  # canonical JSON on stdout (deploy/v6-cleanup.sh encrypts it), SHA-256 on stderr
+    p.add_argument("--anon", action="store_true")
     p = sub.add_parser("drop-legacy")
     p.add_argument("--sha", required=True, help="SHA-256 printed by export-legacy (proves what was saved)")
-    sub.add_parser("legacy-status")  # exit 0 when there is nothing (left) to remove
+    p.add_argument("--anon", action="store_true")
+    p = sub.add_parser("legacy-status")  # exit 0 when there is nothing (left) to remove (--anon: 2 = not yet)
+    p.add_argument("--anon", action="store_true")
     sub.add_parser("stars-count")  # accounts that hold the blue star
     args = parser.parse_args(argv)
 

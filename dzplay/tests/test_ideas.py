@@ -112,7 +112,7 @@ def test_popular_posts_do_not_always_win(make_harness):
 def test_feed_excludes_blocked_authors(hx):
     a, b = hx.user(), hx.user()
     pid = post(a, "منشور من a").json()["id"]
-    cid = send(b, "مرحبا").json()["conversation"]["id"]
+    cid = send(b, a, "مرحبا").json()["conversation"]["id"]
     a.post(f"/api/conversations/{cid}/block")  # a blocks b
     assert pid not in feed_ids(b)[0]
 
@@ -214,8 +214,8 @@ def test_owner_can_report_delete_and_block_commenter(hx):
     assert r.status_code == 403
     assert owner.delete(f"/api/comments/{cid}").status_code == 200
     assert owner.get(f"/api/posts/{pid}/comments").json()["comments"] == []
-    # Blocking also applies to anonymous messaging (same block list).
-    assert send(b, "رسالة").json()["error"]["code"] == "no_recipient"
+    # Blocking also applies to messages (same block list).
+    assert send(b, owner, "رسالة").status_code == 404
 
 
 def test_report_post_and_admin_remove(make_harness):
@@ -264,7 +264,7 @@ def test_profiles_show_only_public_idea_stats(hx):
 def test_profile_ref_is_not_linked_to_messaging(hx):
     a, b = hx.user(), hx.user()
     ref = post(a).json()["author"]["ref"]
-    cid = send(a, "رسالة مجهولة").json()["conversation"]["id"]
+    cid = send(a, b, "رسالة").json()["conversation"]["id"]
     reply(b, cid, "رد")
     for c in (a, b):
         payload = json.dumps([c.get("/api/conversations").json(), c.get(f"/api/conversations/{cid}").json(), c.get("/api/sync").json()])

@@ -171,26 +171,34 @@ def main() -> int:
             run.shot(b, "07-public-profile")
             run.step("B opened A's public profile: dzplay + Posts/Likes/Dislikes + posts only")
 
-            print("Anonymous message from the Messages composer")
+            print("Direct message by public ID (V6: random anonymous messages were removed)")
+            b_id = b.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)")
             a.locator('[data-tab="messages"]').click()
-            a.locator(".msg-dock textarea").fill("أحتاج أن أتحدث مع شخص اليوم.")
-            expect(a.locator(".nav")).to_be_hidden()  # keyboard open: composer takes the nav's place
-            run.shot(a, "08-messages-dock")
-            a.locator(".msg-dock .send-btn").click()
-            expect(a.get_by_text("وصلت رسالتك إلى شخص ما")).to_be_visible()
-            expect(a.locator(".conv-item")).to_have_count(1)
-            run.step("A sent an anonymous message from the Messages page")
+            expect(a.locator(".msg-dock")).to_have_count(0)  # no random-message composer any more
+            a.get_by_role("button", name="ابحث عن شخص").first.click()
+            a.locator(".people-search input").fill(b_id)
+            a.locator(".people-search input").press("Enter")
+            a.locator(".person").get_by_role("button", name="مراسلة").click()
+            a.locator(".sheet textarea").fill("أحتاج أن أتحدث مع شخص اليوم.")
+            run.shot(a, "08-message-request")
+            a.locator(".sheet").get_by_role("button", name="إرسال طلب المراسلة").click()
+            expect(a.locator(".chat__hint")).to_contain_text("طلب مراسلة", timeout=10000)
+            run.step("A found B by ID and sent a message request")
 
-            print("Receive (realtime)")
+            print("Receive (realtime) + accept")
             b.locator('[data-tab="messages"]').click()
+            req_tab = b.get_by_role("tab", name="طلبات الرسائل")
+            expect(req_tab.locator(".badge")).to_have_text("1", timeout=10000)
+            req_tab.click()
             item = b.locator(".conv-item").first
             expect(item).to_be_visible(timeout=10000)
             expect(item.locator(".conv-item__name")).to_have_text("dzplay")
-            expect(item.locator(".unread-dot")).to_have_count(1)
             run.shot(b, "09-messages-list")
             item.click()
             expect(b.locator(".bubble-row.theirs .bubble").first).to_contain_text("أحتاج أن أتحدث مع شخص اليوم.")
-            run.step("B received it from 'dzplay' and opened the conversation")
+            b.locator(".request-bar").get_by_role("button", name="قبول").click()
+            expect(b.locator(".chat__composer textarea")).to_be_visible(timeout=10000)
+            run.step("B received the request live, opened it and accepted")
 
             print("Reply")
             b.locator(".chat__composer textarea").fill("أنا هنا، ماذا حدث؟")
@@ -198,7 +206,6 @@ def main() -> int:
             expect(b.locator(".bubble-row.mine .bubble").last).to_contain_text("أنا هنا، ماذا حدث؟")
             run.shot(b, "10-chat-b")
 
-            a.locator(".conv-item").first.click()
             expect(a.locator(".bubble-row.theirs .bubble").last).to_contain_text("أنا هنا، ماذا حدث؟", timeout=10000)
             # B's message status reaches "read" once A has the chat open.
             expect(b.locator(".bubble__status--read")).to_have_count(1, timeout=10000)
