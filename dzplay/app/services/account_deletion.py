@@ -1,9 +1,8 @@
 """V5 «حذف حسابي»: a user deletes their own account.
 
 Deleted at once: the account, sessions, profile, ideas (with their comments and reactions), comments,
-reactions, conversations and messages, support tickets, blue-star requests, creator reels, earnings
-records and payout e-mail, notification tokens; pictures/videos leave the cache and the Telegram storage
-channel. Kept: reported media as evidence (up to MEDIA_EVIDENCE_RETENTION_DAYS), reports others filed
+reactions, conversations and messages, support tickets, blue-star requests, notification tokens;
+pictures leave the cache and the Telegram storage channel. Kept: reported media as evidence (up to MEDIA_EVIDENCE_RETENTION_DAYS), reports others filed
 about this account (until REPORT_RETENTION), and the audit log line saying an account was deleted
 (public ID only).
 """

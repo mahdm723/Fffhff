@@ -316,13 +316,11 @@ def test_phase2_upgrade_adds_engagement_columns_and_tables(tmp_path):
 
     from app import models
     from app.db import Base, Database
-    from app.services.counts import shown
 
     db = Database(f"sqlite:///{tmp_path}/old.db")
     Base.metadata.create_all(db.engine)
     with db.engine.begin() as conn:
-        for table, col in (("posts", "boost_likes"), ("posts", "boost_dislikes"), ("reels", "boost_likes"),
-                           ("reels", "boost_dislikes"), ("users", "is_system"), ("admin_users", "role"),
+        for table, col in (("posts", "boost_likes"), ("posts", "boost_dislikes"), ("users", "is_system"), ("admin_users", "role"),
                            ("canned_comments", "usage_count")):
             conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {col}"))
         conn.execute(text("DROP TABLE engagement_jobs"))
@@ -340,4 +338,4 @@ def test_phase2_upgrade_adds_engagement_columns_and_tables(tmp_path):
     assert {"engagement_jobs", "comment_categories"} <= set(insp.get_table_names())
     with db.session() as s:
         p = s.get(models.Post, "p1")
-        assert (p.likes_count, p.boost_likes, shown(p.likes_count, p.boost_likes)) == (4, None, 4)
+        assert (p.likes_count, p.boost_likes) == (4, None)

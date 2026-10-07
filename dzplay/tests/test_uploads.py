@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import io
 import json
-import subprocess
 
 import pytest
 from PIL import Image
@@ -15,7 +14,7 @@ from app.models import MediaItem, Post, SecurityEvent, User
 from app.services import media_check, media_items, tunables
 from app.services.messaging import Effects
 from tests import fake_telegram as tg
-from tests.conftest import ffmpeg_binary, reply, send
+from tests.conftest import reply, send
 
 STORAGE = "-1001111111111"
 MODCHAT = "-1002222222222"
@@ -244,30 +243,19 @@ def test_sniff_detects_types_by_content():
     assert media_check.sniff(b"GIF89a....") is None and media_check.sniff(b"%PDF-1.7") is None
 
 
-def test_video_job_reencoded_metadata_stripped_and_duration_limit(tmp_path, mx):
-    ff = ffmpeg_binary()
-    src = tmp_path / "clip.mov"
-    subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=25",
-                    "-f", "lavfi", "-i", "sine=frequency=440", "-t", "3", "-c:v", "mpeg4", "-q:v", "3", "-c:a", "aac",
-                    "-shortest", "-metadata", "location=+36.8189+000.1520/", "-metadata", "creation_time=2024-01-02T03:04:05Z",
-                    "-metadata", "make=PhoneMaker", str(src)], check=True, timeout=120)
-    settings = mx.settings
+def test_videos_are_refused_everywhere(tmp_path, mx):
+    """V6: videos left with Reels — the worker refuses them even if a job claims a video, nothing is left behind,
+    and no purpose accepts one."""
     tmp = tmp_path / "work"
     tmp.mkdir()
-    job = {"id": "b" * 32, "kind": "video", "types": ["mp4", "mov", "webm"], "max_seconds": 10, "nsfw": True,
-           "nsfw_block": 0.7, "nsfw_sexy": 0.92, "frames": 3}
-    (tmp / f"{'b' * 32}.in").write_bytes(src.read_bytes())
-    res = media_check.run_job(settings, tmp, job)
-    assert res["ok"], res
-    out = (tmp / f"{'b' * 32}.mp4.mp4").read_bytes()
-    assert len(out) <= settings.TELEGRAM_STORE_MAX_MB * 1024 * 1024 and (res["width"], res["height"]) == (1280, 720) and res["nsfw"] < 0.5
-    for leak in (b"+36.8189", b"PhoneMaker", b"2024-01-02"):
-        assert leak not in out
-    assert not (tmp / f"{'b' * 32}.in").exists() and (tmp / f"{'b' * 32}.poster.jpg").exists()
-    media_check.cleanup(tmp, "b" * 32)
-    (tmp / f"{'c' * 32}.in").write_bytes(src.read_bytes())
-    res = media_check.run_job(settings, tmp, {**job, "id": "c" * 32, "max_seconds": 2})
-    assert not res["ok"] and res["code"] == "too_long" and list(tmp.iterdir()) == []
+    clip = b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom" + b"\x00" * 400
+    for kind in ("video", "image"):
+        (tmp / f"{'b' * 32}.in").write_bytes(clip)
+        res = media_check.run_job(mx.settings, tmp, {"id": "b" * 32, "kind": kind, "types": ["mp4", "jpeg"]})
+        assert not res["ok"] and res["code"] == "bad_type" and list(tmp.iterdir()) == []
+    a = mx.user()
+    assert upload(mx, a, clip, purpose="reel").status_code == 400
+    assert "video_types" not in a.get("/api/uploads/config").json()
 
 
 # ----------------------------------------------------------------- moderation

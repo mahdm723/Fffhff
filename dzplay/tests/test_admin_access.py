@@ -10,7 +10,6 @@ from sqlalchemy import select
 from app import clock
 from app.models import Post, PostReaction, User
 from tests.conftest import ADMIN_PATH, reply, send
-from tests.test_reels import make_reels
 
 
 def idea(c, text="فكرة للتجربة"):
@@ -156,17 +155,15 @@ def test_search_and_delete_any_content(hx):
     pid = idea(a, "كلمة_بحث في فكرة")
     b.post(f"/api/posts/{pid}/comments", json={"content": "كلمة_بحث في تعليق"})
     cid = send(a, "كلمة_بحث في رسالة").json()["conversation"]["id"]
-    rid = make_reels(hx, 1)[0]
-    b.post(f"/api/reels/{rid}/comments", json={"content": "كلمة_بحث في تعليق مقطع"})
     admin = hx.admin()
     res = admin.get("/api/admin/access/search", params={"q": "كلمة_بحث"}).json()
     assert len(res["ideas"]) == 1 and len(res["idea_comments"]) == 1 and len(res["messages"]) == 1
-    assert len(res["reel_comments"]) == 1
+    assert "reel_comments" not in res and "reels" not in res
     assert admin.get("/api/admin/access/search", params={"q": "_"}).status_code == 400
     assert admin.get("/api/admin/access/search", params={"q": "__"}).json()["ideas"] == []  # escaped, not a wildcard
 
     assert admin.delete(f"/api/admin/access/content/idea_comment/{res['idea_comments'][0]['id']}").status_code == 200
-    assert admin.delete(f"/api/admin/access/content/reel_comment/{res['reel_comments'][0]['id']}").status_code == 200
+    assert admin.delete(f"/api/admin/access/content/reel_comment/{'x' * 32}").status_code == 400
     assert admin.delete(f"/api/admin/access/content/message/{res['messages'][0]['id']}").status_code == 200
     assert admin.delete(f"/api/admin/access/content/conversation/{cid}").status_code == 200
     assert admin.delete(f"/api/admin/access/content/idea/{pid}").status_code == 200
@@ -174,7 +171,6 @@ def test_search_and_delete_any_content(hx):
     assert admin.delete(f"/api/admin/access/content/idea/{pid}").status_code == 404
     again = admin.get("/api/admin/access/search", params={"q": "كلمة_بحث"}).json()
     assert all(not v for v in again.values())
-    assert b.get(f"/api/reels/{rid}/comments").json()["total"] == 0
 
 
 def test_system_status(hx):

@@ -1,6 +1,6 @@
 """Moderation of user media through Telegram and the admin panel (V5).
 
-* Every published idea picture / creator reel is copied from the private storage channel to the private
+* Every published idea picture is copied from the private storage channel to the private
   moderation group with: type, the uploader's public ID, the caption, and inline buttons
   (delete · ban the uploader · approve/reject when approval is required).
 * Chat pictures reach the moderators only when they are reported.
@@ -35,7 +35,7 @@ ACTIONS = {
     "keep": "↩️ أُبقي",
     "minor": "🚨 حُذف وحُظر (قاصر) — محفوظ كدليل",
 }
-TITLES = {"idea": "🖼 صورة مع فكرة", "chat": "💬 صورة محادثة", "reel": "🎬 Reel من صانع محتوى"}
+TITLES = {"idea": "🖼 صورة مع فكرة", "chat": "💬 صورة محادثة"}
 MODES = {
     "published": "منشورة",
     "review": "⏳ بانتظار الموافقة",
@@ -58,12 +58,6 @@ def _caption(db: Session, item: MediaItem, mode: str) -> str:
         post = db.get(Post, item.attached_id)
         if post is not None and post.content:
             lines.append(f"النص: {preview(post.content, 600)}")
-    elif item.attached_type == "reel":
-        from app.models import Reel
-
-        reel = db.get(Reel, item.attached_id)
-        if reel is not None and reel.caption:
-            lines.append(f"الوصف: {preview(reel.caption, 600)}")
     if item.reports_count:
         lines.append(f"البلاغات: {item.reports_count}")
     if item.nsfw_score is not None:
@@ -147,27 +141,14 @@ def act(db: Session, settings: Settings, item: MediaItem, action: str, actor: st
     if action not in ACTIONS:
         raise ValueError("unknown action")
     post = _target_post(db, item)
-    reel = None
-    if item.attached_type == "reel" and item.attached_id:
-        from app.models import Reel
-
-        reel = db.get(Reel, item.attached_id)
     if action == "ok":
         item.review, item.hidden = "approved", False
         if post is not None and post.status in ("pending", "hidden"):
             post.status = "visible"
-        if reel is not None:
-            from app.services import creator_reels
-
-            creator_reels.approve(db, settings, reel, actor, effects)
     elif action == "keep":
         item.hidden, item.legal_hold = False, False
         if post is not None and post.status == "hidden":
             post.status = "visible"
-        if reel is not None and reel.review_status == "pending" and item.state == "attached":
-            from app.services import creator_reels
-
-            creator_reels.approve(db, settings, reel, actor, effects)
         if item.state in ("removed", "expired") and item.tg_message_id:
             effects.later(delete_from_storage, item.id)  # no longer needed as evidence
         db.execute(Report.__table__.update().where(Report.media_id == item.id, Report.status == "open")
@@ -179,10 +160,6 @@ def act(db: Session, settings: Settings, item: MediaItem, action: str, actor: st
             item.review = "rejected"
         if post is not None and post.status != "removed":
             post.status = "removed"
-        if reel is not None:
-            from app.services import creator_reels
-
-            creator_reels.reject(db, settings, reel, actor, effects, removed=action != "no")
         if item.state not in ("removed", "expired"):
             discard(db, item, actor, "removed", effects)
         if action in ("ban", "minor") and item.owner_id:

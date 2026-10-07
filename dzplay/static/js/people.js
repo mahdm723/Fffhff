@@ -25,7 +25,7 @@ export function confirmAge() {
       });
       panel.append(
         h('h2', { text: 'تأكيد العمر' }),
-        h('p', { text: 'الرسائل المباشرة والمكالمات متاحة للبالغين فقط.' }),
+        h('p', { text: 'الرسائل المباشرة متاحة للبالغين فقط.' }),
         h('label', { class: 'choice' }, box, h('span', { text: 'أؤكد أن عمري 18 سنة أو أكثر وأوافق على شروط الاستخدام.' })),
         h('div', { class: 'actions' }, go, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')),
       );

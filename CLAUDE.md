@@ -25,9 +25,9 @@
 | Redis (اختياري) | — | hub للـWebSocket بين النسخ، rate limiting، طابور عامل الوسائط |
 | الواجهة | `dzplay/static/` | PWA بـJavaScript modules بلا إطار عمل، و`sw.js` للتخزين المؤقت |
 | لوحة القيادة | `dzplay/app/admin_static/` + `app/api/admin*.py` | تحت مسار سري `ADMIN_PATH`، مع كلمة مرور + TOTP |
-| عامل الوسائط | `dzplay/app/media_worker.py` | حاوية معزولة (uid 10002، بلا إنترنت) تعيد ترميز الصور وتفحصها (Pillow، ffmpeg، ONNX) |
+| عامل الوسائط | `dzplay/app/media_worker.py` | حاوية معزولة (uid 10002، بلا إنترنت) تعيد ترميز الصور وتفحصها (Pillow، ONNX) |
 | Android | `dzplay/android/` | غلاف WebView أصلي (Java)، `applicationId io.dzplay.app` |
-| النشر | `dzplay/deploy/`، `dzplay/docker-compose.yml`، `dzplay/Caddyfile` | Docker Compose: caddy، app، media-worker، db، redis (+ coturn حتى المرحلة 1 من V6) |
+| النشر | `dzplay/deploy/`، `dzplay/docker-compose.yml`، `dzplay/Caddyfile` | Docker Compose: caddy، app، media-worker، db، redis |
 
 **داخل `dzplay/app/`:**
 - `api/*.py`: الـrouters. المنطق في `services/*.py`، ولا منطق داخل الـrouter.
@@ -37,7 +37,8 @@
 - `services/tunables.py`: كل حد قابل للتعديل من اللوحة دون إعادة تشغيل (يُخزَّن في `AppSetting` باسم `tun.<KEY>`).
 - `services/runtime_config.py`: أسرار تُضبط من اللوحة (SMTP، بوت Telegram)، مختومة بـ`SECRET_KEY`.
 - `migrations.py`: ترحيلات إضافية فقط (`add_missing_columns` + `backfill`). كل عمود جديد nullable، ولا حذف بيانات بدون نسخة احتياطية.
-- `admin_cli.py`: أوامر الإدارة (`create-admin`، `admin-link`، `alert`، `set-webhook`، …).
+- `admin_cli.py`: أوامر الإدارة (`create-admin`، `admin-link`، `alert`، `set-webhook`، `stars-count`، `legacy-status`، `export-legacy`، `drop-legacy`، …).
+- `services/legacy_v6.py`: تصدير بيانات الميزات المحذوفة في V6 ثم حذفها (SQL خام، بلا models)؛ يشغّله `deploy/v6-cleanup.sh`.
 
 **الواجهة:**
 - CSP صارم `'self'`: لا inline scripts ولا `style=""`. العرض يُضبط بـ`el.style.width` من JS.
@@ -55,7 +56,7 @@ cp .env.example .env          # ثم SECRET_KEY: .venv/bin/python -m app.admin_c
 ### الاختبارات
 ```bash
 cd dzplay
-.venv/bin/python -m pytest -q                                   # SQLite (أكثر من 330 اختبارًا)
+.venv/bin/python -m pytest -q                                   # SQLite (301 اختبار)
 DZ_TEST_DATABASE_URL=postgresql+psycopg://USER:PW@HOST:PORT/DB \
 DZ_TEST_REDIS_URL=redis://HOST:PORT/0 .venv/bin/python -m pytest -q   # PostgreSQL + Redis
 .venv/bin/pip-audit -r requirements.txt                         # التبعيات
@@ -67,8 +68,7 @@ PW_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome .venv/bin/python 
 ```
 وكذلك باقي ملفات `e2e/run_*_e2e.py`.
 
-- Chromium الخاص بـPlaywright لا يفك H.264، لذلك تستعمل الاختبارات مقاطع WebM.
-- الخادم في الاختبار يحتاج `FFMPEG_BINARY` و`FFPROBE_BINARY` (`tests.conftest.ffmpeg_binary()` / `ffprobe_shim()`).
+- V6: الرفع صور فقط (Pillow)، ولا حاجة إلى ffmpeg في الاختبارات.
 
 **مع Docker:**
 - `e2e/run_backup_e2e.sh`: نسخة احتياطية ← مسح ← استعادة.
@@ -84,6 +84,7 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
   - `deploy/harden.sh`: ufw وfail2ban والتحديثات التلقائية.
   - `deploy/ssh-harden.sh`: SSH بالمفاتيح فقط، ويرفض التطبيق قبل إثبات دخول بالمفتاح. **لا يُطبَّق قبل موافقة المالك.**
   - `deploy/monitor.sh`: تنبيهات Telegram كل 5 دقائق.
+  - `deploy/v6-cleanup.sh`: نسخة كاملة ← تصدير مشفّر للبيانات القديمة ← تحقق ← حذف (مرة واحدة، آمن للتكرار).
 - **التطبيق:**
   - الكود في `/opt/dzplay/dzplay`.
   - السجلات: `docker compose logs -f app`.

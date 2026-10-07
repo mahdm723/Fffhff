@@ -7,7 +7,7 @@
 #   sudo deploy/monitor.sh test       send a test alert
 #   sudo deploy/monitor.sh status     print the checks without sending anything
 #
-# Checks: disk usage, load, memory, every container (app, db, redis, caddy, coturn, media-worker),
+# Checks: disk usage, load, memory, every container (app, db, redis, caddy, media-worker),
 # the media worker heartbeat, the public /healthz, and repeated intrusion attempts (fail2ban bans).
 # One message when a problem starts, a reminder every MONITOR_REMIND_HOURS while it lasts,
 # and "✅ عاد طبيعيًا" when it is over.
@@ -29,7 +29,7 @@ SELF="$APP_DIR/deploy/monitor.sh"
 COMPOSE="${COMPOSE:-docker compose}"
 STATE="${MONITOR_STATE_DIR:-/var/lib/dzplay-monitor}"
 F2B_LOG="${MONITOR_F2B_LOG:-/var/log/fail2ban.log}"
-SERVICES="app db redis caddy coturn media-worker"
+SERVICES="app db redis caddy media-worker"
 
 env_get() { [ -f .env ] && grep -E "^$1=" .env | tail -1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//; s/^"//; s/"$//' || true; }
 num() { local v; v="$(env_get "$1")"; [[ "$v" =~ ^[0-9]+([.][0-9]+)?$ ]] && echo "$v" || echo "$2"; }
@@ -94,7 +94,7 @@ check_containers() {
   fi
   for s in $SERVICES; do
     if ! grep -qx "$s" <<<"$running"; then
-      # media-worker / coturn may be absent on old installs: only alert if the service is defined
+      # media-worker may be absent on old installs: only alert if the service is defined
       $COMPOSE config --services 2>/dev/null | grep -qx "$s" || continue
       printf 'svc:%s\tالخدمة %s متوقفة\n' "$s" "$s"
     fi

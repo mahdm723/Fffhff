@@ -24,13 +24,12 @@ from app.api import account as account_api
 from app.api import admin as admin_api
 from app.api import admin_v5 as admin_v5_api
 from app.api import auth as auth_api
-from app.api import calls as calls_api
 from app.api import download as download_api
+from app.api import media as media_api
 from app.api import messages as messages_api
 from app.api import people as people_api
 from app.api import policies as policies_api
 from app.api import posts as posts_api
-from app.api import reels as reels_api
 from app.api import telegram as telegram_api
 from app.api import uploads as uploads_api
 from app.api import ws as ws_api
@@ -102,7 +101,7 @@ async def _cleanup_loop(state: AppState) -> None:
 
 
 async def _engagement_loop(state: AppState) -> None:
-    """Advance gradual boosts and spread-out team comments (see app.services.engagement)."""
+    """Advance spread-out team comments (see app.services.engagement)."""
     from app.services import engagement
     from app.services.messaging import Effects
 
@@ -141,26 +140,6 @@ async def _media_loop(state: AppState) -> None:
             log.exception("media tick failed")
 
 
-async def _calls_loop(state: AppState) -> None:
-    """Unanswered calls become "missed" after CALL_RING_TIMEOUT; dead connected calls are closed."""
-    from app.services import calls
-    from app.services.messaging import Effects
-
-    while True:
-        await asyncio.sleep(state.settings.CALL_TICK_SECONDS)
-        try:
-            effects = Effects()
-
-            def _run() -> None:
-                with state.database.session() as db:
-                    calls.tick(db, state.settings, effects)
-
-            await run_in_threadpool(_run)
-            state.dispatch(effects)
-        except Exception:  # noqa: BLE001 - keep the loop alive
-            log.exception("calls tick failed")
-
-
 def create_app(settings: Settings | None = None, telegram_transport=None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -181,17 +160,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         await state.hub.start()
         cleanup_task = asyncio.create_task(_cleanup_loop(state)) if settings.CLEANUP_INTERVAL > 0 else None
         engagement_task = asyncio.create_task(_engagement_loop(state)) if settings.ENGAGEMENT_TICK_SECONDS > 0 else None
-        calls_task = asyncio.create_task(_calls_loop(state)) if settings.CALL_TICK_SECONDS > 0 else None
         media_task = asyncio.create_task(_media_loop(state)) if settings.MEDIA_TICK_SECONDS > 0 else None
         yield
         if media_task:
             media_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await media_task
-        if calls_task:
-            calls_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await calls_task
         if engagement_task:
             engagement_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -235,14 +209,9 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         h["X-Content-Type-Options"] = "nosniff"
         h["Referrer-Policy"] = "no-referrer"
         h["X-Frame-Options"] = "DENY"
-        # calls: our own pages only (never an embedded third party)
-        h["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
+        h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
         h["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-        if not path.startswith("/media/"):
-            # No other site may embed our responses. Not on /media/: Chromium blocks the later Range
-            # requests of a video whose first bytes came from the Service Worker's prefetch cache.
-            # Media URLs are signed, short-lived and bound to the viewer's session instead.
-            h["Cross-Origin-Resource-Policy"] = "same-origin"
+        h["Cross-Origin-Resource-Policy"] = "same-origin"  # no other site may embed our responses
         h["X-Permitted-Cross-Domain-Policies"] = "none"
         h["Content-Security-Policy"] = csp
         if settings.COOKIE_SECURE:
@@ -280,11 +249,10 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(auth_api.router)
     app.include_router(messages_api.router)
     app.include_router(people_api.router)
-    app.include_router(calls_api.router)
     app.include_router(download_api.router)
+    app.include_router(media_api.router)
     app.include_router(policies_api.router)
     app.include_router(posts_api.router)
-    app.include_router(reels_api.router)
     app.include_router(telegram_api.router)
     app.include_router(uploads_api.router)
     app.include_router(account_api.router)

@@ -1,24 +1,23 @@
-// Admin panel — engagement control: boosts (add / set displayed value, immediate or gradual),
-// team comments from the library (or a new text), running jobs, and the comment library itself.
-// Real counters are never touched: boosts live in separate fields and displayed = max(0, real + boost).
+// Admin panel — team comments from the library (or a new text), running jobs, and the comment library itself.
+// (V6: the V5 "boost" of likes/dislikes was removed — counts are real only.)
 import { h, sheet, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 import {
   attempt, call, chip, confirmDanger, emptyState, field, fmt, hooks, qs, sectionHead, segmented, shortRef, spinner, when,
 } from './admin-common.js';
 
-const view = { tab: 'boost', jobStatus: 'running', libCategory: '', libQ: '' };
+const view = { tab: 'comments', jobStatus: 'running', libCategory: '', libQ: '' };
 // Targets carried over from the content tab's multi-selection (or typed by hand).
 const targets = { type: 'idea', text: '' };
 const UNITS = [['m', 'دقيقة', 1], ['h', 'ساعة', 60], ['d', 'يوم', 1440]];
 const JOB_STATUS = { running: 'قيد التنفيذ', done: 'اكتمل', cancelled: 'أُلغي', failed: 'فشل' };
-const TYPE_LABEL = { idea: 'فكرة', reel: 'Reel' };
+const TYPE_LABEL = { idea: 'فكرة' };
 
 /** Called from the content tab's selection bar. */
 export function openEngage(kind, selection) {
   targets.type = selection.type;
   targets.text = [...selection.ids].join('\n');
-  view.tab = kind;
+  view.tab = kind === 'boost' ? 'comments' : kind;
   hooks.showTab('engage');
 }
 
@@ -26,10 +25,10 @@ const parseIds = (text) => [...new Set(text.split(/[\s,،]+/).map((s) => s.trim(
 
 export function renderEngage(main) {
   const body = h('div', { class: 'admin-section' });
-  const show = { boost: showBoost, comments: showComments, jobs: showJobs, library: showLibrary };
+  const show = { comments: showComments, jobs: showJobs, library: showLibrary };
   main.replaceChildren(
     sectionHead('التفاعل'),
-    segmented([['boost', 'تعزيز'], ['comments', 'تعليقات'], ['jobs', 'العمليات'], ['library', 'المكتبة']], view.tab,
+    segmented([['comments', 'تعليقات'], ['jobs', 'العمليات'], ['library', 'المكتبة']], view.tab,
       (v) => { view.tab = v; show[v](body); }, 'أدوات التفاعل'),
     body);
   show[view.tab](body);
@@ -48,15 +47,11 @@ function targetPicker() {
   ta.addEventListener('input', paint);
   paint();
   const box = h('fieldset', { class: 'admin-fieldset' },
-    h('legend', { text: 'المنشورات المستهدفة' }),
-    segmented([['idea', 'أفكار'], ['reel', 'Reels']], targets.type, (v) => {
-      if (v !== targets.type && ta.value) { ta.value = ''; paint(); }
-      targets.type = v;
-    }, 'نوع المنشور'),
+    h('legend', { text: 'الأفكار المستهدفة' }),
     ta,
     h('div', { class: 'admin-actions' }, count,
       h('button', { type: 'button', class: 'admin-link', onclick: () => hooks.showTab('content') }, icon('bulb'), 'اختيار من المحتوى')));
-  return { el: box, ids: () => parseIds(ta.value), type: () => targets.type };
+  return { el: box, ids: () => parseIds(ta.value), type: () => 'idea' };
 }
 
 function timingPicker() {
@@ -84,65 +79,10 @@ function timingPicker() {
   };
 }
 
-function numberInput(placeholder) {
-  return h('input', { class: 'input', type: 'number', inputmode: 'numeric', step: '1', placeholder });
-}
-const numOrNull = (el) => (el.value.trim() === '' ? null : Math.trunc(Number(el.value)));
-
 function resultTable(rows, cols) {
   return h('div', { class: 'viz-table glass' }, h('table', {},
     h('thead', {}, h('tr', {}, ...cols.map(([label]) => h('th', { scope: 'col', text: label })))),
     h('tbody', {}, ...rows.map((r) => h('tr', {}, ...cols.map(([, get], i) => h(i ? 'td' : 'th', { scope: i ? null : 'row', dir: 'ltr', text: get(r) })))))));
-}
-
-// ------------------------------------------------------------------ boost
-
-function showBoost(body) {
-  const picker = targetPicker();
-  const timing = timingPicker();
-  let mode = 'add';
-  const likes = numberInput('0');
-  const dislikes = numberInput('0');
-  const modeHint = h('p', { class: 'admin-meta' });
-  const paintHint = () => {
-    modeHint.textContent = mode === 'add'
-      ? 'يُضاف العدد إلى الرقم الظاهر (يمكن أن يكون سالبًا لإنقاصه). الرقم الظاهر لا يقل عن صفر أبدًا.'
-      : 'يصبح الرقم الظاهر هو العدد المكتوب بالضبط. التفاعلات الحقيقية لا تتغير، والفرق يُحفظ كتعزيز منفصل.';
-  };
-  paintHint();
-  const out = h('div', {});
-  const submit = h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, icon('spark'), 'تطبيق');
-  const form = h('form', {
-    class: 'admin-form glass',
-    onsubmit: async (e) => {
-      e.preventDefault();
-      const ids = picker.ids();
-      const payload = { target_type: picker.type(), ids, mode, likes: numOrNull(likes), dislikes: numOrNull(dislikes), duration_minutes: timing.minutes() };
-      if (!ids.length) { toast('حدد منشورًا واحدًا على الأقل.', 'error'); return; }
-      if (payload.likes === null && payload.dislikes === null) { toast('اكتب عدد الإعجابات أو عدم الإعجاب.', 'error'); return; }
-      submit.disabled = true;
-      const r = await attempt(() => call('POST', '/api/admin/engagement/boost', payload));
-      submit.disabled = false;
-      if (!r) return;
-      toast(r.gradual ? 'بدأت العملية التدريجية.' : 'تم التطبيق.');
-      out.replaceChildren(
-        h('p', { class: 'admin-meta', text: r.gradual ? 'الأرقام الحالية (ستتغير تدريجيًا):' : 'الأرقام بعد التطبيق:' }),
-        resultTable(r.targets, [
-          ['المنشور', (t) => shortRef(t.id)],
-          ['👍 ظاهر = حقيقي + مضاف', (t) => `${fmt(t.shown.likes)} = ${fmt(t.real.likes)} + ${fmt(t.boost.likes)}`],
-          ['👎 ظاهر = حقيقي + مضاف', (t) => `${fmt(t.shown.dislikes)} = ${fmt(t.real.dislikes)} + ${fmt(t.boost.dislikes)}`],
-        ]));
-    },
-  },
-  picker.el,
-  h('fieldset', { class: 'admin-fieldset' },
-    h('legend', { text: 'العملية' }),
-    segmented([['add', 'إضافة عدد'], ['set', 'تحديد الرقم الظاهر']], mode, (v) => { mode = v; paintHint(); }, 'نوع العملية'),
-    h('div', { class: 'admin-filters__row' }, field('👍 إعجاب', likes), field('👎 عدم إعجاب', dislikes)),
-    modeHint),
-  timing.el,
-  submit);
-  body.replaceChildren(form, out);
 }
 
 // ------------------------------------------------------------------ team comments
@@ -254,7 +194,7 @@ async function showComments(body) {
     h('legend', { text: 'الظهور' }),
     segmented([['dzplay', 'dzplay'], ['official', 'DZPLAY الرسمي']], appearance, (v) => { appearance = v; paintAppearance(); }, 'الظهور'),
     appearanceHint,
-    h('p', { class: 'admin-meta', text: 'على الأفكار: يصل التعليق لصاحب الفكرة فقط (مثل أي تعليق). على Reels: يظهر للجميع.' })),
+    h('p', { class: 'admin-meta', text: 'يصل التعليق لصاحب الفكرة فقط (مثل أي تعليق).' })),
   timing.el,
   submit);
   body.replaceChildren(form, out);
@@ -289,7 +229,7 @@ async function showJobs(body) {
       const pct = total ? Math.round((done / total) * 100) : 100;
       list.append(h('article', { class: 'admin-card glass' },
         h('div', { class: 'admin-card__head' },
-          chip(first.kind === 'boost' ? 'تعزيز' : 'تعليقات'),
+          chip('تعليقات'),
           h('span', { text: `${fmt(new Set(jobs.map((j) => j.target_id)).size)} ${TYPE_LABEL[first.target_type] || ''}` }),
           chip(JOB_STATUS[running ? 'running' : first.status] || first.status, running ? 'chip--live' : ''),
           h('time', { class: 'admin-card__time', text: when(first.start_at) })),
@@ -299,7 +239,7 @@ async function showJobs(body) {
         h('details', { class: 'admin-fold' }, h('summary', {}, h('span', { text: 'التفاصيل' }), h('span', { class: 'chip', text: fmt(jobs.length) })),
           ...jobs.map((j) => h('div', { class: 'admin-line' },
             h('code', { dir: 'ltr', text: shortRef(j.target_id) }),
-            h('span', { text: j.kind === 'boost' ? (j.metric === 'likes' ? '👍' : '👎') : '💬' }),
+            h('span', { text: '💬' }),
             h('span', { text: `${fmt(j.applied)} / ${fmt(j.total)}` }),
             chip(JOB_STATUS[j.status] || j.status),
             j.status === 'running' ? h('button', { type: 'button', class: 'admin-link', onclick: () => cancel(j.id) }, 'إلغاء') : null))),

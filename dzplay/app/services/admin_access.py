@@ -1,7 +1,7 @@
 """Full read access for the admin panel (disclosed to users in the privacy policy v3).
 
 Users, their e-mails and activity, every Idea with all its comments (including
-the owner-only ones), every Reel with its comments, every stored conversation
+the owner-only ones), every stored conversation
 with both real participants, text search, deletion of any content, and the
 system status. Every call is audited by the API layer.
 
@@ -30,9 +30,6 @@ from app.models import (
     Post,
     PostReaction,
     ProfileRef,
-    Reel,
-    ReelComment,
-    ReelReaction,
     Report,
     SecurityEvent,
     User,
@@ -136,11 +133,8 @@ def user_detail(db: Session, user_id: str) -> dict:
         raise not_found()
     posts = list(db.execute(select(Post).where(Post.author_id == u.id).order_by(Post.created_at.desc()).limit(100)).scalars())
     comments = db.execute(select(Comment).where(Comment.author_id == u.id).order_by(Comment.created_at.desc()).limit(100)).scalars()
-    rcomments = db.execute(select(ReelComment).where(ReelComment.author_id == u.id).order_by(ReelComment.created_at.desc()).limit(100)).scalars()
     reactions = db.execute(select(PostReaction.post_id, PostReaction.reaction_type, PostReaction.created_at)
                            .where(PostReaction.user_id == u.id).order_by(PostReaction.created_at.desc()).limit(100)).all()
-    rreactions = db.execute(select(ReelReaction.reel_id, ReelReaction.reaction, ReelReaction.created_at)
-                            .where(ReelReaction.user_id == u.id).order_by(ReelReaction.created_at.desc()).limit(100)).all()
     convs = list(db.execute(select(Conversation).where(or_(Conversation.initiator_id == u.id, Conversation.recipient_id == u.id))
                             .order_by(Conversation.last_message_at.desc()).limit(100)).scalars())
     peers = _users_by_id(db, [c.peer_of(u.id) for c in convs])
@@ -177,9 +171,7 @@ def user_detail(db: Session, user_id: str) -> dict:
         "name_history": [{"old": h.old_name, "new": h.new_name, "at": iso(h.changed_at)} for h in history],
         "posts": [_post(p) for p in posts],
         "idea_comments": [{"id": c.id, "post_id": c.post_id, "content": c.content, "created_at": iso(c.created_at)} for c in comments],
-        "reel_comments": [{"id": c.id, "reel_id": c.reel_id, "content": c.content, "created_at": iso(c.created_at)} for c in rcomments],
-        "reactions": [{"target": "idea", "id": i, "reaction": r, "at": iso(t)} for i, r, t in reactions]
-        + [{"target": "reel", "id": i, "reaction": r, "at": iso(t)} for i, r, t in rreactions],
+        "reactions": [{"target": "idea", "id": i, "reaction": r, "at": iso(t)} for i, r, t in reactions],
         "conversations": [{"id": c.id, "kind": "direct" if c.is_direct else "anonymous",
                            "peer": _who(peers.get(c.peer_of(u.id))), "started_by_user": c.initiator_id == u.id,
                            "status": c.status, "messages_stored": msg_counts.get(c.id, 0), "created_at": iso(c.created_at),
@@ -199,7 +191,6 @@ def _report(r: Report) -> dict:
 def _post(p: Post) -> dict:
     return {"id": p.id, "content": p.content, "status": p.status, "created_at": iso(p.created_at),
             "real": {"likes": p.likes_count, "dislikes": p.dislikes_count},
-            "boost": {"likes": p.boost_likes or 0, "dislikes": p.boost_dislikes or 0},
             "comments": p.comments_count}
 
 
@@ -220,14 +211,6 @@ def recount_posts(db: Session, post_ids) -> None:
         db.execute(update(Post).where(Post.id == pid).values(likes_count=likes, dislikes_count=dislikes, comments_count=comments))
 
 
-def recount_reels(db: Session, reel_ids) -> None:
-    for rid in set(reel_ids):
-        likes = db.scalar(select(func.count()).select_from(ReelReaction).where(ReelReaction.reel_id == rid, ReelReaction.reaction == "like")) or 0
-        dislikes = db.scalar(select(func.count()).select_from(ReelReaction).where(ReelReaction.reel_id == rid, ReelReaction.reaction == "dislike")) or 0
-        comments = db.scalar(select(func.count()).select_from(ReelComment).where(ReelComment.reel_id == rid)) or 0
-        db.execute(update(Reel).where(Reel.id == rid).values(likes_count=likes, dislikes_count=dislikes, comments_count=comments))
-
-
 def delete_account(db: Session, user_id: str, effects=None, store=None) -> None:
     """Delete a user and everything they own; counters on other people's content are recomputed."""
     u = db.get(User, user_id[:32])
@@ -238,8 +221,6 @@ def delete_account(db: Session, user_id: str, effects=None, store=None) -> None:
     _purge_v5(db, u, effects, store)
     posts_touched = set(db.execute(select(PostReaction.post_id).where(PostReaction.user_id == u.id)).scalars())
     posts_touched |= set(db.execute(select(Comment.post_id).where(Comment.author_id == u.id)).scalars())
-    reels_touched = set(db.execute(select(ReelReaction.reel_id).where(ReelReaction.user_id == u.id)).scalars())
-    reels_touched |= set(db.execute(select(ReelComment.reel_id).where(ReelComment.author_id == u.id)).scalars())
     db.execute(delete(PasswordReset).where(PasswordReset.user_id == u.id))
     db.execute(delete(NameHistory).where(NameHistory.user_id == u.id))
     db.execute(delete(FcmToken).where(FcmToken.user_id == u.id))
@@ -248,22 +229,18 @@ def delete_account(db: Session, user_id: str, effects=None, store=None) -> None:
     db.flush()
     own = set(db.execute(select(Post.id).where(Post.id.in_(posts_touched))).scalars())
     recount_posts(db, own)
-    recount_reels(db, reels_touched)
 
 
 def _purge_v5(db: Session, u: User, effects, store) -> None:
-    """V5: the user's pictures/videos leave the cache and the Telegram storage channel (except copies kept
-    as evidence of a report, until MEDIA_EVIDENCE_RETENTION_DAYS); their creator reels are deleted."""
-    from app.models import MediaItem, Reel
-    from app.services import reels as reels_service
+    """V5: the user's pictures leave the cache and the Telegram storage channel (except copies kept
+    as evidence of a report, until MEDIA_EVIDENCE_RETENTION_DAYS)."""
+    from app.models import MediaItem
     from app.services.media_items import discard
 
     for item in db.execute(select(MediaItem).where(MediaItem.owner_id == u.id)).scalars().all():
         if item.state not in ("removed", "expired"):
             discard(db, item, "account_deleted", "removed", effects)
         item.owner_public_id = item.owner_public_id if item.legal_hold else None
-    for reel in db.execute(select(Reel).where(Reel.owner_id == u.id)).scalars().all():
-        reels_service.delete_reel(db, store, reel)
     db.flush()
 
 
@@ -292,20 +269,6 @@ def idea_detail(db: Session, post_id: str) -> dict:
     comments = list(db.execute(select(Comment).where(Comment.post_id == p.id).order_by(Comment.created_at)).scalars())
     people = _users_by_id(db, [p.author_id] + [c.author_id for c in comments])
     return {"idea": {**_post(p), "author": _who(people.get(p.author_id))},
-            "comments": [{"id": c.id, "content": c.content, "created_at": iso(c.created_at),
-                          "author": _who(people.get(c.author_id))} for c in comments]}
-
-
-def reel_detail(db: Session, reel_id: str) -> dict:
-    r = db.get(Reel, reel_id[:32])
-    if r is None:
-        raise not_found()
-    comments = list(db.execute(select(ReelComment).where(ReelComment.reel_id == r.id).order_by(ReelComment.created_at.desc())).scalars())
-    people = _users_by_id(db, [c.author_id for c in comments])
-    return {"reel": {"id": r.id, "short_id": r.short_id, "kind": r.kind, "caption": r.caption, "status": r.status,
-                     "real": {"likes": r.likes_count, "dislikes": r.dislikes_count},
-                     "boost": {"likes": r.boost_likes or 0, "dislikes": r.boost_dislikes or 0},
-                     "views": r.views_count, "comments": r.comments_count, "created_at": iso(r.created_at)},
             "comments": [{"id": c.id, "content": c.content, "created_at": iso(c.created_at),
                           "author": _who(people.get(c.author_id))} for c in comments]}
 
@@ -357,10 +320,6 @@ def search(db: Session, q: str, limit: int = 30) -> dict:
                   for p in rows(Post, Post.content)],
         "idea_comments": [{"id": c.id, "post_id": c.post_id, "content": c.content, "author_id": c.author_id,
                            "created_at": iso(c.created_at)} for c in rows(Comment, Comment.content)],
-        "reel_comments": [{"id": c.id, "reel_id": c.reel_id, "content": c.content, "author_id": c.author_id,
-                           "created_at": iso(c.created_at)} for c in rows(ReelComment, ReelComment.content)],
-        "reels": [{"id": r.id, "short_id": r.short_id, "caption": r.caption, "created_at": iso(r.created_at)}
-                  for r in rows(Reel, Reel.caption)],
         "messages": [{"id": m.id, "conversation_id": m.conversation_id, "content": m.content, "sender_id": m.sender_id,
                       "created_at": iso(m.created_at)} for m in rows(Message, Message.content)],
     }
@@ -380,13 +339,6 @@ def delete_content(db: Session, kind: str, item_id: str) -> None:
         db.delete(c)
         db.flush()
         recount_posts(db, [c.post_id])
-    elif kind == "reel_comment":
-        c = db.get(ReelComment, item_id)
-        if c is None:
-            raise not_found()
-        db.delete(c)
-        db.flush()
-        recount_reels(db, [c.reel_id])
     elif kind == "message":
         m = db.get(Message, item_id)
         if m is None:

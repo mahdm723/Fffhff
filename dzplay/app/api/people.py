@@ -23,7 +23,6 @@ class ProfileBody(_Body):
 class PrivacyBody(_Body):
     accept_anonymous: bool | None = None
     accept_direct: str | None = Field(default=None, max_length=12)
-    accept_calls: bool | None = None
     searchable_by_name: bool | None = None
 
 

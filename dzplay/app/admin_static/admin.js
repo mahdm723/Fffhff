@@ -11,7 +11,7 @@ import { openUser, renderUsers } from './admin-users.js';
 import { openIdea, renderContent } from './admin-content.js';
 import { openEngage, renderEngage } from './admin-engage.js';
 import { renderSystem } from './admin-system.js';
-import { renderMedia, renderMoney, renderSettings, renderSupport, renderVerify } from './admin-v5.js';
+import { renderMedia, renderSettings, renderSupport, renderVerify } from './admin-v5.js';
 
 const REFRESH_MS = 30_000;
 const app = document.getElementById('app');
@@ -72,7 +72,6 @@ const TABS = [
   ['reports', 'البلاغات'],
   ['media', 'الإشراف على الوسائط'],
   ['verify', 'التوثيق والدفع'],
-  ['money', 'الأرباح'],
   ['support', 'الدعم'],
   ['settings', 'الإعدادات'],
   ['system', 'الأمان والنظام'],
@@ -180,7 +179,7 @@ function showTab(id) {
   ({
     overview: renderOverview, users: renderUsers, content: renderContent, engage: renderEngage, reports: renderReports,
     system: renderSystem, logs: renderSecurity,
-    media: renderMedia, verify: renderVerify, money: renderMoney, support: renderSupport, settings: renderSettings,
+    media: renderMedia, verify: renderVerify, support: renderSupport, settings: renderSettings,
   })[id](main);
   window.scrollTo({ top: 0 });
 }
@@ -284,11 +283,6 @@ function paintStats() {
       ['حظر دخول نشط الآن', s.safety.active_login_blocks], ['تسجيلات مرفوضة خلال 24 ساعة', s.safety.registrations_limited_24h],
       ['حظر بين المستخدمين', s.safety.blocks], ['حظر شبكات نشط', s.ip_blocks_active],
     ]),
-    s.reels ? group('Reels', 'reels', [
-      ['ظاهر', s.reels.visible], ['مخفي', s.reels.hidden], ['قيد التجهيز', s.reels.processing], ['فشل التجهيز', s.reels.failed],
-      ['مشاهدات خلال 24 ساعة', s.reels.views_24h], ['تفاعلات خلال 24 ساعة', s.reels.reactions_24h],
-      ['تعليقات خلال 24 ساعة', s.reels.comments_24h], ['كل التعليقات', s.reel_comments],
-    ]) : null,
     s.password_resets ? group('استعادة كلمة المرور', 'lock', [
       ['طلبات خلال 24 ساعة', s.password_resets.requests_24h], ['بانتظار المشرف', s.password_resets.waiting_admin],
       ['اكتملت خلال 24 ساعة', s.password_resets.completed_24h],
@@ -296,7 +290,7 @@ function paintStats() {
   ].filter(Boolean)); // native replaceChildren() would print "null"
   if (s.media_cache_bytes != null) {
     document.getElementById('groups').append(h('article', { class: 'admin-group glass' },
-      h('h3', { class: 'admin-group__title' }, icon('reels'), 'ذاكرة الوسائط'),
+      h('h3', { class: 'admin-group__title' }, icon('image'), 'ذاكرة الوسائط'),
       h('dl', { class: 'admin-group__rows' }, h('div', { class: 'admin-row' }, h('dt', { text: 'الحجم الحالي' }), h('dd', { text: bytes(s.media_cache_bytes) })))));
   }
 }

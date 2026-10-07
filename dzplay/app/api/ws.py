@@ -101,31 +101,10 @@ async def _noop(conn: Connection, data: dict) -> None:
     return None
 
 
-async def _call(conn: Connection, data: dict) -> None:
-    """Call signaling (accept / decline / hangup / SDP / ICE / audio↔video / quality).
-    The session is re-checked on every message: a revoked session or a banned account stops at once."""
-    from app.services import calls
-    from app.services.messaging import Effects
-
-    effects = Effects()
-
-    def _run() -> None:
-        with conn.st.database.session() as db:
-            user = resolve_session(db, conn.st.settings, conn.token)
-            if user is None or user.id != conn.user_id:
-                return
-            calls.handle_signal(db, conn.st.settings, user, data, effects)
-
-    await run_in_threadpool(_run)
-    conn.st.dispatch(effects)
-
-
 # type -> handler. Unknown types are ignored (forward compatible clients).
 HANDLERS: dict[str, Callable[[Connection, dict], Awaitable[None]]] = {
     "ping": _noop,
     "typing": _typing,
-    **{t: _call for t in ("call.ringing", "call.accept", "call.decline", "call.hangup", "call.sdp", "call.ice",
-                          "call.media", "call.quality")},
 }
 
 

@@ -18,7 +18,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   const postsSlot = h('div');
   const notifSwitch = h('span', { class: 'switch', role: 'switch', 'aria-checked': 'false' });
   const supportBadge = h('span', { class: 'menu__end' }, icon('chev', 'chev'));
-  const creatorItems = h('li', { class: 'menu__group', hidden: true });
   const paintSupport = (n) => supportBadge.replaceChildren(...[n ? h('span', { class: 'chip chip--hot', text: 'رد جديد' }) : null, icon('chev', 'chev')].filter(Boolean));
 
   function stat(num, label) {
@@ -91,7 +90,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     const rows = [
       ['accept_anonymous', 'استقبال الرسائل المجهولة', 'عند الإيقاف لن تُختار لاستقبال رسائل عشوائية، ويبقى بإمكانك الإرسال.'],
       ['accept_direct', 'استقبال الرسائل المباشرة', 'من يعرف اسمك أو معرّفك يستطيع إرسال طلب مراسلة.'],
-      ['accept_calls', 'استقبال المكالمات', 'المكالمات الصوتية والمرئية من محادثاتك.'],
       ['searchable_by_name', 'الظهور في البحث بالاسم', 'عند الإيقاف يبقى بالإمكان إيجادك بمعرّفك DZ فقط.'],
     ];
     sheet((panel, close) => {
@@ -123,13 +121,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       if (onMe) onMe(me);
       drawCard();
       paintSupport(me.support_unread);
-      // V5: verified creators get the studio and the earnings page («أموالي» once monetization is accepted)
-      creatorItems.hidden = !me.verified;
-      creatorItems.replaceChildren(...(me.verified ? [
-        h('ul', { class: 'menu menu--inner' },
-          item('video', 'استوديو DZPLAY', () => navigate('#/studio')),
-          item('spark', me.monetized ? 'أموالي' : 'تحقيق الدخل', () => navigate('#/money'))),
-      ] : []));
       statsBox.replaceChildren(
         stat(me.ideas.posts, 'منشورات'),
         stat(me.ideas.likes, 'إعجاب'),
@@ -215,7 +206,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       });
       panel.append(
         h('h2', { text: 'حذف حسابي' }),
-        h('p', { text: 'سيُحذف نهائيًا ولا يمكن التراجع: حسابك واسمك ومعرّفك، وأفكارك وصورها وتعليقاتها، وتعليقاتك وتفاعلاتك، ومحادثاتك ورسائلك، وتذاكر الدعم، وطلبات التوثيق، وفيديوهات الاستوديو، وسجل الأرباح (الأرباح غير المدفوعة تسقط). وتُحذف صورك وفيديوهاتك من مستودع التخزين.' }),
+        h('p', { text: 'سيُحذف نهائيًا ولا يمكن التراجع: حسابك واسمك ومعرّفك، وأفكارك وصورها وتعليقاتها، وتعليقاتك وتفاعلاتك، ومحادثاتك ورسائلك، وتذاكر الدعم، وطلبات التوثيق. وتُحذف صورك من مستودع التخزين.' }),
         h('p', { class: 'muted', text: 'يبقى فقط ما أُبلغ عنه كدليل لمدة محدودة، والبلاغات التي قدّمها آخرون، وسطر في سجل الإدارة بأن حسابًا حُذف.' }),
         h('a', { class: 'link-btn', href: '/policies/privacy', target: '_blank', rel: 'noopener' }, 'التفاصيل في سياسة الخصوصية'),
         h('div', { class: 'field' }, input), err,
@@ -240,7 +231,6 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     h('ul', { class: 'menu glass' },
       isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
       item('verified', 'النجمة الزرقاء (التوثيق)', () => navigate('#/verify')),
-      creatorItems,
       item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,

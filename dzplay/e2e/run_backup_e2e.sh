@@ -8,7 +8,8 @@
 #
 # Checks: encrypted file (no plaintext), verification, rotation (BACKUP_KEEP=2), wrong
 # passphrase refused, data + audit chain back after restore, .env restored with --with-env,
-# and the hardened app container (read-only root fs, no capabilities, no-new-privileges).
+# the hardened app container (read-only root fs, no capabilities, no-new-privileges), and the V6
+# clean-up of an old database (deploy/v6-cleanup.sh: encrypted export, then removal, idempotent).
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
@@ -75,4 +76,23 @@ echo "CHANGED=1" >> .env
 ./deploy/restore.sh "$f" --yes --with-env >/dev/null 2>&1
 cmp -s .env "$WORK/env.orig" || fail ".env not restored"
 pass ".env restored with --with-env (previous one kept aside)"
+# V6: an old database (V5 tables + rows) → deploy/v6-cleanup.sh → encrypted export, then removed
+legacy() { cat tests/legacy_v5_schema.py e2e/v6_legacy_seed.py | $COMPOSE exec -T app python - "$1" | tail -1; }
+seeded="$(legacy seed)"
+case "$seeded" in *"old_tables=['calls', 'monetization_applications', 'reel_assets'"*"payouts=1 boosted=1"*) ;; *) fail "legacy seed: $seeded" ;; esac
+$COMPOSE exec -T app python -m app.admin_cli legacy-status >/dev/null 2>&1 </dev/null && fail "legacy-status missed the old data"
+./deploy/v6-cleanup.sh > "$WORK/v6.log" 2>&1 || { cat "$WORK/v6.log" >&2; fail "v6-cleanup.sh failed"; }
+grep -q "blue stars: 1" "$WORK/v6.log" || { cat "$WORK/v6.log" >&2; fail "stars-count missing"; }
+v6f="$(ls -1 "$WORK"/backups/v6-legacy-*.json.gpg)"
+[ "$(stat -c %a "$v6f")" = 600 ] || fail "export file permissions"
+strings "$v6f" | grep -q -e ab12cd -e reels && fail "plaintext inside the export"
+pp="$(grep '^BACKUP_PASSPHRASE=' .env | cut -d= -f2-)"
+gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 --decrypt "$v6f" 3<<<"$pp" | grep -q '"short_id":"ab12cd"' \
+  || fail "export does not decrypt to the old Reel"
+after_v6="$(legacy check)"
+[ "$after_v6" = "old_tables=[] payouts=0 boosted=0 star_kept=1 idea=1" ] || fail "after clean-up: $after_v6"
+pass "v6-cleanup.sh: encrypted export (600, decrypts), old tables/rows removed, stars + ideas kept"
+./deploy/v6-cleanup.sh 2>&1 | grep -q "Already done" || fail "second run not idempotent"
+[ "$(ls -1 "$WORK"/backups/v6-legacy-*.json.gpg | wc -l)" -eq 1 ] || fail "second run exported again"
+pass "second run: Already done, nothing changed"
 echo "BACKUP E2E PASSED"

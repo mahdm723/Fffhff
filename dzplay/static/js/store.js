@@ -301,7 +301,7 @@ function connect() {
     if (msg.type !== 'sync') { if (msg.type && msg.type !== 'ping' && msg.type !== 'hello') emit('ws', msg); return; }
     if (msg.reason === 'comment') emit('comment'); // ideas: no message sync needed
     else if (msg.reason === 'media') { emit('media'); scheduleSync(150); } // a chat picture was opened / expired
-    else if (['account', 'support', 'studio', 'money'].includes(msg.reason)) emit(msg.reason); // V5
+    else if (['account', 'support'].includes(msg.reason)) emit(msg.reason); // V5
     else scheduleSync(msg.reason === 'message' ? 0 : 150);
   };
   ws.onclose = () => {
@@ -314,7 +314,7 @@ function connect() {
   ws.onerror = () => { try { ws.close(); } catch { /* ignore */ } };
 }
 
-/** Small JSON message to the server over the socket (typing, later call signaling). */
+/** Small JSON message to the server over the socket (typing). */
 export function sendWS(obj) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;
   try { ws.send(JSON.stringify(obj)); return true; } catch { return false; }

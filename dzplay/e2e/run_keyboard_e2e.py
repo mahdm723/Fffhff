@@ -67,7 +67,7 @@ def main() -> int:
             register(run, b, f"kbb{suffix}@example.com")
 
             a.goto(base + "/#/home")
-            a.get_by_role("tab", name="الأفكار").click()
+            expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)  # V6: Home = the ideas pane alone
             a.locator(".post-card").first.wait_for(state="attached", timeout=10000) if a.locator(".post-card").count() else None
             check(run, a, a.locator("#idea-compose"), a.get_by_role("button", name="نشر", exact=True), "idea")
             a.locator("#idea-compose").fill("فكرة لتجربة لوحة المفاتيح")
@@ -82,7 +82,7 @@ def main() -> int:
             check(run, a, a.locator(".chat__composer textarea"), a.locator(".chat__composer .send-btn"), "chat")
 
             b.goto(base + "/#/home")
-            b.get_by_role("tab", name="الأفكار").click()
+            expect(b.locator("#idea-compose")).to_be_visible(timeout=10000)  # V6: Home = the ideas pane alone
             b.get_by_role("button", name="أفكار أخرى").click()
             card = b.locator(".post-card", has_text="فكرة لتجربة لوحة المفاتيح")
             expect(card).to_be_visible(timeout=10000)

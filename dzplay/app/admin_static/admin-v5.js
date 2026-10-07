@@ -1,5 +1,5 @@
-// Admin panel — V5 sections: media moderation (ideas, creator reels, reported chat pictures),
-// blue-star requests + payment settings, monetization + earnings ledger, support tickets, live settings.
+// Admin panel — V5 sections: media moderation (idea pictures, reported chat pictures),
+// blue-star requests + payment settings, support tickets, live settings.
 // Telegram buttons and these screens call the same server actions; everything is in the audit log.
 import { h, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
@@ -7,7 +7,7 @@ import {
   BASE, attempt, call, chip, confirmDanger, detailSheet, emptyState, field, fmt, qs, sectionHead, segmented, spinner, userRef, when,
 } from './admin-common.js';
 
-const PURPOSE = { idea: 'صورة فكرة', chat: 'صورة محادثة', reel: 'Reel صانع محتوى' };
+const PURPOSE = { idea: 'صورة فكرة', chat: 'صورة محادثة' };
 const MEDIA_ACTIONS = [['ok', 'قبول', 'btn--ghost'], ['keep', 'إبقاء', 'btn--ghost'], ['del', 'حذف', 'btn--danger'],
   ['ban', 'حذف + حظر', 'btn--danger'], ['minor', 'قاصر: حذف + حظر + دليل', 'btn--danger']];
 const btn = (label, cls, onclick) => h('button', { type: 'button', class: `btn btn--sm ${cls}`, onclick }, label);
@@ -15,11 +15,8 @@ const input = (attrs = {}) => h('input', { class: 'input', ...attrs });
 
 function preview(item) {
   if (!item.previewable) return h('div', { class: 'admin-thumb admin-thumb--none' }, icon('eyeOff'));
-  const src = `${BASE}/api/admin/media/${item.id}/${item.kind === 'video' ? 'poster' : 'img'}`;
-  const img = h('img', { src, alt: '', loading: 'lazy' });
-  if (item.kind !== 'video') return h('a', { class: 'admin-thumb', href: src, target: '_blank', rel: 'noopener' }, img);
-  return h('a', { class: 'admin-thumb', href: `${BASE}/api/admin/media/${item.id}/mp4`, target: '_blank', rel: 'noopener' }, img,
-    h('span', { class: 'admin-thumb__play' }, icon('play')));
+  const src = `${BASE}/api/admin/media/${item.id}/img`;
+  return h('a', { class: 'admin-thumb', href: src, target: '_blank', rel: 'noopener' }, h('img', { src, alt: '', loading: 'lazy' }));
 }
 
 // ------------------------------------------------------------------ media moderation
@@ -55,7 +52,7 @@ export function renderMedia(main) {
   }
   main.replaceChildren(
     sectionHead('الإشراف على الوسائط'),
-    h('p', { class: 'admin-meta', text: 'صور الأفكار وفيديوهات صنّاع المحتوى، وصور المحادثات المبلّغ عنها فقط. تصل نسخة من كل منشور إلى مجموعة الإشراف في Telegram.' }),
+    h('p', { class: 'admin-meta', text: 'صور الأفكار، وصور المحادثات المبلّغ عنها فقط. تصل نسخة من كل منشور إلى مجموعة الإشراف في Telegram.' }),
     segmented([['pending', 'بانتظار الموافقة'], ['published', 'منشور'], ['reported', 'مبلّغ عنه'], ['rejected', 'مرفوض بالفحص'], ['removed', 'محذوف']],
       mediaState.filter, (v) => { mediaState.filter = v; load(); }, 'تصفية الوسائط'),
     list);
@@ -132,74 +129,6 @@ export function renderVerify(main) {
     list);
   loadPay();
   load();
-}
-
-// ------------------------------------------------------------------ monetization + ledger
-
-export function renderMoney(main) {
-  const list = h('div', { class: 'admin-list' }, spinner());
-  let status = 'pending';
-  async function load() {
-    list.replaceChildren(spinner());
-    const d = await attempt(() => call('GET', `/api/admin/monetization${qs({ status })}`));
-    if (!d) return;
-    if (!d.applications.length) { list.replaceChildren(emptyState('لا توجد طلبات.')); return; }
-    list.replaceChildren(...d.applications.map((a) => {
-      const note = input({ placeholder: 'ملاحظة للمستخدم', maxlength: '500' });
-      const decide = (action) => async () => {
-        if (await attempt(() => call('POST', `/api/admin/monetization/${a.id}/decide`, { action, note: note.value.trim() || null }))) { toast('تم.'); load(); }
-      };
-      return h('article', { class: 'admin-card glass' },
-        h('div', { class: 'admin-line' }, h('b', { text: a.public_id || '—' }), chip(a.status_label), userRef(a.user_ref, 'الصفحة'),
-          btn('الأرباح', 'btn--ghost', () => openLedger(a.user_ref, a.public_id))),
-        h('p', { class: 'admin-text', dir: 'auto', text: a.content_type }),
-        h('p', { class: 'admin-meta' }, 'بريد الأرباح: ', h('code', { dir: 'ltr', text: a.payout_email })),
-        h('p', { class: 'admin-meta', text: `${a.stats.map((s) => `${s.label}: ${s.value}`).join(' · ')} · الرصيد: ${Object.entries(a.balance).map(([c, v]) => `${v} ${c}`).join('، ') || '0'}` }),
-        ['pending', 'needs_fix'].includes(a.status) ? h('div', { class: 'admin-actions' }, note,
-          btn('قبول', 'btn--primary', decide('accept')), btn('يحتاج تصحيحًا', 'btn--ghost', decide('fix')), btn('رفض', 'btn--danger', decide('reject'))) : null);
-    }));
-  }
-  main.replaceChildren(sectionHead('تحقيق الدخل والأرباح'),
-    h('p', { class: 'admin-meta', text: 'سجل الأرباح غير قابل للتعديل: كل حركة قيد جديد، والتصحيح بإلغاء القيد فقط. الدفع: أرسل الظرف الأحمر إلى بريد الأرباح ثم سجّل «دفعة».' }),
-    segmented([['pending', 'قيد المراجعة'], ['accepted', 'مقبول'], ['needs_fix', 'يحتاج تصحيحًا'], ['rejected', 'مرفوض']], status,
-      (v) => { status = v; load(); }, 'حالة الطلبات'),
-    list);
-  load();
-}
-
-export function openLedger(userId, label = '') {
-  detailSheet(`الأرباح — ${label || ''}`, async (body) => {
-    const paint = async () => {
-      const d = await attempt(() => call('GET', `/api/admin/users/${encodeURIComponent(userId)}/ledger`));
-      if (!d) return;
-      const kind = h('select', { class: 'input admin-select' },
-        h('option', { value: 'earning', text: 'أرباح (+)' }), h('option', { value: 'payout', text: 'دفعة الظرف الأحمر (−)' }),
-        h('option', { value: 'adjustment', text: 'تسوية (+ أو −)' }));
-      const amount = input({ inputmode: 'decimal', dir: 'ltr', placeholder: '10.00' });
-      const date = input({ type: 'date', dir: 'ltr' });
-      const note = input({ placeholder: 'ملاحظة' });
-      body.replaceChildren(
-        h('section', { class: 'admin-group glass' },
-          h('h3', { text: `الرصيد: ${Object.entries(d.balances).map(([c, v]) => `${v} ${c}`).join('، ') || '0.00'}` }),
-          field('النوع', kind), field('المبلغ', amount), field('تاريخ الإرسال (للدفعات)', date), field('ملاحظة', note),
-          h('div', { class: 'admin-actions' }, btn('تسجيل', 'btn--primary', async () => {
-            if (kind.value === 'payout' && !(await confirmDanger('تسجيل الدفعة؟', 'يُخصم المبلغ ويصل للمستخدم إشعار وبريد بأن الظرف الأحمر أُرسل.', 'تسجيل'))) return;
-            const r = await attempt(() => call('POST', `/api/admin/users/${encodeURIComponent(userId)}/ledger`, {
-              kind: kind.value, amount: amount.value.trim(), note: note.value.trim() || null, paid_on: date.value || null,
-            }));
-            if (r) { toast('سُجّل القيد.'); paint(); }
-          }))),
-        h('section', { class: 'admin-group glass' }, h('h3', { text: 'السجل' }),
-          ...(d.history.length ? d.history.map((e) => h('div', { class: 'admin-line' },
-            h('b', { dir: 'ltr', text: `${e.amount} ${e.currency}` }), chip(e.kind_label), h('span', { class: 'admin-meta', text: `#${e.id} · ${e.paid_on || when(e.created_at)} ${e.note || ''}` }),
-            e.kind !== 'reversal' ? btn('إلغاء القيد', 'btn--ghost', async () => {
-              if (!(await confirmDanger(`إلغاء القيد #${e.id}؟`, 'يُضاف قيد معاكس (لا يُحذف شيء).', 'إلغاء القيد'))) return;
-              if (await attempt(() => call('POST', `/api/admin/ledger/${e.id}/reverse`, {}))) { toast('أُلغي القيد.'); paint(); }
-            }) : null)) : [h('p', { class: 'admin-meta', text: 'لا توجد قيود.' })])),
-      );
-    };
-    paint();
-  });
 }
 
 // ------------------------------------------------------------------ support
@@ -312,19 +241,14 @@ export async function userV5Section(userId, paintAgain) {
           })
           : btn('منح النجمة يدويًا', 'btn--ghost', async () => {
             if (await attempt(() => call('POST', `/api/admin/users/${encodeURIComponent(userId)}/verified`, { verified: true }))) { toast('مُنحت.'); paintAgain(); }
-          }),
-        btn('الأرباح', 'btn--ghost', () => openLedger(userId)))),
+          }))),
     sec('طلبات التوثيق والدفع', d.verification.length, ...d.verification.map((r) => h('div', { class: 'admin-line' },
       chip(r.status_label), h('span', { dir: 'ltr', text: `${r.amount} ${r.currency} ${r.network}` }), h('code', { dir: 'ltr', text: r.txid.slice(0, 18) + '…' }),
       h('span', { class: 'admin-meta', text: when(r.created_at) })))),
     sec('الوسائط المرفوعة', d.media.length, h('div', { class: 'admin-grid' }, ...d.media.map((m) => h('div', { class: 'admin-media-mini' },
       preview(m), h('small', { class: 'admin-meta', text: `${PURPOSE[m.purpose] || m.purpose} · ${m.state}` }))))),
-    sec('فيديوهات الاستوديو', d.reels.length, ...d.reels.map((r) => h('div', { class: 'admin-line' },
-      chip(r.review || r.status), h('span', { dir: 'auto', text: r.caption || '—' }),
-      h('span', { class: 'admin-meta', text: `${r.show_author ? 'باسمه' : 'بدون اسم'} · 👍 ${fmt(r.likes)} · 👁 ${fmt(r.views)} · ${when(r.created_at)}` })))),
     sec('تذاكر الدعم', d.tickets.length, ...d.tickets.map((t) => h('div', { class: 'admin-line' },
       h('b', { dir: 'ltr', text: `#${t.number}` }), chip(t.status), h('span', { dir: 'auto', text: t.subject })))),
-    sec('تحقيق الدخل', d.monetization ? 1 : 0, d.monetization ? h('p', { class: 'admin-meta', text: `${d.monetization.status_label} · ${d.monetization.payout_email}` }) : null),
   );
   return box;
 }

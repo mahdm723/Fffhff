@@ -25,7 +25,7 @@ log = logging.getLogger("dzplay.media_worker")
 
 def _valid(job: object) -> bool:
     return (isinstance(job, dict) and isinstance(job.get("id"), str) and bool(media_check.JOB_ID.match(job["id"]))
-            and job.get("kind") in ("image", "video") and isinstance(job.get("types"), list))
+            and job.get("kind") == "image" and isinstance(job.get("types"), list))
 
 
 def main() -> int:

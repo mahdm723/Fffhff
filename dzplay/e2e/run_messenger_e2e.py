@@ -29,8 +29,7 @@ def start_server(port: int) -> tuple[subprocess.Popen, str, str]:
     tmp = tempfile.mkdtemp(prefix="dz-e2e-v4-")
     db = f"{tmp}/e2e.db"
     env = dict(os.environ, DATABASE_URL=f"sqlite:///{db}", SECRET_KEY="e2e-secret", ENV="development",
-               CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10",
-               TURN_SECRET="e2e-turn", TURN_HOST="127.0.0.1")  # calls enabled (buttons shown)
+               CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10")
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"], cwd=ROOT, env=env)
     base = f"http://127.0.0.1:{port}"
@@ -115,9 +114,9 @@ def main() -> int:
             b.locator(".sheet").get_by_role("button", name="إرسال طلب المراسلة").click()
             expect(b.locator(".chat__name")).to_contain_text("أحمد", timeout=10000)
             expect(b.locator(".chat__hint")).to_contain_text("طلب مراسلة")
-            expect(b.get_by_role("button", name="مكالمة صوتية")).to_be_disabled()
+            expect(b.get_by_role("button", name="مكالمة صوتية")).to_have_count(0)  # V6: calls removed
             run.shot(b, "v4-04-request-sent")
-            run.step("B sent a message request; calls stay disabled until A replies")
+            run.step("B sent a message request (no call buttons any more)")
 
             a.goto(base + "/#/messages")
             req_tab = a.get_by_role("tab", name="طلبات الرسائل")
@@ -141,8 +140,7 @@ def main() -> int:
             expect(b.locator(".bubble-row.theirs .bubble").last).to_contain_text("أهلًا لينا", timeout=10000)
             expect(b.locator(".typing-row")).to_have_count(0, timeout=8000)
             expect(a.locator(".bubble__status--read")).to_have_count(1, timeout=10000)
-            expect(b.get_by_role("button", name="مكالمة صوتية")).to_be_enabled(timeout=10000)
-            run.step("B saw 'typing…', got the message; A's message shows 'seen'; calls now enabled")
+            run.step("B saw 'typing…', got the message; A's message shows 'seen'")
 
             b.locator(".bubble-row.theirs .bubble").last.click()
             expect(b.locator(".bubble-row.theirs.show-meta .bubble__detail time")).to_be_visible()
@@ -173,7 +171,7 @@ def main() -> int:
             expect(a.locator(".conv-item")).to_have_count(2)
             run.shot(a, "v4-09-list-mixed")
             a.locator(".conv-item", has=a.locator(".conv-item__kind")).click()
-            expect(a.get_by_role("button", name="مكالمة فيديو")).to_be_disabled()
+            expect(a.get_by_role("button", name="مكالمة فيديو")).to_have_count(0)  # V6: calls removed
             a.get_by_role("button", name="معلومات وخيارات").click()
             a.locator(".sheet").get_by_role("button", name="كشف هويتي").click()
             a.locator(".sheet").get_by_role("button", name="كشف هويتي").click()

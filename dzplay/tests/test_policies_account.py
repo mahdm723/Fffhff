@@ -31,7 +31,7 @@ def jpeg() -> bytes:
     return buf.getvalue()
 
 
-@pytest.mark.parametrize("slug", ["privacy", "terms", "guidelines", "verification", "earnings"])
+@pytest.mark.parametrize("slug", ["privacy", "terms", "guidelines", "verification"])
 def test_policy_pages_start_with_the_principle_and_have_no_script(hx, slug):
     r = hx.client().get(f"/policies/{slug}")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
@@ -52,7 +52,11 @@ def test_policies_index_404_and_live_values(hx):
     page = c.get("/policies/privacy").text
     assert "45 ثانية" in page and "إعداد الأرشفة مفعّل" in page
     ver = c.get("/policies/verification").text
-    assert "ليست تحققًا من الهوية الحقيقية" in ver and "نهائي" in ver and "شبكة خاطئة" in ver
+    assert "ليست تحققًا من الهوية الحقيقية" in ver and "متوقفة" in ver
+    assert c.get("/policies/earnings").status_code == 404  # V6: earnings removed
+    for slug in ("privacy", "terms", "guidelines", "verification"):
+        text = c.get(f"/policies/{slug}").text
+        assert "Reels" not in text and "مكالم" not in text and "أرباح" not in text and "فيديو" not in text, slug
     assert "/policies/privacy" in c.get("/download").text
 
 

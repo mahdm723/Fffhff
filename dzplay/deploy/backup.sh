@@ -15,7 +15,7 @@
 #
 # Settings (in .env): BACKUP_PASSPHRASE (required), BACKUP_DIR (/var/backups/dzplay),
 # BACKUP_KEEP (14), BACKUP_INCLUDE_ENV (true), BACKUP_RCLONE_REMOTE (empty = off).
-# The media cache is not backed up: Reels originals stay in Telegram and are re-downloaded.
+# The media cache is not backed up: the original pictures stay in Telegram and are re-downloaded.
 # Restore: deploy/restore.sh <file>
 # =============================================================================
 set -euo pipefail

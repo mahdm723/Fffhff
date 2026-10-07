@@ -27,34 +27,6 @@ from app.main import create_app  # noqa: E402
 from app.security.pow import solve  # noqa: E402
 
 PASSWORD = "Str0ng-Pass!"
-_FFPROBE_SHIM = None
-
-
-def ffprobe_shim() -> str:
-    """Executable `ffprobe` stand-in (PyAV) — the sandbox has ffmpeg but no ffprobe."""
-    global _FFPROBE_SHIM
-    if _FFPROBE_SHIM is None:
-        import stat
-        import sys
-        import tempfile
-        from pathlib import Path
-
-        target = Path(tempfile.mkdtemp(prefix="dz-ffprobe-")) / "ffprobe"
-        shim = Path(__file__).with_name("ffprobe_shim.py")
-        target.write_text(f"#!{sys.executable}\nimport runpy, sys\nrunpy.run_path({str(shim)!r}, run_name='__main__')\n")
-        target.chmod(target.stat().st_mode | stat.S_IEXEC)
-        _FFPROBE_SHIM = str(target)
-    return _FFPROBE_SHIM
-
-
-def ffmpeg_binary() -> str:
-    import shutil
-
-    if shutil.which("ffmpeg"):
-        return "ffmpeg"
-    import imageio_ffmpeg
-
-    return imageio_ffmpeg.get_ffmpeg_exe()
 ADMIN_PATH = "/test-panel"
 ADMIN_PASSWORD = "Admin-Pass-0123456"
 _ip_counter = itertools.count(1)
@@ -76,17 +48,25 @@ def make_settings(tmp_path, **overrides) -> Settings:
         LOG_LEVEL="WARNING",
         ADMIN_PATH=ADMIN_PATH,
         ENGAGEMENT_TICK_SECONDS=0,  # tests advance gradual jobs explicitly
-        CALL_TICK_SECONDS=0,  # tests run calls.tick explicitly
-        TURN_SECRET="test-turn-secret",
-        TURN_HOST="turn.example.test",
         MEDIA_CACHE_DIR=str(tmp_path / "media-cache"),
         UPLOAD_TMP_DIR=str(tmp_path / "upload-tmp"),
         MEDIA_TICK_SECONDS=0,  # tests run media_items.tick explicitly
-        FFMPEG_BINARY=ffmpeg_binary(),
-        FFPROBE_BINARY="ffprobe" if __import__("shutil").which("ffprobe") else ffprobe_shim(),
     )
     base.update(overrides)
     return Settings(**base)
+
+
+def _drop_legacy_tables(engine) -> None:
+    """Tables of features removed in V6 (left by older test runs or by tests/test_v6_cleanup.py): they reference
+    `users`, so they must go before drop_all."""
+    from sqlalchemy import text
+
+    from tests.legacy_v5_schema import LEGACY_TABLES
+
+    cascade = " CASCADE" if engine.dialect.name == "postgresql" else ""
+    with engine.begin() as conn:
+        for t in reversed(LEGACY_TABLES):
+            conn.execute(text(f"DROP TABLE IF EXISTS {t}{cascade}"))
 
 
 class Harness:
@@ -97,6 +77,7 @@ class Harness:
         self.settings = make_settings(tmp_path, **overrides)
         self.app = create_app(self.settings, telegram_transport=telegram_transport)
         state = self.app.state.dz
+        _drop_legacy_tables(state.database.engine)
         Base.metadata.drop_all(state.database.engine)
         if self.settings.REDIS_URL:
             state.limiter.reset()

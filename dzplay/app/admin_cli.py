@@ -20,6 +20,7 @@ import argparse
 import base64
 import json
 import secrets
+import sys
 
 from app.config import get_settings
 from app.db import Database
@@ -106,7 +107,7 @@ def _telegram(settings, args, transport=None) -> None:
             print("Alert sent.")
             return
         if args.cmd == "bot-test":
-            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, "✅ DZPLAY متصل. أرسل فيديو أو صورة مع وصف لنشرها.\n\n" + HELP)
+            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, "✅ DZPLAY متصل.\n\n" + HELP)
             print("Test message sent to the admin chat.")
             return
         info = tg.webhook_info()
@@ -114,6 +115,40 @@ def _telegram(settings, args, transport=None) -> None:
         raise SystemExit(f"Telegram error: {tg.redact(exc)}") from None
     _print({"webhook_url": info.get("url") or None, "pending_updates": info.get("pending_update_count"),
             "last_error": info.get("last_error_message")})
+
+
+def _legacy(database: Database, settings, args) -> None:
+    from app.services import legacy_v6
+
+    engine = database.engine
+    if args.cmd == "stars-count":
+        print(f"blue stars: {legacy_v6.stars_count(engine)}")
+        return
+    if args.cmd == "export-legacy":
+        body, sha, counts = legacy_v6.export(engine)
+        sys.stdout.buffer.write(body)
+        sys.stdout.flush()
+        print(f"sha256={sha} rows={json.dumps(counts, sort_keys=True)}", file=sys.stderr)
+        return
+    if args.cmd == "legacy-status":  # exit 0 = nothing left to remove, 1 = old data still there
+        if legacy_v6.already_dropped(engine):
+            print("Already done: the V6 legacy data was removed before.")
+            return
+        _body, _sha, counts = legacy_v6.export(engine)
+        left = {k: v for k, v in counts.items() if v or k in legacy_v6.DROP_TABLES}  # empty old tables still go
+        if not left:
+            print("Nothing to remove: no Reels / calls / earnings / boost data in this database.")
+            return
+        print("Old V6-removed data still in the database: " + json.dumps(left, sort_keys=True))
+        raise SystemExit(1)
+    if legacy_v6.already_dropped(engine):
+        print("Already done: the V6 legacy data was removed before.")
+        return
+    try:
+        counts = legacy_v6.drop(engine, args.sha, settings.MEDIA_CACHE_DIR)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    print("Removed: " + json.dumps(counts, sort_keys=True))
 
 
 def main(argv: list[str] | None = None, telegram_transport=None) -> None:
@@ -148,6 +183,12 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
     p.add_argument("text", nargs="+")
     p = sub.add_parser("admin-link")  # the secret panel address (+ whether an admin account exists)
     p.add_argument("public_url")
+    # V6 phase 1: data of the removed features (Reels, studio + earnings, calls, boost) — see app.services.legacy_v6
+    sub.add_parser("export-legacy")  # canonical JSON on stdout (deploy/v6-cleanup.sh encrypts it), SHA-256 on stderr
+    p = sub.add_parser("drop-legacy")
+    p.add_argument("--sha", required=True, help="SHA-256 printed by export-legacy (proves what was saved)")
+    sub.add_parser("legacy-status")  # exit 0 when there is nothing (left) to remove
+    sub.add_parser("stars-count")  # accounts that hold the blue star
     args = parser.parse_args(argv)
 
     if args.cmd == "gen-secret":
@@ -163,6 +204,9 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
         return
     database = Database(settings.DATABASE_URL)
     database.create_all()
+    if args.cmd in ("export-legacy", "drop-legacy", "legacy-status", "stars-count"):
+        _legacy(database, settings, args)
+        return
     if args.cmd == "admin-link":
         from app.services.admin_auth import count_admins
 

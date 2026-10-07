@@ -30,7 +30,6 @@ from app.errors import AppError, not_found
 from app.models import Block, Comment, Post, PostReaction, ProfileRef, Report, User
 from app.services.auth import log_event
 from app.services.content import clean_message
-from app.services.counts import shown, shown_expr
 from app.services.messaging import (
     HOUR,
     DAY,
@@ -116,8 +115,8 @@ def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | 
         "created_at": iso(p.created_at),
         "author": {**_author_view(author), "ref": author_ref},
         "mine": mine,
-        "likes": shown(p.likes_count, p.boost_likes),
-        "dislikes": shown(p.dislikes_count, p.boost_dislikes),
+        "likes": p.likes_count or 0,
+        "dislikes": p.dislikes_count or 0,
         "my_reaction": my_reaction,
         # Comment counts are private to the author (no public social signal).
         "comments": {"count": p.comments_count, "unseen": p.unseen_comments_count} if mine else None,
@@ -270,8 +269,8 @@ def feed(db: Session, settings: Settings, user: User, *, cursor: str | None, lim
 
     blocked = _blocked_ids(db, user.id)
     q = (
-        select(Post.id, Post.author_id, Post.created_at, shown_expr(Post.likes_count, Post.boost_likes).label("likes"),
-               shown_expr(Post.dislikes_count, Post.boost_dislikes).label("dislikes"))
+        select(Post.id, Post.author_id, Post.created_at, Post.likes_count.label("likes"),
+               Post.dislikes_count.label("dislikes"))
         .where(Post.status == "visible", Post.created_at <= snapshot)
         .order_by(Post.created_at.desc())
         .limit(settings.FEED_CANDIDATE_POOL)
@@ -348,7 +347,7 @@ def set_reaction(db: Session, settings: Settings, limiter, user: User, post_id: 
         except IntegrityError:  # a concurrent request inserted first: re-read and apply as a change
             continue
     db.refresh(post)
-    return {"likes": shown(post.likes_count, post.boost_likes), "dislikes": shown(post.dislikes_count, post.boost_dislikes),
+    return {"likes": post.likes_count or 0, "dislikes": post.dislikes_count or 0,
             "my_reaction": reaction}
 
 
@@ -500,8 +499,8 @@ def _file_report(db: Session, settings: Settings, limiter, user: User, *, report
 
 def idea_stats(db: Session, user_id: str) -> dict:
     posts, likes, dislikes = db.execute(
-        select(func.count(Post.id), func.coalesce(func.sum(shown_expr(Post.likes_count, Post.boost_likes)), 0),
-               func.coalesce(func.sum(shown_expr(Post.dislikes_count, Post.boost_dislikes)), 0))
+        select(func.count(Post.id), func.coalesce(func.sum(Post.likes_count), 0),
+               func.coalesce(func.sum(Post.dislikes_count), 0))
         .where(Post.author_id == user_id, Post.status == "visible")
     ).one()
     return {"posts": int(posts or 0), "likes": int(likes or 0), "dislikes": int(dislikes or 0)}
@@ -553,7 +552,4 @@ def own_profile(db: Session, user: User, settings=None) -> dict:
     from app.services.support import unread_count
 
     data["support_unread"] = unread_count(db, user.id)  # V5: support replies not read yet
-    from app.services.monetization import is_accepted
-
-    data["monetized"] = is_accepted(db, user)  # V5: «أموالي» is shown
     return data

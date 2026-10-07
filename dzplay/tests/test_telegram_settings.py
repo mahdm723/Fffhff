@@ -8,10 +8,9 @@ import pytest
 from sqlalchemy import select
 
 from app import clock
-from app.models import AdminAuditLog, AppSetting, Reel
+from app.models import AdminAuditLog, AppSetting
 from app.security import totp
 from tests import fake_telegram as tg
-from tests.test_reels import ffmpeg_binary, media_files  # noqa: F401  (session fixture with real clips)
 
 TOKEN = "987654321:AAH" + "x" * 32
 WEBHOOK = "/api/telegram/webhook"
@@ -36,7 +35,7 @@ def connect(hx, token: str = TOKEN, chat_id: str = str(tg.ADMIN_ID), otp: str | 
     return hx.panel_admin.put("/api/admin/telegram", json={"token": token, "chat_id": chat_id, "code": otp or code(hx)})
 
 
-def test_connect_from_panel_goes_live_without_restart(panel, media_files, caplog):  # noqa: F811
+def test_connect_from_panel_goes_live_without_restart(panel, caplog):
     caplog.set_level(logging.DEBUG)
     assert panel.state.bot is None
     assert panel.panel_admin.get("/api/admin/telegram").json()["configured"] is False
@@ -61,14 +60,12 @@ def test_connect_from_panel_goes_live_without_restart(panel, media_files, caplog
     assert any(r.startswith("telegram_update") for r in audit_rows) and TOKEN not in str(audit_rows)
     assert TOKEN not in caplog.text
 
-    # live: an upload through the webhook with the new secret becomes a Reel
-    fid = panel.tg.add_file(media_files["small"], name="vid")
-    up = panel.client().post(WEBHOOK, json=tg.video(fid, len(media_files["small"]), "من اللوحة"),
+    # live: a command through the webhook with the new secret is answered at once
+    up = panel.client().post(WEBHOOK, json=tg.text("/stats"),
                              headers={"X-Telegram-Bot-Api-Secret-Token": hook["secret_token"]})
     assert up.status_code == 200
     panel.state.bot.wait_idle()
-    with panel.db() as db:
-        assert db.scalar(select(Reel.status)) == "visible"
+    assert "المستخدمون" in panel.tg.last_text()
     # GET never returns the token
     status = panel.panel_admin.get("/api/admin/telegram")
     assert status.status_code == 200 and TOKEN not in status.text

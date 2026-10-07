@@ -1,4 +1,4 @@
-"""Admin panel: content (Reels, Ideas), the official DZPLAY account, the comment
+"""Admin panel: content (Ideas), the official DZPLAY account, the comment
 library, users and network blocks. Every mutating call is audited by the API layer.
 
 Reaction counters are never editable here: they only reflect real users.
@@ -20,14 +20,10 @@ from app.models import (
     Comment,
     ContentFlag,
     Post,
-    Reel,
-    ReelAsset,
-    ReelComment,
     Report,
     SecurityEvent,
     User,
 )
-from app.services import reels as reels_service
 from app.services.content import clean_message
 from app.services.messaging import Effects, iso
 
@@ -62,10 +58,6 @@ def _comment_text(db: Session, settings: Settings, text: object, library_id: obj
 def official_comment(db: Session, settings: Settings, *, target: str, target_id: str, text: object,
                      library_id: object, effects: Effects) -> dict:
     user = official_user(db)
-    if target == "reel":
-        body = _comment_text(db, settings, text, library_id, settings.MAX_REEL_COMMENT_LENGTH)
-        result = reels_service.add_comment(db, settings, None, user, target_id, content=body, skip_limits=True)
-        return {"target": "reel", "comment_id": result["comment"]["id"]}
     if target == "idea":
         post = db.get(Post, str(target_id)[:32])
         if post is None or post.status != "visible":
@@ -82,30 +74,8 @@ def official_comment(db: Session, settings: Settings, *, target: str, target_id:
 
 
 # ---------------------------------------------------------------------------
-# Reels & Ideas lists
+# Ideas list
 # ---------------------------------------------------------------------------
-
-
-def reels_list(db: Session, status: str | None, limit: int, media_url) -> list[dict]:
-    q = select(Reel).order_by(Reel.created_at.desc()).limit(min(limit, 200))
-    if status:
-        q = q.where(Reel.status == status)
-    out = []
-    now = clock.utcnow()
-    for r in db.execute(q).scalars():
-        assets = reels_service.assets_of(db, r.id)
-        thumb = None
-        if assets:
-            a = assets[0]
-            thumb = media_url(a.id, "poster" if a.kind == "video" else "img")
-        out.append({
-            "id": r.id, "short_id": r.short_id, "kind": r.kind, "caption": r.caption, "status": r.status, "error": r.error,
-            "files": len(assets), "pinned_until": iso(r.pinned_until) if r.pinned_until and r.pinned_until > now else None,
-            "likes": r.likes_count, "dislikes": r.dislikes_count, "comments": r.comments_count, "views": r.views_count,
-            "boost": {"likes": r.boost_likes or 0, "dislikes": r.boost_dislikes or 0},
-            "thumb": thumb, "created_at": iso(r.created_at),
-        })
-    return out
 
 
 def ideas_list(db: Session, limit: int, before: str | None) -> dict:
@@ -119,16 +89,12 @@ def ideas_list(db: Session, limit: int, before: str | None) -> dict:
     more = len(rows) > limit
     rows = rows[:limit]
     return {"ideas": [{"id": p.id, "content": p.content, "likes": p.likes_count, "dislikes": p.dislikes_count,
-                       "boost": {"likes": p.boost_likes or 0, "dislikes": p.boost_dislikes or 0},
                        "comments": p.comments_count, "created_at": iso(p.created_at)} for p in rows],
             "next_before": iso(rows[-1].created_at) if more and rows else None}
 
 
 def asset_for_admin(db: Session, asset_id: str):
-    """A reel asset, or (V5) a user's picture / video — including evidence kept after removal."""
-    asset = db.get(ReelAsset, asset_id)
-    if asset is not None:
-        return asset
+    """A user's picture — including evidence kept after removal."""
     from app.models import MediaItem
 
     item = db.get(MediaItem, asset_id)
@@ -203,7 +169,6 @@ def extra_stats(db: Session, settings: Settings, media) -> dict:
         return db.scalar(select(func.count()).select_from(model).where(*where)) or 0
 
     return {
-        "reels": reels_service.summary(db),
         "password_resets": {
             "requests_24h": count(SecurityEvent, SecurityEvent.type == "reset_request", SecurityEvent.created_at > day),
             "waiting_admin": count(PasswordReset, PasswordReset.status == "pending"),
@@ -211,5 +176,4 @@ def extra_stats(db: Session, settings: Settings, media) -> dict:
         },
         "ip_blocks_active": len(ip_blocks(db, settings)),
         "media_cache_bytes": media.total_size(db) if media is not None else 0,
-        "reel_comments": count(ReelComment),
     }

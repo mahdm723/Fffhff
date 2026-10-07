@@ -1,18 +1,10 @@
-// Home: two full-screen panes side by side — Reels (default) and Ideas — switched by a
-// horizontal swipe or the "Reels | الأفكار" indicator at the top.
-//
-// Swipe conflicts: the pager is a native horizontal scroll-snap container. A photo carousel
-// inside a reel is a nested horizontal scroller, so the browser gives a swipe to the carousel
-// while it still has photos in that direction; once it is on its last photo, the next swipe
-// scrolls the pager to Ideas (scroll latching). Vertical swipes go to the reels list.
+// Home: the Ideas feed. (V6: Reels were removed; the "السوق | الأفكار" pager arrives in V6 phase 2 and
+// reuses the .home-pager / .home-pane scroll-snap container below.)
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { infiniteSentinel, onIdeaChange, postCard } from '../ideas.js';
 import { PickError, chooseFile, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
 import { autoGrow, h, newClientId, toast, wordmark } from '../ui.js';
-import { renderReels } from './reels.js';
-
-let currentPane = 'reels'; // Reels when the app opens; remembered while it stays open
 
 const DRAFT_KEY = 'dz:idea-draft';
 const STALE_MS = 5 * 60 * 1000;
@@ -29,46 +21,13 @@ export function resetFeedCache() {
 
 export function renderHome(page, ctx) {
   page.classList.add('page--home');
-  const reelsPane = h('section', { class: 'home-pane home-pane--reels', id: 'pane-reels', 'aria-label': 'Reels' });
-  const ideasPane = h('section', { class: 'home-pane home-pane--ideas', id: 'pane-ideas', 'aria-label': 'الأفكار' });
-  const pager = h('div', { class: 'home-pager' }, reelsPane, ideasPane);
-  const tab = (id, label, pane) => h('button', {
-    type: 'button', role: 'tab', class: 'home-switch__tab', 'aria-controls': pane.id, dataset: { pane: id },
-    onclick: () => show(id, true),
-  }, label);
-  const tabs = [tab('reels', 'Reels', reelsPane), tab('ideas', 'الأفكار', ideasPane)];
-  const switcher = h('div', { class: 'home-switch', role: 'tablist', 'aria-label': 'الصفحة الرئيسية' },
-    h('div', { class: 'home-switch__inner glass glass--blur' }, ...tabs, h('span', { class: 'home-switch__bar', 'aria-hidden': 'true' })));
-  page.replaceChildren(pager, switcher);
-
-  const reels = renderReels(reelsPane, ctx);
+  const ideasPane = h('section', { class: 'home-pane home-pane--ideas home-pane--solo', id: 'pane-ideas', 'aria-label': 'الأفكار' });
+  const pager = h('div', { class: 'home-pager' }, ideasPane);
+  page.replaceChildren(pager);
   const cleanupIdeas = renderIdeasPane(ideasPane, ctx);
-
-  function mark(id) {
-    currentPane = id;
-    tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.pane === id)));
-    switcher.dataset.pane = id;
-    page.dataset.pane = id;
-    reels.setVisible(id === 'reels');
-  }
-  function show(id, smooth) {
-    (id === 'reels' ? reelsPane : ideasPane).scrollIntoView({ inline: 'start', block: 'nearest', behavior: smooth ? 'smooth' : 'auto' });
-    mark(id);
-  }
-  // Which pane is on screen after a swipe (works whatever the RTL scrollLeft convention is).
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) if (e.isIntersecting && e.intersectionRatio > 0.55) mark(e.target === reelsPane ? 'reels' : 'ideas');
-  }, { root: pager, threshold: [0.55] });
-  io.observe(reelsPane);
-  io.observe(ideasPane);
-  requestAnimationFrame(() => show(currentPane, false));
-
   return () => {
-    io.disconnect();
-    reels.destroy();
     cleanupIdeas();
     page.classList.remove('page--home');
-    delete page.dataset.pane;
   };
 }
 

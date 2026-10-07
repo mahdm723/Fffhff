@@ -52,8 +52,6 @@ def public_config(request: Request) -> dict:
         "links_allowed": s.LINK_POLICY != "reject",
         "android_apk_url": "/download/dzplay.apk" if _APK.is_file() else None,
         "download_page": "/download",
-        "max_reel_comment_length": s.MAX_REEL_COMMENT_LENGTH,
-        "reels_prefetch": {"count": s.PREFETCH_COUNT, "ahead": s.PREFETCH_AHEAD, "device_cache_mb": s.DEVICE_MEDIA_CACHE_MB},
         # the bot is enough: without SMTP the admin receives the code in Telegram and sends it by hand
         "password_reset_enabled": get_state(request).bot is not None,
         "reset_code_hours": max(1, s.RESET_CODE_TTL // 3600),
@@ -62,7 +60,6 @@ def public_config(request: Request) -> dict:
         "names": {"min": s.NAME_MIN_LENGTH, "max": s.NAME_MAX_LENGTH, "cooldown_days": s.NAME_CHANGE_COOLDOWN_DAYS,
                   "default": s.DEFAULT_DISPLAY_NAME},
         "direct_before_reply": s.DIRECT_MSG_BEFORE_REPLY_LIMIT,
-        "calls_enabled": s.calls_enabled,
     }
 
 

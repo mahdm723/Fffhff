@@ -1,7 +1,7 @@
 """Runs user uploads through the media worker and stores the result in Telegram (V5).
 
     phone ──(checked, compressed)──▶ POST /api/uploads ──▶ UPLOAD_TMP_DIR/<id>.in (size-capped tmpfs)
-          ──▶ media worker: magic bytes, re-encode, strip metadata, NSFW ──▶ <id>.img.webp | <id>.mp4.mp4
+          ──▶ media worker: magic bytes, re-encode, strip metadata, NSFW ──▶ <id>.img.webp
           ──▶ app: sendDocument to the private storage channel (file_id kept in the DB, never sent to clients)
           ──▶ prepared copy moved into the media cache; every temp file deleted.
 
@@ -28,8 +28,8 @@ log = logging.getLogger("dzplay.uploads")
 QUEUE = "dz:media:jobs"
 RESULT = "dz:media:result:"
 HEARTBEAT = "dz:media:worker"
-MIME = {"img": "image/webp", "mp4": "video/mp4"}
-EXT = {"img": ".webp", "mp4": ".mp4"}
+MIME = {"img": "image/webp"}
+EXT = {"img": ".webp"}
 
 
 class MediaPipeline:
@@ -176,7 +176,7 @@ class MediaPipeline:
         tg = self.state.telegram
         chat = self.storage_chat()
         files = media_check.paths(self.tmp, item_id)
-        main = "img" if result["kind"] == "image" else "mp4"
+        main = "img"
         with self.state.database.session() as db:
             item = db.get(MediaItem, item_id)
             if item is None:
@@ -191,7 +191,7 @@ class MediaPipeline:
             log.error("storage upload failed: %s", exc)
             self._fail(item_id, "تعذّر حفظ الملف الآن. حاول بعد قليل.")
             return
-        doc = msg.get("document") or msg.get("video") or msg.get("animation") or {}
+        doc = msg.get("document") or {}
         if not doc.get("file_id"):
             self._fail(item_id, "تعذّر حفظ الملف الآن. حاول بعد قليل.")
             return
@@ -202,14 +202,13 @@ class MediaPipeline:
             item.tg_file_id, item.tg_unique_id = str(doc["file_id"]), doc.get("file_unique_id")
             item.tg_message_id = msg.get("message_id")
             item.width, item.height = result.get("width"), result.get("height")
-            item.duration, item.size = result.get("duration"), result.get("size")
+            item.size = result.get("size")
             item.nsfw_score, item.blur = result.get("nsfw"), result.get("blur")
             item.state, item.ready_at = "ready", clock.utcnow()
             produced = {v: files[v] for v in media_check.OUTPUTS[result["kind"]] if files[v].exists()}
             self.state.media.adopt(db, item, produced)
             owner = item.owner_id
-        log.info("upload %s stored (%s, %s ms, nsfw %s)", item_id[:8], result.get("type"), result.get("ms"),
-                 result.get("nsfw_ms"))
+        log.info("upload %s stored (%s, %s ms)", item_id[:8], result.get("type"), result.get("ms"))
         self._notify(owner, item_id, "ready")
 
     # -------------------------------------------------------------- lifecycle

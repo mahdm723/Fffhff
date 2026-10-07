@@ -1,15 +1,11 @@
-"""Engagement control from the admin panel (disclosed in the privacy policy v3).
+"""Team comments from the admin panel (disclosed in the privacy policy).
 
-* Boost: adds to `boost_likes` / `boost_dislikes` of Ideas or Reels — never
-  PostReaction/ReelReaction rows, so real users' like/dislike toggling stays
-  exact. Users see max(0, real + boost) (app.services.counts).
-  - mode "add": +N; mode "set": the displayed number becomes N.
-  - immediate, or gradual over a duration (EngagementJob advanced by `tick`).
-* Team comments: from the library (chosen items or N random from a category)
-  or new text, posted from internal system accounts shown as "dzplay"
-  (default) or from the official account with its badge. Ideas comments still
-  reach only the post owner; Reels comments are public. The same text is never
-  posted twice on the same target. Immediate or spread over a duration.
+From the library (chosen items or N random from a category) or new text, posted from internal
+system accounts shown as "dzplay" (default) or from the official account with its badge. The
+same text is never posted twice on the same idea. Immediate or spread over a duration
+(EngagementJob advanced by `tick`).
+
+V6: the V5 "boost" (numbers added to likes/dislikes) was removed: counts are real only.
 """
 
 from __future__ import annotations
@@ -25,23 +21,12 @@ from sqlalchemy.orm import Session
 from app import clock
 from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, not_found
-from app.models import (
-    Block,
-    CannedComment,
-    Comment,
-    CommentCategory,
-    EngagementJob,
-    Post,
-    Reel,
-    ReelComment,
-    User,
-)
+from app.models import Block, CannedComment, Comment, CommentCategory, EngagementJob, Post, User
 from app.services.content import clean_message
-from app.services.counts import shown
 from app.services.messaging import Effects, iso
 from app.services.moderation import normalize
 
-TARGETS = {"idea": Post, "reel": Reel}
+TARGETS = {"idea": Post}
 DEFAULT_CATEGORIES = {"welcome": "ترحيب", "encourage": "تشجيع", "support": "دعم", "engage": "تفاعل", "humor": "فكاهة",
                       "thanks": "شكر", "other": "أخرى"}
 
@@ -56,10 +41,6 @@ def _target(db: Session, target_type: str, target_id: str):
     if model is None:
         raise AppError(400, "invalid_target", "نوع المنشور غير صالح.")
     obj = db.get(model, str(target_id)[:32])
-    if obj is None and target_type == "reel":  # the short id shown by the Telegram bot works too
-        from app.services.reels import find
-
-        obj = find(db, str(target_id))
     if obj is None:
         raise not_found()
     return obj
@@ -81,54 +62,6 @@ def _window(settings: Settings, minutes: int | None) -> tuple[datetime, datetime
         raise AppError(400, "invalid_duration", "مدة غير صالحة.")
     now = clock.utcnow()
     return now, now + timedelta(minutes=minutes)
-
-
-def _add_boost(db: Session, obj, metric: str, delta: int) -> None:
-    col = "boost_likes" if metric == "likes" else "boost_dislikes"
-    setattr(obj, col, (getattr(obj, col) or 0) + delta)
-
-
-# ---------------------------------------------------------------------------
-# boost
-# ---------------------------------------------------------------------------
-
-
-def boost(db: Session, settings: Settings, *, target_type: str, ids: list[str], mode: str, likes: int | None,
-          dislikes: int | None, duration_minutes: int | None, actor: str) -> dict:
-    ids = _check_targets(settings, target_type, ids)
-    if mode not in ("add", "set"):
-        raise AppError(400, "invalid_mode", "invalid mode")
-    metrics = {k: v for k, v in (("likes", likes), ("dislikes", dislikes)) if v is not None}
-    if not metrics:
-        raise AppError(400, "nothing_to_do", "حدد عدد الإعجابات أو عدم الإعجاب.")
-    cap = settings.ENGAGEMENT_MAX_AMOUNT
-    for n in metrics.values():
-        if not isinstance(n, int) or not (-cap <= n <= cap) or (mode == "set" and n < 0):
-            raise AppError(400, "invalid_amount", "عدد غير صالح.")
-    window = _window(settings, duration_minutes)
-    batch = secrets.token_hex(8)
-    results = []
-    for tid in ids:
-        obj = _target(db, target_type, tid)
-        for metric, n in metrics.items():
-            real = obj.likes_count if metric == "likes" else obj.dislikes_count
-            boost_now = (obj.boost_likes if metric == "likes" else obj.boost_dislikes) or 0
-            # "set": the displayed number becomes n → final boost = n - real
-            delta = n if mode == "add" else (n - real) - boost_now
-            if window is None:
-                _add_boost(db, obj, metric, delta)
-            elif delta:
-                db.add(EngagementJob(batch_id=batch, kind="boost", target_type=target_type, target_id=obj.id, metric=metric,
-                                     total=delta, applied=0, start_at=window[0], end_at=window[1], created_by=actor))
-        results.append(summary(obj))
-    db.flush()
-    return {"batch_id": batch, "gradual": window is not None, "targets": results}
-
-
-def summary(obj) -> dict:
-    return {"id": obj.id, "real": {"likes": obj.likes_count, "dislikes": obj.dislikes_count},
-            "boost": {"likes": obj.boost_likes or 0, "dislikes": obj.boost_dislikes or 0},
-            "shown": {"likes": shown(obj.likes_count, obj.boost_likes), "dislikes": shown(obj.dislikes_count, obj.boost_dislikes)}}
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +166,7 @@ def item_save(db: Session, settings: Settings, item_id: str | None, category: ob
     ensure_categories(db)
     if not isinstance(category, str) or db.get(CommentCategory, category[:32]) is None:
         raise AppError(400, "invalid_category", "تصنيف غير صالح.")
-    body = clean_message(text, settings.MAX_REEL_COMMENT_LENGTH, "allow_plain")
+    body = clean_message(text, settings.MAX_COMMENT_LENGTH, "allow_plain")
     now = clock.utcnow()
     if item_id:
         item = db.get(CannedComment, item_id[:32])
@@ -268,7 +201,7 @@ def bulk_import(db: Session, settings: Settings, category: str, text: object) ->
         if not line:
             continue
         try:
-            body = clean_message(line, settings.MAX_REEL_COMMENT_LENGTH, "allow_plain")
+            body = clean_message(line, settings.MAX_COMMENT_LENGTH, "allow_plain")
         except AppError:
             skipped += 1
             continue
@@ -290,17 +223,14 @@ def bulk_import(db: Session, settings: Settings, category: str, text: object) ->
 
 def _team_texts_on(db: Session, target_type: str, target_id: str) -> set[str]:
     team = select(User.id).where((User.is_system.is_(True)) | (User.is_official.is_(True)))
-    if target_type == "idea":
-        rows = db.execute(select(Comment.content).where(Comment.post_id == target_id, Comment.author_id.in_(team))).scalars()
-    else:
-        rows = db.execute(select(ReelComment.content).where(ReelComment.reel_id == target_id, ReelComment.author_id.in_(team))).scalars()
+    rows = db.execute(select(Comment.content).where(Comment.post_id == target_id, Comment.author_id.in_(team))).scalars()
     return {normalize(t) for t in rows}
 
 
 def _resolve_items(db: Session, settings: Settings, source: dict) -> list[dict]:
     kind = source.get("kind")
     if kind == "text":
-        text = clean_message(source.get("text"), settings.MAX_REEL_COMMENT_LENGTH, "allow_plain")
+        text = clean_message(source.get("text"), settings.MAX_COMMENT_LENGTH, "allow_plain")
         return [{"text": text, "library_id": None}]
     if kind == "library":
         ids = [str(i)[:32] for i in (source.get("library_ids") or [])][: settings.ENGAGEMENT_MAX_COMMENTS]
@@ -341,21 +271,13 @@ def _post_one(db: Session, settings: Settings, target_type: str, target, item: d
               effects: Effects) -> bool:
     if normalize(item["text"]) in _team_texts_on(db, target_type, target.id):
         return False
-    owner_id = target.author_id if target_type == "idea" else None
-    author = _author_for(db, settings, appearance, owner_id)
-    now = clock.utcnow()
-    if target_type == "idea":
-        if target.status != "visible":
-            return False
-        db.add(Comment(post_id=target.id, author_id=author.id, content=item["text"], created_at=now))
-        db.execute(update(Post).where(Post.id == target.id).values(
-            comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + 1))
-        effects.signal(target.author_id, "comment")  # reaches the post owner only
-    else:
-        if target.status != "visible":
-            return False
-        db.add(ReelComment(reel_id=target.id, author_id=author.id, content=item["text"], created_at=now))
-        db.execute(update(Reel).where(Reel.id == target.id).values(comments_count=Reel.comments_count + 1))
+    if target.status != "visible":
+        return False
+    author = _author_for(db, settings, appearance, target.author_id)
+    db.add(Comment(post_id=target.id, author_id=author.id, content=item["text"], created_at=clock.utcnow()))
+    db.execute(update(Post).where(Post.id == target.id).values(
+        comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + 1))
+    effects.signal(target.author_id, "comment")
     if item.get("library_id"):
         db.execute(update(CannedComment).where(CannedComment.id == item["library_id"])
                    .values(usage_count=func.coalesce(CannedComment.usage_count, 0) + 1))
@@ -404,22 +326,16 @@ def tick(db: Session, settings: Settings, effects: Effects, now: datetime | None
         due = int(job.total * frac) if job.total >= 0 else -int(-job.total * frac)
         if now >= job.end_at:
             due = job.total
-        target = db.get(TARGETS[job.target_type], job.target_id)
+        model = TARGETS.get(job.target_type)
+        target = db.get(model, job.target_id) if model is not None and job.kind == "comment" else None
         if target is None:
             job.status = "failed"
             continue
-        if job.kind == "boost":
-            step = due - job.applied
-            if step:
-                _add_boost(db, target, job.metric, step)
-                job.applied = due
-                touched += 1
-        else:
-            data = json.loads(job.payload or "{}")
-            for item in data.get("items", [])[job.applied:due]:
-                _post_one(db, settings, job.target_type, target, item, data.get("appearance", "dzplay"), effects)
-                job.applied += 1
-                touched += 1
+        data = json.loads(job.payload or "{}")
+        for item in data.get("items", [])[job.applied:due]:
+            _post_one(db, settings, job.target_type, target, item, data.get("appearance", "dzplay"), effects)
+            job.applied += 1
+            touched += 1
         if job.applied == job.total or now >= job.end_at:
             job.status = "done"
     db.flush()
@@ -427,11 +343,12 @@ def tick(db: Session, settings: Settings, effects: Effects, now: datetime | None
 
 
 def jobs(db: Session, status: str = "", limit: int = 100) -> list[dict]:
-    stmt = select(EngagementJob).order_by(EngagementJob.created_at.desc()).limit(min(limit, 500))
+    stmt = (select(EngagementJob).where(EngagementJob.kind == "comment")
+            .order_by(EngagementJob.created_at.desc()).limit(min(limit, 500)))
     if status:
         stmt = stmt.where(EngagementJob.status == status)
     return [{"id": j.id, "batch_id": j.batch_id, "kind": j.kind, "target_type": j.target_type, "target_id": j.target_id,
-             "metric": j.metric, "total": j.total, "applied": j.applied, "status": j.status, "start_at": iso(j.start_at),
+             "total": j.total, "applied": j.applied, "status": j.status, "start_at": iso(j.start_at),
              "end_at": iso(j.end_at), "created_by": j.created_by} for j in db.execute(stmt).scalars()]
 
 

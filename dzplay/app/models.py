@@ -97,7 +97,7 @@ class User(Base):
     # Privacy switches (None = default)
     accept_anonymous: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
     accept_direct: Mapped[str | None] = mapped_column(String(12), nullable=True)  # everyone|nobody (default everyone)
-    accept_calls: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
+    accept_calls: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # unused since V6 (calls removed)
     searchable_by_name: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # default on
     # New Google accounts: gender + 18+ must be completed before messaging (old accounts stay NULL).
     onboarding_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
@@ -151,41 +151,6 @@ class FcmToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
-CALL_ACTIVE_STATES = ("calling", "ringing", "connected")
-
-
-class Call(Base):
-    """One 1:1 call. Metadata only: media is end-to-end DTLS-SRTP through TURN and never recorded."""
-
-    __tablename__ = "calls"
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
-    # plain reference: the call log outlives the conversation's TTL
-    conversation_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
-    caller_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    callee_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    kind: Mapped[str] = mapped_column(String(8))  # audio | video (as started)
-    video_used: Mapped[bool] = mapped_column(Boolean, default=False)
-    # calling → ringing → connected → ended | declined | missed | busy | failed | canceled
-    state: Mapped[str] = mapped_column(String(12), index=True)
-    end_reason: Mapped[str | None] = mapped_column(String(24), nullable=True)
-    ended_by_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
-    ringing_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    answered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    duration: Mapped[int | None] = mapped_column(Integer, nullable=True)  # seconds connected
-    caller_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # last quality heartbeat
-    callee_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    quality: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON aggregate of client getStats summaries
-
-    def is_member(self, user_id: str) -> bool:
-        return user_id in (self.caller_id, self.callee_id)
-
-    def peer_of(self, user_id: str) -> str:
-        return self.callee_id if user_id == self.caller_id else self.caller_id
-
-
 class Report(Base):
     __tablename__ = "reports"
 
@@ -197,8 +162,8 @@ class Report(Base):
     message_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     post_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    reel_comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    call_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # V4: report made about a call
+    reel_comment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # unused since V6
+    call_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # unused since V6
     media_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # V5: reported picture / video
     reason: Mapped[str] = mapped_column(String(32))
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -428,7 +393,7 @@ class Post(Base):
     # Denormalised counters: read on every feed request, updated atomically.
     likes_count: Mapped[int] = mapped_column(Integer, default=0)  # REAL reactions only (PostReaction rows)
     dislikes_count: Mapped[int] = mapped_column(Integer, default=0)
-    # Added by the team from the admin panel; shown = max(0, real + boost). Never PostReaction rows.
+    # V5 team boosts. Removed in V6: zeroed by `admin_cli drop-legacy`, never read (counts are real only).
     boost_likes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     boost_dislikes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -461,98 +426,6 @@ class Comment(Base):
     author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
-
-
-# ---------------------------------------------------------------------------
-# Reels — platform content uploaded by the admins through Telegram. The media
-# files stay in Telegram; we keep only references and a temporary disk cache.
-# ---------------------------------------------------------------------------
-
-
-class Reel(Base):
-    __tablename__ = "reels"
-    __table_args__ = (Index("ix_reel_status_time", "status", "created_at"),)
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
-    short_id: Mapped[str] = mapped_column(String(12), unique=True)  # shown in the bot (/hide <id>)
-    kind: Mapped[str] = mapped_column(String(8))  # video|images
-    caption: Mapped[str] = mapped_column(Text, default="")
-    status: Mapped[str] = mapped_column(String(16), default="processing")  # processing|visible|hidden|failed
-    error: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    media_group_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    pinned_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    likes_count: Mapped[int] = mapped_column(Integer, default=0)  # REAL reactions only (ReelReaction rows)
-    dislikes_count: Mapped[int] = mapped_column(Integer, default=0)
-    boost_likes: Mapped[int | None] = mapped_column(Integer, nullable=True)  # team boost; shown = max(0, real + boost)
-    boost_dislikes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    comments_count: Mapped[int] = mapped_column(Integer, default=0)
-    views_count: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
-    # --- V5: creator reels (studio). owner NULL = platform content (Telegram / admins), unchanged.
-    owner_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
-    source: Mapped[str | None] = mapped_column(String(10), nullable=True)  # None/telegram | studio
-    show_author: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # name + star shown, linked to the profile
-    show_on_profile: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # only possible with show_author
-    review_status: Mapped[str | None] = mapped_column(String(10), nullable=True)  # pending|approved|rejected|removed
-    review_note: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
-
-class ReelAsset(Base):
-    __tablename__ = "reel_assets"
-    __table_args__ = (Index("ix_asset_reel_pos", "reel_id", "position"),)
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
-    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"))
-    position: Mapped[int] = mapped_column(Integer, default=0)
-    kind: Mapped[str] = mapped_column(String(8))  # video|image
-    tg_file_id: Mapped[str] = mapped_column(String(255))
-    tg_unique_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    source_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
-    ready: Mapped[bool] = mapped_column(Boolean, default=False)
-
-
-class ReelReaction(Base):
-    __tablename__ = "reel_reactions"
-    __table_args__ = (
-        UniqueConstraint("user_id", "reel_id", name="uq_reel_reaction"),
-        CheckConstraint("reaction IN ('like','dislike')", name="ck_reel_reaction"),
-    )
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"), index=True)
-    reaction: Mapped[str] = mapped_column(String(8))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
-
-
-class ReelComment(Base):
-    """Public comments on Reels — a separate table from the owner-only Ideas comments."""
-
-    __tablename__ = "reel_comments"
-    __table_args__ = (Index("ix_reel_comment_time", "reel_id", "created_at"),)
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
-    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"))
-    author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
-
-
-class ReelView(Base):
-    """Light, temporary "seen" marks so a session does not replay recent reels first."""
-
-    __tablename__ = "reel_views"
-    __table_args__ = (UniqueConstraint("user_id", "reel_id", name="uq_reel_view"),)
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    reel_id: Mapped[str] = mapped_column(ForeignKey("reels.id", ondelete="CASCADE"))
-    seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
 
 
 class MediaCacheEntry(Base):
@@ -622,7 +495,7 @@ class VerificationRequest(Base):
 
 
 class EmailCode(Base):
-    """V5: one-time code proving a user owns an extra e-mail address (payout e-mail)."""
+    """One-time e-mail code (V6: confirms sensitive account changes such as the refund wallet)."""
 
     __tablename__ = "email_codes"
 
@@ -637,28 +510,10 @@ class EmailCode(Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
-class MonetizationApplication(Base):
-    """V5: a verified creator asks to earn from their reels. Reviewed by the admins."""
-
-    __tablename__ = "monetization_applications"
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    content_type: Mapped[str] = mapped_column(String(200))
-    payout_email: Mapped[str] = mapped_column(String(254))  # where Red Packet payouts are sent
-    status: Mapped[str] = mapped_column(String(10), default="pending", index=True)  # pending|accepted|rejected|needs_fix
-    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    stats: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
-    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-
-
 class LedgerEntry(Base):
-    """V5 «أموالي»: an IMMUTABLE ledger. Balance = sum(amount). Nothing is ever updated or deleted;
-    a mistake is corrected by a reversal entry (amount = -original, reverses_id = original)."""
+    """An IMMUTABLE money ledger. Balance = sum(amount). Nothing is ever updated or deleted;
+    a mistake is corrected by a new entry. (V5 creator earnings were exported and removed in V6;
+    the table is reused by memberships in V6 phase 5.)"""
 
     __tablename__ = "ledger_entries"
     __table_args__ = (Index("ix_ledger_user_time", "user_id", "created_at"),
@@ -690,14 +545,14 @@ class MediaItem(Base):
     # Kept (NULL) when the account is deleted: reported media may be legal evidence.
     owner_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     owner_public_id: Mapped[str | None] = mapped_column(String(12), nullable=True)  # for moderators (DZ-XXXXXX)
-    purpose: Mapped[str] = mapped_column(String(8))  # idea|chat|reel
+    purpose: Mapped[str] = mapped_column(String(8))  # idea|chat
     kind: Mapped[str] = mapped_column(String(8))  # image|video
     # uploaded -> processing -> ready (stored in Telegram) | rejected (checks failed) | failed (error)
     # then: attached (in use) -> removed (moderation / owner) | expired (chat pictures)
     state: Mapped[str] = mapped_column(String(12), default="uploaded", index=True)
     error: Mapped[str | None] = mapped_column(String(255), nullable=True)
     conversation_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # chat pictures: target chat
-    attached_type: Mapped[str | None] = mapped_column(String(8), nullable=True)  # post|message|reel
+    attached_type: Mapped[str | None] = mapped_column(String(8), nullable=True)  # post|message
     attached_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     attached_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     review: Mapped[str | None] = mapped_column(String(10), nullable=True)  # pending|approved|rejected (None = not needed)
@@ -820,9 +675,8 @@ class CannedComment(Base):
 
 
 class EngagementJob(Base):
-    """A boost or a batch of team comments applied gradually by the scheduler.
+    """A batch of team comments applied gradually by the scheduler (V5 "boost" jobs were removed in V6).
 
-    boost:   `total` is added to boost_<metric> of the target progressively (may be negative).
     comment: `payload` is a JSON list of comments; `applied` of them are already posted.
     """
 
@@ -830,10 +684,10 @@ class EngagementJob(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
     batch_id: Mapped[str] = mapped_column(String(32), index=True)
-    kind: Mapped[str] = mapped_column(String(8))  # boost|comment
-    target_type: Mapped[str] = mapped_column(String(8))  # idea|reel
+    kind: Mapped[str] = mapped_column(String(8))  # comment
+    target_type: Mapped[str] = mapped_column(String(8))  # idea
     target_id: Mapped[str] = mapped_column(String(32), index=True)
-    metric: Mapped[str | None] = mapped_column(String(8), nullable=True)  # likes|dislikes (boost jobs)
+    metric: Mapped[str | None] = mapped_column(String(8), nullable=True)  # unused since V6
     total: Mapped[int] = mapped_column(Integer, default=0)
     applied: Mapped[int] = mapped_column(Integer, default=0)
     payload: Mapped[str | None] = mapped_column(Text, nullable=True)

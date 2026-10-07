@@ -1,8 +1,7 @@
 """Optional Firebase Cloud Messaging (HTTP v1) for the Android app.
 
-Rings the app when it is closed ("مكالمة واردة على DZPLAY", full-screen on the phone) and
-shows a new-message alert. Data-only messages with no sender, name or text in them: the
-app fetches the details itself after it opens. Enabled only when FCM_SERVICE_ACCOUNT_FILE
+Shows a new-message alert when the app is closed. Data-only messages with no sender, name
+or text in them: the app fetches the details itself after it opens. Enabled only when FCM_SERVICE_ACCOUNT_FILE
 points to a Firebase service-account JSON (kept outside the repository).
 """
 
@@ -22,11 +21,6 @@ log = logging.getLogger("dzplay.fcm")
 SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 
 
-def call_message(token: str, call_id: str, ttl: int) -> dict:
-    return {"message": {"token": token, "data": {"type": "call", "call_id": call_id},
-                        "android": {"priority": "HIGH", "ttl": f"{max(5, ttl)}s"}}}
-
-
 def chat_message(token: str) -> dict:
     return {"message": {"token": token, "data": {"type": "message"},
                         "android": {"priority": "HIGH", "ttl": "86400s", "collapse_key": "dz-message"}}}
@@ -43,9 +37,6 @@ class FcmNotifier:
 
         self._creds = service_account.Credentials.from_service_account_info(info, scopes=[SCOPE])
         self._pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="fcm")
-
-    def notify_call(self, user_id: str, call_id: str, ttl: int) -> None:
-        self._pool.submit(self._send, user_id, lambda t: call_message(t, call_id, ttl))
 
     def notify_message(self, user_id: str) -> None:
         self._pool.submit(self._send, user_id, chat_message)

@@ -23,7 +23,7 @@ from app import clock
 from app.config import HOUR, Settings
 from app.errors import AppError, not_found
 from app.models import Conversation, MediaItem, Message, Post, User
-from app.services import reels
+from app.services import media_urls
 from app.services.messaging import (
     Effects,
     _blocked_between,
@@ -37,7 +37,7 @@ from app.services.rate_limit import Limit
 log = logging.getLogger("dzplay.media_items")
 
 MEDIA_ID = re.compile(r"^[a-f0-9]{32}$")
-PURPOSE_KIND = {"idea": "image", "chat": "image", "reel": "video"}  # reel: creator studio (verified accounts)
+PURPOSE_KIND = {"idea": "image", "chat": "image"}
 MB = 1024 * 1024
 # Session key of the current request (set by api.deps.current_user): signed URLs are bound to it.
 MEDIA_KEY: contextvars.ContextVar[str | None] = contextvars.ContextVar("dz_media_key", default=None)
@@ -49,7 +49,7 @@ MEDIA_KEY: contextvars.ContextVar[str | None] = contextvars.ContextVar("dz_media
 
 
 def caption_check(settings: Settings, text: str | None) -> None:
-    """Word filter for text that accompanies a picture or a video."""
+    """Word filter for text that accompanies a picture."""
     if not text:
         return
     from app.services.moderation import scan
@@ -88,13 +88,10 @@ def upload_config(db: Session, settings: Settings, user: User, available: bool) 
         "device_max_side": settings.DEVICE_IMAGE_MAX_SIDE,
         "device_quality": settings.DEVICE_IMAGE_QUALITY,
         "nsfw": {"device": settings.DEVICE_NSFW_CHECK, "block": settings.NSFW_BLOCK_THRESHOLD,
-                 "sexy": settings.NSFW_SEXY_THRESHOLD, "frames": settings.NSFW_VIDEO_FRAMES},
+                 "sexy": settings.NSFW_SEXY_THRESHOLD},
         "idea": idea_quota(db, settings, user),
         "chat": {"enabled": settings.CHAT_IMAGES_ENABLED, "per_hour": settings.CHAT_IMAGE_PER_HOUR,
                  "ttl_after_view": settings.CHAT_IMAGE_TTL_AFTER_VIEW},
-        "video_types": sorted(settings.video_types),
-        "reel": {"max_mb": settings.CREATOR_REEL_MAX_MB, "max_seconds": settings.CREATOR_REEL_MAX_SECONDS,
-                 "min_seconds": settings.CREATOR_REEL_MIN_SECONDS},
     }
 
 
@@ -123,7 +120,7 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
     if purpose not in PURPOSE_KIND:
         raise AppError(400, "invalid_purpose", "طلب غير صالح.")
     kind = PURPOSE_KIND[purpose]
-    cap = int((settings.UPLOAD_IMAGE_MAX_MB if kind == "image" else settings.CREATOR_REEL_MAX_MB) * MB)
+    cap = int(settings.UPLOAD_IMAGE_MAX_MB * MB)
     if length is None:
         raise AppError(411, "length_required", "طلب غير صالح.")
     if length <= 0:
@@ -139,13 +136,6 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
             raise AppError(403, "idea_images_off", "نشر الصور مع الأفكار متوقف حاليًا.")
         if quota["remaining"] <= 0:
             raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.", retry_after=_retry(quota["next_at"]))
-    elif purpose == "reel":
-        from app.services import creator_reels
-
-        creator_reels.require_creator(settings, user)
-        quota = creator_reels.quota(db, settings, user)
-        if quota["remaining"] <= 0:
-            raise AppError(429, "reel_limit", "وصلت إلى حد الفيديوهات اليوم.", retry_after=_retry(quota["next_at"]))
     elif purpose == "chat":
         if not settings.CHAT_IMAGES_ENABLED:
             raise AppError(403, "chat_images_off", "إرسال الصور في المحادثات متوقف حاليًا.")
@@ -157,13 +147,11 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
                      conversation_id=conv.id if conv else None, source_size=length, created_at=clock.utcnow())
     db.add(item)
     db.flush()
-    job = {"id": item.id, "kind": kind, "purpose": purpose, "types": sorted(settings.image_types if kind == "image"
-                                                                            else settings.video_types),
+    job = {"id": item.id, "kind": kind, "purpose": purpose, "types": sorted(settings.image_types),
            "min_side": settings.UPLOAD_IMAGE_MIN_SIDE, "max_side": settings.UPLOAD_IMAGE_MAX_SIDE,
            "max_pixels": settings.IMAGE_MAX_PIXELS, "nsfw": settings.SERVER_NSFW_CHECK,
            "nsfw_block": settings.NSFW_BLOCK_THRESHOLD, "nsfw_sexy": settings.NSFW_SEXY_THRESHOLD,
-           "frames": settings.NSFW_VIDEO_FRAMES, "blur": purpose == "chat",
-           "max_seconds": settings.CREATOR_REEL_MAX_SECONDS, "min_seconds": settings.CREATOR_REEL_MIN_SECONDS}
+           "blur": purpose == "chat"}
     return item, job
 
 
@@ -247,7 +235,7 @@ def post_media(db: Session, post: Post, viewer_id: str) -> dict | None:
         return None
     key = MEDIA_KEY.get()
     settings = _settings()
-    url = reels.media_url(settings, item.id, "img", key) if key and settings else None
+    url = media_urls.media_url(settings, item.id, "img", key) if key and settings else None
     return {"kind": item.kind, "width": item.width, "height": item.height, "url": url,
             "review": item.review if mine else None}
 
@@ -364,7 +352,7 @@ def open_chat_image(db: Session, settings: Settings, user: User, message_id: obj
         msg.read_at = msg.read_at or now
         effects.signal([msg.sender_id, user.id], "media")
     key = MEDIA_KEY.get()
-    return {"url": reels.media_url(settings, item.id, "img", key) if key else None,
+    return {"url": media_urls.media_url(settings, item.id, "img", key) if key else None,
             "seconds_left": max(0, int((item.view_expires_at - now).total_seconds())),
             "view_expires_at": iso(item.view_expires_at), "secure": bool(settings.CHAT_IMAGE_FLAG_SECURE)}
 
@@ -387,15 +375,6 @@ def can_view(db: Session, user: User, item: MediaItem) -> str | None:
         if post.status != "visible" or item.hidden:
             return None
         return "private, max-age=3600"
-    if item.attached_type == "reel":  # creator reel: the owner may preview it before / after review
-        from app.models import Reel
-
-        reel = db.get(Reel, item.attached_id)
-        if reel is None:
-            return None
-        if reel.owner_id == user.id:
-            return "private, max-age=600"
-        return "private, max-age=3600" if reel.status == "visible" and not item.hidden else None
     if item.attached_type == "message":
         msg = db.get(Message, item.attached_id)
         if msg is None or msg.recipient_id != user.id or item.hidden:

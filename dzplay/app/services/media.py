@@ -1,32 +1,22 @@
-"""Reels media: fetch from Telegram on demand, prepare for phones, cache on disk.
+"""User pictures: fetch from Telegram on demand, cache on disk.
 
-The server is a relay, not an archive: originals stay in Telegram (we store
-only the file_id). Prepared files live in MEDIA_CACHE_DIR with an LRU policy
-(MEDIA_CACHE_MAX_GB) and a TTL (MEDIA_CACHE_TTL); an evicted file is simply
-fetched and prepared again on the next request.
+The server is a relay, not an archive: files stay in Telegram (we store only the file_id).
+Prepared copies live in MEDIA_CACHE_DIR with an LRU policy (MEDIA_CACHE_MAX_GB) and a TTL
+(MEDIA_CACHE_TTL); an evicted file is simply fetched and prepared again on the next request.
 
-Video: one light MP4 + a JPEG poster. H.264/AAC sources within limits are only
-remuxed with `+faststart` (instant start, seconds of CPU); others are
-transcoded to H.264/AAC, max 720x1280 (portrait 720p), CRF + max bitrate.
-No HLS: clips are short, faststart + HTTP Range already start playback at
-once and allow seeking, and one file per clip keeps the cache simple.
+Images are decoded with Pillow (decompression-bomb guard), resized and re-encoded to WebP —
+which also drops EXIF/GPS and any other metadata. Cache file names are built from validated
+internal ids, never from request input (no path traversal).
 
-Images: decoded with Pillow (decompression-bomb guard), resized, re-encoded
-to WebP — which also drops EXIF/GPS and any other metadata.
-
-Safety: ffmpeg/ffprobe run with an argument list (no shell), only on files
-inside our own temp directory, with a timeout. Cache file names are built from
-validated internal ids, never from request input (no path traversal).
+(V6 removed videos together with Reels: no ffmpeg on the request path any more.)
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 import threading
 from collections import defaultdict
@@ -38,116 +28,19 @@ from sqlalchemy.orm import Session
 
 from app import clock
 from app.config import Settings
-from app.models import MediaCacheEntry, ReelAsset
+from app.models import MediaCacheEntry, MediaItem
 
 log = logging.getLogger("dzplay.media")
 
 ASSET_ID = re.compile(r"^[a-f0-9]{32}$")
-VARIANTS = {"video": ("mp4", "poster"), "image": ("img",)}
-EXTENSIONS = {"mp4": ".mp4", "poster": ".jpg", "img": ".webp"}
-CONTENT_TYPES = {"mp4": "video/mp4", "poster": "image/jpeg", "img": "image/webp"}
+VARIANTS = {"image": ("img",)}
+EXTENSIONS = {"img": ".webp"}
+CONTENT_TYPES = {"img": "image/webp"}
 _TOUCH_EVERY = timedelta(minutes=2)
 
 
 class MediaError(Exception):
     """Processing failed; the message is safe to show to the admin."""
-
-
-def limited(args: list[str], mem_mb: int) -> list[str]:
-    """Run at the lowest CPU priority and with an address-space cap (V5: ffmpeg must never starve the app)."""
-    prefix: list[str] = []
-    if shutil.which("nice"):
-        prefix += ["nice", "-n", "19"]
-    if mem_mb > 0 and shutil.which("prlimit"):
-        prefix += ["prlimit", f"--as={mem_mb * 1024 * 1024}", "--"]
-    return prefix + args
-
-
-def _run(args: list[str], timeout: int, mem_mb: int = 0) -> subprocess.CompletedProcess:
-    try:
-        return subprocess.run(limited(args, mem_mb), capture_output=True, timeout=timeout, check=False,
-                              stdin=subprocess.DEVNULL)
-    except subprocess.TimeoutExpired:
-        raise MediaError("انتهت مهلة معالجة الملف.") from None
-    except FileNotFoundError:
-        raise MediaError("ffmpeg غير مثبت على الخادم.") from None
-
-
-# Only real video containers. Playlist/concat formats (hls, concat, ...) can point ffmpeg at other
-# local files or URLs, and the input may be any file someone sends to the bot.
-SAFE_CONTAINERS = {"mov", "mp4", "m4a", "3gp", "3g2", "mj2", "matroska", "webm", "avi", "flv", "mpegts"}
-# Inputs are local temp files: no network protocols (SSRF) and no protocol nesting.
-INPUT_GUARD = ["-protocol_whitelist", "file"]
-
-
-def probe(settings: Settings, src: Path) -> dict:
-    res = _run([settings.FFPROBE_BINARY, "-v", "error", *INPUT_GUARD, "-print_format", "json", "-show_streams", "-show_format",
-                str(src)], settings.MEDIA_PROCESS_TIMEOUT, settings.MEDIA_FFMPEG_MEM_MB)
-    if res.returncode != 0:
-        raise MediaError("الملف ليس فيديو صالحًا.")
-    try:
-        data = json.loads(res.stdout or b"{}")
-    except ValueError:
-        raise MediaError("الملف ليس فيديو صالحًا.") from None
-    streams = data.get("streams") or []
-    video = next((s for s in streams if s.get("codec_type") == "video"), None)
-    audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
-    if video is None:
-        raise MediaError("لا يوجد مسار فيديو في الملف.")
-    fmt = data.get("format") or {}
-    if not set(str(fmt.get("format_name") or "").split(",")) & SAFE_CONTAINERS:
-        raise MediaError("صيغة الملف غير مدعومة.")
-
-    def num(value, cast=float):
-        try:
-            return cast(value)
-        except (TypeError, ValueError):
-            return None
-
-    return {
-        "vcodec": video.get("codec_name"), "acodec": audio.get("codec_name") if audio else None,
-        "width": num(video.get("width"), int) or 0, "height": num(video.get("height"), int) or 0,
-        "pix_fmt": video.get("pix_fmt"), "duration": num(fmt.get("duration")) or 0.0,
-        "bitrate": num(fmt.get("bit_rate"), int) or 0,
-    }
-
-
-def _box(info: dict, settings: Settings) -> tuple[int, int]:
-    """Max output size keeping orientation: 720x1280 portrait, 1280x720 landscape."""
-    short, long_ = settings.VIDEO_MAX_WIDTH, settings.VIDEO_MAX_HEIGHT
-    return (short, long_) if info["height"] >= info["width"] else (long_, short)
-
-
-def prepare_video(settings: Settings, src: Path, out_mp4: Path, out_poster: Path) -> dict:
-    info = probe(settings, src)
-    bw, bh = _box(info, settings)
-    fits = info["width"] <= bw and info["height"] <= bh
-    light = info["bitrate"] and info["bitrate"] <= settings.VIDEO_REMUX_MAX_BITRATE_K * 1000
-    ff = [settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", *INPUT_GUARD, "-i", str(src)]
-    common = ["-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-movflags", "+faststart", "-f", "mp4"]
-    if (info["vcodec"] == "h264" and info["acodec"] in (None, "aac") and info["pix_fmt"] in (None, "yuv420p")
-            and fits and light):
-        args = ff + ["-c", "copy"] + common + [str(out_mp4)]
-    else:
-        scale = (f"scale=w='min(iw,{bw})':h='min(ih,{bh})':force_original_aspect_ratio=decrease,"
-                 "scale=trunc(iw/2)*2:trunc(ih/2)*2")
-        args = ff + [
-            "-vf", scale, "-c:v", "libx264", "-preset", "veryfast", "-crf", str(settings.VIDEO_CRF),
-            "-maxrate", f"{settings.VIDEO_MAX_BITRATE_K}k", "-bufsize", f"{settings.VIDEO_MAX_BITRATE_K * 2}k",
-            "-profile:v", "high", "-pix_fmt", "yuv420p", "-threads", "2",
-            "-c:a", "aac", "-b:a", f"{settings.VIDEO_AUDIO_BITRATE_K}k", "-ac", "2",
-        ] + common + [str(out_mp4)]
-    res = _run(args, settings.MEDIA_PROCESS_TIMEOUT, settings.MEDIA_FFMPEG_MEM_MB)
-    if res.returncode != 0 or not out_mp4.exists() or out_mp4.stat().st_size == 0:
-        raise MediaError("تعذّر تجهيز الفيديو.")
-    seek = "0.5" if info["duration"] > 1.0 else "0"
-    res = _run([settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-ss", seek,
-                *INPUT_GUARD, "-i", str(out_mp4), "-frames:v", "1", "-vf", f"scale=w='min(iw,{bw})':h=-2", "-q:v", "5",
-                "-map_metadata", "-1", str(out_poster)], settings.MEDIA_PROCESS_TIMEOUT, settings.MEDIA_FFMPEG_MEM_MB)
-    if res.returncode != 0 or not out_poster.exists():
-        raise MediaError("تعذّر إنشاء صورة الغلاف.")
-    final = probe(settings, out_mp4)
-    return {"width": final["width"], "height": final["height"], "duration": final["duration"]}
 
 
 def prepare_image(settings: Settings, src: Path, out: Path) -> dict:
@@ -190,7 +83,7 @@ class MediaStore:
             return self._locks[asset_id]
 
     # -------------------------------------------------------------- prepare
-    def ensure(self, db: Session, asset: ReelAsset, variant: str) -> Path:
+    def ensure(self, db: Session, asset: MediaItem, variant: str) -> Path:
         """Path of a ready file for this asset/variant, fetching + preparing it if needed."""
         if variant not in VARIANTS.get(asset.kind, ()):
             raise ValueError("variant not available for this asset")
@@ -202,18 +95,14 @@ class MediaStore:
         self.touch(db, asset.id, variant)
         return path
 
-    def materialize(self, db: Session, asset: ReelAsset) -> None:
+    def materialize(self, db: Session, asset: MediaItem) -> None:
         self.dir.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix=".tmp-", dir=self.dir) as tmp_name:
             tmp = Path(tmp_name)
             src = tmp / "source"
             self._telegram().download(asset.tg_file_id, src)
             outputs = {v: tmp / f"out{EXTENSIONS[v]}" for v in VARIANTS[asset.kind]}
-            if asset.kind == "video":
-                meta = prepare_video(self.settings, src, outputs["mp4"], outputs["poster"])
-                asset.duration = meta["duration"]
-            else:
-                meta = prepare_image(self.settings, src, outputs["img"])
+            meta = prepare_image(self.settings, src, outputs["img"])
             asset.width, asset.height = meta["width"], meta["height"]
             now = clock.utcnow()
             for variant, out in outputs.items():
@@ -300,9 +189,7 @@ class MediaStore:
                 if item.is_file() and item.name not in known:
                     item.unlink(missing_ok=True)
                     removed["orphans"] += 1
-        stale = select(ReelAsset.id).where(ReelAsset.ready.is_(True))
-        for asset_id in db.execute(stale).scalars().all():
-            if not all((self.dir / self.path_for(asset_id, v).name).exists()
-                       for v in VARIANTS.get(db.get(ReelAsset, asset_id).kind, ())):
-                db.execute(update(ReelAsset).where(ReelAsset.id == asset_id).values(ready=False))
+        for asset_id, kind in db.execute(select(MediaItem.id, MediaItem.kind).where(MediaItem.ready.is_(True))).all():
+            if not all((self.dir / self.path_for(asset_id, v).name).exists() for v in VARIANTS.get(kind, ())):
+                db.execute(update(MediaItem).where(MediaItem.id == asset_id).values(ready=False))
         return removed

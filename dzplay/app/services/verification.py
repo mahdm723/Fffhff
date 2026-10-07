@@ -8,7 +8,9 @@
   Payments are verified by a human (explorer link) — nothing is automated or custodial.
 * User.verified_at is written only here (grant / revoke), from admin endpoints or the admin's Telegram
   buttons. No user-facing endpoint accepts it (mass-assignment tests).
-* The star shows on the profile, ideas, reels, search and direct chats — never in anonymous chats.
+* The star shows on the profile, ideas, search and direct chats — never in anonymous chats.
+* V6: new requests are closed (VERIFY_ENABLED=False); the star moves to memberships (V6 phase 5).
+  Existing stars are kept, pending requests can still be decided from the panel.
 """
 
 from __future__ import annotations
@@ -138,14 +140,6 @@ def conditions(db: Session, settings: Settings, user: User) -> dict:
     posts = db.scalar(select(func.count()).select_from(Post).where(Post.author_id == user.id, Post.status == "visible")) or 0
     likes = db.scalar(select(func.coalesce(func.sum(Post.likes_count), 0)).where(
         Post.author_id == user.id, Post.status == "visible")) or 0
-    try:
-        from app.models import Reel
-
-        if hasattr(Reel, "owner_id"):
-            likes += db.scalar(select(func.coalesce(func.sum(Reel.likes_count), 0)).where(
-                Reel.owner_id == user.id, Reel.status == "visible")) or 0
-    except Exception:  # noqa: BLE001
-        pass
     age_days = max(0, (clock.utcnow() - user.created_at).days)
     bad = violations(db, user)
     items = [
@@ -232,7 +226,7 @@ def submit(db: Session, settings: Settings, limiter, user: User, body: dict, eff
 
     _require_can_send(user)
     if not settings.VERIFY_ENABLED:
-        raise AppError(403, "verify_off", "طلبات التوثيق متوقفة حاليًا.")
+        raise AppError(403, "verify_off", "طلبات النجمة الزرقاء متوقفة: ستصبح النجمة جزءًا من العضوية قريبًا.")
     if user.verified_at is not None:
         raise AppError(409, "already_verified", "حسابك موثّق بالفعل.")
     last = latest(db, user.id)

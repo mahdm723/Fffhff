@@ -86,7 +86,7 @@ def seed(base: str, db_url: str) -> str:
     assert a.post(f"/api/conversations/{conv}/report", json={"reason": "spam"}).status_code == 201
     # A threatening reply is flagged automatically (and still delivered).
     assert a.post(f"/api/conversations/{conv}/messages", json={"content": "راني نعرف وين تسكن، ابعث الدراهم ولا نفضحك"}).status_code == 201
-    SEEDED["idea"] = b.post("/api/posts", json={"content": "فكرة جميلة ستحصل على تعزيز وتعليقات من الفريق."}).json()["id"]
+    SEEDED["idea"] = b.post("/api/posts", json={"content": "فكرة جميلة ستحصل على تعليقات من الفريق."}).json()["id"]
     register(base, "old-user@example.com")  # gets the privacy notice (see below)
     bad = api_client(base)
     for _ in range(2):
@@ -309,36 +309,23 @@ class Run:
         self.shot(page, "09-content-dark")
         page.get_by_role("tab", name="المحادثات").click()
         expect(page.locator(".admin-card--tap").first).to_be_visible()
-        page.get_by_role("tab", name="المكالمات").click()
-        expect(page.locator("#admin-main .admin-group", has_text="آخر 7 أيام")).to_be_visible()
+        expect(page.get_by_role("tab", name="المكالمات")).to_have_count(0)  # V6: calls removed
+        expect(page.get_by_role("tab", name="Reels")).to_have_count(0)
         page.get_by_role("tab", name="بحث").click()
-        page.get_by_placeholder("ابحث في الأفكار والتعليقات والرسائل والأوصاف").fill("مزعجة")
+        page.get_by_placeholder("ابحث في الأفكار والتعليقات والرسائل").fill("مزعجة")
         page.locator("#admin-main form").get_by_role("button", name="بحث").click()
         expect(page.locator(".admin-group__title", has_text="رسائل")).to_be_visible()
         self.step("content: ideas with selection, conversations, full-text search")
         page.get_by_role("tab", name="الأفكار").click()
         expect(page.locator(".admin-selbar")).to_be_visible()  # selection survives tab switches
-        page.locator(".admin-selbar").get_by_role("button", name="تعزيز التفاعل").click()
+        expect(page.locator(".admin-selbar").get_by_role("button", name="تعزيز التفاعل")).to_have_count(0)  # V6: no boost
+        page.locator(".admin-selbar").get_by_role("button", name="إضافة تعليقات").click()
 
     def engagement(self, page: Page) -> None:
         pid = SEEDED["idea"]
         expect(page.locator(".admin-ids")).to_have_value(pid)
-        page.get_by_label("👍 إعجاب").fill("120")
-        page.get_by_label("👎 عدم إعجاب").fill("4")
-        page.locator(".admin-form").get_by_role("button", name="تطبيق").click()
-        expect(page.locator(".viz-table tbody td").first).to_have_text("120 = 0 + 120")
-        self.step("boost from the content selection: +120 likes / +4 dislikes applied")
-        self.shot(page, "10-boost-dark", full=True)
-        # set displayed = 300, gradually over 2 hours → a running job, then cancel it
-        page.get_by_role("tab", name="تحديد الرقم الظاهر").click()
-        page.get_by_label("👍 إعجاب").fill("300")
-        page.get_by_label("👎 عدم إعجاب").fill("")
-        page.get_by_role("tab", name="تدريجي").click()
-        page.locator(".admin-form input[type=number]").last.fill("2")
-        page.locator(".admin-form").get_by_role("button", name="تطبيق").click()
-        expect(page.locator(".toast").last).to_contain_text("التدريجية")
-
-        page.get_by_role("tab", name="المكتبة").click()
+        expect(page.get_by_role("tab", name="تعزيز")).to_have_count(0)  # V6: counts are real only
+        page.get_by_role("tab", name="المكتبة", exact=True).click()
         page.get_by_role("button", name="استيراد دفعة").click()
         page.locator(".sheet textarea").fill("فكرة رائعة!\nواصل، عمل ممتاز\nفكرة رائعة!\n\nأعجبتني جدًا")
         page.locator(".sheet").get_by_role("button", name="استيراد").click()
@@ -347,7 +334,7 @@ class Run:
         self.step("library: bulk import (duplicates and blank lines skipped)")
         self.shot(page, "11-library-dark", full=True)
 
-        page.get_by_role("tab", name="تعليقات").click()
+        page.get_by_role("tab", name="تعليقات", exact=True).click()
         page.get_by_role("tab", name="عشوائي من تصنيف").click()
         page.get_by_label("العدد لكل منشور").fill("2")
         page.get_by_role("button", name="نشر التعليقات").click()
@@ -355,20 +342,27 @@ class Run:
         self.step("team comments: 2 random library comments on the selected idea (as dzplay)")
         self.shot(page, "12-comments-dark", full=True)
 
+        # a gradual job (one new text over 2 hours) → listed with progress, then cancelled
+        page.get_by_role("tab", name="نص جديد").click()
+        page.get_by_placeholder("نص التعليق").fill("تعليق متدرج من الفريق")
+        page.get_by_role("tab", name="تدريجي").click()
+        page.locator(".admin-form input[type=number]").last.fill("2")
+        page.get_by_role("button", name="نشر التعليقات").click()
+        expect(page.locator(".toast").last).to_contain_text("جُدول 1")
         page.get_by_role("tab", name="العمليات").click()
-        job = page.locator(".admin-card", has_text="تعزيز")
+        job = page.locator(".admin-card", has_text="تعليقات")
         expect(job).to_have_count(1)
         expect(job.locator(".admin-progress")).to_be_visible()
         self.shot(page, "13-jobs-dark")
         job.get_by_role("button", name="إلغاء العملية كلها").click()
         page.locator(".sheet").get_by_role("button", name="إلغاء العملية").click()
         expect(page.locator(".admin-empty")).to_contain_text("لا توجد عمليات جارية")
-        self.step("gradual set-to-300 job listed with progress, then cancelled")
+        self.step("gradual team-comment job listed with progress, then cancelled")
 
         # the team comments are marked internally on the idea page
         page.get_by_role("tab", name="المحتوى").click()
         page.locator(".admin-card", has_text="فكرة جميلة").get_by_role("button", name="كل التعليقات").click()
-        expect(page.locator(".admin-detail .admin-card--team")).to_have_count(2)
+        expect(page.locator(".admin-detail .admin-card--team").nth(1)).to_be_visible()
         expect(page.locator(".admin-detail .chip--team").first).to_have_text("تعليق الفريق")
         page.locator(".admin-detail").get_by_role("button", name="إغلاق").click()
 
@@ -483,9 +477,9 @@ def main() -> None:
         feed = viewer.get("/api/posts/feed").json()["posts"]
         assert pid not in [x["id"] for x in feed], "removed post still in feed"
         run.step("removed post is gone from the public feed")
-        boosted = viewer.get(f"/api/posts/{SEEDED['idea']}").json()
-        assert boosted["likes"] >= 120 and boosted["dislikes"] == 4, boosted
-        run.step(f"users see the displayed numbers: {boosted['likes']} likes / {boosted['dislikes']} dislikes")
+        idea = viewer.get(f"/api/posts/{SEEDED['idea']}").json()
+        assert idea["likes"] == 0 and idea["dislikes"] == 0, idea
+        run.step("users see the real numbers only (no boost)")
         if run.errors:
             print("\n".join(run.errors))
             raise SystemExit(1)

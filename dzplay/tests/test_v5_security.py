@@ -9,7 +9,7 @@ from app import clock
 from app.models import MediaItem
 from tests.conftest import reply, send
 from tests.test_admin_access import _admin_routes
-from tests.test_uploads import jpeg, mx, ready_upload, upload  # noqa: F401  (mx is a fixture)
+from tests.test_uploads import jpeg, mx, ready_upload  # noqa: F401  (mx is a fixture)
 
 
 def test_someone_elses_upload_cannot_be_read_attached_or_published(mx):
@@ -17,7 +17,7 @@ def test_someone_elses_upload_cannot_be_read_attached_or_published(mx):
     mid = ready_upload(mx, a, jpeg())
     assert b.get(f"/api/uploads/{mid}").status_code == 404
     assert b.post("/api/posts", json={"content": "سرقة", "media_id": mid}).status_code in (403, 404)
-    assert b.post("/api/studio/reels", json={"media_id": mid}).status_code in (403, 404)
+    assert b.post("/api/studio/reels", json={"media_id": mid}).status_code in (404, 405)  # V6: the studio is gone
     # the idea picture cannot be pushed into a chat either (wrong purpose), even by its owner
     cid = send(a, "مرحبا").json()["conversation"]["id"]
     reply(b, cid, "أهلا")
@@ -64,7 +64,7 @@ def test_telegram_ids_never_reach_any_client(mx):
     bodies = []
     for c in (a, b):
         for path in ("/api/me", "/api/posts/feed", "/api/posts/mine", "/api/conversations", f"/api/conversations/{cid}",
-                     f"/api/uploads/{mid}", f"/api/uploads/{cmid}", "/api/uploads/config", "/api/reels/feed"):
+                     f"/api/uploads/{mid}", f"/api/uploads/{cmid}", "/api/uploads/config"):
             r = c.get(path)
             if r.status_code == 200:
                 bodies.append(r.text)
@@ -81,8 +81,7 @@ STORAGE_HINT = "-100111111111"  # the private storage channel id
 
 def test_v5_panel_routes_are_inside_the_admin_authorization_matrix(mx):
     routes = {path for _, path in _admin_routes(mx)}
-    for part in ("/support", "/verification", "/payment-settings", "/media", "/monetization", "/ledger",
-                 "/settings", "/v5"):
+    for part in ("/support", "/verification", "/payment-settings", "/media", "/settings", "/v5"):
         assert any(part in p for p in routes), part
     user = mx.user()
     for path in ("/api/admin/media", "/api/admin/payment-settings", "/api/admin/settings"):

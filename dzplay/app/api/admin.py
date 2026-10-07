@@ -20,7 +20,6 @@ from app.errors import AppError, rate_limited
 from app.models import AdminUser
 from app.services import admin as admin_service
 from app.services import admin_access, admin_auth, admin_content, audit, engagement, runtime_config
-from app.services import reels as reels_service
 from app.services.media import ASSET_ID, CONTENT_TYPES, VARIANTS, MediaError
 from app.services.messaging import Effects
 from app.services.rate_limit import Limit
@@ -235,24 +234,11 @@ def audit_log(request: Request, limit: int = Query(default=100, le=500), before:
         return {"entries": audit.list_entries(db, limit, before, action), "chain": audit.verify_chain(db)}
 
 
-# ----------------------------------------------------------------- content: Reels, Ideas, official comments, library
-
-
-class ReelStatusBody(_Body):
-    status: str = Field(max_length=16)
-
-
-class ReelPinBody(_Body):
-    hours: int | None = Field(default=None, ge=1, le=24 * 30)
-    pinned: bool = True
-
-
-class CaptionBody(_Body):
-    caption: str = Field(max_length=4000)
+# ----------------------------------------------------------------- content: Ideas, official comments, library
 
 
 class OfficialCommentBody(_Body):
-    target: str = Field(max_length=8)  # reel | idea
+    target: str = Field(max_length=8)  # idea
     target_id: str = Field(max_length=32)
     text: str | None = Field(default=None, max_length=4000)
     library_id: str | None = Field(default=None, max_length=32)
@@ -261,72 +247,6 @@ class OfficialCommentBody(_Body):
 class LibraryBody(_Body):
     category: str = Field(max_length=32)
     text: str = Field(max_length=4000)
-
-
-def _reel(db, reel_id: str):
-    reel = reels_service.find(db, reel_id)
-    if reel is None:
-        raise AppError(404, "not_found", "غير موجود.")
-    return reel
-
-
-@router.get("/reels")
-def reels_list(request: Request, status: str | None = Query(default=None, max_length=16),
-               limit: int = Query(default=60, le=200), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    base = st.settings.ADMIN_PATH
-
-    def url(asset_id: str, variant: str) -> str:
-        return f"{base}/api/admin/media/{asset_id}/{variant}"
-
-    with st.database.session() as db:
-        return {"reels": admin_content.reels_list(db, status, limit, url)}
-
-
-@router.post("/reels/{reel_id}/status")
-def reel_status(reel_id: str, body: ReelStatusBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
-        reel = _reel(db, reel_id)
-        if reel.status in ("processing", "failed") and body.status == "visible":
-            raise AppError(409, "not_ready", "المحتوى غير جاهز للعرض.")
-        reels_service.set_status(db, reel, body.status)
-        _record(db, ac, f"reel_{'show' if body.status == 'visible' else 'hide'}", target_type="reel", target_id=reel.short_id)
-        return {"status": reel.status}
-
-
-@router.post("/reels/{reel_id}/pin")
-def reel_pin(reel_id: str, body: ReelPinBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    with st.database.session() as db:
-        reel = _reel(db, reel_id)
-        if body.pinned:
-            until = reels_service.pin(db, st.settings, reel, body.hours)
-            _record(db, ac, "reel_pin", target_type="reel", target_id=reel.short_id, detail=f"hours={body.hours or st.settings.REELS_PIN_HOURS}")
-            return {"pinned_until": until.isoformat() + "Z"}
-        reels_service.unpin(reel)
-        _record(db, ac, "reel_unpin", target_type="reel", target_id=reel.short_id)
-        return {"pinned_until": None}
-
-
-@router.put("/reels/{reel_id}/caption")
-def reel_caption(reel_id: str, body: CaptionBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    with st.database.session() as db:
-        reel = _reel(db, reel_id)
-        reels_service.edit_caption(db, st.settings, reel, body.caption)
-        _record(db, ac, "reel_caption", target_type="reel", target_id=reel.short_id)
-        return {"caption": reel.caption}
-
-
-@router.delete("/reels/{reel_id}")
-def reel_delete(reel_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    with st.database.session() as db:
-        reel = _reel(db, reel_id)
-        sid = reel.short_id
-        reels_service.delete_reel(db, st.media, reel)
-        _record(db, ac, "reel_delete", target_type="reel", target_id=sid)
-    return {"ok": True}
 
 
 @router.get("/media/{asset_id}/{variant}")
@@ -454,15 +374,6 @@ def category_delete(cat_id: str, request: Request, ac: AdminContext = Depends(SU
 # ----------------------------------------------------------------- engagement control
 
 
-class BoostBody(_Body):
-    target_type: str = Field(max_length=8)
-    ids: list[str] = Field(max_length=500)
-    mode: str = Field(default="add", max_length=8)
-    likes: int | None = None
-    dislikes: int | None = None
-    duration_minutes: int | None = Field(default=None, ge=0)
-
-
 class CommentSource(_Body):
     kind: str = Field(max_length=8)  # library | random | text
     library_ids: list[str] = Field(default_factory=list, max_length=500)
@@ -477,19 +388,6 @@ class TeamCommentBody(_Body):
     source: CommentSource
     appearance: str = Field(default="dzplay", max_length=8)  # dzplay | official
     duration_minutes: int | None = Field(default=None, ge=0)
-
-
-@router.post("/engagement/boost")
-def engagement_boost(body: BoostBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    with st.database.session() as db:
-        result = engagement.boost(db, st.settings, target_type=body.target_type, ids=body.ids, mode=body.mode,
-                                  likes=body.likes, dislikes=body.dislikes, duration_minutes=body.duration_minutes,
-                                  actor=ac.actor)
-        _record(db, ac, "engagement_boost", target_type=body.target_type, target_id=result["batch_id"],
-                detail=f"mode={body.mode} likes={body.likes} dislikes={body.dislikes} minutes={body.duration_minutes or 0} "
-                       f"targets={len(result['targets'])}")
-        return result
 
 
 @router.post("/engagement/comments")
@@ -583,9 +481,6 @@ def access_delete_user(user_id: str, request: Request, ac: AdminContext = Depend
     st = get_state(request)
     effects = Effects()
     with st.database.session() as db:
-        from app.services import calls
-
-        calls.end_for_user(db, st.settings, user_id[:32], "account_deleted", effects)
         admin_access.delete_account(db, user_id)
         _record(db, ac, "user_delete", target_type="user", target_id=user_id)
     st.dispatch(effects)
@@ -608,13 +503,6 @@ def access_idea(post_id: str, request: Request, ac: AdminContext = Depends(SUPER
         result = admin_access.idea_detail(db, post_id)
         _record(db, ac, "view_idea_comments", target_type="idea", target_id=post_id)
         return result
-
-
-@router.get("/access/reels/{reel_id}")
-def access_reel(reel_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
-        reel = _reel(db, reel_id)
-        return admin_access.reel_detail(db, reel.id)
 
 
 @router.get("/access/conversations")
@@ -873,25 +761,3 @@ def smtp_remove(body: StepUpBody, request: Request, ac: AdminContext = Depends(S
     return _smtp_status(st)
 
 
-# ----------------------------------------------------------------- V4: calls (metadata + quality only)
-
-
-@router.get("/calls")
-def calls_log(request: Request, user_id: str = Query(default="", max_length=32), state: str = Query(default="", max_length=12),
-              page: int = Query(default=0, ge=0, le=1000), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    from app.services import calls
-
-    with get_state(request).database.session() as db:
-        result = calls.admin_log(db, user_id=user_id, state=state, page=page)
-        _record(db, ac, "view_calls", detail=f"user={user_id or '-'} state={state or '-'}")
-        return result
-
-
-@router.get("/calls/stats")
-def calls_stats(request: Request, days: int = Query(default=7, ge=1, le=90), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    from app.services import calls
-
-    st = get_state(request)
-    with st.database.session() as db:
-        return {**calls.admin_stats(db, days), "enabled": st.settings.calls_enabled,
-                "force_relay": st.settings.CALL_FORCE_RELAY}

@@ -1,4 +1,4 @@
-"""V5 uploads: idea pictures and ephemeral chat pictures (creator reels: see app.api.studio).
+"""V5 uploads: idea pictures and ephemeral chat pictures.
 
 POST /api/uploads?purpose=idea|chat[&conversation_id=]   body = the raw file (Content-Length required)
   Checks run BEFORE any byte is read (session, 18+, quotas, size, chat rules); the body is then streamed

@@ -4,13 +4,10 @@ Nothing here touches the database or Telegram: a job names one file in UPLOAD_TM
 limits to apply; the result is either the cleaned output files or a refusal with an Arabic reason.
 
 * The type comes from the file's magic bytes, never from its name or the declared MIME type.
-* Every file is re-encoded: images with Pillow (new image, no EXIF / GPS / device / date, rotation
-  applied), videos with ffmpeg (H.264/AAC MP4, `-map_metadata -1`, faststart) sized to stay under
-  TELEGRAM_STORE_MAX_MB so the Bot API can always download it again.
+* Every picture is re-encoded with Pillow: a new image, no EXIF / GPS / device / date, rotation applied.
+  Videos are recognised only to refuse them (V6 removed videos together with Reels).
 * Decompression bombs: the pixel count is checked from the header before decoding.
-* ffmpeg/ffprobe run with `nice` and an address-space limit (`prlimit`), a timeout, local files only.
-* Optional NSFW check (NSFWJS MobileNetV2 weights converted to ONNX, CPU) on the image or on a few
-  frames of the video.
+* Optional NSFW check (NSFWJS MobileNetV2 weights converted to ONNX, CPU).
 """
 
 from __future__ import annotations
@@ -19,7 +16,6 @@ import base64
 import io
 import logging
 import re
-import subprocess
 import threading
 import time
 from pathlib import Path
@@ -125,23 +121,6 @@ def nsfw_verdict(scores: list[dict[str, float]], block: float, sexy: float) -> t
 
 
 # ---------------------------------------------------------------------------
-# subprocesses
-# ---------------------------------------------------------------------------
-
-
-def _run(settings: Settings, args: list[str]) -> subprocess.CompletedProcess:
-    from app.services.media import limited
-
-    try:
-        return subprocess.run(limited(args, settings.MEDIA_FFMPEG_MEM_MB), capture_output=True, timeout=settings.MEDIA_PROCESS_TIMEOUT,
-                              check=False, stdin=subprocess.DEVNULL)
-    except subprocess.TimeoutExpired:
-        raise Rejected("timeout", "استغرقت معالجة الملف وقتًا طويلًا. جرّب ملفًا أقصر أو أصغر.") from None
-    except FileNotFoundError:
-        raise RuntimeError("ffmpeg is not installed") from None
-
-
-# ---------------------------------------------------------------------------
 # images
 # ---------------------------------------------------------------------------
 
@@ -219,99 +198,10 @@ def process_image(settings: Settings, src: Path, out: Path, job: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# videos
-# ---------------------------------------------------------------------------
-
-
-def _video_bitrate_k(settings: Settings, duration: float, factor: float = 1.0) -> int:
-    budget_bits = settings.TELEGRAM_STORE_MAX_MB * 1024 * 1024 * 8 * 0.94 * factor
-    total_k = budget_bits / 1000 / max(duration, 1.0)
-    return int(min(settings.VIDEO_MAX_BITRATE_K, total_k - settings.VIDEO_AUDIO_BITRATE_K - 24))
-
-
-def process_video(settings: Settings, src: Path, out_mp4: Path, out_poster: Path, job: dict) -> dict:
-    from app.services.media import INPUT_GUARD, MediaError, _box, probe
-
-    try:
-        info = probe(settings, src)
-    except MediaError as exc:
-        raise Rejected("bad_video", str(exc)) from None
-    duration = info["duration"]
-    if duration <= 0:
-        raise Rejected("bad_video", "الفيديو غير صالح.")
-    if duration > float(job.get("max_seconds") or 90) + 0.5:
-        raise Rejected("too_long", f"مدة الفيديو أطول من الحد ({int(job.get('max_seconds') or 90)} ثانية).")
-    if duration < float(job.get("min_seconds") or 0):
-        raise Rejected("too_short", "الفيديو قصير جدًا.")
-    if info["width"] * info["height"] > 4096 * 4096 or min(info["width"], info["height"]) < 64:
-        raise Rejected("bad_dims", "أبعاد الفيديو غير مدعومة.")
-    bw, bh = _box(info, settings)
-    max_bytes = int(settings.TELEGRAM_STORE_MAX_MB * 1024 * 1024)
-    scale = (f"scale=w='min(iw,{bw})':h='min(ih,{bh})':force_original_aspect_ratio=decrease,"
-             "scale=trunc(iw/2)*2:trunc(ih/2)*2")
-    for factor in (1.0, 0.75, 0.5):
-        vk = _video_bitrate_k(settings, duration, factor)
-        if vk < 250:
-            raise Rejected("too_long", "الفيديو طويل جدًا ليُحفظ بجودة مقبولة.")
-        res = _run(settings, [
-            settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", *INPUT_GUARD, "-i", str(src),
-            "-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-map_chapters", "-1", "-sn", "-dn",
-            "-vf", scale, "-c:v", "libx264", "-preset", "veryfast", "-b:v", f"{vk}k", "-maxrate", f"{vk}k",
-            "-bufsize", f"{vk * 2}k", "-profile:v", "high", "-pix_fmt", "yuv420p", "-threads", "2",
-            "-c:a", "aac", "-b:a", f"{settings.VIDEO_AUDIO_BITRATE_K}k", "-ac", "2",
-            "-fflags", "+bitexact", "-flags:v", "+bitexact", "-flags:a", "+bitexact",
-            "-movflags", "+faststart", "-f", "mp4", str(out_mp4)])
-        if res.returncode != 0 or not out_mp4.exists() or out_mp4.stat().st_size == 0:
-            raise Rejected("bad_video", "تعذّرت معالجة الفيديو.")
-        if out_mp4.stat().st_size <= max_bytes:
-            break
-    else:
-        raise Rejected("too_big", "الفيديو كبير جدًا بعد الضغط.")
-    seek = "0.5" if duration > 1.0 else "0"
-    res = _run(settings, [settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-ss", seek,
-                          *INPUT_GUARD, "-i", str(out_mp4), "-frames:v", "1", "-vf", f"scale=w='min(iw,{bw})':h=-2",
-                          "-q:v", "5", "-map_metadata", "-1", str(out_poster)])
-    if res.returncode != 0 or not out_poster.exists():
-        raise Rejected("bad_video", "تعذّر إنشاء صورة الغلاف.")
-    final = probe(settings, out_mp4)
-    result = {"kind": "video", "width": final["width"], "height": final["height"], "duration": final["duration"],
-              "size": out_mp4.stat().st_size}
-    if job.get("nsfw"):
-        started = time.perf_counter()
-        frames = _frames(settings, out_mp4, final["duration"], int(job.get("frames") or 4))
-        worst, refused = nsfw_verdict(nsfw_scores(frames), float(job["nsfw_block"]), float(job["nsfw_sexy"]))
-        result["nsfw"], result["nsfw_ms"] = round(worst, 4), round((time.perf_counter() - started) * 1000, 1)
-        if refused:
-            raise Rejected("nsfw", "لا يمكن نشر هذا الفيديو: يبدو مخالفًا لإرشادات المجتمع.")
-    return result
-
-
-def _frames(settings: Settings, mp4: Path, duration: float, count: int) -> list:
-    from PIL import Image
-
-    from app.services.media import INPUT_GUARD
-
-    frames = []
-    pattern = mp4.with_name(mp4.stem + "-f%02d.png")
-    rate = max(count / max(duration, 0.1), 0.01)
-    res = _run(settings, [settings.FFMPEG_BINARY, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", *INPUT_GUARD,
-                          "-i", str(mp4), "-vf", f"fps={rate:.5f},scale=224:224", "-frames:v", str(count), str(pattern)])
-    for i in range(1, count + 1):
-        p = mp4.with_name(mp4.stem + f"-f{i:02d}.png")
-        if p.exists():
-            with Image.open(p) as im:
-                frames.append(im.convert("RGB"))
-            p.unlink(missing_ok=True)
-    if res.returncode != 0 and not frames:
-        raise Rejected("bad_video", "تعذّر فحص الفيديو.")
-    return frames
-
-
-# ---------------------------------------------------------------------------
 # one job
 # ---------------------------------------------------------------------------
 
-OUTPUTS = {"image": {"img": ".img.webp"}, "video": {"mp4": ".mp4.mp4", "poster": ".poster.jpg"}}
+OUTPUTS = {"image": {"img": ".img.webp"}}
 
 
 def paths(tmp_dir: Path, job_id: str) -> dict[str, Path]:
@@ -346,24 +236,19 @@ def run_job(settings: Settings, tmp_dir: Path, job: dict) -> dict:
             head = fh.read(64)
         found = sniff(head)
         allowed = set(job.get("types") or ())
-        if found is None or found[1] not in allowed or found[0] != job.get("kind"):
-            raise Rejected("bad_type", "نوع الملف غير مسموح." if found else "الملف ليس صورة أو فيديو صالحًا.")
-        if found[0] == "image":
-            meta = process_image(settings, p["in"], p["img"], job)
-        else:
-            meta = process_video(settings, p["in"], p["mp4"], p["poster"], job)
+        if found is None or found[1] not in allowed or found[0] != "image" or job.get("kind") != "image":
+            raise Rejected("bad_type", "نوع الملف غير مسموح." if found else "الملف ليس صورة صالحة.")
+        meta = process_image(settings, p["in"], p["img"], job)
         meta.update(ok=True, type=found[1], outputs=list(OUTPUTS[found[0]]), ms=round((time.perf_counter() - started) * 1000))
         return meta
     except Rejected as exc:
-        for variant in ("img", "mp4", "poster"):
-            p[variant].unlink(missing_ok=True)
+        p["img"].unlink(missing_ok=True)
         return {"ok": False, "code": exc.code, "error": str(exc)}
     except FileNotFoundError:
         return {"ok": False, "code": "missing", "error": "انتهت مهلة الرفع، أعد المحاولة."}
     except Exception:  # noqa: BLE001 - a broken file must never crash the worker
         log.exception("media job failed")
-        for variant in ("img", "mp4", "poster"):
-            p[variant].unlink(missing_ok=True)
+        p["img"].unlink(missing_ok=True)
         return {"ok": False, "code": "error", "error": "تعذّرت معالجة الملف."}
     finally:
         p["in"].unlink(missing_ok=True)

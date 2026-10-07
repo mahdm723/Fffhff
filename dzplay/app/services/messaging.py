@@ -44,8 +44,7 @@ HOUR, DAY = 3600, 86400
 class Effects:
     signals: list[tuple[list[str], str]] = field(default_factory=list)  # (user ids, reason)
     push_to: list[str] = field(default_factory=list)
-    events: list[tuple[list[str], dict]] = field(default_factory=list)  # realtime events with a payload (calls)
-    call_push: list[tuple[str, str]] = field(default_factory=list)  # (user id, call id): ring a closed app
+    events: list[tuple[list[str], dict]] = field(default_factory=list)  # realtime events with a payload
     tasks: list[tuple] = field(default_factory=list)  # V5: (fn, args) run in the background after the commit
 
     def later(self, fn, *args) -> None:
@@ -533,9 +532,6 @@ def block_conversation(db: Session, user: User, conversation_id: str, effects: E
     conv.set_hidden(user.id, True)
     log_event(db, "block", None, user.id)
     effects.signal([user.id, peer_id], "conversation")
-    from app.services import calls
-
-    calls.end_between(db, settings, user.id, peer_id, "blocked", effects)  # blocking ends a live call at once
 
 
 def list_blocks(db: Session, user: User) -> list[dict]:
@@ -665,14 +661,13 @@ def privacy_view(user: User) -> dict:
     return {
         "accept_anonymous": user.accept_anonymous is not False,
         "accept_direct": user.accept_direct or "everyone",
-        "accept_calls": user.accept_calls is not False,
         "searchable_by_name": user.searchable_by_name is not False,
     }
 
 
 def set_privacy(user: User, body: dict) -> dict:
     """Server-side privacy switches (the UI is never trusted)."""
-    for key in ("accept_anonymous", "accept_calls", "searchable_by_name"):
+    for key in ("accept_anonymous", "searchable_by_name"):
         if key in body and body[key] is not None:
             if not isinstance(body[key], bool):
                 raise AppError(400, "invalid_input", "طلب غير صالح.")

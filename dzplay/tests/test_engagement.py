@@ -1,5 +1,5 @@
-"""Engagement control: boosts (real vs boost kept apart), gradual jobs, comment library v2,
-team comments from system accounts, privacy of Ideas comments, exclusions."""
+"""Engagement control: comment library v2, team comments from system accounts (immediate or spread out),
+privacy of Ideas comments, exclusions. (V6 removed the V5 "boost": counts are real only.)"""
 
 from __future__ import annotations
 
@@ -7,11 +7,10 @@ import pytest
 from sqlalchemy import select
 
 from app import clock
-from app.models import PostReaction, User
+from app.models import Post, User
 from app.services import engagement
 from app.services.messaging import Effects
 from tests.conftest import send
-from tests.test_reels import make_reels
 
 
 @pytest.fixture
@@ -34,90 +33,20 @@ def shown(c, pid):
     return p["likes"], p["dislikes"]
 
 
-# ----------------------------------------------------------------- boost
+# ----------------------------------------------------------------- no more boosts
 
 
-def test_immediate_boost_keeps_real_and_boost_apart(hx):
-    owner, fan, viewer = hx.user(), hx.user(), hx.user()
+def test_boost_is_gone_and_counts_are_real(hx):
+    owner, fan = hx.user(), hx.user()
     pid = idea(owner)
     fan.put(f"/api/posts/{pid}/reaction", json={"reaction": "like"})
+    with hx.db() as db:  # a V5 boost left in the database is never shown
+        db.get(Post, pid).boost_likes = 500
     admin = hx.admin()
-    r = admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": [pid], "mode": "add", "likes": 200,
-                                                         "dislikes": 3}).json()
-    t = r["targets"][0]
-    assert t["real"] == {"likes": 1, "dislikes": 0} and t["boost"] == {"likes": 200, "dislikes": 3}
-    assert shown(viewer, pid) == (201, 3)
-    # the real user's toggle still works exactly, on top of the boost
-    assert fan.put(f"/api/posts/{pid}/reaction", json={"reaction": "dislike"}).json() == {"likes": 200, "dislikes": 4, "my_reaction": "dislike"}
-    assert fan.put(f"/api/posts/{pid}/reaction", json={"reaction": None}).json()["likes"] == 200
-    with hx.db() as db:
-        assert db.scalar(select(PostReaction.id)) is None  # no fake reaction rows, ever
+    assert admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": [pid], "likes": 9}).status_code in (404, 405)
+    assert shown(owner, pid) == (1, 0)
     detail = admin.get(f"/api/admin/access/ideas/{pid}").json()["idea"]
-    assert detail["real"] == {"likes": 0, "dislikes": 0} and detail["boost"] == {"likes": 200, "dislikes": 3}
-    # profile totals use the displayed numbers
-    assert owner.get("/api/profile").json()["ideas"]["likes"] == 200
-
-
-def test_set_mode_and_never_negative(hx):
-    owner, a, b = hx.user(), hx.user(), hx.user()
-    pid = idea(owner)
-    a.put(f"/api/posts/{pid}/reaction", json={"reaction": "like"})
-    b.put(f"/api/posts/{pid}/reaction", json={"reaction": "like"})
-    admin = hx.admin()
-    admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": [pid], "mode": "set", "likes": 50})
-    assert shown(owner, pid)[0] == 50
-    admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": [pid], "mode": "set", "likes": 0})
-    assert shown(owner, pid)[0] == 0
-    admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": [pid], "mode": "add", "likes": -500})
-    assert shown(owner, pid)[0] == 0  # displayed number never goes below zero
-    assert a.put(f"/api/posts/{pid}/reaction", json={"reaction": None}).json()["likes"] == 0
-    for bad in ({"mode": "set", "likes": -1}, {"mode": "jump", "likes": 1}, {"mode": "add"},
-                {"mode": "add", "likes": 10 ** 9}, {"mode": "add", "likes": 1, "duration_minutes": 10 ** 7}):
-        assert admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": [pid], **bad}).status_code == 400
-    assert admin.post("/api/admin/engagement/boost", json={"target_type": "post", "ids": [pid], "likes": 1}).status_code == 400
-    assert admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": ["nope"], "likes": 1}).status_code == 404
-
-
-def test_gradual_bulk_boost_on_ideas_and_reels(hx):
-    owner = hx.user()
-    pids = [idea(owner, f"فكرة {i}") for i in range(3)]
-    rid = make_reels(hx, 1)[0]
-    admin = hx.admin()
-    r = admin.post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": pids, "likes": 200,
-                                                         "duration_minutes": 360}).json()
-    assert r["gradual"] is True
-    admin.post("/api/admin/engagement/boost", json={"target_type": "reel", "ids": [rid], "dislikes": 60, "duration_minutes": 60})
-    viewer = hx.user()
-    assert shown(viewer, pids[0])[0] == 0
-    clock.advance(90 * 60)  # 1/4 of 6 hours
-    tick(hx)
-    assert all(shown(viewer, p)[0] == 50 for p in pids)
-    reel = viewer.get("/api/reels/feed").json()["reels"][0]
-    assert reel["dislikes"] == 60  # its 1-hour job is complete
-    # the short id shown by the Telegram bot works as a target too
-    short = admin.get(f"/api/admin/access/reels/{rid}").json()["reel"]["short_id"]
-    by_short = admin.post("/api/admin/engagement/boost", json={"target_type": "reel", "ids": [short.upper()], "likes": 5})
-    assert by_short.status_code == 200 and by_short.json()["targets"][0]["id"] == rid
-    jobs = admin.get("/api/admin/engagement/jobs").json()["jobs"]
-    assert {j["status"] for j in jobs if j["target_type"] == "idea"} == {"running"}
-    # cancel the batch: the progress so far stays, nothing more is added
-    assert admin.post(f"/api/admin/engagement/jobs/{r['batch_id']}/cancel").json()["cancelled"] == 3
-    clock.advance(10 * 3600)
-    tick(hx)
-    assert shown(viewer, pids[1])[0] == 50
-
-
-def test_gradual_set_reaches_target(hx):
-    owner = hx.user()
-    pid = idea(owner)
-    hx.admin().post("/api/admin/engagement/boost", json={"target_type": "idea", "ids": [pid], "mode": "set", "likes": 120,
-                                                        "duration_minutes": 120})
-    clock.advance(60 * 60)
-    tick(hx)
-    assert shown(owner, pid)[0] == 60
-    clock.advance(61 * 60)
-    tick(hx)
-    assert shown(owner, pid)[0] == 120
+    assert detail["real"] == {"likes": 1, "dislikes": 0} and "boost" not in detail
 
 
 # ----------------------------------------------------------------- library v2
@@ -149,24 +78,25 @@ def _library(admin, texts, category="encourage"):
     return admin.get("/api/admin/library", params={"category": category}).json()["items"]
 
 
-def test_manual_library_comments_on_reels_public_no_duplicates(hx):
-    rid = make_reels(hx, 1)[0]
+def test_manual_library_comments_no_duplicates(hx):
+    owner = hx.user()
+    pid = idea(owner)
     admin = hx.admin()
     items = _library(admin, ["رائع جدًا", "استمروا"])
-    body = {"target_type": "reel", "ids": [rid], "source": {"kind": "library", "library_ids": [i["id"] for i in items]}}
+    body = {"target_type": "idea", "ids": [pid], "source": {"kind": "library", "library_ids": [i["id"] for i in items]}}
     r = admin.post("/api/admin/engagement/comments", json=body).json()
     assert r["targets"][0]["posted"] == 2
     again = admin.post("/api/admin/engagement/comments", json=body).json()
     assert again["targets"][0]["planned"] == 0  # never the same comment twice on the same post
-    viewer = hx.user()
-    comments = viewer.get(f"/api/reels/{rid}/comments").json()["comments"]
+    comments = owner.get(f"/api/posts/{pid}/comments").json()["comments"]
     assert {c["content"] for c in comments} == {"رائع جدًا", "استمروا"}
-    assert all(c["author"] == {"name": "dzplay", "official": False, "gender": None, "verified": False} for c in comments)  # default appearance
+    assert all(c["author"] == "dzplay" for c in comments)  # default appearance
     usage = {i["text"]: i["usage_count"] for i in admin.get("/api/admin/library").json()["items"]}
     assert usage["رائع جدًا"] == 1
     # the panel knows which ones came from the team
-    detail = admin.get(f"/api/admin/access/reels/{rid}").json()["comments"]
+    detail = admin.get(f"/api/admin/access/ideas/{pid}").json()["comments"]
     assert all(c["author"]["team"] == "system" for c in detail)
+    assert admin.post("/api/admin/engagement/comments", json={**body, "target_type": "reel"}).status_code == 400
 
 
 def test_random_from_category_official_badge_and_ideas_privacy(hx):
@@ -190,34 +120,39 @@ def test_random_from_category_official_badge_and_ideas_privacy(hx):
 
 
 def test_spread_comments_and_new_text(hx):
-    rid = make_reels(hx, 1)[0]
+    owner = hx.user()
+    pid = idea(owner)
     admin = hx.admin()
     _library(admin, [f"تعليق موزع {i}" for i in range(6)], "engage")
     r = admin.post("/api/admin/engagement/comments", json={
-        "target_type": "reel", "ids": [rid], "source": {"kind": "random", "category": "engage", "count": 6},
+        "target_type": "idea", "ids": [pid], "source": {"kind": "random", "category": "engage", "count": 6},
         "duration_minutes": 60}).json()
     assert r["gradual"] and r["targets"][0]["planned"] == 6
-    viewer = hx.user()
-    assert viewer.get(f"/api/reels/{rid}/comments").json()["total"] == 0
+
+    def count() -> int:
+        return len(admin.get(f"/api/admin/access/ideas/{pid}").json()["comments"])
+
+    assert count() == 0
     clock.advance(30 * 60)
     tick(hx)
-    assert viewer.get(f"/api/reels/{rid}/comments").json()["total"] == 3
+    assert count() == 3
     clock.advance(31 * 60)
     tick(hx)
-    assert viewer.get(f"/api/reels/{rid}/comments").json()["total"] == 6
+    assert count() == 6
     assert admin.post("/api/admin/engagement/comments", json={
-        "target_type": "reel", "ids": [rid], "source": {"kind": "text", "text": "تعليق جديد مكتوب"}}).json()["targets"][0]["posted"] == 1
+        "target_type": "idea", "ids": [pid], "source": {"kind": "text", "text": "تعليق جديد مكتوب"}}).json()["targets"][0]["posted"] == 1
     assert admin.post("/api/admin/engagement/comments", json={
-        "target_type": "reel", "ids": [rid], "source": {"kind": "text", "text": "<b>x</b>"}}).status_code == 400
+        "target_type": "idea", "ids": [pid], "source": {"kind": "text", "text": "<b>x</b>"}}).status_code == 400
 
 
 # ----------------------------------------------------------------- system accounts are not users
 
 
-def test_system_accounts_excluded_everywhere(hx):
-    rid = make_reels(hx, 1)[0]
+def test_system_accounts_excluded_everywhere(make_harness):
+    hx = make_harness(ADMIN_SESSION_IDLE=7 * 24 * 3600, ADMIN_SESSION_TTL=7 * 24 * 3600)
     admin = hx.admin()
-    admin.post("/api/admin/engagement/comments", json={"target_type": "reel", "ids": [rid], "source": {"kind": "text", "text": "مرحبًا"}})
+    with hx.db() as db:
+        engagement._system_pool(db, hx.settings)  # created on first use (a team comment)
     with hx.db() as db:
         system = db.scalars(select(User).where(User.is_system.is_(True))).all()
         assert len(system) == hx.settings.SYSTEM_ACCOUNTS and all(u.password_hash is None for u in system)

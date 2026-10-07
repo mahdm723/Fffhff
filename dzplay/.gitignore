@@ -16,3 +16,4 @@ android/local.properties
 e2e/screenshots-*/
 secrets/
 android/app/google-services.json
+e2e/shots-*/

@@ -147,11 +147,10 @@ def test_existing_users_get_one_gentle_prompt_and_confirm_age_once(hx):
 
 def test_privacy_switches_server_side(hx):
     c = hx.user()
-    assert me(c)["privacy"] == {"accept_anonymous": True, "accept_direct": "everyone", "accept_calls": True,
-                                "searchable_by_name": True}
+    assert me(c)["privacy"] == {"accept_anonymous": True, "accept_direct": "everyone", "searchable_by_name": True}
     r = c.patch("/api/me/privacy", json={"accept_anonymous": False, "accept_direct": "nobody", "accept_calls": False,
-                                         "searchable_by_name": False})
-    assert r.json() == {"accept_anonymous": False, "accept_direct": "nobody", "accept_calls": False, "searchable_by_name": False}
+                                         "searchable_by_name": False})  # an old app may still send accept_calls: ignored
+    assert r.json() == {"accept_anonymous": False, "accept_direct": "nobody", "searchable_by_name": False}
     assert c.patch("/api/me/privacy", json={"accept_direct": "friends"}).status_code == 400
 
 
@@ -168,7 +167,7 @@ def test_admin_sees_name_history_id_and_search_by_name_or_id(make_harness):
         d = admin_access.user_detail(db, uid)
         assert d["user"]["display_name"] == "Yacine" and d["user"]["public_id"] == pid
         assert d["name_history"][0]["old"] is None and d["name_history"][0]["new"] == "Yacine"
-        assert d["user"]["privacy"]["accept_calls"] is True
+        assert "accept_calls" not in d["user"]["privacy"]
         assert [u["id"] for u in admin_access.users_search(db, q=pid.lower())["users"]] == [uid]
         assert [u["id"] for u in admin_access.users_search(db, q="yaci")["users"]] == [uid]
         admin_access.delete_account(db, uid)

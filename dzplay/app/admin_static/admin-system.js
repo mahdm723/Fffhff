@@ -45,7 +45,7 @@ export async function renderSystem(main) {
     botSection(),
     smtpSection(),
     h('div', { class: 'admin-groups' },
-      card('ذاكرة الوسائط المؤقتة', 'reels',
+      card('ذاكرة الوسائط المؤقتة', 'image',
         h('div', { class: 'admin-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct),
           'aria-label': 'استخدام الذاكرة المؤقتة' }, fill),
         h('p', { class: 'admin-meta', text: `${bytes(used)} من ${bytes(limit)} (${fmt(pct)}٪). الأقدم استخدامًا يُحذف تلقائيًا ويُعاد تنزيله من Telegram عند الحاجة.` }))),
@@ -137,14 +137,14 @@ function botSection() {
   });
   removeBtn.addEventListener('click', async () => {
     const otp = needCode();
-    if (!otp || !(await confirmDanger('إزالة ربط البوت؟', 'يتوقف استقبال الفيديوهات والصور من Telegram (أو يعود لإعداد ملف .env إن وُجد).', 'إزالة'))) return;
+    if (!otp || !(await confirmDanger('إزالة ربط البوت؟', 'تتوقف الإحصائيات وطلبات استعادة كلمات المرور وأزرار الإشراف عبر Telegram (أو يعود لإعداد ملف .env إن وُجد).', 'إزالة'))) return;
     const s = await attempt(() => call('POST', '/api/admin/telegram/remove', { code: otp }));
     code.value = '';
     if (s) { paint(s); toast('أُزيل الربط.'); }
   });
 
   load();
-  return card('بوت Telegram', 'send', h('p', { class: 'admin-meta', text: 'لرفع الفيديوهات والصور (Reels) واستقبال طلبات استعادة كلمات المرور.' }), status, h('div', { class: 'admin-actions' }, testBtn, removeBtn), form);
+  return card('بوت Telegram', 'send', h('p', { class: 'admin-meta', text: 'للإحصائيات (/stats)، وطلبات استعادة كلمات المرور، وأزرار الإشراف على الصور والتوثيق.' }), status, h('div', { class: 'admin-actions' }, testBtn, removeBtn), form);
 }
 
 // ------------------------------------------------------------------ e-mail for recovery codes (password is write-only)

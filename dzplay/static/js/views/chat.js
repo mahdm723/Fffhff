@@ -28,12 +28,6 @@ function statusIcon(status) {
 
 function systemText(m) {
   const meta = m.meta || {};
-  if (meta.event === 'call') {
-    if (['missed', 'canceled'].includes(meta.outcome)) return m.mine ? 'لم يرد على مكالمتك' : m.content;
-    if (meta.outcome === 'busy') return m.mine ? 'كان الطرف الآخر في مكالمة أخرى' : m.content;
-    if (meta.outcome === 'declined') return m.mine ? 'رُفضت مكالمتك' : 'رفضت المكالمة';
-    return m.content;
-  }
   if (meta.event === 'reveal') {
     return m.mine
       ? 'كشفتَ هويتك. يرى هذا الشخص الآن اسمك ومعرّفك.'
@@ -43,10 +37,8 @@ function systemText(m) {
 }
 
 const isAnonymous = (conv) => !conv || (conv.kind !== 'direct' && (!conv.peer_card || conv.peer_card.anonymous));
-// V5: pictures in chats unlock like calls — once the other side has replied.
+// V5: pictures in chats unlock once the other side has replied.
 const canSendImage = (conv) => !!conv && conv.status === 'active' && conv.peer_has_replied && !store.isRequest(conv)
-  && !(conv.request && conv.request.state !== 'accepted');
-const canCall = (conv) => !!conv && conv.status === 'active' && conv.peer_has_replied && !store.isRequest(conv)
   && !(conv.request && conv.request.state !== 'accepted');
 
 export function renderChat(root, { conversationId, navigate }) {
@@ -61,13 +53,10 @@ export function renderChat(root, { conversationId, navigate }) {
   const headAvatar = h('div', { class: 'chat__avatar' });
   const headName = h('div', { class: 'chat__name' });
   const headSub = h('span', { class: 'chat__sub' });
-  const callBtn = h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'مكالمة صوتية', onclick: () => startCall('audio') }, icon('phone'));
-  const videoBtn = h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'مكالمة فيديو', onclick: () => startCall('video') }, icon('video'));
   const header = h('header', { class: 'chat__head' },
     h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'رجوع', onclick: () => navigate('#/messages') }, icon('back')),
     h('button', { class: 'chat__who', type: 'button', 'aria-label': 'معلومات المحادثة', onclick: () => openMenu() },
       headAvatar, h('div', { class: 'chat__title' }, headName, headSub)),
-    callBtn, videoBtn,
     h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'معلومات وخيارات', onclick: () => openMenu() }, icon('info')),
   );
 
@@ -84,20 +73,6 @@ export function renderChat(root, { conversationId, navigate }) {
     else if (conv.me_revealed) sub = [icon('lock'), 'هويته مخفية · أنت كشفت هويتك'];
     else sub = [icon('lock'), 'هوية مخفية للطرفين'];
     headSub.replaceChildren(...sub);
-    const allowed = canCall(conv);
-    const enabled = !!(store.state.config && store.state.config.calls_enabled);
-    for (const b of [callBtn, videoBtn]) {
-      b.hidden = !enabled;
-      b.disabled = !allowed;
-      b.title = allowed ? '' : 'تتاح المكالمة بعد أن يرد الطرف الآخر';
-    }
-  }
-
-  function startCall(kind) {
-    const conv = store.getConversation(conversationId);
-    if (!canCall(conv)) { toast('تتاح المكالمة بعد أن يرد الطرف الآخر على رسائلك.'); return; }
-    if (window.dzCalls) window.dzCalls.start(conversationId, kind);
-    else toast('المكالمات غير متاحة حاليًا.');
   }
 
   // ---------------- composer (+ typing signal)
@@ -292,9 +267,7 @@ export function renderChat(root, { conversationId, navigate }) {
       const d = formatDay(m.created_at);
       if (d !== day) { nodes.push(h('div', { class: 'day-sep', text: d })); day = d; }
       if (m.kind === 'system') {
-        const isCall = m.meta && m.meta.event === 'call';
-        nodes.push(h('div', { class: `sys-msg ${isCall ? 'sys-msg--call' : ''}`, role: 'note' },
-          h('span', {}, isCall ? icon(m.meta.kind === 'video' ? 'video' : 'phone') : null, systemText(m))));
+        nodes.push(h('div', { class: 'sys-msg', role: 'note' }, h('span', {}, systemText(m))));
       }
       else nodes.push(bubble(m, msgs[i - 1], msgs[i + 1], conv, lastMine && lastMine.id));
     });

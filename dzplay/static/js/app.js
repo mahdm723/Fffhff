@@ -1,6 +1,5 @@
 // DZPLAY client entry point: boot, routing and the app shell.
 import { api } from './api.js';
-import { initCalls } from './call.js';
 import { initKeyboard } from './keyboard.js';
 import { forgetNative, initNative } from './native.js';
 import { icon } from './icons.js';
@@ -9,7 +8,6 @@ import * as store from './store.js';
 import { h, toast } from './ui.js';
 import { runOnboarding } from './onboarding.js';
 import { showPrivacyNotice } from './privacy.js';
-import { clearMediaCache, resetFeed as resetReelsFeed, startPrefetch, stopPrefetch } from './reels-prefetch.js';
 import { renderAuth } from './views/auth.js';
 import { renderChat } from './views/chat.js';
 import { renderHome, resetFeedCache } from './views/home.js';
@@ -17,8 +15,6 @@ import { renderMessages } from './views/messages.js';
 import { renderProfile } from './views/profile.js';
 import { renderSupport, renderTicket } from './views/support.js';
 import { renderVerify } from './views/verify.js';
-import { renderStudio } from './views/studio.js';
-import { renderMoney } from './views/money.js';
 import { renderUser } from './views/user.js';
 
 const root = document.getElementById('app');
@@ -46,8 +42,6 @@ function parseRoute() {
   if (t) return { name: 'ticket', id: Number(t[1]) };
   if (location.hash === '#/support') return { name: 'support' };
   if (location.hash === '#/verify') return { name: 'verify' };
-  if (location.hash === '#/studio') return { name: 'studio' };
-  if (location.hash === '#/money') return { name: 'money' };
   const name = location.hash.replace(/^#\//, '');
   return { name: TABS.some((t) => t.id === name) ? name : 'home' };
 }
@@ -104,7 +98,7 @@ function route() {
     shell = buildShell();
     root.replaceChildren(shell.el);
   }
-  const activeTab = r.name === 'user' ? 'home' : ['support', 'ticket', 'verify', 'studio', 'money'].includes(r.name) ? 'profile' : r.name;
+  const activeTab = r.name === 'user' ? 'home' : ['support', 'ticket', 'verify'].includes(r.name) ? 'profile' : r.name;
   for (const btn of shell.nav.querySelectorAll('.nav__btn')) {
     if (btn.dataset.tab === activeTab) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
@@ -118,8 +112,6 @@ function route() {
   else if (r.name === 'support') cleanupView = renderSupport(shell.page, ctx) || null;
   else if (r.name === 'ticket') cleanupView = renderTicket(shell.page, { ...ctx, ticketId: r.id }) || null;
   else if (r.name === 'verify') cleanupView = renderVerify(shell.page, ctx) || null;
-  else if (r.name === 'studio') cleanupView = renderStudio(shell.page, ctx) || null;
-  else if (r.name === 'money') cleanupView = renderMoney(shell.page, ctx) || null;
   else cleanupView = renderProfile(shell.page, ctx) || null;
   updateBadges();
   updateConnectionBanner();
@@ -137,9 +129,6 @@ async function logout() {
   store.stopRealtime();
   store.clearCache();
   resetFeedCache();
-  stopPrefetch();
-  resetReelsFeed();
-  await clearMediaCache(); // prefetched media is tied to this account's session
   try { localStorage.removeItem('dz:draft'); localStorage.removeItem('dz:session'); } catch { /* ignore */ }
   store.state.me = null;
   showAuth();
@@ -152,7 +141,6 @@ function showAuth() {
     config: store.state.config,
     onAuthenticated: (me) => {
       store.clearCache(); // never show a previous account's cached conversations
-      resetReelsFeed();
       resetFeedCache();
       history.replaceState(null, '', '#/home');
       startSession(me);
@@ -167,15 +155,11 @@ function startSession(me) {
   try { localStorage.setItem('dz:session', '1'); } catch { /* ignore */ }
   route();
   store.startRealtime();
-  if (store.state.config && store.state.config.calls_enabled) initCalls();
   initNative();
   store.sync({ full: true }).catch(() => {});
   store.flushOutbox();
   refreshPushSubscription();
   showPrivacyNotice(me, () => runOnboarding(me, { onMe, onLogout: logout }));
-  // Warm up Reels in the background whatever page the user opened (low priority, see reels-prefetch.js).
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 800));
-  idle(() => startPrefetch(store.state.config), { timeout: 2500 });
 }
 
 store.subscribe((type, detail) => {
@@ -195,12 +179,6 @@ store.subscribe((type, detail) => {
   } else if (type === 'account') { // V5: the blue star was granted / revoked, a request was decided
     api.get('/api/me').then((me) => onMe(me)).catch(() => {});
     document.dispatchEvent(new CustomEvent('dz:account'));
-  } else if (type === 'studio') {
-    if (parseRoute().name !== 'studio') toast('وصل رد على فيديو أرسلته إلى الاستوديو.');
-    document.dispatchEvent(new CustomEvent('dz:studio'));
-  } else if (type === 'money') {
-    if (parseRoute().name !== 'money') toast('تحديث جديد في «أموالي».');
-    document.dispatchEvent(new CustomEvent('dz:money'));
   } else if (type === 'support') {
     if (store.state.me) store.state.me.support_unread = (store.state.me.support_unread || 0) + 1;
     if (!['support', 'ticket'].includes(parseRoute().name)) toast('ردّ فريق الدعم على تذكرتك. افتح حسابي ← الدعم.');

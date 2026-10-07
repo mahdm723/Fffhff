@@ -61,6 +61,12 @@ else
   ok "Cloned into $SRC_DIR"
 fi
 cd "$APP_DIR"
+# An update starts with an encrypted backup of the running database (kept in BACKUP_DIR).
+if [ -f .env ] && docker compose ps -q db 2>/dev/null </dev/null | grep -q .; then
+  chmod 700 deploy/backup.sh
+  if deploy/backup.sh >> /var/log/dzplay-backup.log 2>&1 </dev/null; then ok "Backup taken before the update"
+  else die "The backup before the update failed (see /var/log/dzplay-backup.log). Nothing was changed in the running app."; fi
+fi
 
 # --- 3. configuration (only on first install; your .env is never overwritten) ----
 say "3/6 Configuration"
@@ -100,8 +106,10 @@ env_has ADMIN_PATH || { set_env ADMIN_PATH "/panel-$(openssl rand -hex 8)"; ok "
 env_has TELEGRAM_WEBHOOK_SECRET || set_env TELEGRAM_WEBHOOK_SECRET "$(openssl rand -hex 32)"
 # The old default footer line is no longer shown (a text you set yourself is kept).
 sed -i 's|^FOOTER_TEXT=صُنع في ولاية سعيدة / حساسنة / قرية تامسنة$|FOOTER_TEXT=|' .env
-env_has TURN_SECRET || { set_env TURN_SECRET "$(openssl rand -hex 32)"; ok "Generated the TURN secret (voice/video calls)"; }
-if ! env_has PUBLIC_IP && [ -n "$PUBLIC_IP" ]; then set_env PUBLIC_IP "$PUBLIC_IP"; fi
+# V6: calls were removed — their TURN secret is no longer used.
+sed -i '/^TURN_SECRET=/d' .env
+# V6: new blue-star requests are closed until membership arrives (current stars are kept).
+sed -i '/^VERIFY_ENABLED=/d' .env
 NEW_BACKUP_PASS=0
 env_has BACKUP_PASSPHRASE || { set_env BACKUP_PASSPHRASE "$(openssl rand -hex 32)"; NEW_BACKUP_PASS=1; ok "Generated a backup encryption passphrase"; }
 if grep -q '^ADMIN_API_TOKEN=' .env; then
@@ -122,21 +130,12 @@ for port in 80 443; do
     Stop it (e.g. 'systemctl stop nginx' or 'systemctl stop apache2') and run this command again."
   fi
 done
-TURN_PORT_V="$(grep '^TURN_PORT=' .env | cut -d= -f2- || true)"; TURN_PORT_V="${TURN_PORT_V:-3478}"
-TURN_TLS_V="$(grep '^TURN_TLS_PORT=' .env | cut -d= -f2- || true)"; TURN_TLS_V="${TURN_TLS_V:-5349}"
-TURN_MIN_V="$(grep '^TURN_MIN_PORT=' .env | cut -d= -f2- || true)"; TURN_MIN_V="${TURN_MIN_V:-49160}"
-TURN_MAX_V="$(grep '^TURN_MAX_PORT=' .env | cut -d= -f2- || true)"; TURN_MAX_V="${TURN_MAX_V:-49200}"
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow 80/tcp >/dev/null && ufw allow 443/tcp >/dev/null
-  # calls (coturn): only the TURN ports and the UDP relay range
-  ufw allow "$TURN_PORT_V"/udp comment 'turn' >/dev/null && ufw allow "$TURN_PORT_V"/tcp comment 'turn' >/dev/null
-  [ "$TURN_TLS_V" = "0" ] || ufw allow "$TURN_TLS_V"/tcp comment 'turn tls' >/dev/null
-  ufw allow "$TURN_MIN_V:$TURN_MAX_V"/udp comment 'turn relay' >/dev/null
-  ok "Firewall (ufw): opened 80, 443, TURN $TURN_PORT_V udp/tcp, $TURN_TLS_V/tcp and relay $TURN_MIN_V-$TURN_MAX_V/udp"
+  ok "Firewall (ufw): 80 and 443 open"
 fi
-holder="$(ss -lunpH "( sport = :$TURN_PORT_V )" 2>/dev/null | grep -v turnserver | head -1 || true)"
-[ -z "$holder" ] || warn "Port $TURN_PORT_V/udp is used by another program ($holder): calls need it for coturn."
-ok "If your VPS provider has its own firewall, also open: $TURN_PORT_V/udp+tcp, $TURN_TLS_V/tcp, $TURN_MIN_V-$TURN_MAX_V/udp"
+# V6: calls were removed — close the old TURN ports (values from .env, or the old defaults).
+bash "$APP_DIR/deploy/harden.sh" close-turn || true
 ok "Ports 80/443 available"
 
 # --- 5. build & start ---------------------------------------------------------------
@@ -173,25 +172,9 @@ else
   warn "Certificate logs: cd $APP_DIR && docker compose logs caddy"
 fi
 
-# Calls: coturn reads Caddy's certificate at start; restart it now that HTTPS is up, and weekly after renewals.
-if [ "$public_ok" -eq 1 ]; then
-  docker compose restart coturn >/dev/null 2>&1 </dev/null || true
-  sleep 2
-  if docker compose logs --tail 30 coturn 2>/dev/null </dev/null | grep -q "TURN over TLS on port"; then
-    ok "Calls: TURN server running (UDP/TCP $TURN_PORT_V, TLS $TURN_TLS_V)"
-  else
-    ok "Calls: TURN server running (UDP/TCP $TURN_PORT_V)"
-  fi
-fi
-cat > /etc/cron.d/dzplay-turn <<CRON
-SHELL=/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# reload coturn's TLS certificate after Caddy renewed it (live calls recover with an ICE restart)
-41 4 * * 1 root cd $APP_DIR && docker compose restart coturn >/dev/null 2>&1
-CRON
-chmod 644 /etc/cron.d/dzplay-turn
+rm -f /etc/cron.d/dzplay-turn  # V6: no more coturn certificate reloads
 
-# Telegram bot (Reels uploads, password recovery): tell Telegram where to deliver updates.
+# Telegram bot (stats, password recovery, moderation buttons): tell Telegram where to deliver updates.
 if grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && grep -q '^TELEGRAM_ADMIN_CHAT_ID=.\+' .env; then
   if [ "${PUBLIC_URL#https://}" != "$PUBLIC_URL" ] && docker compose exec -T app python -m app.admin_cli set-webhook "$PUBLIC_URL" >/dev/null 2>&1 </dev/null; then
     ok "Telegram bot connected (webhook set)"
@@ -201,7 +184,8 @@ if grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && grep -q '^TELEGRAM_ADMIN_CHAT_ID=.\
 fi
 
 # Daily encrypted database backup (03:17 server time) + a first backup now.
-chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh deploy/monitor.sh deploy/ssh-harden.sh
+chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh deploy/monitor.sh deploy/ssh-harden.sh \\
+  deploy/v6-cleanup.sh
 cat > /etc/cron.d/dzplay-backup <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -229,6 +213,11 @@ if [ "${HARDEN:-0}" = "1" ]; then
 fi
 
 ADMIN_PATH_VALUE="$(grep '^ADMIN_PATH=' .env | cut -d= -f2-)"
+V6_NOTE=""
+if docker compose exec -T app python -m app.admin_cli legacy-status >/dev/null 2>&1 </dev/null; then :; else
+  V6_NOTE="V6: old Reels/calls/earnings data is still in the database. Export it (encrypted) and remove it:
+     sudo $APP_DIR/deploy/v6-cleanup.sh"
+fi
 BACKUP_NOTE=""
 [ "$NEW_BACKUP_PASS" = 1 ] && BACKUP_NOTE="IMPORTANT: copy the backup passphrase to a safe place OFF this server:
      grep BACKUP_PASSPHRASE $APP_DIR/.env"
@@ -253,8 +242,8 @@ cat <<EOF
   Hardening (firewall, fail2ban, auto-updates):   sudo $APP_DIR/deploy/harden.sh
   SSH keys only (asks you to prove a key login first):   sudo $APP_DIR/deploy/ssh-harden.sh status
   Monitoring alerts test:   sudo $APP_DIR/deploy/monitor.sh test
-  Telegram bot (Reels uploads):   admin panel → الأمان والنظام → بوت Telegram
-  Calls (TURN):  open in your VPS provider's firewall too: $TURN_PORT_V/udp+tcp, $TURN_TLS_V/tcp, $TURN_MIN_V-$TURN_MAX_V/udp
+  Telegram bot:   admin panel → الأمان والنظام → بوت Telegram
+  $V6_NOTE
   Android app download page:   $PUBLIC_URL/download
 
   Update to the latest version:   run the same install command again

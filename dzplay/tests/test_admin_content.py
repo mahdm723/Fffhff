@@ -1,4 +1,4 @@
-"""Admin panel content tools: official DZPLAY account, comment library, Reels/Ideas management,
+"""Admin panel content tools: official DZPLAY account, comment library, Ideas management,
 users, network blocks, extended stats."""
 
 from __future__ import annotations
@@ -6,9 +6,8 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from app import clock
-from app.models import Reel, User
+from app.models import User
 from tests.conftest import send
-from tests.test_reels import make_reels
 
 
 def idea(c, text="فكرة للتجربة"):
@@ -18,20 +17,19 @@ def idea(c, text="فكرة للتجربة"):
 # ----------------------------------------------------------------- official account
 
 
-def test_official_comment_on_reel_is_public_with_badge(hx):
-    rid = make_reels(hx, 1)[0]
+def test_official_comment_account_and_audit(hx):
+    owner = hx.user()
+    pid = idea(owner)
     admin = hx.admin()
-    r = admin.post("/api/admin/official-comment", json={"target": "reel", "target_id": rid, "text": "أهلًا بكم في DZPLAY 👋"})
+    r = admin.post("/api/admin/official-comment", json={"target": "idea", "target_id": pid, "text": "أهلًا بكم في DZPLAY 👋"})
     assert r.status_code == 201
-    for viewer in (hx.user(), hx.user()):
-        c = viewer.get(f"/api/reels/{rid}/comments").json()["comments"][0]
-        assert c["content"] == "أهلًا بكم في DZPLAY 👋"
-        assert c["author"] == {"name": "DZPLAY الرسمي", "official": True, "gender": None, "verified": False} and c["mine"] is False
     with hx.db() as db:
         official = db.scalars(select(User).where(User.is_official.is_(True))).all()
         assert len(official) == 1 and official[0].password_hash is None and official[0].google_sub is None
     audit = admin.get("/api/admin/audit", params={"action": "official_comment"}).json()["entries"]
-    assert audit[0]["target_type"] == "reel" and audit[0]["actor"] == "owner"
+    assert audit[0]["target_type"] == "idea" and audit[0]["actor"] == "owner"
+    # V6: Reels are gone
+    assert admin.post("/api/admin/official-comment", json={"target": "reel", "target_id": pid, "text": "x"}).status_code == 400
 
 
 def test_official_comment_on_idea_reaches_owner_only(hx):
@@ -50,8 +48,7 @@ def test_official_comment_on_idea_reaches_owner_only(hx):
 
 def test_official_account_is_not_a_user(hx):
     a = hx.user()
-    rid = make_reels(hx, 1)[0]
-    hx.admin().post("/api/admin/official-comment", json={"target": "reel", "target_id": rid, "text": "مرحبًا"})
+    hx.admin().post("/api/admin/official-comment", json={"target": "idea", "target_id": idea(a), "text": "مرحبًا"})
     # never a message recipient: with nobody else available, sending fails instead of reaching it
     assert send(a, "مرحبا").status_code == 409
     b = hx.user()
@@ -68,14 +65,16 @@ def test_official_account_is_not_a_user(hx):
 
 
 def test_cannot_edit_reaction_counters(hx):
-    rid = make_reels(hx, 1)[0]
-    u = hx.user()
-    u.put(f"/api/reels/{rid}/reaction", json={"reaction": "like"})
+    """V6: the V5 boost is gone — counts are the real reactions only, and no admin route edits them."""
+    owner, u = hx.user(), hx.user()
+    pid = idea(owner)
+    u.put(f"/api/posts/{pid}/reaction", json={"reaction": "like"})
     admin = hx.admin()
-    for method, path, body in (("put", f"/api/admin/reels/{rid}/likes", {"likes": 999}),
-                               ("post", f"/api/admin/reels/{rid}/counts", {"likes": 999})):
+    for method, path, body in (("put", f"/api/admin/ideas/{pid}/likes", {"likes": 999}),
+                               ("post", "/api/admin/engagement/boost", {"target_type": "idea", "ids": [pid], "likes": 999})):
         assert getattr(admin, method)(path, json=body).status_code in (404, 405)
-    assert admin.get("/api/admin/reels").json()["reels"][0]["likes"] == 1
+    shown = next(i for i in admin.get("/api/admin/ideas").json()["ideas"] if i["id"] == pid)
+    assert shown["likes"] == 1 and "boost" not in shown
 
 
 # ----------------------------------------------------------------- comment library
@@ -91,9 +90,10 @@ def test_library_crud_and_use(hx):
     assert {c["id"]: c["name"] for c in lib["categories"]}["welcome"] == "ترحيب"
     edited = admin.put(f"/api/admin/library/{item['id']}", json={"category": "welcome", "text": "أهلًا وسهلًا!"}).json()
     assert edited["text"] == "أهلًا وسهلًا!"
-    rid = make_reels(hx, 1)[0]
-    assert admin.post("/api/admin/official-comment", json={"target": "reel", "target_id": rid, "library_id": item["id"]}).status_code == 201
-    assert hx.user().get(f"/api/reels/{rid}/comments").json()["comments"][0]["content"] == "أهلًا وسهلًا!"
+    owner = hx.user()
+    pid = idea(owner)
+    assert admin.post("/api/admin/official-comment", json={"target": "idea", "target_id": pid, "library_id": item["id"]}).status_code == 201
+    assert owner.get(f"/api/posts/{pid}/comments").json()["comments"][0]["content"] == "أهلًا وسهلًا!"
     assert admin.get("/api/admin/library", params={"q": "أهلًا"}).json()["items"][0]["usage_count"] == 1
     assert admin.delete(f"/api/admin/library/{item['id']}").status_code == 200
     assert len(admin.get("/api/admin/library").json()["items"]) == 1
@@ -101,28 +101,14 @@ def test_library_crud_and_use(hx):
     assert {"library_add", "library_edit", "library_delete"} <= actions
 
 
-# ----------------------------------------------------------------- reels management
+# ----------------------------------------------------------------- previews
 
 
-def test_admin_reels_management(hx):
-    rid = make_reels(hx, 1)[0]
-    admin = hx.admin()
-    item = admin.get("/api/admin/reels").json()["reels"][0]
-    assert item["id"] == rid and item["status"] == "visible"
+def test_admin_previews_need_an_admin_session(hx):
     u = hx.user()
-    assert admin.post(f"/api/admin/reels/{rid}/status", json={"status": "hidden"}).json()["status"] == "hidden"
-    assert u.get("/api/reels/feed").json()["reels"] == []
-    admin.post(f"/api/admin/reels/{rid}/status", json={"status": "visible"})
-    assert admin.post(f"/api/admin/reels/{rid}/pin", json={"hours": 3}).json()["pinned_until"]
-    assert admin.post(f"/api/admin/reels/{rid}/pin", json={"pinned": False}).json()["pinned_until"] is None
-    assert admin.put(f"/api/admin/reels/{item['short_id']}/caption", json={"caption": "وصف من اللوحة"}).json()["caption"] == "وصف من اللوحة"
-    assert u.get("/api/reels/feed").json()["reels"][0]["caption"] == "وصف من اللوحة"
-    assert admin.delete(f"/api/admin/reels/{rid}").status_code == 200
-    with hx.db() as db:
-        assert db.get(Reel, rid) is None
-    # previews need an admin session
-    assert hx.client().get(f"/test-panel/api/admin/media/{'a' * 32}/poster").status_code == 401
-    assert u.get(f"/test-panel/api/admin/media/{'a' * 32}/poster").status_code == 401
+    assert hx.client().get(f"/test-panel/api/admin/media/{'a' * 32}/img").status_code == 401
+    assert u.get(f"/test-panel/api/admin/media/{'a' * 32}/img").status_code == 401
+    assert hx.admin().get("/api/admin/reels").status_code == 404  # V6: Reels are gone
 
 
 def test_admin_ideas_list_is_public_content_only(hx):
@@ -177,8 +163,7 @@ def test_lift_login_ip_block(make_harness):
 
 
 def test_stats_include_v3_sections(hx):
-    make_reels(hx, 2)
     s = hx.admin().get("/api/admin/stats").json()
-    assert s["reels"]["visible"] == 2
+    assert "reels" not in s and "reel_comments" not in s
     assert set(s["password_resets"]) == {"requests_24h", "waiting_admin", "completed_24h"}
     assert "media_cache_bytes" in s and "ip_blocks_active" in s

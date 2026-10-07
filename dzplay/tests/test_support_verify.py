@@ -28,9 +28,30 @@ def cx(make_harness, smtp):
                       TELEGRAM_WEBHOOK_SECRET="s3cret-hook", SMTP_HOST="127.0.0.1", SMTP_PORT=smtp.port,
                       SMTP_SECURITY="none", SMTP_FROM="DZPLAY <no-reply@dzplay.test>",
                       SUPPORT_INBOX_EMAIL="support-inbox@dzplay.test",
-                      VERIFY_MIN_POSTS=1, VERIFY_MIN_LIKES=0, VERIFY_MIN_ACCOUNT_AGE_DAYS=0)
+                      VERIFY_MIN_POSTS=1, VERIFY_MIN_LIKES=0, VERIFY_MIN_ACCOUNT_AGE_DAYS=0,
+                      VERIFY_ENABLED=True)  # V6 closes new requests by default; the flow is reused by memberships
     hx.tg, hx.smtp = fake, smtp
     return hx
+
+
+def test_new_star_requests_are_closed_by_default_but_stars_are_kept(make_harness):
+    hx = make_harness()
+    a = hx.user()
+    assert a.get("/api/verification").json()["enabled"] is False
+    r = a.post("/api/verification", json={"account_type": "writer", "description": "x" * 10, "reason": "y" * 10,
+                                          "amount": "5", "txid": "a" * 64})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "verify_off"
+    from app.services import tunables
+
+    assert "VERIFY_ENABLED" not in {t.key for t in tunables.REGISTRY}  # cannot be switched back on from the panel
+    admin = hx.admin()
+    ref = a.get("/api/me").json()["public_id"]
+    with hx.db() as db:
+        from app.models import User
+
+        uid = db.query(User).filter_by(public_id=ref).one().id
+    assert admin.post(f"/api/admin/users/{uid}/verified", json={"verified": True}).status_code == 200
+    assert a.get("/api/me").json().get("verified") is True
 
 
 def idle(hx):

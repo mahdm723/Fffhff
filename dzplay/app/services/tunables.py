@@ -44,7 +44,6 @@ GROUPS = {
     "telegram": "قنوات Telegram",
     "support": "الدعم",
     "verify": "التوثيق (النجمة الزرقاء)",
-    "creators": "صنّاع المحتوى والأرباح",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -63,7 +62,6 @@ REGISTRY: list[Tunable] = [
     Tunable("SERVER_NSFW_CHECK", "bool", "media", "فحص المحتوى الإباحي على الخادم"),
     Tunable("NSFW_BLOCK_THRESHOLD", "float", "media", "حد رفض المحتوى الإباحي (0–1)", 0.05, 1),
     Tunable("NSFW_SEXY_THRESHOLD", "float", "media", "حد رفض المحتوى المثير (0–1، 1 = لا يُرفض)", 0.05, 1),
-    Tunable("NSFW_VIDEO_FRAMES", "int", "media", "عدد لقطات الفيديو المفحوصة", 1, 12),
     Tunable("CAPTION_BLOCK_CATEGORIES", "text", "media", "فئات الكلمات التي ترفض الوصف (sexual,threat,blackmail,insult,contact)",
             max_len=100),
     # ideas
@@ -93,30 +91,17 @@ REGISTRY: list[Tunable] = [
     Tunable("SUPPORT_TICKETS_PER_DAY", "int", "support", "تذاكر جديدة في اليوم لكل مستخدم", 1, 50),
     Tunable("SUPPORT_MESSAGES_PER_HOUR", "int", "support", "رسائل الدعم في الساعة لكل مستخدم", 1, 200),
     Tunable("SUPPORT_MAX_LENGTH", "int", "support", "أقصى طول لرسالة الدعم (حرف)", 200, 10000),
-    Tunable("VERIFY_ENABLED", "bool", "verify", "استقبال طلبات التوثيق"),
     Tunable("VERIFY_MIN_POSTS", "int", "verify", "أقل عدد من الأفكار المنشورة", 0, 10000),
     Tunable("VERIFY_MIN_LIKES", "int", "verify", "أقل عدد من الإعجابات", 0, 1000000),
     Tunable("VERIFY_MIN_ACCOUNT_AGE_DAYS", "int", "verify", "أقل عمر للحساب (يوم)", 0, 3650),
     Tunable("PAYMENT_MIN_AMOUNT", "float", "verify", "أقل مبلغ للدفع (0 = أي مبلغ)", 0, 1000000),
-    # creators + earnings
-    Tunable("CREATOR_REELS_ENABLED", "bool", "creators", "استوديو DZPLAY مفتوح للموثّقين"),
-    Tunable("CREATOR_REEL_LIMIT_PER_24H", "int", "creators", "فيديوهات لكل صانع في 24 ساعة", 0, 50),
-    Tunable("REJECTED_COUNTS_TOWARD_LIMIT", "bool", "creators", "الفيديو المرفوض يُحسب من الحد"),
-    Tunable("REELS_REQUIRE_APPROVAL", "bool", "creators", "فيديوهات الصنّاع تظهر بعد الموافقة"),
-    Tunable("CREATOR_REEL_MIN_SECONDS", "int", "creators", "أقصر مدة للفيديو (ثانية)", 1, 60),
-    Tunable("CREATOR_REEL_MAX_SECONDS", "int", "creators", "أطول مدة للفيديو (ثانية)", 5, 300),
-    Tunable("CREATOR_REEL_MAX_MB", "float", "creators", "أقصى حجم للفيديو المرفوع (MB)", 5, 200),
-    Tunable("CREATOR_UPLOAD_CHAT_TTL", "int", "creators", "بقاء الفيديو في نافذة الاستوديو (ثانية)", 3600, 90 * 86400),
-    Tunable("MONETIZE_ENABLED", "bool", "creators", "استقبال طلبات تحقيق الدخل"),
-    Tunable("MONETIZE_MIN_REELS", "int", "creators", "أقل عدد من الفيديوهات المنشورة لتحقيق الدخل", 0, 10000),
-    Tunable("MONETIZE_MIN_LIKES", "int", "creators", "أقل عدد من الإعجابات لتحقيق الدخل", 0, 10000000),
     Tunable("MEDIA_EVIDENCE_RETENTION_DAYS", "int", "moderation", "مدة الاحتفاظ بالوسائط المبلّغ عنها (يوم)", 7, 3650),
 ]
 _BY_KEY = {t.key: t for t in REGISTRY}
 
 
 def register(*items: Tunable, group: tuple[str, str] | None = None) -> None:
-    """Later features add their own entries (verification, earnings…)."""
+    """Later features add their own entries."""
     if group:
         GROUPS.setdefault(*group)
     for t in items:

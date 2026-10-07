@@ -1,8 +1,8 @@
-# Production-like stack: Caddy (automatic HTTPS) -> DZPLAY -> PostgreSQL + Redis, + coturn (TURN for calls)
+# Production-like stack: Caddy (automatic HTTPS) -> DZPLAY -> PostgreSQL + Redis, + the isolated media worker
 #   1. cp .env.example .env  and set SECRET_KEY, POSTGRES_PASSWORD, DOMAIN
 #   2. docker compose up -d --build
 # Only Caddy publishes ports (80/443); PostgreSQL and Redis are reachable from the app only.
-# coturn uses the host network: 3478/udp+tcp, 5349/tcp (TLS) and the UDP relay range TURN_MIN_PORT-TURN_MAX_PORT.
+# (V6: calls and the coturn TURN server were removed — `docker compose up -d --remove-orphans` drops its container.)
 
 x-logging: &logging  # bounded container logs (no disk fill-up)
   driver: json-file
@@ -23,14 +23,14 @@ services:
       TRUSTED_PROXY_COUNT: "1"
       MEDIA_CACHE_DIR: /data/media-cache
       UPLOAD_TMP_DIR: /uploads
-      MEDIA_WORKER: queue  # ffmpeg + checks run in the isolated media-worker container
+      MEDIA_WORKER: queue  # re-encoding + checks run in the isolated media-worker container
     group_add:
       - "10010"  # shares the upload tmpfs with the media worker
     networks: [default, media]
     volumes:
-      - media:/data/media-cache  # temporary Reels media cache (originals stay in Telegram)
+      - media:/data/media-cache  # temporary picture cache (originals stay in Telegram)
       - uploads:/uploads  # V5: size-capped tmpfs, files live here seconds only
-      # optional secret files (e.g. Firebase service account for ringing the closed Android app); not in git
+      # optional secret files (e.g. Firebase service account for message notifications on Android); not in git
       - ./secrets:/run/dzplay-secrets:ro
     # container hardening: read-only image, no privilege escalation, no Linux capabilities
     read_only: true
@@ -118,38 +118,6 @@ services:
       - caddy_data:/data
     depends_on:
       - app
-
-  coturn:
-    image: coturn/coturn:4.6
-    restart: unless-stopped
-    # TURN needs the real public IP and a wide UDP port range: host network, no docker-proxy.
-    network_mode: host
-    # uid 0 only to read Caddy's TLS key (mode 0600); every Linux capability but NET_BIND_SERVICE is dropped.
-    user: "0:0"
-    entrypoint: ["/bin/sh", "/etc/coturn/start.sh"]
-    environment:
-      TURN_SECRET: ${TURN_SECRET:-}
-      TURN_REALM: ${TURN_HOST:-${DOMAIN:-}}
-      TURN_EXTERNAL_IP: ${PUBLIC_IP:-}
-      TURN_PORT: ${TURN_PORT:-3478}
-      TURN_TLS_PORT: ${TURN_TLS_PORT:-5349}
-      TURN_MIN_PORT: ${TURN_MIN_PORT:-49160}
-      TURN_MAX_PORT: ${TURN_MAX_PORT:-49200}
-    volumes:
-      - ./deploy/coturn/turnserver.conf.template:/etc/coturn/turnserver.conf.template:ro
-      - ./deploy/coturn/start.sh:/etc/coturn/start.sh:ro
-      - caddy_data:/caddy:ro
-    read_only: true
-    tmpfs:
-      - /tmp:size=8m
-      - /var/lib/coturn:size=8m
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE  # the image's turnserver binary carries this file capability (exec fails without it)
-    logging: *logging
 
 networks:
   default:

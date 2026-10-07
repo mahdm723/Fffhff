@@ -31,14 +31,12 @@ from app.models import (
     Message,
     Post,
     PostReaction,
-    ReelComment,
     Report,
     SecurityEvent,
     User,
 )
 from app.security.sessions import revoke_all_sessions
 from app.services.messaging import iso
-from app.services.reels import remove_comment as remove_reel_comment
 
 
 # Real people only: the official and system accounts are not users.
@@ -111,9 +109,9 @@ def list_reports(db: Session, status: str = "open", limit: int = 50) -> list[dic
             "details": r.details,
             "evidence": json.loads(r.snapshot or "[]"),
             "reported_user_ref": r.reported_user_id,
-            "target": ("call" if r.call_id else "reel_comment" if r.reel_comment_id else "comment" if r.comment_id
+            # "legacy": a report about a V5 call or reel comment (removed in V6; deleted by `admin_cli drop-legacy`)
+            "target": ("legacy" if r.call_id or r.reel_comment_id else "comment" if r.comment_id
                        else "post" if r.post_id else "message" if r.message_id else "conversation"),
-            "call_id": r.call_id,
             "reported_user_reports_total": _count(db, Report, Report.reported_user_id == r.reported_user_id),
             "reported_user_flags_total": _count(db, ContentFlag, ContentFlag.offender_id == r.reported_user_id),
             "status": r.status,
@@ -134,11 +132,7 @@ def resolve_report(db: Session, report_id: str, action: str, effects=None, setti
     rep.resolution = action
     rep.resolved_at = clock.utcnow()
     if action == "remove":
-        if rep.reel_comment_id:
-            rc = db.get(ReelComment, rep.reel_comment_id)
-            if rc:
-                remove_reel_comment(db, rc)
-        elif rep.comment_id:
+        if rep.comment_id:
             comment = db.get(Comment, rep.comment_id)
             if comment:
                 db.delete(comment)
@@ -160,10 +154,6 @@ def set_user_status(db: Session, user_ref: str, status: str, effects=None, setti
     user.status = status
     if status == "banned":
         revoke_all_sessions(db, user.id)
-    if status != "active" and effects is not None:
-        from app.services import calls
-
-        calls.end_for_user(db, settings, user.id, f"account_{status}", effects)  # a live call ends now
     db.add(SecurityEvent(type=f"admin_set_{status}", user_id=user.id, created_at=clock.utcnow()))
     return {"user_ref": user.id, "status": status}
 
@@ -250,16 +240,11 @@ def resolve_flag(db: Session, flag_id: str, action: str) -> dict:
     flag.status = "dismissed" if action == "dismiss" else "resolved"
     flag.resolution = action
     flag.resolved_at = clock.utcnow()
-    if action == "remove":
-        if flag.target == "reel_comment":
-            rc = db.get(ReelComment, flag.comment_id) if flag.comment_id else None
-            if rc is not None:
-                remove_reel_comment(db, rc)
-        else:
-            source = (db.get(Message, flag.message_id) if flag.message_id
-                      else db.get(Comment, flag.comment_id) if flag.comment_id else None)
-            if source is not None:
-                db.delete(source)
+    if action == "remove" and flag.target != "reel_comment":  # V5 reel comments: removed with Reels in V6
+        source = (db.get(Message, flag.message_id) if flag.message_id
+                  else db.get(Comment, flag.comment_id) if flag.comment_id else None)
+        if source is not None:
+            db.delete(source)
     if action in ("suspend", "ban"):
         set_user_status(db, flag.offender_id, "suspended" if action == "suspend" else "banned")
     return {"id": flag.id, "status": flag.status, "resolution": action}

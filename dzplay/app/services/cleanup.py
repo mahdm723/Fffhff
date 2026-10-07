@@ -53,15 +53,7 @@ def run_cleanup(db: Session, settings: Settings, media=None) -> dict[str, int]:
     idle = now - timedelta(seconds=settings.ADMIN_SESSION_IDLE)
     purge("admin_sessions", delete(AdminSession).where(or_(AdminSession.expires_at <= now, AdminSession.last_seen_at < idle)))
     purge("audit_log", delete(AdminAuditLog).where(AdminAuditLog.created_at < now - timedelta(seconds=settings.AUDIT_LOG_RETENTION)))
-    from app.models import CALL_ACTIVE_STATES, Call
-
-    # call log = metadata only; kept CALL_LOG_RETENTION_DAYS (never a live call)
-    purge("calls", delete(Call).where(Call.created_at < now - timedelta(days=settings.CALL_LOG_RETENTION_DAYS),
-                                      Call.state.not_in(CALL_ACTIVE_STATES)))
     purge("flags", delete(ContentFlag).where(and_(ContentFlag.expires_at <= now, ContentFlag.status != "open")))
-    from app.services.reels import purge_views
-
-    counts["reel_views"] = purge_views(db, settings)
     from app.services.password_reset import purge as purge_resets
 
     counts["password_resets"] = purge_resets(db)

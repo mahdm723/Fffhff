@@ -1,4 +1,4 @@
-// Inside the DZPLAY Android app: register its Firebase token (calls ring while the app is closed)
+// Inside the DZPLAY Android app: register its Firebase token (new-message alerts while the app is closed)
 // and tell the user once when a newer version is on /download.
 import { api } from './api.js';
 import { h, isAndroidApp, sheet } from './ui.js';

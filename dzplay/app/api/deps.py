@@ -30,9 +30,9 @@ def current_user(request: Request, db: Session) -> User:
     user = resolve_session(db, st.settings, token)
     if user is None:
         raise AppError(401, "unauthenticated", "يرجى تسجيل الدخول.")
-    from app.services import media_items, reels
+    from app.services import media_items, media_urls
 
-    media_items.bind_request(st.settings, reels.session_key(token))  # media URLs in this response: this session only
+    media_items.bind_request(st.settings, media_urls.session_key(token))  # media URLs in this response: this session only
     return user
 
 

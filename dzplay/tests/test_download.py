@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 
 from app.models import FcmToken
 from app.services import app_release, fcm
-from tests.conftest import reply, send
+from tests.conftest import send
 
 TOKEN = "fGx1:APA91b" + "x" * 140
 
@@ -43,32 +43,30 @@ def test_fcm_token_register_validate_reassign_remove(hx):
 
 
 def test_push_payloads_carry_no_identity():
-    m = fcm.call_message(TOKEN, "callid123", 35)["message"]
-    assert m["data"] == {"type": "call", "call_id": "callid123"} and "notification" not in m
-    assert m["android"]["priority"] == "HIGH" and m["android"]["ttl"] == "35s"
-    assert fcm.chat_message(TOKEN)["message"]["data"] == {"type": "message"}
-    from app.services.push import CALL_PAYLOAD
+    m = fcm.chat_message(TOKEN)["message"]
+    assert m["data"] == {"type": "message"} and "notification" not in m
+    assert not hasattr(fcm, "call_message")  # V6: calls were removed
+    from app.services import push
 
-    assert CALL_PAYLOAD["body"] == "مكالمة واردة على DZPLAY" and set(CALL_PAYLOAD) <= {"title", "body", "url", "tag", "call"}
+    assert not hasattr(push, "CALL_PAYLOAD") and set(push.PUSH_PAYLOAD) == {"title", "body", "url"}
 
 
-def test_offline_callee_is_rung_by_fcm(hx):
-    rung: list = []
+def test_offline_recipient_gets_a_message_alert_only(hx):
+    sent: list = []
 
     class FakeFcm:
-        def notify_call(self, user_id, call_id, ttl):
-            rung.append((user_id, call_id, ttl))
-
         def notify_message(self, user_id):
-            rung.append((user_id, "message", None))
+            sent.append(user_id)
 
         def shutdown(self):
             pass
 
     hx.state.fcm = FakeFcm()
     a, b = hx.user(), hx.user()
-    cid = send(a, "مرحبًا").json()["conversation"]["id"]
-    reply(b, cid, "أهلًا")
-    rung.clear()
-    call_id = a.post("/api/calls", json={"conversation_id": cid, "kind": "audio"}).json()["call"]["id"]
-    assert [r[1:] for r in rung] == [(call_id, hx.settings.CALL_RING_TIMEOUT)]
+    send(a, "مرحبًا")
+    with hx.db() as db:
+        from app.models import User
+
+        b_id = db.query(User).filter_by(email=b.email).one().id
+    assert sent == [b_id]
+    assert a.post("/api/calls", json={"conversation_id": "x" * 22, "kind": "audio"}).status_code in (404, 405)

@@ -145,7 +145,7 @@ def main() -> int:
 
             print("Idea picture")
             a.goto(base + "/#/home")
-            a.get_by_role("tab", name="الأفكار").click()
+            expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)  # V6: Home = the ideas pane alone
             img_btn = a.get_by_role("button", name="إضافة صورة")
             expect(img_btn).to_be_visible(timeout=10000)
             with a.expect_file_chooser() as fc:
@@ -174,7 +174,7 @@ def main() -> int:
             expect(a.locator(".viewer")).to_have_count(0)
 
             b.goto(base + "/#/home")
-            b.get_by_role("tab", name="الأفكار").click()
+            expect(b.locator("#idea-compose")).to_be_visible(timeout=10000)  # V6: Home = the ideas pane alone
             b.get_by_role("button", name="أفكار أخرى").click()
             bcard = b.locator(".post-card", has_text="غروب جميل اليوم")
             expect(bcard.locator(".post-card__media img")).to_be_visible(timeout=15000)

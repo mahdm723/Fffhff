@@ -17,7 +17,7 @@ from app.api.deps import get_state
 from app.api.schemas import _Body
 from app.errors import AppError, not_found
 from app.models import MediaItem, Post, User, VerificationRequest
-from app.services import media_moderation, monetization, support, tunables, verification
+from app.services import media_moderation, support, tunables, verification
 from app.services.messaging import Effects, iso
 
 router = APIRouter(prefix="/api/admin", tags=["admin-v5"])
@@ -222,85 +222,14 @@ def media_action(item_id: str, body: MediaActionBody, request: Request, ac: Admi
     return {"result": label, "item": row}
 
 
-# ----------------------------------------------------------------- monetization + ledger
-
-
-class LedgerBody(_Body):
-    kind: str = Field(max_length=12)  # earning | adjustment | payout
-    amount: Any = None
-    currency: str | None = Field(default=None, max_length=12)
-    note: str | None = Field(default=None, max_length=500)
-    paid_on: str | None = Field(default=None, max_length=10)  # payouts: date the Red Packet was sent
-
-
-class ReverseBody(_Body):
-    note: str | None = Field(default=None, max_length=500)
-
-
-@router.get("/monetization")
-def monetization_list(request: Request, status: str = Query(default="", max_length=10),
-                      ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
-        return monetization.admin_list(db, status)
-
-
-@router.post("/monetization/{app_id}/decide")
-def monetization_decide(app_id: str, body: DecideBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    from app.models import MonetizationApplication
-
-    st = get_state(request)
-    effects = Effects()
-    with st.database.session() as db:
-        a = db.get(MonetizationApplication, app_id) if len(app_id) <= 32 else None
-        if a is None:
-            raise not_found()
-        result = monetization.decide(db, a, body.action, ac.actor, body.note or "", effects)
-        if a.tg_message_id and st.bot is not None:
-            effects.later(media_moderation.mark_done, st.bot.admin_id, a.tg_message_id, f"{a.status} — {ac.actor}")
-    st.dispatch(effects)
-    return result
-
-
-@router.get("/users/{user_ref}/ledger")
-def user_ledger(user_ref: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
-        user = db.get(User, user_ref) if len(user_ref) <= 32 else None
-        if user is None:
-            raise not_found()
-        a = monetization.latest(db, user.id)
-        return {"balances": monetization.balance(db, user.id), "history": monetization.history(db, user.id, 500),
-                "application": monetization.admin_view(db, a) if a else None}
-
-
-@router.post("/users/{user_ref}/ledger", status_code=201)
-def ledger_add(user_ref: str, body: LedgerBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    effects = Effects()
-    with st.database.session() as db:
-        result = monetization.record(db, st.settings, user_ref, kind=body.kind, amount=body.amount, currency=body.currency,
-                                     note=body.note, actor=ac.actor, paid_on=body.paid_on, effects=effects)
-    st.dispatch(effects)
-    return result
-
-
-@router.post("/ledger/{entry_id}/reverse", status_code=201)
-def ledger_reverse(entry_id: int, body: ReverseBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    effects = Effects()
-    with st.database.session() as db:
-        result = monetization.reverse(db, entry_id, ac.actor, body.note, effects)
-    st.dispatch(effects)
-    return result
-
-
 # ----------------------------------------------------------------- the user page (V5 part)
 # (previews: GET /api/admin/media/<id>/<variant> in app.api.admin also serves V5 media, admin session only)
 
 
 @router.get("/users/{user_ref}/v5")
 def user_v5(user_ref: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    """Everything V5 about one account: star, requests, media, creator reels, tickets, earnings."""
-    from app.models import Reel, SupportTicket
+    """Everything V5 about one account: star, requests, media, tickets."""
+    from app.models import SupportTicket
 
     st = get_state(request)
     with st.database.session() as db:
@@ -311,19 +240,12 @@ def user_v5(user_ref: str, request: Request, ac: AdminContext = Depends(SUPER_AD
                           .order_by(VerificationRequest.created_at.desc()).limit(20)).scalars().all()
         media = db.execute(select(MediaItem).where(MediaItem.owner_id == user.id)
                            .order_by(MediaItem.created_at.desc()).limit(60)).scalars().all()
-        reels = db.execute(select(Reel).where(Reel.owner_id == user.id).order_by(Reel.created_at.desc()).limit(60)).scalars().all()
         tickets = db.execute(select(SupportTicket).where(SupportTicket.user_id == user.id)
                              .order_by(SupportTicket.updated_at.desc()).limit(30)).scalars().all()
-        app_ = monetization.latest(db, user.id)
         return {
             "verified": user.verified_at is not None, "verified_at": iso(user.verified_at), "verified_by": user.verified_by,
             "verification": [verification.admin_view(db, r) for r in reqs],
             "media": [_media_row(db, m) for m in media],
-            "reels": [{"id": r.id, "caption": r.caption, "status": r.status, "review": r.review_status, "show_author": bool(r.show_author),
-                       "show_on_profile": bool(r.show_on_profile), "likes": r.likes_count, "views": r.views_count,
-                       "created_at": iso(r.created_at)} for r in reels],
             "tickets": [{"id": t.id, "number": support.number(t), "subject": t.subject, "status": t.status,
                          "updated_at": iso(t.updated_at)} for t in tickets],
-            "monetization": monetization.admin_view(db, app_) if app_ else None,
-            "ledger": monetization.history(db, user.id, 100), "balances": monetization.balance(db, user.id),
         }

@@ -151,46 +151,21 @@ class Settings(BaseSettings):
     ADMIN_API_PER_MINUTE: int = 240  # requests per admin session per minute (the panel needs ~10 per screen)
     ADMIN_API_ANON_PER_MINUTE: int = 30  # unauthenticated panel API requests per network per minute
 
-    # --- Telegram bot (Reels uploads, password-recovery requests) -------------
+    # --- Telegram bot (moderation, password-recovery requests) -----------------
     TELEGRAM_BOT_TOKEN: str = ""  # secret: .env only
     TELEGRAM_ADMIN_CHAT_ID: str = ""  # only this chat may control the bot
     TELEGRAM_WEBHOOK_SECRET: str = ""  # secret: sent by Telegram in X-Telegram-Bot-Api-Secret-Token
     TELEGRAM_API_BASE: str = "https://api.telegram.org"  # or a Local Bot API server
     TELEGRAM_MAX_FILE_MB: int = 20  # getFile limit of the public Bot API
-    TELEGRAM_ALBUM_SETTLE_SECONDS: float = 2.5  # wait for the rest of an album before confirming
 
     # --- media cache + processing ----------------------------------------------
     MEDIA_CACHE_DIR: str = "./media-cache"
     MEDIA_CACHE_MAX_GB: float = 5.0
     MEDIA_CACHE_TTL: int = 14 * DAY  # files unused for this long are deleted (refetched on demand)
     MEDIA_URL_TTL: int = 2 * HOUR  # lifetime of signed media URLs
-    MEDIA_PROCESS_TIMEOUT: int = 300  # seconds per ffmpeg run
-    FFMPEG_BINARY: str = "ffmpeg"
-    FFPROBE_BINARY: str = "ffprobe"
-    VIDEO_MAX_WIDTH: int = 720  # portrait 720p
-    VIDEO_MAX_HEIGHT: int = 1280
-    VIDEO_CRF: int = 26
-    VIDEO_MAX_BITRATE_K: int = 2000
-    VIDEO_AUDIO_BITRATE_K: int = 96
-    VIDEO_REMUX_MAX_BITRATE_K: int = 3500  # H.264/AAC sources under this are only remuxed (fast)
     IMAGE_MAX_SIDE: int = 1440
     IMAGE_QUALITY: int = 82
     IMAGE_MAX_PIXELS: int = 40_000_000  # decompression-bomb guard
-
-    # --- reels -------------------------------------------------------------------
-    REELS_PAGE_SIZE: int = 12
-    REELS_FRESHNESS_HALF_LIFE_HOURS: float = 72.0  # weight halves every N hours of age
-    REELS_OLD_MIN_WEIGHT: float = 0.08  # old reels never drop below this weight
-    REELS_SEEN_TTL: int = 3 * DAY  # how long a "seen" mark lives
-    REELS_PIN_HOURS: int = 48  # /pin keeps a reel at the top this long
-    MAX_REEL_CAPTION_LENGTH: int = 2000
-    MAX_REEL_COMMENT_LENGTH: int = 300
-    MAX_REEL_COMMENTS_PER_MINUTE: int = 6
-    MAX_REEL_COMMENTS_PER_HOUR: int = 60
-    REEL_COMMENTS_PAGE_SIZE: int = 20
-    PREFETCH_COUNT: int = 3  # reels prefetched as soon as the app opens
-    PREFETCH_AHEAD: int = 3  # reels kept loaded after the one being watched
-    DEVICE_MEDIA_CACHE_MB: int = 200  # on-device cache cap for prefetched media
 
     # --- password recovery (admin-assisted via Telegram, code by e-mail) -------
     RESET_CODE_TTL: int = 24 * HOUR
@@ -215,7 +190,7 @@ class Settings(BaseSettings):
 
     # --- engagement control (admin panel) -------------------------------------------
     SYSTEM_ACCOUNTS: int = 25  # internal accounts team comments are posted from (shown as "dzplay")
-    ENGAGEMENT_TICK_SECONDS: int = 60  # how often gradual boosts/comment batches advance
+    ENGAGEMENT_TICK_SECONDS: int = 60  # how often spread-out team comment batches advance
     ENGAGEMENT_MAX_DURATION_HOURS: int = 30 * 24
     ENGAGEMENT_MAX_AMOUNT: int = 1_000_000  # per target and metric
     ENGAGEMENT_MAX_TARGETS: int = 200  # per bulk operation
@@ -244,29 +219,11 @@ class Settings(BaseSettings):
     WS_MSGS_PER_10S: int = 60  # client → server WebSocket messages per connection per 10 s
     WS_PING_SECONDS: int = 25  # keep-alive interval; the session is re-checked at each one
 
-    # --- V4: 1:1 voice / video calls (WebRTC through our own TURN server) --------
-    CALLS_ENABLED: bool = True  # effective only when TURN_SECRET is set (calls always go through TURN)
-    TURN_SECRET: str = ""  # SECRET (.env): shared with coturn "static-auth-secret" (use-auth-secret)
-    TURN_HOST: str = ""  # public host of coturn; empty = the host of PUBLIC_URL
-    TURN_PORT: int = 3478  # UDP + TCP
-    TURN_TLS_PORT: int = 5349  # TURN over TLS (needs the domain certificate); 0 = off
-    TURN_TTL: int = 3600  # lifetime of the temporary TURN credentials (seconds)
-    TURN_MIN_PORT: int = 49160  # coturn relay port range (open these UDP ports in the firewall)
-    TURN_MAX_PORT: int = 49200
-    CALL_FORCE_RELAY: bool = True  # iceTransportPolicy "relay": no side ever learns the other's IP
-    CALL_RING_TIMEOUT: int = 35  # seconds before an unanswered call becomes "missed"
-    CALL_RECONNECT_TIMEOUT: int = 20  # seconds the clients try ICE restarts before giving up
-    CALL_MAX_UNANSWERED: int = 3  # unanswered calls in a row to the same person ...
-    CALL_COOLDOWN: int = 1800  # ... then wait this many seconds before calling them again
-    CALL_MAX_PER_HOUR: int = 20  # calls a user may start per hour
-    CALL_QUALITY_REPORT_SECONDS: int = 10  # clients send a quality summary this often (stats every 2 s locally)
-    CALL_TICK_SECONDS: int = 2  # ring-timeout / dead-call watchdog interval (0 = off)
-    CALL_LOG_RETENTION_DAYS: int = 90  # call metadata (who / when / duration / quality) is then deleted
-    # Optional Firebase Cloud Messaging: rings the Android app when it is closed (and new-message alerts).
+    # --- Optional Firebase Cloud Messaging: new-message alerts in the Android app -------
     FCM_SERVICE_ACCOUNT_FILE: str = ""  # SECRET file (never in the repo): Firebase service-account JSON path
     FCM_PROJECT_ID: str = ""  # empty = read from the service-account file
 
-    # --- V5: user media (idea images, ephemeral chat images, creator reels) -----------
+    # --- V5: user media (idea images, ephemeral chat images) ------------------------------
     # Telegram is the file store; the server only relays. Two PRIVATE chats, both with the bot as admin:
     TELEGRAM_STORAGE_CHANNEL_ID: str = ""  # private channel holding every published file (e.g. -1001234567890)
     TELEGRAM_MODERATION_CHAT_ID: str = ""  # private group of moderators: each upload arrives with action buttons
@@ -274,13 +231,10 @@ class Settings(BaseSettings):
     UPLOAD_TMP_MAX_MB: int = 512  # new uploads wait (503) while the temp area holds more than this
     MEDIA_WORKER: str = "inline"  # inline (in the app process) | queue (separate media-worker container via Redis)
     MEDIA_WORKER_TIMEOUT: int = 600  # seconds the app waits for a queued job before giving up
-    MEDIA_FFMPEG_MEM_MB: int = 1536  # address-space limit for each ffmpeg/ffprobe run
-    TELEGRAM_STORE_MAX_MB: float = 18.0  # stored files stay under the Bot API's 20 MB download limit
     UPLOADS_PER_HOUR: int = 20  # any upload, per user
     UPLOAD_QUEUE_MAX: int = 30  # files waiting for processing; above this new uploads are asked to retry
     CAPTION_BLOCK_CATEGORIES: str = "sexual,threat,blackmail"  # word-filter categories that refuse a caption
     UPLOAD_IMAGE_TYPES: str = "jpeg,png,webp,heic"  # checked by magic bytes, never by the file name
-    UPLOAD_VIDEO_TYPES: str = "mp4,mov,webm"
     UPLOAD_IMAGE_MAX_MB: float = 12.0  # raw upload (the phone already compresses before sending)
     UPLOAD_IMAGE_MIN_SIDE: int = 64
     UPLOAD_IMAGE_MAX_SIDE: int = 12000  # also bounded by IMAGE_MAX_PIXELS (decompression bombs)
@@ -291,7 +245,6 @@ class Settings(BaseSettings):
     SERVER_NSFW_CHECK: bool = True
     NSFW_BLOCK_THRESHOLD: float = 0.70  # P(porn) + P(hentai) at or above this is refused
     NSFW_SEXY_THRESHOLD: float = 0.92  # P(sexy) at or above this is refused (1.0 = never)
-    NSFW_VIDEO_FRAMES: int = 4  # frames checked per video
     # idea images
     IDEA_IMAGES_ENABLED: bool = True
     IDEA_IMAGE_LIMIT_PER_24H: int = 1
@@ -316,27 +269,13 @@ class Settings(BaseSettings):
     SUPPORT_MAX_LENGTH: int = 3000
 
     # --- V5: blue star (official trusted account; NOT identity verification) -------------
-    VERIFY_ENABLED: bool = True
+    VERIFY_ENABLED: bool = False  # V6: closed (not editable); the star comes with memberships in V6 phase 5
     VERIFY_MIN_POSTS: int = 5
     VERIFY_MIN_LIKES: int = 20
     VERIFY_MIN_ACCOUNT_AGE_DAYS: int = 14
     PAYMENT_MIN_AMOUNT: float = 0.0  # 0 = any amount (the wallet itself is set from the panel)
 
-    # --- V5: creator reels (studio, verified accounts only) --------------------------
-    CREATOR_REELS_ENABLED: bool = True
-    CREATOR_REEL_LIMIT_PER_24H: int = 1
-    REJECTED_COUNTS_TOWARD_LIMIT: bool = True
-    REELS_REQUIRE_APPROVAL: bool = True
-    CREATOR_REEL_MIN_SECONDS: int = 3
-    CREATOR_REEL_MAX_SECONDS: int = 90  # with TELEGRAM_STORE_MAX_MB=18 → ~1.5 Mbit/s at 720p
-    CREATOR_REEL_MAX_MB: float = 150.0  # raw upload from the phone (the server re-encodes to <= 18 MB)
-    CREATOR_UPLOAD_CHAT_TTL: int = 7 * DAY  # a video leaves the studio window after this (the reel stays)
-
-    # --- V5: monetization + «أموالي» ---------------------------------------------------
-    MONETIZE_ENABLED: bool = True
-    MONETIZE_MIN_REELS: int = 3  # published studio reels
-    MONETIZE_MIN_LIKES: int = 100  # likes on those reels
-    EARNINGS_CURRENCY: str = "USDT"
+    # --- e-mail confirmation codes ------------------------------------------------------
     EMAIL_CODE_TTL: int = 30 * 60
 
     # --- user protection: automatic flagging (app/services/moderation.py) ----
@@ -417,10 +356,6 @@ class Settings(BaseSettings):
         return {t.strip().lower() for t in self.UPLOAD_IMAGE_TYPES.split(",") if t.strip()}
 
     @property
-    def video_types(self) -> set[str]:
-        return {t.strip().lower() for t in self.UPLOAD_VIDEO_TYPES.split(",") if t.strip()}
-
-    @property
     def smtp_enabled(self) -> bool:
         return bool(self.SMTP_HOST and self.SMTP_FROM)
 
@@ -442,16 +377,6 @@ class Settings(BaseSettings):
         if v not in ("starttls", "ssl", "none"):
             raise ValueError("SMTP_SECURITY must be starttls, ssl or none")
         return v
-
-    @property
-    def turn_host(self) -> str:
-        from urllib.parse import urlsplit
-
-        return self.TURN_HOST or (urlsplit(self.PUBLIC_URL).hostname or "")
-
-    @property
-    def calls_enabled(self) -> bool:
-        return bool(self.CALLS_ENABLED and self.TURN_SECRET and self.turn_host)
 
     @property
     def fcm_enabled(self) -> bool:

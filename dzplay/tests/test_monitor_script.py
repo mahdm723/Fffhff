@@ -17,7 +17,7 @@ FAKE_DOCKER = r"""#!/usr/bin/env bash
 shift  # compose
 case "$1 $2" in
   "ps --status") printf '%s\n' $FAKE_RUNNING ;;
-  "config --services") printf '%s\n' app db redis caddy coturn media-worker ;;
+  "config --services") printf '%s\n' app db redis caddy media-worker ;;
   "exec -T")
     shift 2
     case "$1 $2" in
@@ -28,7 +28,7 @@ case "$1 $2" in
 esac
 """
 
-ALL = "app db redis caddy coturn media-worker"
+ALL = "app db redis caddy media-worker"
 
 
 @pytest.fixture()
@@ -73,9 +73,9 @@ def test_quiet_when_everything_is_fine(box):
 
 def test_service_down_alerts_once_then_recovers(box):
     _, run, sent = box
-    run(running="app db redis caddy coturn")  # media-worker stopped
+    run(running="app db redis caddy")  # media-worker stopped
     assert len(sent()) == 1 and "media-worker" in sent()[0] and "مشكلة جديدة" in sent()[0]
-    run(running="app db redis caddy coturn")  # still down: no duplicate before the reminder delay
+    run(running="app db redis caddy")  # still down: no duplicate before the reminder delay
     assert len(sent()) == 1
     run()
     assert len(sent()) == 2 and "عاد طبيعيًا" in sent()[1] and "media-worker" in sent()[1]
@@ -108,7 +108,7 @@ def test_intrusion_spike_counts_only_the_last_hour(box):
 
 def test_direct_fallback_keeps_the_token_off_the_command_line(box):
     tmp, run, sent = box
-    res = run(running="app db redis caddy coturn", FAKE_APP_SEND="0")
+    res = run(running="app db redis caddy", FAKE_APP_SEND="0")
     assert sent() == [] and "sent (direct)" in res.stdout and "secret-token-value" not in res.stdout
     assert "secret-token-value" in (tmp / "curl.in").read_text()  # config on stdin
     assert "secret-token-value" not in (tmp / "curl.args").read_text()  # never in argv (ps)

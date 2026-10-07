@@ -1,7 +1,6 @@
 // Public profile: chosen name, gender icon, DZ-ID, public idea stats and posts. Never the e-mail.
 // Reached by profile ref (#/u/<ref>, from Ideas) or by public ID (#/id/DZ-XXXXXX, from chats).
 import { api } from '../api.js';
-import { openVideo } from '../media-pick.js';
 import { icon } from '../icons.js';
 import { profilePosts } from '../ideas.js';
 import { messagePerson } from '../people.js';
@@ -54,17 +53,7 @@ export function renderUser(page, { ref, publicId, navigate }) {
       msgBtn ? h('div', { class: 'id-card__actions' }, msgBtn) : null,
     ].filter(Boolean));
     stats.replaceChildren(stat(p.stats.posts, 'منشورات'), stat(p.stats.likes, 'إعجاب'), stat(p.stats.dislikes, 'عدم إعجاب'));
-    // V5: named creator reels the owner chose to show on the profile
-    const reelsBox = h('div');
-    api.get(`/api/profiles/${encodeURIComponent(ref)}/reels`).then(({ reels }) => {
-      if (!reels.length) return;
-      reelsBox.replaceChildren(h('h2', { class: 'section-title', text: 'فيديوهاته' }),
-        h('div', { class: 'profile-reels' }, ...reels.map((r) => h('button', {
-          type: 'button', 'aria-label': r.caption || 'فيديو', onclick: () => openVideo(r.src, { poster: r.poster }),
-        }, h('img', { src: r.poster, alt: '', loading: 'lazy' })))));
-    }).catch(() => {});
     posts.replaceChildren(
-      reelsBox,
       h('h2', { class: 'section-title', text: 'منشوراته' }),
       profilePosts(ref, { navigate, emptyText: 'لا توجد منشورات.' }),
     );

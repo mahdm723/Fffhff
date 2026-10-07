@@ -24,7 +24,7 @@ class AppState:
     telegram_secret: str = ""  # X-Telegram-Bot-Api-Secret-Token expected on the webhook
     telegram_source: str = "none"  # panel | env | none
     telegram_transport: object | None = None  # tests only (httpx.MockTransport)
-    fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (incoming calls to the Android app)
+    fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (new-message alerts in the Android app)
     pipeline: object | None = None  # V5 MediaPipeline (user uploads -> worker -> Telegram storage)
 
     @classmethod
@@ -84,13 +84,12 @@ class AppState:
         bot_settings = self.settings.model_copy(update={
             "TELEGRAM_BOT_TOKEN": token, "TELEGRAM_ADMIN_CHAT_ID": str(chat_id), "TELEGRAM_WEBHOOK_SECRET": secret or ""})
         self.telegram = TelegramClient(bot_settings, transport=self.telegram_transport)
-        self.bot = BotService(bot_settings, self.database, self.telegram, self.media, self.limiter)
+        self.bot = BotService(bot_settings, self.database, self.telegram, self.limiter)
         password_reset.install(self.bot)
-        from app.services import media_moderation, monetization, verification
+        from app.services import media_moderation, verification
 
         media_moderation.install(self)
         verification.install(self)
-        monetization.install(self)
 
     def load_runtime_config(self) -> None:
         """Apply bot settings saved from the admin panel (they take precedence over .env)."""
@@ -119,12 +118,7 @@ class AppState:
             self.hub.notify(user_ids, {"type": "sync", "reason": reason})
         for user_ids, event in effects.events:
             self.hub.notify(user_ids, event)
-        for user_id, _call_id in effects.call_push:
-            if not self.hub.is_online(user_id):
-                self.push.notify_call(user_id, self.settings.CALL_RING_TIMEOUT)
-                if self.fcm is not None:
-                    self.fcm.notify_call(user_id, _call_id, self.settings.CALL_RING_TIMEOUT)
-        for fn, args in effects.tasks:  # V5: Telegram calls etc., after the commit, off the request thread
+        for fn, args in effects.tasks:  # V5: Telegram requests etc., after the commit, off the request thread
             self.pipeline.background(fn, self, *args)
         for user_id in dict.fromkeys(effects.push_to):
             if not self.hub.is_online(user_id):

@@ -97,10 +97,14 @@ export function renderVerify(page, { navigate, onMe }) {
         h('h2', { class: 'card__title', text: `طلبك: ${req.status_label}` }),
         h('p', { class: 'muted', text: `${req.amount} ${req.currency} · ${req.network} · ${formatDay(req.created_at)}` }), note));
     }
+    if (!data.enabled) { // V6: the star comes with memberships (phase 5); existing stars are kept
+      nodes.push(h('p', { class: 'muted', text: 'طلبات النجمة الزرقاء متوقفة: ستصبح النجمة جزءًا من العضوية قريبًا.' }));
+      body.replaceChildren(...nodes);
+      return;
+    }
     nodes.push(h('h2', { class: 'section-title', text: 'الشروط' }),
       h('ul', { class: 'conds glass' }, ...data.conditions.items.map(bar)));
-    if (!data.enabled) nodes.push(h('p', { class: 'muted', text: 'طلبات التوثيق متوقفة حاليًا.' }));
-    else if (req && req.status === 'needs_fix') nodes.push(form(data, req));
+    if (req && req.status === 'needs_fix') nodes.push(form(data, req));
     else if (req && req.status === 'pending') nodes.push(h('p', { class: 'muted', text: 'طلبك قيد المراجعة. ستصلك النتيجة هنا وعلى بريدك.' }));
     else if (data.conditions.met) nodes.push(form(data, null));
     else nodes.push(h('button', { class: 'btn btn--primary btn--block', type: 'button', disabled: true }, 'أكمل الشروط لتقديم الطلب'));

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# DZPLAY — connect your Telegram bot (Reels uploads + password recovery) in one step.
+# DZPLAY — connect your Telegram bot (stats, password recovery, moderation buttons) in one step.
 #
 #   sudo /opt/dzplay/dzplay/deploy/telegram-setup.sh
 #
@@ -88,8 +88,7 @@ fi
 cat <<EOF
 
 Done. In your bot chat:
-  • send a video with a caption        → a video Reel
-  • send a photo or an album + caption → a photo Reel
-  • /list  /hide ID  /show ID  /pin ID 24  /caption ID text  /delete ID  /stats  /help
-  (max 20 MB per file — send big videos as a normal video so Telegram compresses them)
+  • /stats  → users, ideas of the last 24 h, password resets waiting
+  • password-reset requests and moderation buttons (pictures, blue-star payments) arrive here
+  • /help
 EOF

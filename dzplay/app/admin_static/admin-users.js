@@ -88,7 +88,7 @@ const GENDER = { male: 'رجل', female: 'أنثى', unspecified: 'أفضّل ع
 function privacyText(p) {
   if (!p) return '—';
   return [p.accept_anonymous ? 'يستقبل المجهولة' : 'لا يستقبل المجهولة', p.accept_direct === 'everyone' ? 'يستقبل المباشرة' : 'لا يستقبل المباشرة',
-    p.accept_calls ? 'يستقبل المكالمات' : 'لا يستقبل المكالمات', p.searchable_by_name ? 'يظهر في البحث' : 'مخفي من البحث بالاسم'].join(' · ');
+    p.searchable_by_name ? 'يظهر في البحث' : 'مخفي من البحث بالاسم'].join(' · ');
 }
 
 export function openUser(id) {
@@ -135,14 +135,12 @@ export function openUser(id) {
           ...d.shared_network_accounts.map((a) => h('div', { class: 'admin-line' }, authorLine(a), chip(STATUS[a.status] || a.status)))),
         section('المنشورات', d.posts.length, ...d.posts.map((p) => h('div', { class: 'admin-line admin-line--col' },
           h('p', { class: 'admin-text', dir: 'auto', text: p.content }),
-          h('span', { class: 'admin-meta' }, `${when(p.created_at)} · 👍 ${fmt(p.real.likes)}+${fmt(p.boost.likes)} · 👎 ${fmt(p.real.dislikes)}+${fmt(p.boost.dislikes)} · 💬 ${fmt(p.comments)}`,
+          h('span', { class: 'admin-meta' }, `${when(p.created_at)} · 👍 ${fmt(p.real.likes)} · 👎 ${fmt(p.real.dislikes)} · 💬 ${fmt(p.comments)}`,
             h('button', { type: 'button', class: 'admin-link', onclick: () => hooks.openIdea && hooks.openIdea(p.id) }, ' التعليقات'))))),
         section('تعليقاته على الأفكار', d.idea_comments.length, ...d.idea_comments.map((c) => h('div', { class: 'admin-line admin-line--col' },
           h('p', { class: 'admin-text', dir: 'auto', text: c.content }), h('span', { class: 'admin-meta', text: when(c.created_at) })))),
-        section('تعليقاته على Reels', d.reel_comments.length, ...d.reel_comments.map((c) => h('div', { class: 'admin-line admin-line--col' },
-          h('p', { class: 'admin-text', dir: 'auto', text: c.content }), h('span', { class: 'admin-meta', text: when(c.created_at) })))),
         section('التفاعلات', d.reactions.length, ...d.reactions.map((r) => h('div', { class: 'admin-line' },
-          h('span', { text: `${r.reaction === 'like' ? '👍' : '👎'} ${r.target === 'idea' ? 'فكرة' : 'Reel'}` }),
+          h('span', { text: `${r.reaction === 'like' ? '👍' : '👎'} فكرة` }),
           h('code', { dir: 'ltr', text: shortRef(r.id) }), h('span', { class: 'admin-meta', text: when(r.at) })))),
         section('المحادثات', d.conversations.length, ...d.conversations.map((c) => h('button', {
           type: 'button', class: 'admin-line admin-line--btn', onclick: () => openConversation(c.id),

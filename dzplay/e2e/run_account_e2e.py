@@ -51,7 +51,8 @@ def main() -> int:
     tmp = tempfile.mkdtemp(prefix="dz-account-e2e-")
     db_url = f"sqlite:///{tmp}/account.db"
     proc, base = start_server(args.port, {"DATABASE_URL": db_url, "ADMIN_PATH": ADMIN_PATH, "VERIFY_MIN_POSTS": "1",
-                                          "VERIFY_MIN_LIKES": "0", "VERIFY_MIN_ACCOUNT_AGE_DAYS": "0"})
+                                          "VERIFY_MIN_LIKES": "0", "VERIFY_MIN_ACCOUNT_AGE_DAYS": "0",
+                                          "VERIFY_ENABLED": "true"})  # V6: closed by default; the flow is still tested
     run = Run(base, Path(args.shots))
     chromium = os.environ.get("PW_CHROMIUM", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
     try:
@@ -87,7 +88,7 @@ def main() -> int:
             expect(a.get_by_role("button", name="أكمل الشروط لتقديم الطلب")).to_be_disabled()
             run.shot(a, "c03-verify-conditions")
             a.goto(base + "/#/home")
-            a.get_by_role("tab", name="الأفكار").click()
+            expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)  # V6: Home = the ideas pane alone
             a.locator("#idea-compose").fill("أول فكرة لي هنا")
             a.get_by_role("button", name="نشر", exact=True).click()
             expect(a.get_by_text("نُشرت فكرتك")).to_be_visible(timeout=10000)
@@ -122,7 +123,7 @@ def main() -> int:
             a.goto(base + "/#/profile")
             expect(a.locator(".id-card .star-mark")).to_be_visible(timeout=10000)
             a.goto(base + "/#/home")
-            a.get_by_role("tab", name="الأفكار").click()
+            expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)  # V6: Home = the ideas pane alone
             a.get_by_role("button", name="أفكار أخرى").click()
             expect(a.locator(".post-card", has_text="أول فكرة لي هنا").locator(".star-mark")).to_be_visible(timeout=10000)
             run.shot(a, "c06-star-on-idea")
