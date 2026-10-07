@@ -191,6 +191,8 @@ document.addEventListener('dz:badges', updateBadges);
 
 async function boot() {
   initKeyboard();
+  // V6: an opaque strip under the phone's status bar, on every screen (outside #app, never re-rendered)
+  if (!document.querySelector('.status-scrim')) document.body.append(h('div', { class: 'status-scrim', 'aria-hidden': 'true' }));
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   store.loadCache();
   try {
