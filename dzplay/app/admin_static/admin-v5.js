@@ -198,6 +198,7 @@ export function renderSettings(main) {
       ...items.map((s) => {
         let ctl;
         if (s.type === 'bool') { ctl = h('input', { type: 'checkbox', checked: s.value || null }); }
+        else if (s.type === 'choice') ctl = h('select', { class: 'input', dir: 'ltr' }, ...s.choices.map((c) => h('option', { value: c, selected: c === s.value || null, text: c })));
         else ctl = input({ value: String(s.value ?? ''), dir: 'ltr', inputmode: s.type === 'int' || s.type === 'float' ? 'decimal' : null });
         const save = btn('حفظ', 'btn--ghost', async () => {
           let v;

@@ -698,6 +698,21 @@ class EngagementJob(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
+class MarketSnapshot(Base):
+    """V6 phase 2: the last good market list (gainers/losers from Bybit), shared by every app instance.
+
+    A failed refresh keeps the previous row, so the app shows it with a "stale" notice."""
+
+    __tablename__ = "market_snapshots"
+
+    key: Mapped[str] = mapped_column(String(16), primary_key=True)  # "latest"
+    data: Mapped[str] = mapped_column(Text)  # JSON
+    source: Mapped[str] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime)  # when Bybit last answered
+    checked_at: Mapped[datetime] = mapped_column(DateTime)  # last attempt (success or not)
+    last_error: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
 class AppSetting(Base):
     """Settings changed from the admin panel at runtime (e.g. the Telegram bot).
 

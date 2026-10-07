@@ -1,12 +1,14 @@
-// Home: the Ideas feed. (V6: Reels were removed; the "السوق | الأفكار" pager arrives in V6 phase 2 and
-// reuses the .home-pager / .home-pane scroll-snap container below.)
+// Home: «السوق | الأفكار» — two panes side by side; swipe or tap the switch at the top (V6 phase 2).
+// Ideas is the default; the last pane used is remembered on this phone.
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { infiniteSentinel, onIdeaChange, postCard } from '../ideas.js';
 import { PickError, chooseFile, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
 import { autoGrow, h, newClientId, toast, wordmark } from '../ui.js';
+import { renderMarket } from './market.js';
 
 const DRAFT_KEY = 'dz:idea-draft';
+const PANE_KEY = 'dz:home-pane';
 const STALE_MS = 5 * 60 * 1000;
 
 // Kept between tab switches so returning to Home doesn't reshuffle or lose the scroll position.
@@ -19,15 +21,53 @@ export function resetFeedCache() {
   Object.assign(feedState, { posts: [], cursor: null, done: false, loadedAt: 0, scrollY: 0 });
 }
 
+function readPane() { try { return localStorage.getItem(PANE_KEY) === 'market' ? 'market' : 'ideas'; } catch { return 'ideas'; } }
+function writePane(v) { try { localStorage.setItem(PANE_KEY, v); } catch { /* ignore */ } }
+
 export function renderHome(page, ctx) {
   page.classList.add('page--home');
-  const ideasPane = h('section', { class: 'home-pane home-pane--ideas home-pane--solo', id: 'pane-ideas', 'aria-label': 'الأفكار' });
-  const pager = h('div', { class: 'home-pager' }, ideasPane);
-  page.replaceChildren(pager);
+  const marketPane = h('section', { class: 'home-pane home-pane--market', id: 'pane-market', 'aria-label': 'السوق' });
+  const ideasPane = h('section', { class: 'home-pane home-pane--ideas', id: 'pane-ideas', 'aria-label': 'الأفكار' });
+  const pager = h('div', { class: 'home-pager' }, marketPane, ideasPane);
+  const tab = (id, label, pane) => h('button', {
+    type: 'button', role: 'tab', class: 'home-switch__tab', 'aria-controls': pane.id, dataset: { pane: id },
+    onclick: () => show(id, true),
+  }, label);
+  const tabs = [tab('market', 'السوق', marketPane), tab('ideas', 'الأفكار', ideasPane)];
+  const switcher = h('div', { class: 'home-switch', role: 'tablist', 'aria-label': 'الصفحة الرئيسية' },
+    h('div', { class: 'home-switch__inner glass glass--blur' }, ...tabs, h('span', { class: 'home-switch__bar', 'aria-hidden': 'true' })));
+  page.replaceChildren(pager, switcher);
+
+  const market = renderMarket(marketPane);
   const cleanupIdeas = renderIdeasPane(ideasPane, ctx);
+  let current = readPane();
+
+  function mark(id) {
+    current = id;
+    tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.pane === id)));
+    switcher.dataset.pane = id;
+    page.dataset.pane = id;
+    market.setVisible(id === 'market');
+    writePane(id);
+  }
+  function show(id, smooth) {
+    (id === 'market' ? marketPane : ideasPane).scrollIntoView({ inline: 'start', block: 'nearest', behavior: smooth ? 'smooth' : 'auto' });
+    mark(id);
+  }
+  // Which pane is on screen after a swipe (works whatever the RTL scrollLeft convention is).
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting && e.intersectionRatio > 0.55) mark(e.target === marketPane ? 'market' : 'ideas');
+  }, { root: pager, threshold: [0.55] });
+  io.observe(marketPane);
+  io.observe(ideasPane);
+  requestAnimationFrame(() => show(current, false));
+
   return () => {
+    io.disconnect();
+    market.destroy();
     cleanupIdeas();
     page.classList.remove('page--home');
+    delete page.dataset.pane;
   };
 }
 

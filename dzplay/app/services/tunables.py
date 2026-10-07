@@ -28,12 +28,13 @@ _PREFIX = "tun."
 @dataclass(frozen=True)
 class Tunable:
     key: str
-    kind: str  # int | float | bool | text | chat (Telegram chat id or empty)
+    kind: str  # int | float | bool | text | chat (Telegram chat id or empty) | choice (one of `choices`)
     group: str
     label: str
     min: float | None = None
     max: float | None = None
     max_len: int = 500
+    choices: tuple[str, ...] = ()
 
 
 GROUPS = {
@@ -44,6 +45,7 @@ GROUPS = {
     "telegram": "قنوات Telegram",
     "support": "الدعم",
     "verify": "التوثيق (النجمة الزرقاء)",
+    "market": "السوق",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -96,6 +98,14 @@ REGISTRY: list[Tunable] = [
     Tunable("VERIFY_MIN_ACCOUNT_AGE_DAYS", "int", "verify", "أقل عمر للحساب (يوم)", 0, 3650),
     Tunable("PAYMENT_MIN_AMOUNT", "float", "verify", "أقل مبلغ للدفع (0 = أي مبلغ)", 0, 1000000),
     Tunable("MEDIA_EVIDENCE_RETENTION_DAYS", "int", "moderation", "مدة الاحتفاظ بالوسائط المبلّغ عنها (يوم)", 7, 3650),
+    # V6 phase 2: market
+    Tunable("MARKET_ENABLED", "bool", "market", "عرض السوق في الرئيسية"),
+    Tunable("MARKET_BASE_URL", "choice", "market", "مصدر الأسعار (نطاق Bybit)",
+            choices=("https://api.bybit.com", "https://api.bytick.com")),
+    Tunable("MARKET_REFRESH_SECONDS", "int", "market", "تحديث الأسعار كل (ثانية)", 30, 3600),
+    Tunable("MARKET_MIN_TURNOVER_24H", "float", "market", "أقل حجم تداول في 24 ساعة (USDT)", 0, 1e12),
+    Tunable("MARKET_EXCLUDE", "text", "market", "رموز مستبعدة (مفصولة بفواصل، مثل LUNAUSDT)", max_len=1000),
+    Tunable("MARKET_DISCLAIMER", "text", "market", "التنبيه أسفل السوق", max_len=300),
 ]
 _BY_KEY = {t.key: t for t in REGISTRY}
 
@@ -121,6 +131,10 @@ def coerce(t: Tunable, value: object):
         if not isinstance(value, str) or (value.strip() and not _CHAT.match(value.strip())):
             raise bad
         return value.strip()
+    if t.kind == "choice":
+        if value not in t.choices:
+            raise bad
+        return value
     if t.kind == "text":
         if not isinstance(value, str) or len(value) > t.max_len or any(ord(c) < 32 for c in value):
             raise bad
@@ -174,7 +188,7 @@ def listing(db: Session, settings: Settings) -> list[dict]:
     for t in REGISTRY:
         row = stored.get(t.key)
         out.append({"key": t.key, "type": t.kind, "group": t.group, "group_label": GROUPS.get(t.group, t.group),
-                    "label": t.label, "min": t.min, "max": t.max, "value": getattr(settings, t.key),
+                    "label": t.label, "min": t.min, "max": t.max, "choices": list(t.choices) or None, "value": getattr(settings, t.key),
                     "default": _env_default(settings, t.key), "overridden": row is not None,
                     "updated_by": row.updated_by if row else None})
     return out

@@ -17,7 +17,7 @@ from app.api.deps import get_state
 from app.api.schemas import _Body
 from app.errors import AppError, not_found
 from app.models import MediaItem, Post, User, VerificationRequest
-from app.services import media_moderation, support, tunables, verification
+from app.services import market, media_moderation, support, tunables, verification
 from app.services.messaging import Effects, iso
 
 router = APIRouter(prefix="/api/admin", tags=["admin-v5"])
@@ -55,6 +55,26 @@ class PaymentBody(_Body):
 
 class MediaActionBody(_Body):
     action: str = Field(max_length=8)
+
+
+# ----------------------------------------------------------------- V6 phase 2: market
+
+
+@router.get("/market")
+def market_status(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        return market.status(db, st.settings)
+
+
+@router.post("/market/refresh")
+def market_refresh(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        market.refresh(db, st.settings, force=True)
+        _record(db, ac, "market_refresh", detail=st.settings.MARKET_BASE_URL)
+        db.commit()
+        return market.status(db, st.settings)
 
 
 # ----------------------------------------------------------------- live settings

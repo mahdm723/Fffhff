@@ -28,7 +28,8 @@ def start_server(port: int, extra_env: dict | None = None) -> tuple[subprocess.P
     tmp = tempfile.mkdtemp(prefix="dz-e2e-")
     env = dict(os.environ, DATABASE_URL=f"sqlite:///{tmp}/e2e.db", SECRET_KEY="e2e-secret", ENV="development",
                CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10",
-               MEDIA_CACHE_DIR=f"{tmp}/media-cache", UPLOAD_TMP_DIR=f"{tmp}/upload-tmp")
+               MEDIA_CACHE_DIR=f"{tmp}/media-cache", UPLOAD_TMP_DIR=f"{tmp}/upload-tmp",
+               MARKET_REFRESH_SECONDS="0")  # no Bybit calls unless a test starts e2e/fake_bybit.py
     env.update(extra_env or {})
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"],

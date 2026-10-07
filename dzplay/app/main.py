@@ -25,6 +25,7 @@ from app.api import admin as admin_api
 from app.api import admin_v5 as admin_v5_api
 from app.api import auth as auth_api
 from app.api import download as download_api
+from app.api import market as market_api
 from app.api import media as media_api
 from app.api import messages as messages_api
 from app.api import people as people_api
@@ -140,6 +141,22 @@ async def _media_loop(state: AppState) -> None:
             log.exception("media tick failed")
 
 
+async def _market_loop(state: AppState) -> None:
+    """V6 phase 2: refresh the market list (top gainers/losers) from Bybit."""
+    from app.services import market
+
+    while True:
+        try:
+            def _run() -> None:
+                with state.database.session() as db:
+                    market.refresh(db, state.settings)
+
+            await run_in_threadpool(_run)
+        except Exception:  # noqa: BLE001 - keep the loop alive
+            log.exception("market refresh failed")
+        await asyncio.sleep(max(10, state.settings.MARKET_REFRESH_SECONDS))
+
+
 def create_app(settings: Settings | None = None, telegram_transport=None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -161,7 +178,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         cleanup_task = asyncio.create_task(_cleanup_loop(state)) if settings.CLEANUP_INTERVAL > 0 else None
         engagement_task = asyncio.create_task(_engagement_loop(state)) if settings.ENGAGEMENT_TICK_SECONDS > 0 else None
         media_task = asyncio.create_task(_media_loop(state)) if settings.MEDIA_TICK_SECONDS > 0 else None
+        market_task = asyncio.create_task(_market_loop(state)) if settings.MARKET_REFRESH_SECONDS > 0 else None
         yield
+        if market_task:
+            market_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await market_task
         if media_task:
             media_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -251,6 +273,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(people_api.router)
     app.include_router(download_api.router)
     app.include_router(media_api.router)
+    app.include_router(market_api.router)
     app.include_router(policies_api.router)
     app.include_router(posts_api.router)
     app.include_router(telegram_api.router)

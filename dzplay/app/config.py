@@ -268,6 +268,20 @@ class Settings(BaseSettings):
     # --- e-mail confirmation codes ------------------------------------------------------
     EMAIL_CODE_TTL: int = 30 * 60
 
+    # --- V6 phase 2: market (Bybit public spot tickers; read-only, no account, no key) ----------
+    # The server polls Bybit; phones only ever call /api/market. Never investment advice.
+    MARKET_ENABLED: bool = True
+    MARKET_BASE_URL: str = "https://api.bybit.com"  # or https://api.bytick.com (same API, other domain)
+    MARKET_REFRESH_SECONDS: int = 60
+    MARKET_KLINE_REFRESH_SECONDS: int = 600  # 24 h sparklines of the shown coins
+    MARKET_TOP_N: int = 6  # gainers and losers each
+    MARKET_MIN_TURNOVER_24H: float = 1_000_000.0  # USDT; thinner pairs are ignored
+    MARKET_EXCLUDE: str = ""  # extra symbols to hide, comma separated (e.g. LUNAUSDT)
+    MARKET_STABLECOINS: str = ("USDC,USDE,DAI,FDUSD,TUSD,BUSD,USDD,PYUSD,USDP,EURC,EURT,USD1,RLUSD,USDY,USDTB,"
+                               "USTC,GUSD,LUSD,FRAX,USDQ,USDR,XUSD,BFUSD,AUSD,USDA,USDG")
+    MARKET_TIMEOUT: float = 10.0
+    MARKET_DISCLAIMER: str = "للاطلاع فقط وليست نصيحة استثمارية. الأسعار من Bybit وقد تتأخر قليلًا."
+
     # --- user protection: automatic flagging (app/services/moderation.py) ----
     MODERATION_ENABLED: bool = True  # scan new messages/comments; hits are queued for admin review
     MODERATION_EXTRA_WORDS: str = ""  # extra words/phrases, comma separated ("word*" = starts with)

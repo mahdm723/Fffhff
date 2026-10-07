@@ -51,6 +51,7 @@ def make_settings(tmp_path, **overrides) -> Settings:
         MEDIA_CACHE_DIR=str(tmp_path / "media-cache"),
         UPLOAD_TMP_DIR=str(tmp_path / "upload-tmp"),
         MEDIA_TICK_SECONDS=0,  # tests run media_items.tick explicitly
+        MARKET_REFRESH_SECONDS=0,  # no Bybit calls from tests (tests/test_market.py uses a fake transport)
     )
     base.update(overrides)
     return Settings(**base)

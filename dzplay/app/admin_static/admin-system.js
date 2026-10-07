@@ -49,6 +49,7 @@ export async function renderSystem(main) {
         h('div', { class: 'admin-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct),
           'aria-label': 'استخدام الذاكرة المؤقتة' }, fill),
         h('p', { class: 'admin-meta', text: `${bytes(used)} من ${bytes(limit)} (${fmt(pct)}٪). الأقدم استخدامًا يُحذف تلقائيًا ويُعاد تنزيله من Telegram عند الحاجة.` }))),
+    marketCard(),
     blocksSection(d.ip_blocks),
     resetsSection(d.reset_requests),
     loginsSection(d.failed_logins),
@@ -62,6 +63,28 @@ export async function renderSystem(main) {
           + 'docker compose exec app python -m app.admin_cli set-admin-password NAME\n'
           + 'docker compose exec app python -m app.admin_cli audit',
       }))));
+}
+
+// ------------------------------------------------------------------ V6 phase 2: market (Bybit)
+
+function marketCard() {
+  const box = h('div', {}, spinner());
+  const paint = (m) => box.replaceChildren(
+    rows([
+      ['الحالة', !m.enabled ? 'موقوف من الإعدادات' : m.stale ? 'قديمة (لم يُحدَّث مؤخرًا)' : 'يعمل', m.enabled && !m.stale ? 'admin-ok' : 'admin-warn'],
+      ['المصدر', m.source],
+      ['آخر تحديث ناجح', m.updated_at ? when(m.updated_at) : '—'],
+      ['آخر محاولة', m.checked_at ? when(m.checked_at) : '—'],
+      ['أزواج صالحة', m.pairs ?? '—'],
+      ['آخر خطأ', m.last_error || '—'],
+    ]),
+    h('div', { class: 'admin-actions' }, h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onclick: async () => {
+      const r = await attempt(() => call('POST', '/api/admin/market/refresh'));
+      if (r) { toast(r.last_error ? `فشل: ${r.last_error}` : 'حُدّث.'); paint(r); }
+    } }, 'تحديث الآن')),
+    h('p', { class: 'admin-meta', text: 'المصدر وفترة التحديث والاستبعاد من «الإعدادات ← السوق». فحص الوصول من الخادم: docker compose exec app python -m app.admin_cli market-check' }));
+  attempt(() => call('GET', '/api/admin/market')).then((m) => { if (m) paint(m); else box.replaceChildren(); });
+  return card('السوق (Bybit)', 'chart', box);
 }
 
 // ------------------------------------------------------------------ Telegram bot (token is write-only)

@@ -190,7 +190,26 @@ def _legacy_anon(database: Database, settings, args) -> None:
     print("Removed: " + json.dumps(counts, sort_keys=True))
 
 
-def main(argv: list[str] | None = None, telegram_transport=None) -> None:
+def _market_check(settings, transport) -> None:
+    """V6 phase 2: can this server reach Bybit's public market API? Tries both domains."""
+    from app.services import market
+
+    results = market.check(settings, transport)
+    for r in results:
+        if r["ok"]:
+            print(f"OK    {r['domain']}  {r['ms']} ms  tickers={r['tickers']} usable_pairs={r['pairs']}  "
+                  f"top gainer: {r['top_gainer'] or '-'}  top loser: {r['top_loser'] or '-'}")
+        else:
+            print(f"FAIL  {r['domain']}  {r['ms']} ms  {r['error']}")
+    working = [r["domain"] for r in results if r["ok"]]
+    print(f"In use: {settings.MARKET_BASE_URL}")
+    if not working:
+        raise SystemExit("Bybit is not reachable from this server: the market stays empty/stale.")
+    if settings.MARKET_BASE_URL not in working:
+        print(f"Switch the source to {working[0]} (panel → الإعدادات → السوق).")
+
+
+def main(argv: list[str] | None = None, telegram_transport=None, market_transport=None) -> None:
     parser = argparse.ArgumentParser(prog="dzplay-admin")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("stats")
@@ -232,6 +251,7 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
     p = sub.add_parser("legacy-status")  # exit 0 when there is nothing (left) to remove (--anon: 2 = not yet)
     p.add_argument("--anon", action="store_true")
     sub.add_parser("stars-count")  # accounts that hold the blue star
+    sub.add_parser("market-check")  # V6 phase 2: reach Bybit from this server (both domains)
     args = parser.parse_args(argv)
 
     if args.cmd == "gen-secret":
@@ -247,6 +267,13 @@ def main(argv: list[str] | None = None, telegram_transport=None) -> None:
         return
     database = Database(settings.DATABASE_URL)
     database.create_all()
+    if args.cmd == "market-check":
+        from app.services import tunables
+
+        with database.session() as db:
+            tunables.apply(db, settings)  # the domain chosen in the panel
+        _market_check(settings, market_transport)
+        return
     if args.cmd in ("export-legacy", "drop-legacy", "legacy-status", "stars-count"):
         _legacy(database, settings, args)
         return
