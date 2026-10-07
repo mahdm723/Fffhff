@@ -46,6 +46,7 @@ GROUPS = {
     "support": "الدعم",
     "verify": "التوثيق (النجمة الزرقاء)",
     "market": "السوق",
+    "membership": "العضوية",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -99,6 +100,12 @@ REGISTRY: list[Tunable] = [
     Tunable("VERIFY_MIN_ACCOUNT_AGE_DAYS", "int", "verify", "أقل عمر للحساب (يوم)", 0, 3650),
     Tunable("PAYMENT_MIN_AMOUNT", "float", "verify", "أقل مبلغ للدفع (0 = أي مبلغ)", 0, 1000000),
     Tunable("MEDIA_EVIDENCE_RETENTION_DAYS", "int", "moderation", "مدة الاحتفاظ بالوسائط المبلّغ عنها (يوم)", 7, 3650),
+    # V6 phase 5: membership
+    Tunable("MEMBERSHIP_PRICE", "float", "membership", "سعر العضوية (USDT، دفعة واحدة)", 1, 100000),
+    Tunable("MEMBERSHIP_REFUNDABLE", "bool", "membership", "السماح باسترجاع العضوية"),
+    Tunable("MEMBERSHIP_REFUND_WINDOW_DAYS", "int", "membership", "مدة الاسترجاع بعد القبول (يوم)", 1, 90),
+    Tunable("MEMBERSHIP_REFUND_FEE", "float", "membership", "رسوم الاسترجاع (USDT)", 0, 1000),
+    Tunable("MEMBERSHIP_REQUESTS_PER_DAY", "int", "membership", "طلبات العضوية في اليوم لكل مستخدم", 1, 20),
     # V6 phase 2: market
     Tunable("MARKET_ENABLED", "bool", "market", "عرض السوق في الرئيسية"),
     Tunable("MARKET_BASE_URL", "choice", "market", "مصدر الأسعار (نطاق Bybit)",

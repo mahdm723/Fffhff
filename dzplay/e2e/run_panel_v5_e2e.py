@@ -100,7 +100,7 @@ def main() -> int:
             run.step("pending picture previewed and approved from the panel")
 
             print("Blue star + payment settings")
-            page.get_by_role("tab", name="التوثيق والدفع").click()
+            page.get_by_role("tab", name="العضوية والدفع").click()
             page.get_by_label("العملة").fill("USDT")
             page.get_by_label("الشبكة").select_option("TRC20")
             page.get_by_label("عنوان المحفظة").fill("TQ5pZ9aBcDeFgHiJkLmNoPqRsTuVwXyZ12")

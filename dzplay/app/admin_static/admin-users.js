@@ -6,6 +6,7 @@ import {
   userRef, when,
 } from './admin-common.js';
 import { userV5Section } from './admin-v5.js';
+import { userMoneySection } from './admin-money.js';
 
 export const STATUS = { active: 'نشط', suspended: 'موقوف', banned: 'محظور' };
 const METHOD = { email: 'بريد', google: 'Google', 'google+email': 'بريد + Google' };
@@ -127,6 +128,7 @@ export function openUser(id) {
               if (await attempt(() => call('DELETE', `/api/admin/access/users/${encodeURIComponent(u.id)}`))) { toast('حُذف الحساب.'); close(); }
             }))),
         await userV5Section(u.id, paint),
+        await userMoneySection(u.id, paint),
         section('سجل الأسماء (للإدارة فقط)', d.name_history.length, ...d.name_history.map((n) => h('div', { class: 'admin-line' },
           h('bdi', { text: n.old || 'dzplay' }), h('span', { text: '←' }), h('bdi', { text: n.new || 'dzplay' }),
           h('span', { class: 'admin-meta', text: when(n.at) })))),

@@ -11,7 +11,8 @@ import { openUser, renderUsers } from './admin-users.js';
 import { openIdea, renderContent } from './admin-content.js';
 import { openEngage, renderEngage } from './admin-engage.js';
 import { renderSystem } from './admin-system.js';
-import { renderMedia, renderSettings, renderSupport, renderVerify } from './admin-v5.js';
+import { renderMedia, renderSettings, renderSupport } from './admin-v5.js';
+import { renderMembership } from './admin-money.js';
 
 const REFRESH_MS = 30_000;
 const app = document.getElementById('app');
@@ -71,7 +72,7 @@ const TABS = [
   ['engage', 'التفاعل'],
   ['reports', 'البلاغات'],
   ['media', 'الإشراف على الوسائط'],
-  ['verify', 'التوثيق والدفع'],
+  ['membership', 'العضوية والدفع'],
   ['support', 'الدعم'],
   ['settings', 'الإعدادات'],
   ['system', 'الأمان والنظام'],
@@ -179,7 +180,7 @@ function showTab(id) {
   ({
     overview: renderOverview, users: renderUsers, content: renderContent, engage: renderEngage, reports: renderReports,
     system: renderSystem, logs: renderSecurity,
-    media: renderMedia, verify: renderVerify, support: renderSupport, settings: renderSettings,
+    media: renderMedia, membership: renderMembership, support: renderSupport, settings: renderSettings,
   })[id](main);
   window.scrollTo({ top: 0 });
 }

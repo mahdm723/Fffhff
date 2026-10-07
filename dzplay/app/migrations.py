@@ -52,6 +52,9 @@ def backfill(engine: Engine) -> dict:
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_public_id ON users (public_id)"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_conv_direct_key ON conversations (direct_key)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_name_norm ON users (name_norm)"))
+        # V6 phase 5: ledger idempotency (one entry per source and kind) on databases created before it
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_ledger_source ON ledger_entries "
+                          "(account, source_type, source_id, kind)"))
         # Conversations from before V4: the initiator always wrote first; the recipient replied if a
         # message of theirs is still stored or they were the last sender.
         conn.execute(text("UPDATE conversations SET initiator_sent = :t WHERE initiator_sent IS NULL"), {"t": True})

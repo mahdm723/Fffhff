@@ -90,6 +90,9 @@ class AppState:
 
         media_moderation.install(self)
         verification.install(self)
+        from app.services import membership
+
+        membership.install(self)
 
     def load_runtime_config(self) -> None:
         """Apply bot settings saved from the admin panel (they take precedence over .env)."""

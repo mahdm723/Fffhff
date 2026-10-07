@@ -52,7 +52,9 @@ def test_policies_index_404_and_live_values(hx):
     page = c.get("/policies/privacy").text
     assert "45 ثانية" in page and "إعداد الأرشفة مفعّل" in page
     ver = c.get("/policies/verification").text
-    assert "ليست تحققًا من الهوية الحقيقية" in ver and "متوقفة" in ver
+    assert "ليست تحققًا من الهوية الحقيقية" in ver and "العضوية" in ver
+    terms = c.get("/policies/terms").text
+    assert "ميزات داخل التطبيق فقط" in terms and "7 أيام" in terms and "50 USDT" in terms
     assert c.get("/policies/earnings").status_code == 404  # V6: earnings removed
     for slug in ("privacy", "terms", "guidelines", "verification"):
         text = c.get(f"/policies/{slug}").text

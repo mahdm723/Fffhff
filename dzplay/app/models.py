@@ -529,7 +529,7 @@ class EmailCode(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_internal_id)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    purpose: Mapped[str] = mapped_column(String(16))  # payout
+    purpose: Mapped[str] = mapped_column(String(16))  # V6: refund | withdraw | giveaway ("payout" was V5)
     email: Mapped[str] = mapped_column(String(254))
     code_hash: Mapped[str] = mapped_column(String(64))
     attempts: Mapped[int] = mapped_column(Integer, default=0)
@@ -545,7 +545,8 @@ class LedgerEntry(Base):
 
     __tablename__ = "ledger_entries"
     __table_args__ = (Index("ix_ledger_user_time", "user_id", "created_at"),
-                      Index("ux_ledger_reverses", "reverses_id", unique=True))
+                      Index("ux_ledger_reverses", "reverses_id", unique=True),
+                      Index("ux_ledger_source", "account", "source_type", "source_id", "kind", unique=True))
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
@@ -557,6 +558,55 @@ class LedgerEntry(Base):
     reverses_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_by: Mapped[str] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    # --- V6 phase 5: written only by app.services.ledger.post (membership | rewards accounts)
+    account: Mapped[str | None] = mapped_column(String(12), nullable=True, index=True)
+    source_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    available_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # rewards on hold until then
+
+
+class MembershipRequest(Base):
+    """V6 phase 5: a membership payment (TXID) waiting for the admin. Kept if the account is deleted (accounting)."""
+
+    __tablename__ = "membership_requests"
+    __table_args__ = (Index("ux_membership_txid", "txid", unique=True),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_public_id: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    amount_minor: Mapped[int] = mapped_column(BigInteger)  # the price asked when the request was sent (cents)
+    currency: Mapped[str] = mapped_column(String(16))
+    network: Mapped[str] = mapped_column(String(16))
+    wallet: Mapped[str] = mapped_column(String(128))
+    txid: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(10), default="pending", index=True)  # pending|accepted|rejected
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow, index=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+
+class MembershipRefund(Base):
+    """V6 phase 5: a refund the member asked for (within the window); the admin records the transfer TXID."""
+
+    __tablename__ = "membership_refunds"
+    __table_args__ = (Index("ux_refund_txid", "refund_txid", unique=True),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_public_id: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    request_id: Mapped[str] = mapped_column(String(32))
+    network: Mapped[str] = mapped_column(String(16))
+    address: Mapped[str] = mapped_column(String(128))
+    amount_minor: Mapped[int] = mapped_column(BigInteger)  # sent back (price - fee)
+    fee_minor: Mapped[int] = mapped_column(BigInteger)
+    status: Mapped[str] = mapped_column(String(10), default="requested", index=True)  # requested|done|rejected
+    refund_txid: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 class MediaItem(Base):

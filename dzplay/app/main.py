@@ -22,11 +22,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import account as account_api
 from app.api import admin as admin_api
+from app.api import admin_money as admin_money_api
 from app.api import admin_v5 as admin_v5_api
 from app.api import auth as auth_api
 from app.api import download as download_api
 from app.api import market as market_api
 from app.api import media as media_api
+from app.api import membership as membership_api
 from app.api import messages as messages_api
 from app.api import notifications as notifications_api
 from app.api import people as people_api
@@ -46,7 +48,7 @@ log = logging.getLogger("dzplay")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
 _ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m in (
-    "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5")}}
+    "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5", "admin-money")}}
 _CSRF_EXEMPT = {"/api/telegram/webhook"}  # authenticated by Telegram's secret header instead
 
 # Don't depend on the host's /etc/mime.types (ES modules require a JS MIME type).
@@ -276,6 +278,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(media_api.router)
     app.include_router(market_api.router)
     app.include_router(notifications_api.router)
+    app.include_router(membership_api.router)
     app.include_router(policies_api.router)
     app.include_router(posts_api.router)
     app.include_router(telegram_api.router)
@@ -284,6 +287,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     if settings.admin_enabled:
         app.include_router(admin_api.router, prefix=admin_prefix)
         app.include_router(admin_v5_api.router, prefix=admin_prefix)
+        app.include_router(admin_money_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)
 
     @app.get("/.well-known/assetlinks.json", include_in_schema=False)

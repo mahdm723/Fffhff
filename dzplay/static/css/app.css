@@ -906,3 +906,20 @@ body::before {
 .notif__time { color: var(--ink-3); font-size: 12px; }
 .notif__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
 .chip--team { background: color-mix(in srgb, var(--lilac) 22%, transparent); color: var(--ink); }
+
+/* ---------- V6 phase 5: «عضويتي» ---------- */
+.mem-status { display: flex; gap: 14px; align-items: center; padding: 16px; border-radius: var(--radius); margin-bottom: 14px; }
+.mem-status > svg, .mem-status .star-mark svg { width: 34px; height: 34px; flex: none; color: var(--lilac); }
+.mem-status h2 { margin: 0 0 2px; font-size: 18px; }
+.mem-status p { margin: 0; color: var(--ink-2); font-size: 14px; overflow-wrap: anywhere; }
+.mem-status--on { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.mem-features { list-style: none; margin: 0 0 14px; padding: 12px 14px; border-radius: var(--radius); display: grid; gap: 10px; }
+.mem-features li { display: flex; gap: 10px; align-items: center; }
+.mem-features svg { width: 18px; height: 18px; color: var(--ok); flex: none; }
+.mem-refund { padding: 14px; border-radius: var(--radius); margin: 4px 0 14px; display: flex; flex-direction: column; gap: 8px; }
+.mem-refund h3 { margin: 0; font-size: 15px; }
+.mem-refund p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.7; }
+.mem-code { display: flex; gap: 8px; align-items: center; }
+.mem-code input { flex: 1; }
+.mem-note { color: var(--danger); font-size: 14px; }
+.mem-terms { text-align: center; font-size: 13px; }

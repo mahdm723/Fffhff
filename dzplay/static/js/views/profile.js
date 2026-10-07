@@ -269,7 +269,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     msgStats,
     h('ul', { class: 'menu glass' },
       isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
-      item('verified', 'النجمة الزرقاء (التوثيق)', () => navigate('#/verify')),
+      item('verified', 'عضويتي', () => navigate('#/membership')),
       item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,

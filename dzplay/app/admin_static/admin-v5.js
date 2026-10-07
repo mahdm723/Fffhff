@@ -63,8 +63,8 @@ export function renderMedia(main) {
 
 const verifyState = { status: 'pending' };
 
-export function renderVerify(main) {
-  const list = h('div', { class: 'admin-list' }, spinner());
+/** Payment settings (wallet for memberships): one box, reused by the «العضوية والدفع» tab (V6). */
+export function paymentSettingsBox() {
   const payBox = h('section', { class: 'admin-group glass' }, spinner());
 
   async function loadPay() {
@@ -92,10 +92,17 @@ export function renderVerify(main) {
           if (r) { toast('حُفظت إعدادات الدفع.'); loadPay(); }
         }),
         btn('إيقاف الدفع', 'btn--ghost', async () => {
-          if (!(await confirmDanger('إيقاف الدفع؟', 'لن يستطيع أحد تقديم طلب توثيق حتى تضبط المحفظة من جديد.'))) return;
+          if (!(await confirmDanger('إيقاف الدفع؟', 'لن يستطيع أحد طلب العضوية حتى تضبط المحفظة من جديد.'))) return;
           if (await attempt(() => call('PUT', '/api/admin/payment-settings', {}))) { toast('أُوقف الدفع.'); loadPay(); }
         })));
   }
+  loadPay();
+  return payBox;
+}
+
+/** V5 blue-star requests (closed since V6: the star comes with the membership) — read-only history. */
+export function verifyHistory() {
+  const list = h('div', { class: 'admin-list' }, spinner());
 
   async function load() {
     list.replaceChildren(spinner());
@@ -123,12 +130,9 @@ export function renderVerify(main) {
           btn('قبول', 'btn--primary', decide('accept')), btn('يحتاج تصحيحًا', 'btn--ghost', decide('fix')), btn('رفض', 'btn--danger', decide('reject'))) : null);
     }));
   }
-  main.replaceChildren(sectionHead('النجمة الزرقاء والدفع'), payBox,
-    segmented([['pending', 'قيد المراجعة'], ['needs_fix', 'يحتاج تصحيحًا'], ['accepted', 'مقبول'], ['rejected', 'مرفوض'], ['', 'الكل (سجل الدفع)']],
-      verifyState.status, (v) => { verifyState.status = v; load(); }, 'حالة الطلبات'),
-    list);
-  loadPay();
+  verifyState.status = '';
   load();
+  return list;
 }
 
 // ------------------------------------------------------------------ support

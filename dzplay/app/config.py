@@ -266,6 +266,13 @@ class Settings(BaseSettings):
     VERIFY_MIN_ACCOUNT_AGE_DAYS: int = 14
     PAYMENT_MIN_AMOUNT: float = 0.0  # 0 = any amount (the wallet itself is set from the panel)
 
+    # --- V6 phase 5: membership (features only — never any return; amounts in USDT) -----------------
+    MEMBERSHIP_PRICE: float = 50.0
+    MEMBERSHIP_REFUNDABLE: bool = True
+    MEMBERSHIP_REFUND_WINDOW_DAYS: int = 7  # from the acceptance of the payment
+    MEMBERSHIP_REFUND_FEE: float = 1.0  # kept from the refund (network fee)
+    MEMBERSHIP_REQUESTS_PER_DAY: int = 3
+
     # --- e-mail confirmation codes ------------------------------------------------------
     EMAIL_CODE_TTL: int = 30 * 60
 
