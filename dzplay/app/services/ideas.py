@@ -20,7 +20,7 @@ import math
 import secrets
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy import and_, case, delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -333,25 +333,31 @@ def set_reaction(db: Session, settings: Settings, limiter, user: User, post_id: 
         raise AppError(403, "account_banned", "تم إيقاف هذا الحساب.")
     _check_limits(limiter, [Limit(f"react:{user.id}", settings.MAX_REACTIONS_PER_MINUTE, 60)])
 
-    for _attempt in range(2):
-        existing = db.scalar(select(PostReaction).where(PostReaction.post_id == post.id, PostReaction.user_id == user.id))
-        old = existing.reaction_type if existing else None
+    # Compare-and-swap on the row: the counts move only when this request really changed it, so two
+    # concurrent taps (remove + remove, like → dislike twice, insert + insert) never double-count.
+    mine = and_(PostReaction.post_id == post.id, PostReaction.user_id == user.id)
+    for _attempt in range(4):
+        old = db.scalar(select(PostReaction.reaction_type).where(mine))
         if old == reaction:
             break
-        try:
-            with db.begin_nested():
-                if reaction is None:
-                    db.delete(existing)
-                elif existing is None:
-                    db.add(PostReaction(post_id=post.id, user_id=user.id, reaction_type=reaction))
-                else:
-                    existing.reaction_type = reaction
-                    existing.updated_at = clock.utcnow()
-                db.flush()
-                _bump_counts(db, post.id, old, reaction)
+        if old is None:
+            try:
+                with db.begin_nested():
+                    db.execute(insert(PostReaction).values(post_id=post.id, user_id=user.id, reaction_type=reaction,
+                                                           created_at=clock.utcnow(), updated_at=clock.utcnow()))
+                    _bump_counts(db, post.id, None, reaction)
+                break
+            except IntegrityError:  # a concurrent request inserted first: re-read and apply as a change
+                continue
+        if reaction is None:
+            done = db.execute(delete(PostReaction).where(mine, PostReaction.reaction_type == old))
+        else:
+            done = db.execute(update(PostReaction).where(mine, PostReaction.reaction_type == old)
+                              .values(reaction_type=reaction, updated_at=clock.utcnow()))
+        if done.rowcount == 1:
+            _bump_counts(db, post.id, old, reaction)
             break
-        except IntegrityError:  # a concurrent request inserted first: re-read and apply as a change
-            continue
+        # another request changed the row in between: re-read it
     db.refresh(post)
     return {"likes": post.likes_count or 0, "dislikes": post.dislikes_count or 0,
             "my_reaction": reaction}

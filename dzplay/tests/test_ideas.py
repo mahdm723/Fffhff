@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from sqlalchemy import select, text
 
 from app import clock
@@ -158,6 +159,81 @@ def test_unique_constraint_blocks_duplicate_reaction_rows(hx):
     with pytest.raises(IntegrityError):
         with hx.db() as db:
             db.add(PostReaction(post_id=pid, user_id=uid, reaction_type="dislike"))
+
+
+class _StaleRead:
+    """A session whose first read of the reaction returns what it was before another request changed it."""
+
+    def __init__(self, db, stale):
+        self._db, self._stale, self._used = db, stale, False
+
+    def scalar(self, stmt, *a, **kw):
+        if not self._used and "post_reactions.reaction_type" in str(stmt):
+            self._used = True
+            return self._stale
+        return self._db.scalar(stmt, *a, **kw)
+
+    def __getattr__(self, name):
+        return getattr(self._db, name)
+
+
+def test_a_stale_read_never_moves_the_counts_twice(hx):
+    """V6 phase 9: two taps at once (remove + remove, like → dislike twice) used to count twice or fail
+    with StaleDataError. The write is now a compare-and-swap: the loser re-reads and does nothing."""
+    from app.services import ideas
+
+    a, b = hx.user(), hx.user()
+    pid = post(a).json()["id"]
+    react(b, pid, "like")
+    react(b, pid, None)  # the "other request" already removed it
+    with hx.db() as db:
+        user = db.scalar(select(User).where(User.email == b.email))
+        out = ideas.set_reaction(_StaleRead(db, "like"), hx.settings, hx.state.limiter, user, pid, None)
+        db.commit()
+    assert (out["likes"], out["dislikes"]) == (0, 0)
+
+    react(b, pid, "dislike")  # the "other request" already changed like → dislike
+    with hx.db() as db:
+        user = db.scalar(select(User).where(User.email == b.email))
+        out = ideas.set_reaction(_StaleRead(db, "like"), hx.settings, hx.state.limiter, user, pid, "dislike")
+        db.commit()
+    assert (out["likes"], out["dislikes"]) == (0, 1)
+    with hx.db() as db:
+        stored = db.get(Post, pid)
+        assert (stored.likes_count, stored.dislikes_count) == (0, 1)
+        assert len(db.scalars(select(PostReaction)).all()) == 1
+
+
+@pytest.mark.skipif("not __import__('os').environ.get('DZ_TEST_DATABASE_URL')")
+def test_concurrent_taps_keep_the_counts_equal_to_the_rows(make_harness):
+    """PostgreSQL: many parallel taps by the same users; the shown counts always equal the real rows."""
+    import threading
+
+    hx = make_harness(MAX_REACTIONS_PER_MINUTE=1000)
+    owner = hx.user()
+    pid = post(owner).json()["id"]
+    users = [hx.user() for _ in range(3)]
+    codes = []
+
+    def tap(c, seq):
+        for r in seq:
+            codes.append(react(c, pid, r).status_code)
+
+    seqs = [["like", None, "dislike", "like", None], [None, "like", "like", "dislike", None], ["dislike", "like", None, "like"]]
+    threads = []
+    for u in users:
+        twins = [hx.client(u.ip) for _ in range(2)]
+        for t in twins:
+            t.cookies.update(u.cookies)  # the same account on other devices
+        threads += [threading.Thread(target=tap, args=(c, s)) for c, s in zip((u, *twins), seqs)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert set(codes) == {200}, codes
+    with hx.db() as db:
+        rows = db.scalars(select(PostReaction).where(PostReaction.post_id == pid)).all()
+        stored = db.get(Post, pid)
+        assert stored.likes_count == sum(r.reaction_type == "like" for r in rows)
+        assert stored.dislikes_count == sum(r.reaction_type == "dislike" for r in rows)
 
 
 # ----------------------------------------------------------------- comments

@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session

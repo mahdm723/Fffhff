@@ -1,4 +1,62 @@
-# تقرير الفحص الأمني — DZPLAY
+# تقرير الفحص الأمني — DALTA.BIT (سابقًا DZPLAY)
+
+## V6 المرحلة 9 (الفحص الأمني الشامل) — 2026-10-10
+
+**النطاق:**
+- كل ما أضافته V6: السوق، والأسماء والصور، والتعليقات العامة والإشعارات، والعضوية والمكافآت والسحب والظرف الأحمر، والبريدان، ونظام النصوص والمظهر.
+- المستودع وتاريخه كاملًا، وسكربتات النشر.
+
+**الطريقة:**
+- `tests/test_security_v6.py` (جديد) واختبارات كل مرحلة، على SQLite وعلى PostgreSQL + Redis.
+- مسح كل commits المستودع بأنماط الأسرار.
+- `pip-audit` (نظيف)، و`pyflakes`، و`node --check` لكل ملفات الواجهة، و`bash -n` لكل السكربتات.
+- اختبارات المتصفح العشرة (شاشة هاتف)، ونسخة احتياطية ← مسح ← استعادة في Docker.
+
+| # | الخطورة | المكان | المشكلة | الحالة | الاختبار |
+|---|---|---|---|---|---|
+| V6-1 | **حرجة** | فرع `main` (المستودع **عام**)، الملف `bot.py(0)`، commit `ced8f5e` (2025-11-22) | ثلاثة توكنات بوتات Telegram مكتوبة في الملف (`USER_BOT_TOKEN` و`MANAGER_BOT_TOKEN` و`NEWS_BOT_TOKEN`)، فهي مقروءة لأي شخص منذ ذلك التاريخ. حُذف الملف من فرع العمل منذ V3، لكنه ما زال في `main` وفي التاريخ. من يملك التوكن يتحكم في البوت: يقرأ ما يصله، ويرسل باسمه، ويغيّر الـwebhook. | ⚠️ **يلزم إجراؤك:** في @BotFather ← `/revoke` لكل بوت من الثلاثة. إن كان أحدها هو بوت التطبيق الحالي، ضع التوكن الجديد في اللوحة («الأمان والنظام» ← بوت Telegram)، فيُربط الـwebhook تلقائيًا. حذف الملف من `main` وإعادة كتابة التاريخ يحتاجان إذنك (force-push على `main`)، ولا يغنيان عن الإلغاء. القيم لا تُطبع في أي تقرير. | `test_no_secrets_or_signing_keys_in_the_git_history` (يفشل لأي commit جديد يحمل سرًا) |
+| V6-2 | متوسطة (تشغيلية) | `deploy/install.sh` | سطر `chmod` ينتهي بـ`\\` بدل `\`، فيتوقف المثبّت قبل: cron حذف المحادثات المجهولة القديمة، وlogrotate، والنسخة الاحتياطية بعد التحديث، وتحديث المراقبة. التطبيق نفسه كان يُحدَّث. | ✅ أُصلح (المرحلة 6c) | `tests/test_deploy_scripts.py` |
+| V6-3 | متوسطة | الخادم | لا فحص لصلاحيات الملفات الحساسة (`.env`، النسخ الاحتياطية، مفاتيح SSH، السجلات، أحجام Docker) | ✅ `deploy/perms.sh` (`check` / `fix`)، يشغّله `install.sh` في كل تحديث | `tests/test_deploy_scripts.py` + `e2e/run_backup_e2e.sh` |
+| V6-4 | منخفضة | `services/ideas.set_reaction` | ضغطتان متزامنتان من نفس الحساب (إزالة + إزالة، أو تغيير مرتين) تحرّكان العداد مرتين، أو تعطيان خطأ 500 (`StaleDataError`، ظهر في اختبار المتصفح تحت الضغط) | ✅ compare-and-swap على الصف: العداد يتحرك فقط إن غيّر الطلب الصف فعلًا، وإلا يعيد القراءة | `test_a_stale_read_never_moves_the_counts_twice` + `test_concurrent_taps_keep_the_counts_equal_to_the_rows` (PostgreSQL) |
+| V6-5 | منخفضة | `services/content.py`، `services/names.py`، وثلاثة ملفات اختبار | محارف اتجاه (bidi) حرفية داخل الكود («Trojan Source»، CVE-2021-42574). كانت مقصودة (قوائم المحارف التي تُحذف من نصوص المستخدمين)، لكنها تجعل الكود يُقرأ بغير ما يُنفَّذ. | ✅ استُبدلت بـ`\uXXXX` | `test_no_trojan_source_characters` |
+
+**ما فُحص ووُجد سليمًا (مع الاختبار الذي يثبت ذلك):**
+- **المال:**
+  - خدمة الدفتر وحدها تكتب المبالغ، ولا تعديل مباشر لأي مبلغ: `test_only_the_ledger_service_creates_ledger_entries`.
+  - لا IDOR ولا mass assignment (`status`، `amount`، `member_since`، `verified`، `role`): `test_no_idor_and_no_mass_assignment`، `test_owner_only_no_idor`، `test_money_endpoints_ignore_extra_fields_and_other_peoples_ids`.
+  - TXID فريد وصيغته مفحوصة: `test_txid_rules`.
+  - التزامن على PostgreSQL: `test_double_accept_at_the_same_moment_posts_once`، `test_two_withdrawals_at_the_same_moment_reserve_once`.
+- **الإحالة:** مستوى واحد، بلا إحالة ذاتية ولا متأخرة ولا رموز خاطئة، والدعوة من نفس الشبكة تنتظر المشرف: `test_referral_rules_one_level_no_self_no_late_and_bad_codes`، `test_suspicious_referral_waits_for_the_admin`.
+- **الظرف الأحمر:** الرموز لا تظهر إلا للمشرفين وفي بريد الفائز، لا في API ولا WebSocket. السجلات تكتب نوع الخطأ فقط: `test_draw_rules_audit_and_codes_stay_with_admins`.
+- **المعجبون:** من لم يعجبه المنشور لا يظهر في أي مسار: `test_likers_list_and_dislikers_never_exposed`، `test_dislikers_and_old_private_comments_never_leak`.
+- **التعليقات الخاصة القديمة:** لا تظهر لغير كاتبها وصاحب المنشور، لا في الفكرة ولا الملف ولا صفحة المستخدمين ولا الإشعارات: `test_old_private_comments_stay_private` + الاختبار السابق.
+- **نظام النصوص وقوالب البريد:**
+  - Markdown يهرّب كل HTML، والروابط `https://` أو داخلية فقط: `test_markdown_never_lets_html_or_bad_links_through`.
+  - `/api/content` لا يخدم نصوص `email.*`: `test_texts_api_is_public_but_never_serves_email_texts`.
+  - القوالب لا تقبل `{0.__class__}` ولا أي متغير غير مسموح: `test_templates_replace_only_known_variables`.
+  - التعديل للمشرف الأعلى فقط ومسجّل في audit: `test_content_routes_need_super_admin`.
+  - «تغيير جوهري» يحتاج 2FA: `test_major_change_needs_2fa_and_asks_everyone_again`.
+- **صور الملف الشخصي:** نفس خط الفحص (النوع من المحتوى، إعادة ترميز تحذف EXIF، فحص، تخزين في Telegram)، روابط موقّعة، حد يومي، وزر حذف للمشرف: `test_avatar_upload_scan_and_signed_url_everywhere`، `test_avatar_daily_limit_and_replace`، `test_avatar_removed_by_moderator_button`.
+- **المظهر:** `PUT /api/me/appearance` يرفض المفاتيح الزائدة والقيم غير المعروفة: `tests/test_appearance.py`.
+- **صفحة المستخدمين:** حد سرعة للقائمة والبحث، والفتح بالمعرّف محدود: `test_people_listing_is_rate_limited`.
+- **اللوحة:** كل مساراتها (أكثر من 60) مغلقة أمام المستخدم والزائر: `test_every_admin_route_is_closed_to_users`.
+- **الميزات المحذوفة:** لا مسار مكالمات ولا Reels ولا رسائل مجهولة ولا أرباح، ولا coturn: `test_removed_features_have_no_route_and_no_service`.
+- **الخصوصية:** لا بريد ولا معرّف داخلي في أي إجابة عامة: `test_public_answers_never_carry_emails_or_internal_ids`.
+- **الترويسات والكوكيز:** CSP بلا `unsafe-inline` للسكربتات، و`X-Frame-Options: DENY`، و`nosniff`، و`no-referrer`، و`Permissions-Policy`، وHSTS، وكوكي `HttpOnly` + `Secure` + `SameSite`: `test_security_headers_and_cookie_flags`.
+- **الأسرار:**
+  - لا أسرار في الكود: `test_no_secrets_in_the_source_tree`.
+  - لا مفتاح توقيع ولا `.env` في تاريخ git: `test_no_secrets_or_signing_keys_in_the_git_history`.
+  - لا مفتاح Bybit (السوق يستعمل الواجهات العامة فقط): `test_no_bybit_or_exchange_api_key_anywhere`.
+  - `pip-audit`: لا ثغرات معروفة.
+- **لا تعزيز تفاعل:** لا نص يدّعيه: `test_privacy_texts_do_not_mention_engagement_boosting`.
+
+**تحقق بنفسك على الخادم:**
+```bash
+sudo /opt/dzplay/dzplay/deploy/perms.sh              # صلاحيات الملفات الحساسة (✓ لكل بند)
+sudo ss -ltnp                                          # 22 و80 و443 فقط على كل العناوين، والباقي على 127.0.0.1 أو داخل Docker
+sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh status    # قراءة فقط: لا تغيير في SSH قبل موافقتك
+```
+ومن Termux على الهاتف (`pkg install nmap`): `nmap -Pn -p- 72.61.147.28`، والمتوقع أن تكون المنافذ المفتوحة 22 و80 و443 فقط.
 
 ## V6 المرحلة 1ب (إزالة الرسائل المجهولة العشوائية) — 2026-10-07
 
