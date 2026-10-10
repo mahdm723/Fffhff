@@ -1,0 +1,89 @@
+# Builds the DZPLAY Android app (standalone WebView app) as an UNSIGNED APK.
+# The APK is signed afterwards, outside CI, with the private release key that is
+# never stored in this public repository.
+name: Android APK
+
+on:
+  push:
+    paths:
+      - "dzplay/android/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Firebase config (optional, from the GOOGLE_SERVICES_JSON repository secret)
+        working-directory: dzplay/android/app
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > google-services.json; echo "Firebase: on"; else echo "Firebase: off (calls ring only while the app is open)"; fi
+
+      - name: Build unsigned release APK
+        working-directory: dzplay/android
+        run: gradle --no-daemon assembleRelease
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp dzplay/android/app/build/outputs/apk/release/app-release-unsigned.apk out/dzplay-unsigned.apk
+          echo "source: ${GITHUB_SHA}" > out/BUILD_INFO.txt
+          sha256sum out/dzplay-unsigned.apk | tee -a out/BUILD_INFO.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dzplay-unsigned-apk
+          path: out/
+
+      - name: Publish to the android-build branch (for signing)
+        run: |
+          cd out
+          git init -q
+          git checkout -q -b android-build
+          git add .
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "Unsigned DZPLAY APK from ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" android-build
+
+  # Compile check of the optional Firebase code (incoming calls while the app is closed) with a
+  # placeholder google-services.json. Nothing from this job is published.
+  fcm-compile-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Placeholder Firebase config
+        working-directory: dzplay/android/app
+        run: |
+          cat > google-services.json <<'JSON'
+          {"project_info":{"project_number":"000000000000","project_id":"dzplay-ci-check","storage_bucket":"dzplay-ci-check.appspot.com"},
+           "client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"io.dzplay.app"}},
+           "oauth_client":[],"api_key":[{"current_key":"AIzaSyA-placeholder-not-a-real-key-0000000"}],
+           "services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}
+          JSON
+      - name: Build with Firebase (compile check only)
+        working-directory: dzplay/android
+        run: gradle --no-daemon assembleRelease

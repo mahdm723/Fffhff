@@ -1,0 +1,234 @@
+from __future__ import annotations
+
+import secrets
+from pathlib import Path
+
+from fastapi import APIRouter, Request, Response
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.api.deps import (
+    clear_session_cookie,
+    client_context,
+    current_user,
+    get_state,
+    session_token,
+    set_session_cookie,
+)
+from app.api.schemas import (
+    ChallengeBody,
+    GoogleBody,
+    LoginBody,
+    RegisterBody,
+    ResetCompleteBody,
+    ResetRequestBody,
+    ResetVerifyBody,
+)
+from app.errors import AppError, rate_limited
+from app.security.sessions import create_session, revoke_session
+from app.services import auth as auth_service
+from app.services import appearance, cms, password_reset
+from app.services.ideas import own_profile
+from app.services.messaging import profile
+from app.services.rate_limit import Limit
+
+router = APIRouter(prefix="/api", tags=["auth"])
+
+_GOOGLE_NONCE_COOKIE = "dz_gnonce"
+_APK = Path(__file__).resolve().parent.parent.parent / "static" / "download" / "dzplay.apk"
+
+
+@router.get("/config")
+def public_config(request: Request) -> dict:
+    st = get_state(request)
+    s = st.settings
+    with st.database.session() as db:  # V6 phase 8: short texts from the content system
+        footer, welcome, announcement = (cms.text(db, s, k) for k in ("profile_footer", "welcome", "announcement"))
+    return {
+        "app_name": s.APP_NAME,
+        "antibot_enabled": s.ANTIBOT_ENABLED,
+        "google_client_id": s.GOOGLE_CLIENT_ID or None,
+        "push_public_key": s.VAPID_PUBLIC_KEY if s.push_enabled else None,
+        "max_message_length": s.MAX_MESSAGE_LENGTH,
+        "max_post_length": s.MAX_POST_LENGTH,
+        "max_comment_length": s.MAX_COMMENT_LENGTH,
+        "password_min_length": s.PASSWORD_MIN_LENGTH,
+        "links_allowed": s.LINK_POLICY != "reject",
+        "android_apk_url": "/download/dzplay.apk" if _APK.is_file() else None,
+        "download_page": "/download",
+        # the bot is enough: without SMTP the admin receives the code in Telegram and sends it by hand
+        "password_reset_enabled": get_state(request).bot is not None,
+        "reset_code_hours": max(1, s.RESET_CODE_TTL // 3600),
+        "reset_max_attempts": s.RESET_MAX_CODE_ATTEMPTS,
+        "footer_text": footer,
+        "welcome_text": welcome,
+        "announcement": announcement,
+        "names": {"min": s.NAME_MIN_LENGTH, "max": s.NAME_MAX_LENGTH, "cooldown_days": s.NAME_CHANGE_COOLDOWN_DAYS,
+                  "default": s.DEFAULT_DISPLAY_NAME},
+        "direct_before_reply": s.DIRECT_MSG_BEFORE_REPLY_LIMIT,
+    }
+
+
+@router.post("/auth/challenge")
+def challenge(body: ChallengeBody, request: Request) -> dict:
+    st = get_state(request)
+    ctx = client_context(request)
+    if not ctx.trusted:
+        decision = st.limiter.check_and_hit([Limit(f"challenge:{ctx.ip_hash}", 30, 60)])
+        if not decision.allowed:
+            raise rate_limited(decision.retry_after)
+    with st.database.session() as db:
+        return auth_service.issue_challenge(db, st.settings, ctx, body.purpose)
+
+
+def _after_signup(db, st, request: Request, response: Response, user, ctx) -> None:
+    """V6 phase 5b: a coarse device hash (abuse flags only) and the invitation link this person came from."""
+    from app.services import rewards
+
+    if user.device_hash is None:
+        user.device_hash = rewards.device_hash(st.settings, request.headers.get("user-agent"),
+                                               request.headers.get("accept-language"))
+    code = request.cookies.get(rewards.REF_COOKIE)
+    if code:
+        rewards.attach_referral(db, st.settings, user, code, ctx.ip_hash, user.device_hash)
+        response.delete_cookie(rewards.REF_COOKIE, path="/api/auth")
+
+
+@router.post("/auth/register", status_code=201)
+def register(body: RegisterBody, request: Request, response: Response) -> dict:
+    st = get_state(request)
+    ctx = client_context(request)
+    with st.database.session() as db:
+        user = auth_service.register(
+            db, st.settings, ctx, email=body.email, password=body.password, password_confirm=body.password_confirm,
+            antibot_payload=body.antibot, honeypot=body.website, gender=body.gender, age_confirmed=body.age_confirmed,
+            display_name=body.display_name,
+        )
+        _after_signup(db, st, request, response, user, ctx)
+        token = create_session(db, st.settings, user)
+        result = profile(user)
+    set_session_cookie(response, request, token)
+    return result
+
+
+@router.post("/auth/login")
+def login(body: LoginBody, request: Request, response: Response) -> dict:
+    st = get_state(request)
+    ctx = client_context(request)
+    with st.database.session() as db:
+        user = auth_service.login(db, st.settings, ctx, email=body.email, password=body.password, antibot_payload=body.antibot)
+        token = create_session(db, st.settings, user)
+        result = profile(user)
+    set_session_cookie(response, request, token)
+    return result
+
+
+# ----------------------------------------------------------------- password recovery
+
+
+def _reset_enabled(request: Request) -> None:
+    st = get_state(request)
+    if st.bot is None:
+        raise AppError(503, "reset_unavailable", "استعادة الحساب غير مفعّلة حاليًا. تواصل مع الإدارة.")
+
+
+@router.post("/auth/reset/request")
+def reset_request(body: ResetRequestBody, request: Request) -> dict:
+    """Same answer whether or not the e-mail exists (no account enumeration)."""
+    _reset_enabled(request)
+    st = get_state(request)
+    ctx = client_context(request)
+    with st.database.session() as db:
+        result = password_reset.request_reset(db, st.settings, ctx, email=body.email, antibot_payload=body.antibot)
+    if result.get("notify"):
+        st.bot.run_later(password_reset.notify_admin, st.bot, result["notify"])  # after commit, off the request path
+    return {"ok": True, "message": result["message"]}
+
+
+@router.post("/auth/reset/verify")
+def reset_verify(body: ResetVerifyBody, request: Request) -> dict:
+    _reset_enabled(request)
+    st = get_state(request)
+    with st.database.session() as db:
+        return password_reset.verify_code(db, st.settings, st.limiter, client_context(request), email=body.email, code=body.code)
+
+
+@router.post("/auth/reset/complete")
+def reset_complete(body: ResetCompleteBody, request: Request, response: Response) -> dict:
+    _reset_enabled(request)
+    st = get_state(request)
+    with st.database.session() as db:
+        user = password_reset.complete(db, st.settings, client_context(request), reset_token=body.reset_token,
+                                       password=body.password, password_confirm=body.password_confirm,
+                                       antibot_payload=body.antibot)
+        token = create_session(db, st.settings, user)  # a fresh session; all older ones were revoked
+        result = profile(user)
+    set_session_cookie(response, request, token)
+    return result
+
+
+@router.get("/auth/google/nonce")
+def google_nonce(request: Request, response: Response) -> dict:
+    s = get_state(request).settings
+    nonce = secrets.token_urlsafe(24)
+    response.set_cookie(_GOOGLE_NONCE_COOKIE, nonce, max_age=600, httponly=True, secure=bool(s.COOKIE_SECURE),
+                        samesite="strict", path="/api/auth/google")
+    return {"nonce": nonce}
+
+
+@router.post("/auth/google")
+def google(body: GoogleBody, request: Request, response: Response) -> dict:
+    st = get_state(request)
+    ctx = client_context(request)
+    nonce = request.cookies.get(_GOOGLE_NONCE_COOKIE)
+    with st.database.session() as db:
+        user = auth_service.google_login(db, st.settings, ctx, credential=body.credential, expected_nonce=nonce)
+        _after_signup(db, st, request, response, user, ctx)  # a new Google account may come from an invitation
+        token = create_session(db, st.settings, user)
+        result = profile(user)
+    response.delete_cookie(_GOOGLE_NONCE_COOKIE, path="/api/auth/google")
+    set_session_cookie(response, request, token)
+    return result
+
+
+@router.post("/auth/logout")
+def logout(request: Request, response: Response) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        revoke_session(db, session_token(request))
+    clear_session_cookie(response, request)
+    return {"ok": True}
+
+
+@router.get("/me")
+def me(request: Request) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        return own_profile(db, current_user(request, db), st.settings)
+
+
+@router.post("/me/privacy-ack")
+def privacy_ack(request: Request) -> dict:
+    """The user has read the current version of the policies (V6 phase 8: raised by a «major change» in the panel)."""
+    st = get_state(request)
+    with st.database.session() as db:
+        user = current_user(request, db)
+        version = cms.ack_version(db)
+        user.privacy_ack_version = version
+        return {"ok": True, "version": version}
+
+
+class AppearanceBody(BaseModel):
+    """V6 phase 8: only these three fields; anything else is refused."""
+
+    model_config = ConfigDict(extra="forbid")
+    mode: str = Field(max_length=10)
+    accent: str = Field(max_length=16)
+    font: str = Field(max_length=10)
+
+
+@router.put("/me/appearance")
+def set_appearance(body: AppearanceBody, request: Request) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        user = current_user(request, db)
+        return {"appearance": appearance.save(user, body.model_dump())}

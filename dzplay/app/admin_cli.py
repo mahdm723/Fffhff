@@ -1,0 +1,333 @@
+"""Admin command line.
+
+  python -m app.admin_cli stats
+  python -m app.admin_cli reports [--status open]
+  python -m app.admin_cli resolve <report_id> dismiss|warn|suspend|ban
+  python -m app.admin_cli set-status <user_ref> active|suspended|banned
+  python -m app.admin_cli events [--type login_failed]
+  python -m app.admin_cli cleanup
+  python -m app.admin_cli create-admin <username>      (asks for a password, prints the 2FA QR code)
+  python -m app.admin_cli reset-admin-2fa <username>
+  python -m app.admin_cli set-admin-password <username>
+  python -m app.admin_cli audit [--limit 50]
+  python -m app.admin_cli gen-secret
+  python -m app.admin_cli gen-vapid
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import secrets
+import sys
+
+from app.config import get_settings
+from app.db import Database
+from app.services import admin
+from app.services.cleanup import run_cleanup
+
+
+def _print(obj) -> None:
+    print(json.dumps(obj, ensure_ascii=False, indent=2))
+
+
+def _gen_vapid() -> None:
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    raw_private = key.private_numbers().private_value.to_bytes(32, "big")
+    raw_public = key.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+
+    def b64(b: bytes) -> str:
+        return base64.urlsafe_b64encode(b).decode().rstrip("=")
+
+    print(f"VAPID_PUBLIC_KEY={b64(raw_public)}")
+    print(f"VAPID_PRIVATE_KEY={b64(raw_private)}")
+
+
+def _show_totp(settings, username: str, secret: str) -> None:
+    from app.security.totp import provisioning_uri
+
+    uri = provisioning_uri(secret, f"{username}@{settings.APP_NAME}")
+    print("\nScan this QR code with Google Authenticator / Microsoft Authenticator / Aegis / 2FAS:\n")
+    try:
+        import qrcode
+
+        qr = qrcode.QRCode(border=1)
+        qr.add_data(uri)
+        qr.print_ascii(invert=True)
+    except ImportError:
+        pass
+    print(f"Or enter this key manually: {secret}\n")
+    if settings.ADMIN_PATH:
+        print(f"Panel path: {settings.ADMIN_PATH}\n")
+
+
+def _ask_password() -> str:
+    import getpass
+
+    first = getpass.getpass("New admin password (12+ characters): ")
+    if first != getpass.getpass("Repeat password: "):
+        raise SystemExit("Passwords do not match.")
+    return first
+
+
+def _telegram(settings, args, transport=None) -> None:
+    """set-webhook / bot-status / bot-test (a hello message to the admin chat). Never prints the token."""
+    from app.services.telegram import TelegramClient, TelegramError
+    from app.services.runtime_config import telegram_config
+    from app.services.telegram_bot import HELP
+
+    database = Database(settings.DATABASE_URL)
+    database.create_all()
+    with database.session() as db:
+        cfg = telegram_config(db, settings)  # admin panel first, then .env
+    if not cfg["token"]:
+        raise SystemExit("Telegram is off: connect the bot in the admin panel (الأمان والنظام) or set "
+                         "TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID in .env.")
+    settings = settings.model_copy(update={"TELEGRAM_BOT_TOKEN": cfg["token"], "TELEGRAM_ADMIN_CHAT_ID": cfg["chat_id"],
+                                           "TELEGRAM_WEBHOOK_SECRET": cfg["secret"] or ""})
+    tg = TelegramClient(settings, transport=transport)
+    try:
+        if args.cmd == "set-webhook":
+            base = args.public_url.rstrip("/")
+            if not base.startswith("https://"):
+                raise SystemExit("Telegram needs an https:// address, e.g. https://chat.example.com")
+            if len(settings.TELEGRAM_WEBHOOK_SECRET) < 16:
+                raise SystemExit("TELEGRAM_WEBHOOK_SECRET is missing or too short: openssl rand -hex 32")
+            tg.set_webhook(base + "/api/telegram/webhook", settings.TELEGRAM_WEBHOOK_SECRET)
+            print(f"Webhook set: {base}/api/telegram/webhook")
+        if args.cmd == "alert":  # V5: server monitoring (deploy/monitor.sh) → the admin's Telegram chat
+            text = " ".join(args.text).strip()[:3500]
+            if not text:
+                raise SystemExit("empty alert")
+            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, f"🚨 {settings.APP_NAME} — تنبيه الخادم\n{text}")
+            print("Alert sent.")
+            return
+        if args.cmd == "bot-test":
+            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, f"✅ {settings.APP_NAME} متصل.\n\n" + HELP)
+            print("Test message sent to the admin chat.")
+            return
+        info = tg.webhook_info()
+    except TelegramError as exc:
+        raise SystemExit(f"Telegram error: {tg.redact(exc)}") from None
+    _print({"webhook_url": info.get("url") or None, "pending_updates": info.get("pending_update_count"),
+            "last_error": info.get("last_error_message")})
+
+
+def _legacy(database: Database, settings, args) -> None:
+    from app.services import legacy_v6
+
+    engine = database.engine
+    if args.cmd == "stars-count":
+        print(f"blue stars: {legacy_v6.stars_count(engine)}")
+        return
+    if getattr(args, "anon", False):
+        _legacy_anon(database, settings, args)
+        return
+    if args.cmd == "export-legacy":
+        body, sha, counts = legacy_v6.export(engine)
+        sys.stdout.buffer.write(body)
+        sys.stdout.flush()
+        print(f"sha256={sha} rows={json.dumps(counts, sort_keys=True)}", file=sys.stderr)
+        return
+    if args.cmd == "legacy-status":  # exit 0 = nothing left to remove, 1 = old data still there
+        if legacy_v6.already_dropped(engine):
+            print("Already done: the V6 legacy data was removed before.")
+            return
+        _body, _sha, counts = legacy_v6.export(engine)
+        left = {k: v for k, v in counts.items() if v or k in legacy_v6.DROP_TABLES}  # empty old tables still go
+        if not left:
+            print("Nothing to remove: no Reels / calls / earnings / boost data in this database.")
+            return
+        print("Old V6-removed data still in the database: " + json.dumps(left, sort_keys=True))
+        raise SystemExit(1)
+    if legacy_v6.already_dropped(engine):
+        print("Already done: the V6 legacy data was removed before.")
+        return
+    try:
+        counts = legacy_v6.drop(engine, args.sha, settings.MEDIA_CACHE_DIR)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    print("Removed: " + json.dumps(counts, sort_keys=True))
+
+
+def _legacy_anon(database: Database, settings, args) -> None:
+    """V6 phase 1b: the old anonymous chats (read-only), exported then deleted after LEGACY_ANON_RETENTION_DAYS."""
+    from app import clock
+    from app.services import legacy_v6, tunables
+
+    engine = database.engine
+    with database.session() as db:
+        tunables.apply(db, settings)  # the retention can be changed from the panel
+        due = legacy_v6.anon_due_at(db, settings)
+    if args.cmd == "export-legacy":
+        body, sha, counts = legacy_v6.export_anon(engine)
+        sys.stdout.buffer.write(body)
+        sys.stdout.flush()
+        print(f"sha256={sha} rows={json.dumps(counts, sort_keys=True)}", file=sys.stderr)
+        return
+    if legacy_v6.already_dropped(engine, legacy_v6.ANON_FLAG):
+        print("Already done: the old anonymous chats were removed before.")
+        return
+    if args.cmd == "legacy-status":  # exit 0 = nothing (left) to remove, 1 = ready to remove, 2 = not yet
+        _body, _sha, counts = legacy_v6.export_anon(engine)
+        if not any(counts.values()):
+            print("Nothing to remove: no old anonymous chats in this database.")
+            return
+        when = due.isoformat(timespec="minutes") + " UTC" if due else "unknown"
+        if due is None or clock.utcnow() < due:
+            print(f"Old anonymous chats (read-only): {json.dumps(counts, sort_keys=True)}; deletion allowed after {when}.")
+            raise SystemExit(2)
+        print(f"Old anonymous chats ready to export + delete (since {when}): {json.dumps(counts, sort_keys=True)}")
+        raise SystemExit(1)
+    try:
+        counts = legacy_v6.drop_anon(engine, args.sha, settings, settings.MEDIA_CACHE_DIR)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    print("Removed: " + json.dumps(counts, sort_keys=True))
+
+
+def _market_check(settings, transport) -> None:
+    """V6 phase 2: can this server reach Bybit's public market API? Tries both domains."""
+    from app.services import market
+
+    results = market.check(settings, transport)
+    for r in results:
+        if r["ok"]:
+            print(f"OK    {r['domain']}  {r['ms']} ms  tickers={r['tickers']} usable_pairs={r['pairs']}  "
+                  f"top gainer: {r['top_gainer'] or '-'}  top loser: {r['top_loser'] or '-'}")
+        else:
+            print(f"FAIL  {r['domain']}  {r['ms']} ms  {r['error']}")
+    working = [r["domain"] for r in results if r["ok"]]
+    print(f"In use: {settings.MARKET_BASE_URL}")
+    if not working:
+        raise SystemExit("Bybit is not reachable from this server: the market stays empty/stale.")
+    if settings.MARKET_BASE_URL not in working:
+        print(f"Switch the source to {working[0]} (panel → الإعدادات → السوق).")
+
+
+def main(argv: list[str] | None = None, telegram_transport=None, market_transport=None) -> None:
+    parser = argparse.ArgumentParser(prog="dzplay-admin")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("stats")
+    p = sub.add_parser("reports")
+    p.add_argument("--status", default="open")
+    p = sub.add_parser("resolve")
+    p.add_argument("report_id")
+    p.add_argument("action", choices=["dismiss", "warn", "remove", "suspend", "ban"])
+    p = sub.add_parser("set-status")
+    p.add_argument("user_ref")
+    p.add_argument("status", choices=["active", "suspended", "banned"])
+    p = sub.add_parser("events")
+    p.add_argument("--type", default=None)
+    sub.add_parser("cleanup")
+    for name in ("create-admin", "reset-admin-2fa", "set-admin-password"):
+        sp = sub.add_parser(name)
+        sp.add_argument("username")
+        if name == "create-admin":
+            sp.add_argument("--role", default="super_admin")
+    p = sub.add_parser("audit")
+    p.add_argument("--limit", type=int, default=50)
+    sub.add_parser("gen-secret")
+    sub.add_parser("gen-vapid")
+    p = sub.add_parser("set-webhook")  # tell Telegram where to deliver the bot's updates
+    p.add_argument("public_url")
+    sub.add_parser("bot-status")
+    sub.add_parser("bot-test")  # send a hello message to TELEGRAM_ADMIN_CHAT_ID
+    p = sub.add_parser("alert")  # V5: send a monitoring alert to the admin's Telegram chat
+    p.add_argument("text", nargs="+")
+    p = sub.add_parser("admin-link")  # the secret panel address (+ whether an admin account exists)
+    p.add_argument("public_url")
+    # V6 phase 1: data of the removed features (Reels, studio + earnings, calls, boost) — see app.services.legacy_v6
+    # --anon (V6 phase 1b): the old anonymous chats instead, allowed after LEGACY_ANON_RETENTION_DAYS
+    p = sub.add_parser("export-legacy")  # canonical JSON on stdout (deploy/v6-cleanup.sh encrypts it), SHA-256 on stderr
+    p.add_argument("--anon", action="store_true")
+    p = sub.add_parser("drop-legacy")
+    p.add_argument("--sha", required=True, help="SHA-256 printed by export-legacy (proves what was saved)")
+    p.add_argument("--anon", action="store_true")
+    p = sub.add_parser("legacy-status")  # exit 0 when there is nothing (left) to remove (--anon: 2 = not yet)
+    p.add_argument("--anon", action="store_true")
+    sub.add_parser("stars-count")  # accounts that hold the blue star
+    sub.add_parser("market-check")  # V6 phase 2: reach Bybit from this server (both domains)
+    args = parser.parse_args(argv)
+
+    if args.cmd == "gen-secret":
+        print(f"SECRET_KEY={secrets.token_urlsafe(48)}")
+        return
+    if args.cmd == "gen-vapid":
+        _gen_vapid()
+        return
+
+    settings = get_settings()
+    if args.cmd in ("set-webhook", "bot-status", "bot-test", "alert"):
+        _telegram(settings, args, telegram_transport)
+        return
+    database = Database(settings.DATABASE_URL)
+    database.create_all()
+    if args.cmd == "market-check":
+        from app.services import tunables
+
+        with database.session() as db:
+            tunables.apply(db, settings)  # the domain chosen in the panel
+        _market_check(settings, market_transport)
+        return
+    if args.cmd in ("export-legacy", "drop-legacy", "legacy-status", "stars-count"):
+        _legacy(database, settings, args)
+        return
+    if args.cmd == "admin-link":
+        from app.services.admin_auth import count_admins
+
+        if not settings.ADMIN_PATH:
+            raise SystemExit("ADMIN_PATH is empty in .env: the panel is off.")
+        with database.session() as db:
+            admins = count_admins(db)
+        print(args.public_url.rstrip("/") + settings.ADMIN_PATH)
+        if not admins:
+            print("No admin account yet: docker compose exec app python -m app.admin_cli create-admin owner")
+        return
+    if args.cmd in ("create-admin", "reset-admin-2fa", "set-admin-password"):
+        from app.services import admin_auth, audit
+
+        password = _ask_password() if args.cmd != "reset-admin-2fa" else None
+        with database.session() as db:
+            try:
+                if args.cmd == "create-admin":
+                    _admin, secret = admin_auth.create_admin(db, settings, args.username, password, args.role)
+                elif args.cmd == "reset-admin-2fa":
+                    secret = admin_auth.reset_totp(db, settings, args.username)
+                else:
+                    admin_auth.set_password(db, args.username, password)
+                    secret = None
+            except ValueError as exc:
+                raise SystemExit(str(exc)) from None
+            audit.record(db, "cli", args.cmd.replace("-", "_"), target_type="admin", target_id=args.username.lower())
+        if secret:
+            _show_totp(settings, args.username.lower(), secret)
+        print("Done.")
+        return
+
+    with database.session() as db:
+        if args.cmd == "audit":
+            from app.services import audit
+
+            _print({"chain": audit.verify_chain(db), "entries": audit.list_entries(db, args.limit)})
+            return
+        if args.cmd == "stats":
+            _print(admin.stats(db))
+        elif args.cmd == "reports":
+            _print(admin.list_reports(db, args.status))
+        elif args.cmd == "resolve":
+            _print(admin.resolve_report(db, args.report_id, args.action))
+        elif args.cmd == "set-status":
+            _print(admin.set_user_status(db, args.user_ref, args.status))
+        elif args.cmd == "events":
+            _print(admin.security_events(db, args.type))
+        elif args.cmd == "cleanup":
+            _print(run_cleanup(db, settings))
+
+
+if __name__ == "__main__":
+    main()

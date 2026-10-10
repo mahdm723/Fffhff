@@ -1,0 +1,9 @@
+/* /policies/* — standalone pages (no JavaScript) */
+.policy-principle { margin: 0 0 14px; padding: 14px 16px; border-radius: 18px; background: linear-gradient(135deg, #ff8a5c22, #ff5f8a22); border: 1px solid var(--line); font-weight: 700; line-height: 1.9; }
+.policy-body h2 { font-size: 18px; margin: 18px 0 6px; }
+.policy-body h2:first-child { margin-top: 0; }
+.policy-body p, .policy-body li { color: var(--ink2); }
+.policy-body b { color: var(--ink); }
+.policy-body ul { padding-inline-start: 22px; margin: 6px 0; }
+.policy-body a, .policy-nav a { color: #a99cff; }
+.policy-nav { text-align: center; font-size: 14px; line-height: 2; margin: 8px 0; }

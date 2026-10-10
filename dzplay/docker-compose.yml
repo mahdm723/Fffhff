@@ -1,0 +1,136 @@
+# Production-like stack: Caddy (automatic HTTPS) -> DZPLAY -> PostgreSQL + Redis, + the isolated media worker
+#   1. cp .env.example .env  and set SECRET_KEY, POSTGRES_PASSWORD, DOMAIN
+#   2. docker compose up -d --build
+# Only Caddy publishes ports (80/443); PostgreSQL and Redis are reachable from the app only.
+# (V6: calls and the coturn TURN server were removed — `docker compose up -d --remove-orphans` drops its container.)
+
+x-logging: &logging  # bounded container logs (no disk fill-up)
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql+psycopg://dzplay:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/dzplay
+      REDIS_URL: redis://redis:6379/0
+      TRUST_PROXY_HEADERS: "true"
+      TRUSTED_PROXY_COUNT: "1"
+      MEDIA_CACHE_DIR: /data/media-cache
+      UPLOAD_TMP_DIR: /uploads
+      MEDIA_WORKER: queue  # re-encoding + checks run in the isolated media-worker container
+    group_add:
+      - "10010"  # shares the upload tmpfs with the media worker
+    networks: [default, media]
+    volumes:
+      - media:/data/media-cache  # temporary picture cache (originals stay in Telegram)
+      - uploads:/uploads  # V5: size-capped tmpfs, files live here seconds only
+      # optional secret files (e.g. Firebase service account for message notifications on Android); not in git
+      - ./secrets:/run/dzplay-secrets:ro
+    # container hardening: read-only image, no privilege escalation, no Linux capabilities
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *logging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # V5: re-encodes and checks user uploads. No database credentials, no Telegram token, no internet
+  # (internal network with Redis only), its own uid, read-only, no Linux capabilities, CPU/memory caps.
+  media-worker:
+    build: .
+    image: dzplay-media-worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.media_worker"]
+    user: "10002:10010"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_TMP_DIR: /uploads
+      LOG_LEVEL: INFO
+    networks: [media]
+    volumes:
+      - uploads:/uploads
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cpus: 1.0
+    mem_limit: 1536m
+    pids_limit: 64
+    logging: *logging
+    depends_on:
+      - redis
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dzplay
+      POSTGRES_USER: dzplay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dzplay -d dzplay"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]  # only ephemeral data
+    networks: [default, media]
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - app
+
+networks:
+  default:
+  media:
+    internal: true  # no route to the internet: the media worker can only reach Redis
+
+volumes:
+  pgdata:
+  caddy_data:
+  media:
+  uploads:  # V5: shared RAM-backed temp area for uploads (app uid 10001 + worker uid 10002, group 10010)
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=1024m,uid=10001,gid=10010,mode=2770"
