@@ -1,6 +1,7 @@
-"""The new logo, stage A (concepts): read-only data for the panel's «الهوية» tab — the three concept SVGs from
-brand/concepts/, the brand colours with their measured contrast, and a proposal (not applied) to align the app's
-default accent with the brand red. Super admin only; nothing here changes the app."""
+"""The new logo: read-only data for the panel's «الهوية» tab — the chosen logo (concept 3, a Δ of candlesticks) in
+its two versions from brand/ (large: 48 px and up; small: 16–24 px and the notification icon), the earlier concepts
+from brand/concepts/, the brand colours with their measured contrast, and a proposal (not applied) to align the
+app's default accent with the brand red. Super admin only; nothing here changes the app."""
 
 from __future__ import annotations
 
@@ -51,6 +52,15 @@ CONCEPTS = (
     },
 )
 
+CHOSEN = {
+    "id": "candles",
+    "title": "Δ من شموع يابانية (المختار)",
+    "large": {"file": "logo-large.svg", "use": "48px فما فوق: أيقونة التطبيق، الشاشة الرئيسية، شاشة البداية، الصفحات، og:image",
+              "notes": "خمس شموع على قاعدة، بفراغات أوضح بينها (6 بدل 4) فيبقى كل عمود مقروءًا، وشكل القلعة كما هو."},
+    "small": {"file": "logo-small.svg", "use": "16 و24px: favicon، أيقونة الإشعارات (بيضاء مسطحة)، رأس الصفحات الصغير",
+              "notes": "ثلاث شموع سميكة متفاوتة كمخطط شموع حقيقي (غير متناظرة فلا تُقرأ مثلثًا)، بلا قاعدة ولا فتائل، ونقطة حمراء أكبر."},
+}
+
 # The proposal (not applied): replace the coral default accent by a red one built on the brand red.
 PROPOSED_ACCENT = {"label": "أحمر العلامة", "dark": ("#E5232D", "#B5161F"), "light": ("#D7262E", "#A8141C")}
 
@@ -69,7 +79,10 @@ def preview_data() -> dict:
     red, black, white = COLORS["red"], COLORS["black"], COLORS["white"]
     surfaces = {mode: {"bg": bg, "card": card} for mode, (bg, card) in ap.SURFACES.items()}
     current = ap.ACCENTS[ap.DEFAULT_ACCENT]
+    chosen = {**CHOSEN, **{v: {**CHOSEN[v], "svg": (BRAND_DIR / CHOSEN[v]["file"]).read_text(encoding="utf-8")}
+                           for v in ("large", "small")}}
     return {
+        "chosen": chosen,
         "concepts": concepts,
         "colors": COLORS,
         "contrast": {

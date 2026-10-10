@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT">
+  <!-- DALTA.BIT logo, small version (16–24 px, notification icon): three thick candle bodies, staggered like a
+       real candle chart (low, highest, in between: not mirrored, so it reads as candles, not a triangle), no base,
+       no wicks, and a bigger red dot above the middle one. Colours: currentColor + brand red. -->
+  <g class="ink" fill="currentColor">
+    <rect x="8" y="54" width="22" height="30" rx="4"/>
+    <rect x="39" y="32" width="22" height="54" rx="4"/>
+    <rect x="70" y="38" width="22" height="30" rx="4"/>
+  </g>
+  <circle class="dot" cx="50" cy="14" r="10" fill="#E5232D"/>
+</svg>

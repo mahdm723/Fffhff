@@ -111,7 +111,7 @@ const NEIGHBOURS = [['clock', 'الساعة', '#5b6b8c'], ['image', 'الصور'
   ['timer', 'المؤقت', '#4f7f9a'], ['flag', 'المهام', '#6d8b3c'], ['send', 'البريد', '#5662b8'], ['shield', 'الأمان', '#46505f'],
   ['feather', 'الملاحظات', '#a07c2c']];
 
-function phone(concept, colors, shape) {
+function phone(concept, colors, shape, small = null) {
   const app = (glyph, label, color) => {
     const disc = h('span', { class: `brand-phone__app brand-phone__app--${shape}` }, icon(glyph));
     disc.style.background = color;
@@ -121,7 +121,9 @@ function phone(concept, colors, shape) {
     appIcon(concept, 46, { shape, bg: colors.black, ink: colors.white }), h('small', { text: appName() }));
   const grid = [...NEIGHBOURS.slice(0, 6).map((n) => app(...n)), ours, ...NEIGHBOURS.slice(6, 9).map((n) => app(...n))];
   return h('div', { class: 'brand-phone', 'aria-label': 'محاكاة شاشة هاتف رئيسية' },
-    h('div', { class: 'brand-phone__status' }, h('span', { text: '9:41' }), h('span', { text: '5G ▮▮▮' })),
+    h('div', { class: 'brand-phone__status' },
+      h('span', { class: 'brand-phone__left' }, h('span', { text: '9:41' }), small ? mark(small, 13, '#fff', { mono: true }) : null),
+      h('span', { text: '5G ▮▮▮' })),
     h('div', { class: 'brand-phone__grid' }, ...grid),
     h('div', { class: 'brand-phone__dock' }, ...NEIGHBOURS.slice(9).map((n) => app(...n)),
       h('span', { class: 'brand-phone__cell' }, appIcon(concept, 46, { shape, bg: colors.black, ink: colors.white }))));
@@ -167,6 +169,83 @@ function conceptCard(c, i, colors) {
     h('div', { class: 'brand-phones' }, phone(c, colors, 'circle'), phone(c, colors, 'squircle')));
 }
 
+// ------------------------------------------------------------------ the chosen logo (two versions)
+
+const pick = (large, small, px) => (px <= 24 ? small : large); // 16–24 px: the small version
+
+function notificationMock(small, colors) {
+  const tinted = (px, ink) => mark(small, px, ink, { mono: true });
+  return h('div', { class: 'brand-notif' },
+    h('div', { class: 'brand-notif__bar' },
+      h('span', { class: 'brand-phone__left' }, h('span', { text: '9:41' }), tinted(16, '#fff'), tinted(16, '#fff')),
+      h('span', { text: '5G ▮▮▮' })),
+    h('div', { class: 'brand-notif__card' },
+      h('div', { class: 'brand-notif__head' }, tinted(18, '#E5232D'), h('small', { text: `${appName()} · الآن` })),
+      h('b', { text: 'رسالة جديدة' }),
+      h('span', { text: `لديك رسالة جديدة على ${appName()}` })),
+    h('div', { class: 'brand-strip brand-strip--wrap' },
+      labelled(tinted(24, '#fff'), '24 أبيض (شريط الحالة)'), labelled(tinted(36, '#fff'), '36'), labelled(tinted(48, '#fff'), '48')));
+}
+
+function chosenCard(d, colors) {
+  const L = d.chosen.large, S = d.chosen.small;
+  const icon2 = (px, tone, v) => labelled(appIcon(v, px, tone === 'dark' ? { bg: colors.black, ink: colors.white } : { bg: colors.white, ink: colors.black }),
+    `${px}${v === S ? ' · صغيرة' : ''}`);
+  const sizes = (tone) => h('div', {},
+    wrap(...[16, 24, 48, 96].map((px) => icon2(px, tone, pick(L, S, px)))),
+    strip(...[192, 512].map((px) => icon2(px, tone, L))));
+  const every = (v, tone) => wrap(...[16, 24, 48, 96].map((px) => icon2(px, tone, v)));
+  const loose = (tone) => wrap(...[96, 48, 24, 16].map((px) => labelled(mark(pick(L, S, px), px, tone === 'dark' ? colors.white : colors.black), `${px}`)));
+  const android = (px) => wrap(
+    labelled(appIcon(L, px, { shape: 'circle', bg: colors.black, ink: colors.white }), 'دائرة'),
+    labelled(appIcon(L, px, { shape: 'rounded', bg: colors.black, ink: colors.white }), 'مربع مستدير'),
+    labelled(appIcon(L, px, { shape: 'squircle', bg: colors.black, ink: colors.white }), 'squircle'),
+    labelled(appIcon(L, px, { shape: 'circle', bg: '#DCE3F2', ink: '#1F2F4F', mono: true }), 'Android 13 (themed)'),
+    labelled(appIcon(L, px, { shape: 'circle', bg: '#2A2F3A', ink: '#C9D6F2', mono: true }), 'themed داكن'));
+  return h('section', { class: 'admin-card glass brand-concept', id: 'concept-chosen', 'aria-labelledby': 'concept-chosen-title' },
+    h('header', { class: 'brand-concept__head' },
+      h('span', { class: 'brand-concept__num', text: '✓' }),
+      h('div', {}, h('h2', { id: 'concept-chosen-title', text: d.chosen.title }),
+        h('p', { class: 'admin-meta', text: 'نسختان: الكبيرة من 48px فما فوق، والصغيرة لـ16 و24px ولأيقونة الإشعارات.' }))),
+    h('div', { class: 'brand-pair' },
+      panel('wall-dark', colors, h('div', { class: 'brand-version' }, appIcon(L, 120, { bg: colors.black, ink: colors.white }),
+        h('div', {}, h('b', { text: 'الكبيرة' }), h('p', { text: L.notes }), h('small', { text: L.use })))),
+      panel('wall-dark', colors, h('div', { class: 'brand-version' }, appIcon(S, 120, { bg: colors.black, ink: colors.white }),
+        h('div', {}, h('b', { text: 'الصغيرة' }), h('p', { text: S.notes }), h('small', { text: S.use }))))),
+
+    h('h3', { text: 'كل حجم بنسخته: 16 و24 (الصغيرة) · 48 · 96 · 192 · 512 (الكبيرة)' }),
+    panel('wall-dark', colors, sizes('dark')),
+    panel('wall-light', colors, sizes('light')),
+
+    h('h3', { text: 'مقارنة: الكبيرة ثم الصغيرة في الأحجام الصغيرة' }),
+    h('div', { class: 'brand-pair' }, panel('wall-dark', colors, every(L, 'dark')), panel('wall-dark', colors, every(S, 'dark'))),
+
+    h('h3', { text: 'الرمز وحده على خلفية داكنة وفاتحة (رأس الصفحات والـfavicon)' }),
+    h('div', { class: 'brand-pair' }, panel('dark', colors, loose('dark')), panel('light', colors, loose('light'))),
+
+    h('h3', { text: 'أيقونة Android (adaptive): دائرة، مربع مستدير، squircle، وAndroid 13 أحادية — 96 ثم 48' }),
+    panel('wall-dark', colors, android(96)),
+    panel('wall-light', colors, android(48)),
+
+    h('h3', { text: 'أيقونة الإشعارات: النسخة الصغيرة بيضاء مسطحة' }),
+    panel('wall-dark', colors, notificationMock(S, colors)),
+
+    h('h3', { text: 'بلون واحد' }),
+    h('div', { class: 'brand-pair' },
+      panel('light', colors, wrap(labelled(mark(L, 96, colors.black, { mono: true }), 'أسود'), labelled(mark(S, 24, colors.black, { mono: true }), '24'))),
+      panel('dark', colors, wrap(labelled(mark(L, 96, colors.white, { mono: true }), 'أبيض'), labelled(mark(S, 24, colors.white, { mono: true }), '24')))),
+
+    h('h3', { text: 'مع الاسم: الشعار الكامل، ورأس صفحة التطبيق (24px)' }),
+    panel('dark', colors, h('div', { class: 'brand-lockup' }, mark(L, 48, colors.white), wordmark(colors, colors.white))),
+    panel('light', colors, h('div', { class: 'brand-lockup' }, mark(L, 48, colors.black), wordmark(colors, colors.black))),
+    h('div', { class: 'brand-pair' },
+      panel('dark', colors, h('div', { class: 'brand-lockup brand-lockup--header' }, mark(S, 24, colors.white), wordmark(colors, colors.white, 18))),
+      panel('light', colors, h('div', { class: 'brand-lockup brand-lockup--header' }, mark(S, 24, colors.black), wordmark(colors, colors.black, 18)))),
+
+    h('h3', { text: 'على الشاشة الرئيسية (مع أيقونة الإشعار في شريط الحالة)' }),
+    h('div', { class: 'brand-phones' }, phone(L, colors, 'circle', S), phone(L, colors, 'squircle', S)));
+}
+
 function swatch(name, hex, note) {
   const chip = h('span', { class: 'brand-swatch__chip' });
   chip.style.background = hex;
@@ -199,16 +278,16 @@ export function renderBrand(main) {
     const { colors, contrast: k } = d;
     main.replaceChildren(
       h('section', { class: 'admin-card glass brand-intro' },
-        h('h2', { text: 'الشعار الجديد: المرحلة أ (المفاهيم)' }),
-        h('p', { class: 'admin-meta', text: 'ثلاثة مفاهيم للمقارنة فقط، لم يُطبَّق أي منها بعد. اختر مفهومًا أو اطلب تعديلات.' }),
+        h('h2', { text: 'الشعار الجديد: المفهوم المختار بنسختيه' }),
+        h('p', { class: 'admin-meta', text: 'المعاينة فقط، ولم يُطبَّق شيء في التطبيق بعد. بعد الموافقة يُطبَّق في كل مكان (المرحلة ب).' }),
         h('div', { class: 'brand-swatches' },
           swatch('أسود', colors.black), swatch('أبيض', colors.white),
           swatch('أحمر العلامة', colors.red, `تباين ${k.red_on_black}:1 على الأسود، ${k.red_on_white}:1 على الأبيض`)),
-        h('nav', { class: 'brand-jump', 'aria-label': 'المفاهيم' },
-          ...d.concepts.map((c, i) => h('button', { type: 'button', class: 'brand-jump__btn',
-            onclick: () => document.getElementById(`concept-${c.id}`).scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-          `${i + 1}. ${c.title}`)))),
-      ...d.concepts.map((c, i) => conceptCard(c, i, colors)),
+      ),
+      chosenCard(d, colors),
+      h('details', { class: 'admin-card glass brand-earlier' },
+        h('summary', { text: 'المفاهيم السابقة (للمقارنة)' }),
+        ...d.concepts.map((c, i) => conceptCard(c, i, colors))),
       h('section', { class: 'admin-card glass' },
         h('h2', { text: 'اقتراح توحيد ألوان الواجهة (غير مطبَّق)' }),
         h('p', { class: 'admin-meta', text: `لون التمييز الافتراضي الحالي «${d.accent_now.label}» (مرجاني ← وردي) يقترب من الأحمر دون أن يطابقه، فيبدو بجانب نقطة الشعار كلونين متنافسين. الاقتراح: أن يصير الافتراضي «${d.accent_proposed.label}» المبني على أحمر العلامة، مع بقاء الألوان الأخرى (الأزرق والنعناعي…) اختيارًا للمستخدم في «المظهر». يبقى Liquid Glass كما هو: الأحمر يظهر في النقطة والأزرار فقط.` }),
