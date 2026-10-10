@@ -13,6 +13,7 @@ import io
 import itertools
 import json
 import os
+import re
 import sqlite3
 import sys
 import tempfile
@@ -229,6 +230,14 @@ def main() -> int:
             b.locator(".request-bar").get_by_role("button", name="قبول").click()
             b.locator(".chat__composer textarea").fill("أهلا بك")
             b.locator(".chat__composer .send-btn").click()
+            b_img = b.get_by_role("button", name="إرسال صورة")  # V6 phase 6: B is not a member
+            expect(b_img).to_have_class(re.compile("chat__img-btn--locked"), timeout=15000)
+            b_img.click()
+            expect(b.locator(".sheet")).to_contain_text("ميزة للأعضاء")
+            expect(b.locator(".sheet").get_by_role("button", name="عضويتي")).to_be_visible()
+            run.shot(b, "m03b-chat-members-only")
+            b.locator(".sheet").get_by_role("button", name="إغلاق").click()
+            run.step("a non-member taps the chat picture button: membership note instead of the file picker")
             a.goto(base + "/#/messages")
             a.locator(".conv-item").first.click()
             chat_img = a.get_by_role("button", name="إرسال صورة")

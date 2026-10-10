@@ -774,6 +774,7 @@ body::before {
 
 .chat__composer .chat__img-btn { align-self: center; flex: none; }
 .chat__img-btn svg { width: 24px; height: 24px; }
+.chat__img-btn--locked { opacity: .55; } /* V6 phase 6: tap shows the membership note */
 .chat__upload { margin: 0; padding: 6px 16px; font-size: 13px; color: var(--ink-2); background: var(--bg-elev); }
 .bubble--image { padding: 0 !important; overflow: hidden; min-width: 190px; }
 .img-msg { position: relative; display: flex; align-items: center; justify-content: center; min-height: 120px; width: 210px; max-width: 62vw; color: #fff; background: var(--surface-3); }

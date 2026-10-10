@@ -103,8 +103,18 @@ export function renderChat(root, { conversationId, navigate }) {
     h('div', { class: 'chat__composer' }, imageBtn, textarea, sendBtn));
   uploadConfig().then((cfg) => { chatImages = cfg.available && cfg.chat.enabled ? cfg : null; draw(); }).catch(() => {});
 
+  function membersOnlySheet() { // V6 phase 6: sending pictures is a membership feature (receiving is free)
+    sheet((panel, close) => panel.append(
+      h('h2', { text: 'الصور للأعضاء' }),
+      h('p', { text: `إرسال الصور في المحادثات ميزة للأعضاء. أي شخص يستطيع استقبالها، وتختفي بعد ${chatImages.chat.ttl_after_view} ثانية من فتحها.` }),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn btn--block btn--primary', type: 'button', onclick: () => { close(); navigate('#/membership'); } }, 'عضويتي'),
+        h('button', { class: 'btn btn--block btn--ghost', type: 'button', onclick: close }, 'إغلاق'))));
+  }
+
   async function sendImage() {
     const conv = store.getConversation(conversationId);
+    if (chatImages && !chatImages.chat.member) { membersOnlySheet(); return; }
     if (!canSendImage(conv)) { toast('يمكنك إرسال الصور بعد أن يرد عليك الطرف الآخر.'); return; }
     if (sendingImage || !chatImages) return;
     const file = await chooseFile('image/jpeg,image/png,image/webp,image/heic,image/heif');
@@ -301,8 +311,10 @@ export function renderChat(root, { conversationId, navigate }) {
       requestHint.textContent = `أُرسل طلب مراسلة. ${n ? `يمكنك إرسال ${n} رسائل على الأكثر` : 'يمكنك إرسال رسائل قليلة'} حتى يرد.`;
     }
     imageBtn.hidden = !chatImages;
-    imageBtn.disabled = sendingImage || !canSendImage(conv);
-    imageBtn.title = canSendImage(conv) ? '' : 'تتاح الصور بعد أن يرد الطرف الآخر';
+    const member = Boolean(chatImages && chatImages.chat.member);
+    imageBtn.disabled = sendingImage || (member && !canSendImage(conv));
+    imageBtn.classList.toggle('chat__img-btn--locked', !member);
+    imageBtn.title = !member ? 'الصور للأعضاء' : canSendImage(conv) ? '' : 'تتاح الصور بعد أن يرد الطرف الآخر';
     if (!composer.isConnected) footer.replaceChildren(composer);
   }
 

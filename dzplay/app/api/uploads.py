@@ -64,6 +64,9 @@ def precheck(body: PrecheckBody, request: Request) -> dict:
             if quota["remaining"] <= 0:
                 raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.")
         elif body.purpose == "chat":
+            if not st.settings.CHAT_IMAGES_ENABLED:
+                raise AppError(403, "chat_images_off", "إرسال الصور في المحادثات متوقف حاليًا.")
+            media_items.require_chat_member(user)
             media_items.chat_target(db, user, body.conversation_id)
         elif body.purpose == "avatar":
             quota = media_items.avatar_quota(db, st.settings, user)

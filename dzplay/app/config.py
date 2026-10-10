@@ -242,7 +242,7 @@ class Settings(BaseSettings):
     AVATAR_CHANGES_PER_DAY: int = 3  # V6 phase 3: new profile pictures per user in 24 h  # True: an idea with an image appears only after approval
     # ephemeral chat images
     CHAT_IMAGES_ENABLED: bool = True
-    CHAT_IMAGE_TTL_AFTER_VIEW: int = 120  # seconds the picture stays visible once opened
+    CHAT_IMAGE_TTL_AFTER_VIEW: int = 60  # seconds the picture stays visible once opened (V6 phase 6: 60)
     CHAT_IMAGE_UNOPENED_TTL: int = 24 * HOUR  # never opened: removed after this
     CHAT_IMAGE_PER_HOUR: int = 10
     CHAT_IMAGE_REPORT_GRACE: int = 600  # expired pictures stay reportable this long (storage copy only, never shown)

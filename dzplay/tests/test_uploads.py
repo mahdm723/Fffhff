@@ -394,11 +394,12 @@ def test_chat_picture_after_reply_blurred_open_countdown_then_gone_everywhere(mx
     assert img.status_code == 200 and img.headers["cache-control"] == "no-store"
     assert mx.tg.copies == []
     a_view = next(m for m in a.get(f"/api/conversations/{cid}").json()["messages"] if m["id"] == msg["id"])
-    assert a_view["media"]["state"] == "open" and a_view["media"]["seconds_left"] > 100  # the sender sees the countdown
+    ttl = mx.settings.CHAT_IMAGE_TTL_AFTER_VIEW
+    assert a_view["media"]["state"] == "open" and a_view["media"]["seconds_left"] > ttl - 5  # the sender sees the countdown
     # re-opening does not restart the countdown
-    clock.advance(60)
-    assert b.post(f"/api/messages/{msg['id']}/open").json()["seconds_left"] <= 60
-    clock.advance(61)
+    clock.advance(ttl // 2)
+    assert b.post(f"/api/messages/{msg['id']}/open").json()["seconds_left"] <= ttl - ttl // 2
+    clock.advance(ttl - ttl // 2 + 1)
     assert b.get(opened["url"]).status_code == 404  # dead the moment it expires
     assert b.post(f"/api/messages/{msg['id']}/open").status_code == 410
     for c in (a, b):

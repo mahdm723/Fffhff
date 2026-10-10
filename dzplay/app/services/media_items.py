@@ -64,6 +64,14 @@ def _members_only() -> AppError:
     return AppError(403, "members_only", "نشر الصور مع الأفكار ميزة للأعضاء. اطّلع على «عضويتي» من حسابك.")
 
 
+def require_chat_member(user: User) -> None:
+    """V6 phase 6: sending chat pictures is a membership feature (receiving and opening them is not)."""
+    from app.services.membership import is_member
+
+    if not is_member(user):
+        raise AppError(403, "members_only", "إرسال الصور في المحادثات ميزة للأعضاء. اطّلع على «عضويتي» من حسابك.")
+
+
 def idea_quota(db: Session, settings: Settings, user: User) -> dict:
     from app.services.membership import is_member
 
@@ -102,6 +110,8 @@ def _chat_sent_last_hour(db: Session, user: User) -> int:
 
 
 def upload_config(db: Session, settings: Settings, user: User, available: bool) -> dict:
+    from app.services.membership import is_member as _is_member
+
     return {
         "available": available,
         "image_types": sorted(settings.image_types),
@@ -115,7 +125,7 @@ def upload_config(db: Session, settings: Settings, user: User, available: bool) 
         "idea": idea_quota(db, settings, user),
         "avatar": avatar_quota(db, settings, user),
         "chat": {"enabled": settings.CHAT_IMAGES_ENABLED, "per_hour": settings.CHAT_IMAGE_PER_HOUR,
-                 "ttl_after_view": settings.CHAT_IMAGE_TTL_AFTER_VIEW},
+                 "ttl_after_view": settings.CHAT_IMAGE_TTL_AFTER_VIEW, "member": _is_member(user)},
     }
 
 
@@ -170,6 +180,7 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
     elif purpose == "chat":
         if not settings.CHAT_IMAGES_ENABLED:
             raise AppError(403, "chat_images_off", "إرسال الصور في المحادثات متوقف حاليًا.")
+        require_chat_member(user)
         conv = chat_target(db, user, conversation_id)
         if _chat_sent_last_hour(db, user) >= settings.CHAT_IMAGE_PER_HOUR:
             raise AppError(429, "chat_image_limit", "أرسلت صورًا كثيرة هذه الساعة. حاول لاحقًا.", retry_after=600)
@@ -314,6 +325,7 @@ def send_chat_image(db: Session, settings: Settings, limiter, user: User, conver
     _require_can_send(user)
     if not settings.CHAT_IMAGES_ENABLED:
         raise AppError(403, "chat_images_off", "إرسال الصور في المحادثات متوقف حاليًا.")
+    require_chat_member(user)  # checked again at send: the membership may have ended since the upload
     cid = _clean_client_id(client_id)
     existing = _existing_by_client_id(db, user, cid)
     if existing is not None:

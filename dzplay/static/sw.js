@@ -1,5 +1,5 @@
 // DZPLAY service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v24';
+const VERSION = 'dz-v25';
 const SHELL = [
   '/', '/css/app.css', '/manifest.webmanifest',
   '/js/app.js', '/js/api.js', '/js/ui.js', '/js/icons.js', '/js/store.js', '/js/notify.js',
