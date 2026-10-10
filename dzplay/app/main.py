@@ -27,6 +27,7 @@ from app.api import account as account_api
 from app.api import admin as admin_api
 from app.api import admin_money as admin_money_api
 from app.api import admin_v5 as admin_v5_api
+from app.api import admin_brand as admin_brand_api
 from app.api import admin_cms as admin_cms_api
 from app.api import auth as auth_api
 from app.api import cms as cms_api
@@ -56,7 +57,7 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
 _ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m in (
     "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5", "admin-money",
-    "admin-texts")}}
+    "admin-texts", "admin-brand")}}
 
 
 def brand(page: str, settings: Settings) -> str:
@@ -311,6 +312,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         app.include_router(admin_v5_api.router, prefix=admin_prefix)
         app.include_router(admin_money_api.router, prefix=admin_prefix)
         app.include_router(admin_cms_api.router, prefix=admin_prefix)
+        app.include_router(admin_brand_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)
 
     @app.get("/.well-known/assetlinks.json", include_in_schema=False)

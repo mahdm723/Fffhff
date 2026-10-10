@@ -327,3 +327,47 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .admin-editor { width: 100%; min-height: 280px; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 14px; line-height: 1.7; resize: vertical; }
 .admin-preview { padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); max-height: 420px; overflow: auto; }
 .admin-preview--mail { white-space: pre-wrap; font-size: 14px; }
+
+/* ---------------------------------------------------------------- «الهوية»: logo concepts (stage A) */
+.brand-intro h2, .brand-concept h2 { margin: 0 0 6px; }
+.brand-swatches { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.brand-swatch { display: grid; grid-template-columns: 34px auto; column-gap: 8px; align-items: center; min-width: 0; }
+.brand-swatch__chip { grid-row: span 3; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line-strong); }
+.brand-swatch small { color: var(--ink-3); font-size: 12px; }
+.brand-jump { display: flex; flex-wrap: wrap; gap: 8px; }
+.brand-jump__btn { border: 1px solid var(--glass-border); background: var(--surface-2); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; }
+.brand-concept { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.brand-concept h3 { margin: 12px 0 2px; font-size: 14px; color: var(--ink-2); }
+.brand-concept__head { display: flex; gap: 12px; align-items: flex-start; }
+.brand-concept__num { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: #E5232D; color: #fff; }
+.brand-notes { margin: 0; padding-inline-start: 20px; color: var(--ink-2); font-size: 13.5px; }
+.brand-panel { border-radius: 16px; padding: 12px; min-width: 0; border: 1px solid var(--line); }
+.brand-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; }
+/* real pixel sizes: a 512px icon is wider than a phone, so the row scrolls sideways (only this row) */
+.brand-strip { display: flex; align-items: flex-end; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 4px; direction: ltr; }
+.brand-strip--wrap { flex-wrap: wrap; overflow-x: visible; justify-content: center; }
+.brand-cell { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
+.brand-cell figcaption { font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums; }
+.brand-mark, .brand-icon { display: block; flex: none; shape-rendering: geometricPrecision; }
+.brand-mark--mono .dot { fill: currentColor; }
+.brand-lockup { display: flex; align-items: center; justify-content: center; gap: 12px; direction: ltr; flex-wrap: wrap; }
+.brand-word { font-weight: 700; letter-spacing: -0.02em; display: inline-flex; align-items: baseline; gap: .06em; line-height: 1; }
+.brand-word__dot { width: .3em; height: .3em; border-radius: 50%; display: inline-block; }
+.brand-phones { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+.brand-phone { width: 232px; max-width: 100%; height: 440px; border-radius: 34px; padding: 10px 12px; border: 6px solid #22252d;
+  background: radial-gradient(120% 80% at 20% 10%, #4b3d6b 0%, #1d2238 55%, #0f1220 100%); color: #fff; display: flex; flex-direction: column; }
+.brand-phone__status { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 6px 14px; direction: ltr; }
+.brand-phone__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 6px; }
+.brand-phone__cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.brand-phone__cell small { font-size: 9px; letter-spacing: -0.01em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand-phone__app { width: 46px; height: 46px; display: grid; place-items: center; color: #fff; }
+.brand-phone__app svg { width: 24px; height: 24px; }
+.brand-phone__app--circle { border-radius: 50%; }
+.brand-phone__app--squircle { border-radius: 17px; }
+.brand-phone__dock { margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 10px 6px 4px;
+  border-radius: 22px; background: #ffffff1f; }
+.brand-phone__dock small { display: none; }
+.brand-accent { border-radius: 16px; padding: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; border: 1px solid var(--line); min-width: 0; }
+.brand-accent small { font-size: 11.5px; opacity: .75; overflow-wrap: anywhere; }
+.brand-accent__btn { border-radius: 14px; padding: 9px 22px; font-weight: 700; }
+.brand-accent__link { font-weight: 700; text-decoration: underline; }

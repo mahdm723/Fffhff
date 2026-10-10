@@ -14,6 +14,7 @@ import { renderSystem } from './admin-system.js';
 import { renderMedia, renderSettings, renderSupport } from './admin-v5.js';
 import { renderGiveaway, renderMembership, renderRewards } from './admin-money.js';
 import { renderTexts } from './admin-texts.js';
+import { renderBrand } from './admin-brand.js';
 
 const REFRESH_MS = 30_000;
 const app = document.getElementById('app');
@@ -77,14 +78,18 @@ const TABS = [
   ['rewards', 'المكافآت والسحب'],
   ['giveaway', 'الظرف الأحمر'],
   ['texts', 'النصوص'],
+  ['brand', 'الهوية'],
   ['support', 'الدعم'],
   ['settings', 'الإعدادات'],
   ['system', 'الأمان والنظام'],
   ['logs', 'السجل'],
 ];
 
+// a tab can be opened directly: <panel>#brand
+const fromHash = () => { const id = location.hash.slice(1); return TABS.some(([t]) => t === id) ? id : null; };
+
 const state = {
-  tab: 'overview', stats: null, activity: null, days: 14, active: null, showTable: false,
+  tab: fromHash() || 'overview', stats: null, activity: null, days: 14, active: null, showTable: false,
   reportKind: 'reports', logKind: 'events', reportStatus: 'open', eventType: '', timer: null, updatedAt: null,
 };
 
@@ -176,6 +181,7 @@ function paintBadge() {
 
 function showTab(id) {
   state.tab = id;
+  if (location.hash !== `#${id}`) history.replaceState(null, '', id === 'overview' ? location.pathname : `#${id}`);
   document.querySelectorAll('.admin-tab').forEach((b) => b.setAttribute('aria-selected', String(b.id === `tab-${id}`)));
   const main = document.getElementById('admin-main');
   main.setAttribute('aria-labelledby', `tab-${id}`);
@@ -184,7 +190,7 @@ function showTab(id) {
   ({
     overview: renderOverview, users: renderUsers, content: renderContent, engage: renderEngage, reports: renderReports,
     system: renderSystem, logs: renderSecurity,
-    media: renderMedia, membership: renderMembership, rewards: renderRewards, giveaway: renderGiveaway, texts: renderTexts, support: renderSupport, settings: renderSettings,
+    media: renderMedia, membership: renderMembership, rewards: renderRewards, giveaway: renderGiveaway, texts: renderTexts, brand: renderBrand, support: renderSupport, settings: renderSettings,
   })[id](main);
   window.scrollTo({ top: 0 });
 }

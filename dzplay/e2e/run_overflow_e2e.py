@@ -389,7 +389,7 @@ def public_pages(run: Run, browser, base: str, width: int) -> None:
 # ----------------------------------------------------------------------------- panel
 
 PANEL_TABS = ("overview", "users", "content", "engage", "reports", "media", "membership", "rewards", "giveaway",
-              "texts", "support", "settings", "system", "logs")
+              "texts", "brand", "support", "settings", "system", "logs")
 DETAIL = {"users": ".admin-card--tap", "content": ".admin-card--tap", "support": ".admin-line--btn", "texts": ".admin-line--btn"}
 
 

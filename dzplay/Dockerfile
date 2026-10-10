@@ -15,6 +15,8 @@ RUN pip install --upgrade pip "setuptools>=83" && pip install -r requirements.tx
 
 COPY app ./app
 COPY static ./static
+# the brand sources (logo concepts and, once chosen, the master files): read by the panel's «الهوية» tab
+COPY brand ./brand
 
 # The code stays owned by root (read-only for the app user); only the media cache is writable.
 RUN useradd --create-home --uid 10001 dzplay && mkdir -p /data/media-cache && chown -R dzplay /data
