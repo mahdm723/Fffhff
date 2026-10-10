@@ -157,6 +157,18 @@ cd /opt/dzplay/dzplay && nano .env && docker compose up -d
   - تجربة: `sudo /opt/dzplay/dzplay/deploy/monitor.sh test`
   - الحالة الآن: `sudo /opt/dzplay/dzplay/deploy/monitor.sh status`
   - الحدود (اختيارية في `.env`): `MONITOR_DISK_PCT=85` و`MONITOR_LOAD_PER_CPU=2.0` و`MONITOR_MEM_PCT=92` و`MONITOR_BANS_PER_HOUR=20` و`MONITOR_REMIND_HOURS=6`.
+- **صلاحيات الملفات الحساسة (V6):** المثبّت يشدّها في كل تحديث. للتحقق في أي وقت:
+  - فحص فقط، لا يغيّر شيئًا: `sudo /opt/dzplay/dzplay/deploy/perms.sh`
+  - تشديد ما هو مفتوح (لا يوسّع أي صلاحية): `sudo /opt/dzplay/dzplay/deploy/perms.sh fix`
+  - **ما يفحصه:**
+    - `.env` ونسخه الجانبية: 600 root؛
+    - النسخ الاحتياطية والتصديرات المشفّرة: مجلد 700 وملفات 600؛
+    - سجلات النسخ والمراقبة: 600؛
+    - سكربتات `deploy`: 700؛
+    - ملفات cron؛
+    - مفاتيح SSH (`authorized_keys` و`ssh_host_*_key`): 600؛
+    - بيانات Docker (قاعدة البيانات ومفاتيح TLS): غير مقروءة لغير root.
+  - ويتأكد أيضًا من عدم وجود مفتاح توقيع Android (`*.jks`) على الخادم.
 
 ### SSH بالمفاتيح فقط (دون أن تفقد الوصول)
 

@@ -59,6 +59,16 @@ f="$(ls -1t "$WORK"/backups/*.gpg | head -1)"
 strings "$f" | grep -q -e roundtrip -e SECRET_KEY && fail "plaintext inside the backup"
 pass "3 backups → 2 kept, mode 600, encrypted (no plaintext)"
 
+# deploy/perms.sh on the real stack files (host-wide paths pointed at an empty folder)
+mkdir "$WORK/p"
+P="PERMS_LOG_DIR=$WORK/p PERMS_LIB_DIR=$WORK/p PERMS_CRON_DIR=$WORK/p PERMS_SSHD_DIR=$WORK/p PERMS_HOMES=$WORK/p PERMS_DOCKER_DIR=$WORK/p"
+chmod 644 .env
+env $P ./deploy/perms.sh >/dev/null && fail "perms.sh missed a readable .env"
+env $P ./deploy/perms.sh fix >/dev/null
+env $P ./deploy/perms.sh >/dev/null || fail "perms.sh check after fix"
+[ "$(stat -c %a .env) $(stat -c %a "$WORK/backups")" = "600 700" ] || fail "perms.sh fix"
+pass "perms.sh: readable .env found and tightened; backups 700 / 600; no signing key"
+
 run wipe >/dev/null
 BACKUP_PASSPHRASE=wrong-passphrase-123456 ./deploy/restore.sh "$f" --yes >/dev/null 2>&1 && fail "wrong passphrase accepted"
 pass "wrong passphrase refused"

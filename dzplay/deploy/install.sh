@@ -186,8 +186,8 @@ if grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && grep -q '^TELEGRAM_ADMIN_CHAT_ID=.\
 fi
 
 # Daily encrypted database backup (03:17 server time) + a first backup now.
-chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh deploy/monitor.sh deploy/ssh-harden.sh \\
-  deploy/v6-cleanup.sh
+chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh deploy/monitor.sh deploy/ssh-harden.sh \
+  deploy/v6-cleanup.sh deploy/perms.sh
 cat > /etc/cron.d/dzplay-backup <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -222,6 +222,14 @@ if [ "${HARDEN:-0}" = "1" ]; then
   "$APP_DIR/deploy/harden.sh" || warn "Hardening reported a problem (see above)."
 fi
 
+# Sensitive files (.env, backups, logs, SSH keys, Docker data): tighten anything too open, then report.
+if "$APP_DIR/deploy/perms.sh" fix >/var/log/dzplay-perms.log 2>&1 && "$APP_DIR/deploy/perms.sh" check >>/var/log/dzplay-perms.log 2>&1; then
+  ok "Sensitive files have safe permissions (check any time: sudo $APP_DIR/deploy/perms.sh)"
+else
+  warn "Permissions need attention: sudo $APP_DIR/deploy/perms.sh"
+fi
+chmod 600 /var/log/dzplay-perms.log
+
 ADMIN_PATH_VALUE="$(grep '^ADMIN_PATH=' .env | cut -d= -f2-)"
 V6_NOTE=""
 if docker compose exec -T app python -m app.admin_cli legacy-status >/dev/null 2>&1 </dev/null; then :; else
@@ -252,6 +260,7 @@ cat <<EOF
   Hardening (firewall, fail2ban, auto-updates):   sudo $APP_DIR/deploy/harden.sh
   SSH keys only (asks you to prove a key login first):   sudo $APP_DIR/deploy/ssh-harden.sh status
   Monitoring alerts test:   sudo $APP_DIR/deploy/monitor.sh test
+  File permissions check:   sudo $APP_DIR/deploy/perms.sh
   Telegram bot:   admin panel → الأمان والنظام → بوت Telegram
   $V6_NOTE
   Android app download page:   $PUBLIC_URL/download
