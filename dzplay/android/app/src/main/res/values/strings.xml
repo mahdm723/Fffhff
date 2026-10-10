@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- appName is generated from gradle.properties (appName); %1$s below is that name. -->
 <resources>
-    <string name="appName">DZPLAY</string>
-    <string name="shareTitle">مشاركة DZPLAY</string>
-    <string name="callChannel">المكالمات الواردة</string>
+    <string name="shareTitle">مشاركة %1$s</string>
     <string name="messageChannel">الرسائل الجديدة</string>
-    <string name="incomingCall">مكالمة واردة على DZPLAY</string>
-    <string name="newMessage">لديك رسالة جديدة على DZPLAY</string>
-    <string name="answer">رد</string>
-    <string name="decline">رفض</string>
+    <string name="newMessage">لديك رسالة جديدة على %1$s</string>
 </resources>

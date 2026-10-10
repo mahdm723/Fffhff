@@ -10,6 +10,6 @@ public final class FcmBootstrap {
     }
 
     public static void start(Context context) {
-        FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> CallMessagingService.saveToken(context, token));
+        FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token -> MessagingService.saveToken(context, token));
     }
 }

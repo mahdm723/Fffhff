@@ -8,5 +8,7 @@
     if (a.mode === 'light' || a.mode === 'dark') r.dataset.theme = a.mode;
     if (/^[a-z]{2,16}$/.test(a.accent || '')) r.dataset.accent = a.accent;
     if (a.font === 'large') r.dataset.font = 'large';
-  } catch (e) { /* storage blocked: the defaults apply */ }
+    var app = window.DZPLAYAndroid; // Android 3.0.0+: the system bar icons follow the chosen theme
+    if (app && app.setTheme) app.setTheme(r.dataset.theme || 'system');
+  } catch (e) { /* storage blocked or an older app: the defaults apply */ }
 })();

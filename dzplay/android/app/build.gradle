@@ -2,9 +2,10 @@ plugins {
     id 'com.android.application'
 }
 
-// The DZPLAY server this app opens (see gradle.properties).
+// The server this app opens and the name shown under the icon (see gradle.properties).
 def appHost = project.property('appHost')
-// Firebase (incoming calls while the app is closed) is optional: only with google-services.json.
+def appName = project.property('appName')
+// Firebase (new-message notifications while the app is closed) is optional: only with google-services.json.
 def withFcm = file('google-services.json').exists()
 
 android {
@@ -21,6 +22,7 @@ android {
         buildConfigField 'String', 'APP_HOST', "\"${appHost}\""
         buildConfigField 'boolean', 'FCM', "${withFcm}"
         resValue 'bool', 'fcm_enabled', "${withFcm}"
+        resValue 'string', 'appName', appName
         manifestPlaceholders = [hostName: appHost]
     }
 

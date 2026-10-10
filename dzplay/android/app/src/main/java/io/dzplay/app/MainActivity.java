@@ -10,8 +10,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
-import android.media.AudioDeviceInfo;
-import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,29 +29,23 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * DZPLAY in its own full-screen WebView.
+ * DALTA.BIT in its own full-screen WebView (the name comes from gradle.properties: appName).
  *
  * - Only https://APP_HOST pages are shown inside the app; any other link opens
  *   in the phone's browser (the in-app page can never be swapped for another site).
  * - No dependency on Chrome or any browser app (works on phones without Google
  *   services and with "dual apps"/cloned browsers).
  * - The session cookie lives in the app's own private WebView storage.
- * - Calls (WebRTC): camera / microphone are granted to OUR site only, after the Android
- *   permission; audio routing (speaker / earpiece) and keep-screen-on via the JS bridge.
- * - With Firebase (optional build), an incoming call rings full-screen while the app is closed.
+ * - V6 (3.0.0): no calls any more, so no camera, microphone, audio routing or full-screen
+ *   notification; any camera / microphone request from a page is refused.
+ * - With Firebase (optional build), a new-message notification arrives while the app is closed.
  */
 public class MainActivity extends Activity {
 
     static final String HOST = BuildConfig.APP_HOST;
     static final String HOME = "https://" + HOST + "/";
-    static final String EXTRA_CALL = "io.dzplay.app.CALL_ID";
-    static final String EXTRA_ANSWER = "io.dzplay.app.ANSWER";
     static final String PREFS = "dzplay";
-    private static final int REQ_MEDIA = 41;
     private static final int REQ_NOTIFY = 42;
     private static final int REQ_FILE = 43;
 
@@ -61,9 +53,7 @@ public class MainActivity extends Activity {
     private FrameLayout root;
     private int topInsetPx = 0;
     private volatile boolean onOwnPage = false;
-    private PermissionRequest pendingMedia;
-    private List<String> pendingResources;
-    private volatile String pendingAnswer = null;
+    private String theme = "system"; // light | dark | system, as chosen in «المظهر» (sent by the page)
     private ValueCallback<Uri[]> pendingFiles;
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -85,8 +75,7 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setSupportMultipleWindows(false);
-        // Reels autoplay MUTED as you scroll; call audio plays as soon as a call connects.
-        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setMediaPlaybackRequiresUserGesture(true);  // nothing plays by itself
         s.setUserAgentString(s.getUserAgentString() + " DZPLAYApp/" + BuildConfig.VERSION_NAME);
 
         CookieManager cookies = CookieManager.getInstance();
@@ -97,17 +86,10 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(PermissionRequest request) {
-                runOnUiThread(() -> handleMediaRequest(request));
+                request.deny(); // no camera / microphone in V6 (and never for another site)
             }
 
-            @Override
-            public void onPermissionRequestCanceled(PermissionRequest request) {
-                if (request == pendingMedia) {
-                    pendingMedia = null;
-                }
-            }
-
-            // <input type="file"> (pictures for ideas and chats, videos for the studio): the system
+            // <input type="file"> (pictures for ideas, chats and the profile): the system
             // picker returns a content:// URI the page may read once; no storage permission needed.
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
@@ -161,7 +143,6 @@ public class MainActivity extends Activity {
         // The APK on /download (app update) is handed to the system downloader / browser.
         web.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> openOutside(Uri.parse(url)));
 
-        handleCallIntent(getIntent());
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
         } else {
@@ -174,7 +155,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        handleCallIntent(intent);
         Uri data = intent.getData();
         if (data != null && isOwnSite(data)) {
             web.loadUrl(data.toString());
@@ -184,7 +164,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        CallNotifications.cancelIncoming(this); // the in-app screen takes over
+        Notifications.cancelMessage(this); // the app is open: the conversation shows the rest
     }
 
     @Override
@@ -226,6 +206,12 @@ public class MainActivity extends Activity {
     // the page as --dz-safe-top. Older versions keep the classic layout (adjustResize works there).
 
     private boolean night() {
+        if ("dark".equals(theme)) {
+            return true;
+        }
+        if ("light".equals(theme)) {
+            return false;
+        }
         return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
     }
 
@@ -295,67 +281,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ------------------------------------------------------------------ incoming call (from the notification)
-
-    private void handleCallIntent(Intent intent) {
-        if (intent == null || intent.getStringExtra(EXTRA_CALL) == null) {
-            return;
-        }
-        // show over the lock screen and wake the display for this call
-        if (Build.VERSION.SDK_INT >= 27) {
-            setShowWhenLocked(true);
-            setTurnScreenOn(true);
-        } else {
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-        }
-        if (intent.getBooleanExtra(EXTRA_ANSWER, false)) {
-            pendingAnswer = intent.getStringExtra(EXTRA_CALL); // the web app answers it once it shows the call
-        }
-        CallNotifications.cancelIncoming(this);
-    }
-
-    private void leaveLockScreen() {
-        if (Build.VERSION.SDK_INT >= 27) {
-            setShowWhenLocked(false);
-            setTurnScreenOn(false);
-        } else {
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-        }
-    }
-
-    // ------------------------------------------------------------------ camera / microphone for WebRTC
-
-    private void handleMediaRequest(PermissionRequest request) {
-        if (!isOwnSite(request.getOrigin())) {
-            request.deny(); // never for another origin
-            return;
-        }
-        List<String> grant = new ArrayList<>();
-        List<String> need = new ArrayList<>();
-        for (String r : request.getResources()) {
-            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)) {
-                grant.add(r);
-                if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                    need.add(Manifest.permission.CAMERA);
-                }
-            } else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
-                grant.add(r);
-                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                    need.add(Manifest.permission.RECORD_AUDIO);
-                }
-            }
-        }
-        if (grant.isEmpty()) {
-            request.deny();
-        } else if (need.isEmpty()) {
-            request.grant(grant.toArray(new String[0]));
-        } else {
-            pendingMedia = request;
-            pendingResources = grant;
-            requestPermissions(need.toArray(new String[0]), REQ_MEDIA);
-        }
-    }
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQ_FILE) {
@@ -366,28 +291,6 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-        super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode != REQ_MEDIA || pendingMedia == null) {
-            return;
-        }
-        List<String> ok = new ArrayList<>();
-        for (String r : pendingResources) {
-            String perm = PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) ? Manifest.permission.CAMERA : Manifest.permission.RECORD_AUDIO;
-            if (checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED) {
-                ok.add(r);
-            }
-        }
-        if (ok.isEmpty()) {
-            pendingMedia.deny();
-        } else {
-            pendingMedia.grant(ok.toArray(new String[0]));
-        }
-        pendingMedia = null;
-        pendingResources = null;
     }
 
     private void askNotificationsOnce() {
@@ -403,43 +306,6 @@ public class MainActivity extends Activity {
         requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY);
     }
 
-    // ------------------------------------------------------------------ call audio
-
-    private void setSpeaker(boolean on) {
-        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        if (am == null) {
-            return;
-        }
-        am.setMode(AudioManager.MODE_IN_COMMUNICATION);
-        if (Build.VERSION.SDK_INT >= 31) {
-            int wanted = on ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_BUILTIN_EARPIECE;
-            for (AudioDeviceInfo d : am.getAvailableCommunicationDevices()) {
-                if (d.getType() == wanted) {
-                    am.setCommunicationDevice(d);
-                    return;
-                }
-            }
-            if (!on) {
-                am.clearCommunicationDevice(); // headset / bluetooth: let the system choose
-            }
-        } else {
-            am.setSpeakerphoneOn(on);
-        }
-    }
-
-    private void endCallAudio() {
-        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        if (am == null) {
-            return;
-        }
-        if (Build.VERSION.SDK_INT >= 31) {
-            am.clearCommunicationDevice();
-        } else {
-            am.setSpeakerphoneOn(false);
-        }
-        am.setMode(AudioManager.MODE_NORMAL); // Reels sound goes back to the loudspeaker
-    }
-
     private void showOffline() {
         String page = "<!doctype html><html lang='ar' dir='rtl'><head><meta charset='utf-8'>"
             + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -447,13 +313,13 @@ public class MainActivity extends Activity {
             + "justify-content:center;gap:14px;background:#0c0e18;color:#eef0f8;font-family:sans-serif;text-align:center;padding:24px}"
             + "b{font-size:30px}a{background:linear-gradient(135deg,#ff8a5c,#ff5f8a);color:#fff;padding:12px 26px;"
             + "border-radius:16px;text-decoration:none;font-weight:bold}p{color:#b4b9cc}</style></head><body>"
-            + "<b>dzplay</b><p>تعذّر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.</p>"
+            + "<b>" + getString(R.string.appName) + "</b><p>تعذّر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.</p>"
             + "<a href='" + HOME + "'>إعادة المحاولة</a></body></html>";
         onOwnPage = false;
         web.loadDataWithBaseURL(null, page, "text/html", "utf-8", null);
     }
 
-    /** Small native helpers for the web app (window.DZPLAYAndroid), active only on our own pages. */
+    /** Small native helpers for the web app (window.DZPLAYAndroid, a stable internal name), active only on our own pages. */
     private class Bridge {
         @JavascriptInterface
         public void share(String text) {
@@ -464,37 +330,22 @@ public class MainActivity extends Activity {
                 Intent send = new Intent(Intent.ACTION_SEND);
                 send.setType("text/plain");
                 send.putExtra(Intent.EXTRA_TEXT, text);
-                startActivity(Intent.createChooser(send, getString(R.string.shareTitle)));
+                startActivity(Intent.createChooser(send, getString(R.string.shareTitle, getString(R.string.appName))));
             });
         }
 
+        /** «المظهر» in the app: the status / navigation bar icons follow the chosen theme, not only the phone's. */
         @JavascriptInterface
-        public void keepScreenOn(boolean on) {
-            if (!onOwnPage) {
+        public void setTheme(String mode) {
+            if (!onOwnPage || mode == null || !mode.matches("light|dark|system")) {
                 return;
             }
             runOnUiThread(() -> {
-                if (on) {
-                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                } else {
-                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                    leaveLockScreen();
+                theme = mode;
+                if (root != null && Build.VERSION.SDK_INT >= 30) {
+                    paintBars();
                 }
             });
-        }
-
-        @JavascriptInterface
-        public void setSpeaker(boolean on) {
-            if (onOwnPage) {
-                runOnUiThread(() -> MainActivity.this.setSpeaker(on));
-            }
-        }
-
-        @JavascriptInterface
-        public void endCallAudio() {
-            if (onOwnPage) {
-                runOnUiThread(MainActivity.this::endCallAudio);
-            }
         }
 
         @JavascriptInterface
@@ -523,14 +374,6 @@ public class MainActivity extends Activity {
                     getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
                 }
             });
-        }
-
-        /** The call the user answered from the notification (returned once). */
-        @JavascriptInterface
-        public String takePendingAnswer() {
-            String id = pendingAnswer;
-            pendingAnswer = null;
-            return onOwnPage && id != null ? id : "";
         }
     }
 }

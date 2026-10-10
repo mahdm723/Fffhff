@@ -16,6 +16,8 @@ export function applyAppearance(a) {
   try { localStorage.setItem(KEY, JSON.stringify(a)); } catch { /* private mode */ }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = getComputedStyle(r).getPropertyValue('--bg').trim() || meta.content;
+  const app = window.DZPLAYAndroid; // Android 3.0.0+: the system bar icons follow the chosen theme
+  if (app && app.setTheme) { try { app.setTheme(r.dataset.theme || 'system'); } catch { /* older app */ } }
 }
 
 export function appearanceSheet(me, onSaved) {
