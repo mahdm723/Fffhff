@@ -1,6 +1,6 @@
 # PLAN — DZPLAY V6 (Pivot)
 
-> الحالة: **المراحل 1 → 9 منتهية. التالي: 10.**
+> الحالة: **المراحل 1 → 10 منتهية.** بانتظار تجربة المالك على الهاتف.
 > العمل على الفرع `claude/github-access-check-c1exvo`، ولكل مرحلة commits تبدأ بـ`V6 phase N:` (الوسوم لا تُدفع من هذه البيئة).
 > كل المسارات أدناه نسبةً إلى `dzplay/`.
 
@@ -531,7 +531,9 @@
 
 ---
 
-## المرحلة 10 — Android
+## المرحلة 10 — Android ✅
+> 3.0.0 (رمز 6) باسم DALTA.BIT، موقّع بنفس المفتاح (`46:15:BE…79:BF`)، صلاحيتان فقط (الإنترنت والإشعارات)، منشور في `/download`. الاختبار: `dzplay/tests/test_android_v6.py`.
+
 - `applicationId io.dzplay.app` والمفتاح **لا يتغيران**.
 - الاسم من `APP_NAME`، والأيقونة كما هي حتى يتغيّر الاسم.
 - **إزالة الصلاحيات:** `CAMERA`، `RECORD_AUDIO`، `MODIFY_AUDIO_SETTINGS`، `USE_FULL_SCREEN_INTENT`. **يبقى `POST_NOTIFICATIONS`** لأن FCM يرسل إشعارات الرسائل (`notify_message`). يُحذف كود رنين المكالمات.
