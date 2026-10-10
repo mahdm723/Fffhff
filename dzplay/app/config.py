@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # --- application -------------------------------------------------------
-    APP_NAME: str = "DZPLAY"
+    APP_NAME: str = "DALTA.BIT"
     ENV: str = "development"  # "development" | "production" | "test"
     SECRET_KEY: str = ""
     DATABASE_URL: str = "sqlite:///./dzplay.db"
@@ -174,7 +174,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""  # secret: .env only
-    SMTP_FROM: str = ""  # e.g. "DZPLAY <no-reply@example.com>"
+    SMTP_FROM: str = ""  # e.g. "DALTA.BIT <no-reply@example.com>"
     SMTP_SECURITY: str = "starttls"  # starttls | ssl | none (none only for local testing)
     SMTP_TIMEOUT: int = 20
 
@@ -195,7 +195,7 @@ class Settings(BaseSettings):
     NAME_MAX_LENGTH: int = 20
     NAME_CHANGE_COOLDOWN_DAYS: int = 14  # going back to the default name is always allowed
     # Compared after normalization (case, lookalike letters, spaces/underscores removed)
-    NAME_RESERVED: str = ("dzplay,dzplay الرسمي,dz play,official,admin,administrator,support,moderator,mod,staff,team,"
+    NAME_RESERVED: str = ("dzplay,dzplay الرسمي,dz play,دلتا بت,دلتابت,دلتا بيت,دلتابيت,dalta bit,official,admin,administrator,support,moderator,mod,staff,team,"
                           "system,root,owner,الادارة,الإدارة,ادارة,مشرف,المشرف,الدعم,الدعم الفني,الرسمي,فريق dzplay")
     NAME_BLOCKED_WORDS: str = ""  # extra words not allowed in names, comma separated ("word*" = starts with)
     SEARCH_PER_MINUTE: int = 20  # people searches per user per minute (anti-scraping)

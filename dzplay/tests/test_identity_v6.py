@@ -31,7 +31,7 @@ def test_registration_requires_a_valid_name(hx):
     r = hx.register(c, "noname@example.com", display_name=None)
     assert r.status_code == 400 and r.json()["error"]["code"] == "name_required"
     for bad, code in (("dzplay", "reserved_name"), ("DZ PLAY", "reserved_name"), ("ab", "invalid_name_length"),
-                      ("12345", "invalid_name"), ("a‮b‬cd", "invalid_name")):
+                      ("12345", "invalid_name"), ("a\u202eb\u202ccd", "invalid_name")):
         r = hx.register(c, "noname@example.com", display_name=bad)
         assert r.status_code == 400 and r.json()["error"]["code"] == code, (bad, r.text)
     r = hx.register(c, "named@example.com", display_name="  سارة   الجزائرية ")

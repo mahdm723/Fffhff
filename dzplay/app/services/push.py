@@ -1,7 +1,7 @@
 """Web Push notifications (optional; enabled when VAPID keys are configured).
 
 The payload never contains the message text or anything about the sender:
-the lock screen only shows "لديك رسالة جديدة على DZPLAY".
+the lock screen only shows "لديك رسالة جديدة على <APP_NAME>".
 """
 
 from __future__ import annotations
@@ -19,7 +19,9 @@ from app.models import PushSubscription
 
 log = logging.getLogger("dzplay.push")
 
-PUSH_PAYLOAD = {"title": "DZPLAY", "body": "لديك رسالة جديدة على DZPLAY", "url": "/#/messages"}
+def push_payload(settings: Settings) -> dict:
+    """The only content a push carries: the app's name and a generic line (no sender, no text)."""
+    return {"title": settings.APP_NAME, "body": f"لديك رسالة جديدة على {settings.APP_NAME}", "url": "/#/messages"}
 
 
 def push_endpoint_allowed(settings: Settings, endpoint: str) -> bool:
@@ -50,7 +52,7 @@ class PushNotifier:
         if self._pool is not None:
             self._pool.submit(self._send, user_id)
 
-    def _send(self, user_id: str, payload: dict = PUSH_PAYLOAD, ttl: int = 24 * 3600, urgency: str = "normal") -> None:
+    def _send(self, user_id: str, payload: dict | None = None, ttl: int = 24 * 3600, urgency: str = "normal") -> None:
         from pywebpush import WebPushException, webpush
 
         with self.database.session() as db:
@@ -63,7 +65,7 @@ class PushNotifier:
                 try:
                     webpush(
                         subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
-                        data=json.dumps(payload, ensure_ascii=False),
+                        data=json.dumps(payload or push_payload(self.settings), ensure_ascii=False),
                         vapid_private_key=self.settings.VAPID_PRIVATE_KEY,
                         vapid_claims={"sub": self.settings.VAPID_SUBJECT},
                         ttl=ttl,

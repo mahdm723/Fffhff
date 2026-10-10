@@ -50,7 +50,7 @@ def test_connect_from_panel_goes_live_without_restart(panel, caplog):
     # webhook registered on the public URL with a generated secret; hello message sent to the admin chat
     hook = panel.tg.webhook
     assert hook["url"] == "https://chat.example.com/api/telegram/webhook" and len(hook["secret_token"]) == 64
-    assert "DZPLAY متصل" in panel.tg.last_text()
+    assert f"{panel.settings.APP_NAME} متصل" in panel.tg.last_text()
 
     # the token is stored sealed, never in clear
     with panel.db() as db:

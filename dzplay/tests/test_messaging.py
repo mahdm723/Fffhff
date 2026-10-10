@@ -105,7 +105,7 @@ def test_content_validation(hx):
 
 def test_content_is_normalised(hx):
     a, b = hx.user(), hx.user()
-    r = send(a, b, "  سطر‮ مخفي​ \r\n\n\n\nسطر آخر\x07  ")
+    r = send(a, b, "  سطر\u202e مخفي​ \r\n\n\n\nسطر آخر\x07  ")
     assert r.status_code == 201
     assert r.json()["message"]["content"] == "سطر مخفي\n\nسطر آخر"
 

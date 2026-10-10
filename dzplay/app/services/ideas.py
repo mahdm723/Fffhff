@@ -28,6 +28,7 @@ from app import clock
 from app.config import Settings
 from app.errors import AppError, not_found
 from app.models import Block, Comment, Post, PostReaction, ProfileRef, Report, User
+from app.services import brand
 from app.services.auth import log_event
 from app.services.content import clean_message
 from app.services.messaging import (
@@ -48,7 +49,6 @@ from app.services.moderation import flag_content
 from app.services.rate_limit import Limit
 
 REACTIONS = ("like", "dislike")
-OFFICIAL_NAME = "DZPLAY الرسمي"
 
 
 # ---------------------------------------------------------------------------
@@ -367,7 +367,6 @@ def _is_blocked_pair(db: Session, a: str, b: str) -> bool:
         or_(and_(Block.blocker_id == a, Block.blocked_id == b), and_(Block.blocker_id == b, Block.blocked_id == a))).limit(1)))
 
 
-TEAM_NAME = "فريق DZPLAY"
 REPLIES_PER_THREAD = 50
 
 
@@ -439,7 +438,7 @@ def _comment_views(db: Session, post: Post, viewer_id: str, rows: list[Comment])
         u = users.get(c.author_id)
         team = bool(u is not None and (u.is_system or u.is_official))
         if team:
-            author = {"name": OFFICIAL_NAME if u.is_official else TEAM_NAME, "public_id": None, "avatar_url": None,
+            author = {"name": brand.official_name() if u.is_official else brand.team_name(), "public_id": None, "avatar_url": None,
                       "verified": False, "gender": None}
         else:
             author = {"name": names.shown_name(u) if u else PEER_NAME, "public_id": u.public_id if u else None,
@@ -449,7 +448,7 @@ def _comment_views(db: Session, post: Post, viewer_id: str, rows: list[Comment])
         out.append({
             "id": c.id, "author": author, "team": team, "official": bool(u is not None and u.is_official),
             "content": c.content, "created_at": iso(c.created_at), "parent_id": c.parent_id,
-            "reply_to": (TEAM_NAME if to.is_system or to.is_official else names.shown_name(to)) if to else None,
+            "reply_to": (brand.team_name() if to.is_system or to.is_official else names.shown_name(to)) if to else None,
             "private": c.visibility is None, "mine": c.author_id == viewer_id,
             "can_delete": viewer_id in (c.author_id, post.author_id),
             "can_reply": c.visibility == "public",
@@ -664,4 +663,10 @@ def own_profile(db: Session, user: User, settings=None) -> dict:
 
     data["unread_notifications"] = notify.unread(db, user.id)  # V6 phase 4
     data["member"] = is_member(user)
+    from app.services import appearance, cms
+
+    # V6 phase 8: asked again after a «major change» to the policies; the appearance follows the account
+    data["privacy_notice"] = (user.privacy_ack_version or 0) < cms.ack_version(db)
+    data["appearance"] = appearance.clean(user.appearance)
+    data["appearance_choices"] = appearance.choices()
     return data

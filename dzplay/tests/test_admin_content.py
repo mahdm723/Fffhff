@@ -39,7 +39,7 @@ def test_official_comment_on_idea_is_public_with_the_official_badge(hx):
     assert admin.post("/api/admin/official-comment", json={"target": "idea", "target_id": pid, "text": "فكرة رائعة!"}).status_code == 201
     assert owner.get("/api/me").json()["unseen_comments"] == 1
     mine = owner.get(f"/api/posts/{pid}/comments").json()["comments"]
-    assert mine[0]["author"]["name"] == "DZPLAY الرسمي" and mine[0]["official"] and mine[0]["team"]
+    assert mine[0]["author"]["name"] == f"{hx.settings.APP_NAME} الرسمي" and mine[0]["official"] and mine[0]["team"]
     assert mine[0]["content"] == "فكرة رائعة!" and mine[0]["author"]["public_id"] is None
     seen = other.get(f"/api/posts/{pid}/comments").json()["comments"]  # V6: public, with the badge
     assert seen[0]["team"] is True and seen[0]["content"] == "فكرة رائعة!"

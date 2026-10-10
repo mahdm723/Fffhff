@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ar" dir="rtl" data-base="{{ADMIN_PATH}}">
+<html lang="ar" dir="rtl" data-base="{{ADMIN_PATH}}" data-app="{{APP_NAME}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>لوحة تحكم DZPLAY</title>
+  <title>لوحة تحكم {{APP_NAME}}</title>
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#0c0e18" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)">
@@ -12,13 +12,14 @@
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/plex-arabic-arabic-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/accents.css">
   <link rel="stylesheet" href="{{ADMIN_PATH}}/assets/admin.css">
   <script type="module" src="{{ADMIN_PATH}}/assets/admin.js"></script>
 </head>
 <body class="admin">
   <div id="app" aria-live="polite">
     <div class="boot">
-      <div class="wordmark wordmark--lg">dzplay<span class="wordmark__dot"></span></div>
+      <div class="wordmark wordmark--lg">{{WORDMARK}}</div>
     </div>
   </div>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>

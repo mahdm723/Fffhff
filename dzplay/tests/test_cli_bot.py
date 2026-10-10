@@ -65,7 +65,7 @@ def test_media_sent_to_the_bot_is_not_published_any_more(bot):
     """V6: Reels were removed — a video or a picture sent by the admin only gets the help text."""
     vid = bot.tg.add_file(b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 400, name="vid")
     deliver(bot, tg.video(vid, 416, "وصف"))
-    assert "أوامر DZPLAY" in bot.tg.last_text() and "Reel" not in bot.tg.last_text()
+    assert "الأوامر:" in bot.tg.last_text() and "Reel" not in bot.tg.last_text()
     assert bot.tg.downloads == []
     for cmd in ("/list", "/pin abc", "/delete abc"):
         deliver(bot, tg.text(cmd))
@@ -185,7 +185,7 @@ def test_cli_bot_test_and_admin_link(monkeypatch, capsys, tmp_path):
     get_settings.cache_clear()
     try:
         admin_cli.main(["bot-test"], telegram_transport=fake.transport)
-        assert str(fake.sent[-1]["chat_id"]) == str(tg.ADMIN_ID) and "DZPLAY متصل" in fake.sent[-1]["text"]
+        assert str(fake.sent[-1]["chat_id"]) == str(tg.ADMIN_ID) and "DALTA.BIT متصل" in fake.sent[-1]["text"]
         assert "Reel" not in fake.sent[-1]["text"]
         admin_cli.main(["admin-link", "https://chat.example.com/"])
         out = capsys.readouterr().out
@@ -208,7 +208,7 @@ def test_cli_alert_goes_to_the_admin_chat(monkeypatch, capsys, tmp_path):
     try:
         admin_cli.main(["alert", "القرص / ممتلئ بنسبة 91%"], telegram_transport=fake.transport)
         assert str(fake.sent[-1]["chat_id"]) == str(tg.ADMIN_ID)
-        assert fake.sent[-1]["text"].startswith("🚨 DZPLAY") and "91%" in fake.sent[-1]["text"]
+        assert fake.sent[-1]["text"].startswith("🚨 DALTA.BIT") and "91%" in fake.sent[-1]["text"]
         assert tg.TOKEN not in capsys.readouterr().out
         with pytest.raises(SystemExit):
             admin_cli.main(["alert", "   "], telegram_transport=fake.transport)

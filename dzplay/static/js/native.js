@@ -1,5 +1,6 @@
 // Inside the DZPLAY Android app: register its Firebase token (new-message alerts while the app is closed)
 // and tell the user once when a newer version is on /download.
+import { appName } from './brand.js';
 import { api } from './api.js';
 import { h, isAndroidApp, sheet } from './ui.js';
 
@@ -47,7 +48,7 @@ async function checkUpdate() {
   sheet((panel, close) => {
     panel.append(...[
       h('h2', { text: 'تحديث متوفر' }),
-      h('p', { text: `الإصدار ${rel.version_name} من تطبيق DZPLAY متاح (لديك ${mine}).` }),
+      h('p', { text: `الإصدار ${rel.version_name} من تطبيق ${appName()} متاح (لديك ${mine}).` }),
       (rel.notes || []).length ? h('ul', { class: 'update-notes' }, ...rel.notes.slice(0, 5).map((n) => h('li', { text: n }))) : null,
       h('div', { class: 'actions' },
         h('a', { class: 'btn btn--primary btn--block', href: '/download' }, 'تحميل التحديث'),

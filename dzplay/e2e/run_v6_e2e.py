@@ -366,6 +366,60 @@ def phase7_contact(run: Run, a: Page, adm, smtp) -> None:
     run.step("support mailbox set from the panel → «تواصل معنا» shows it → tickets are e-mailed from it (Reply-To = user)")
 
 
+def phase8_content_appearance(run: Run, a: Page, adm) -> None:
+    """The name comes from APP_NAME; texts edited in the panel show in the app; «المظهر» changes mode, accent and
+    text size, saved on the account and applied before the first paint after a reload."""
+    base = run.base
+    a.goto(base + "/#/home")
+    expect(a.locator(".topbar .wordmark")).to_contain_text("DALTA", timeout=10000)
+    assert "DALTA.BIT" in a.title(), a.title()
+    run.step("the app is called DALTA.BIT (wordmark DALTA●BIT, page title) — from APP_NAME")
+
+    assert adm.put("/api/admin/content/announcement", json={"body": "صيانة قصيرة الليلة **2:00**"}).status_code == 200
+    assert adm.put("/api/admin/content/membership_intro", json={"body": "**ميزات فقط** داخل التطبيق، بلا أي عائد."}).status_code == 200
+    a.reload()
+    banner = a.locator(".announce")
+    expect(banner).to_contain_text("صيانة قصيرة الليلة 2:00", timeout=10000)
+    run.shot(a, "v8-announcement")
+    banner.get_by_role("button", name="إخفاء الإعلان").click()
+    a.reload()
+    expect(a.locator(".topbar .wordmark")).to_be_visible(timeout=10000)
+    expect(a.locator(".announce")).to_have_count(0)
+    expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)
+    assert "null" not in a.locator("#app").inner_text(), "a missing block was printed as «null»"
+    a.goto(base + "/#/membership")
+    expect(a.locator(".mem-intro strong")).to_have_text("ميزات فقط", timeout=10000)
+    run.step("texts edited in «النصوص» show in the app (announcement once, membership intro)")
+
+    def choose(mode: str, accent: str, font: str) -> None:
+        a.goto(base + "/#/profile")
+        a.get_by_role("button", name="المظهر").click()
+        sheet = a.locator(".sheet")
+        sheet.get_by_role("radio", name=mode).click()
+        sheet.get_by_role("radio", name=accent).click()
+        sheet.get_by_role("radio", name=font).click()
+        sheet.get_by_role("button", name="حفظ").click()
+        expect(a.locator(".sheet")).to_have_count(0, timeout=10000)
+
+    choose("فاتح", "أزرق", "كبير")
+    root = a.evaluate("() => ({...document.documentElement.dataset})")
+    assert root.get("theme") == "light" and root.get("accent") == "ocean" and root.get("font") == "large", root
+    a.reload()
+    expect(a.locator(".id-card")).to_be_visible(timeout=10000)
+    root = a.evaluate("() => ({...document.documentElement.dataset, accent_css: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()})")
+    assert root.get("theme") == "light" and root.get("accent_css") == "#1a6dd0", root
+    run.shot(a, "v8-light-ocean-large")
+    a.goto(base + "/#/home")
+    expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)
+    run.shot(a, "v8-home-light-ocean-large")
+    choose("داكن", "نعناعي", "عادي")
+    a.goto(base + "/#/home")
+    expect(a.locator("#idea-compose")).to_be_visible(timeout=10000)
+    run.shot(a, "v8-home-dark-mint")
+    choose("حسب الجهاز", "جمري", "عادي")
+    run.step("«المظهر»: light / dark, accent and large text — saved on the account, applied before paint after reload")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8773)
@@ -401,6 +455,7 @@ def main() -> int:
             phase5b_rewards(run, browser, a, adm, smtp, suffix)
             phase5c_giveaway(run, a, adm, smtp)
             phase7_contact(run, a, adm, smtp)
+            phase8_content_appearance(run, a, adm)
             phase2_market(run, a, fake)
             browser.close()
     finally:

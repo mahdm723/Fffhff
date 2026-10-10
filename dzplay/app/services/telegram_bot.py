@@ -33,7 +33,7 @@ from app.services.telegram import TelegramClient, TelegramError
 log = logging.getLogger("dzplay.bot")
 
 HELP = (
-    "أوامر DZPLAY:\n"
+    "الأوامر:\n"
     "/stats — ملخص سريع\n"
     "/code <رقم الطلب> <الرمز> — رمز استعادة حساب\n"
     "تصلك هنا أيضًا طلبات الإشراف وأزرارها."
@@ -176,7 +176,7 @@ class BotService:
             ideas = db.scalar(select(func.count()).select_from(Post).where(Post.created_at > day)) or 0
             resets = db.scalar(select(func.count()).select_from(PasswordReset).where(PasswordReset.status == "pending")) or 0
         self.say(
-            "📊 DZPLAY\n"
+            f"📊 {self.settings.APP_NAME}\n"
             f"المستخدمون: {users} (+{new_users} اليوم)\n"
             f"أفكار آخر 24 ساعة: {ideas}\n"
             f"طلبات استعادة تنتظر: {resets}"

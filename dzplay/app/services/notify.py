@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app import clock
 from app.models import Comment, Notification, User
+from app.services import brand
 from app.services.content import preview
 
 KEEP_DAYS = 90
@@ -48,7 +49,7 @@ def listing(db: Session, user: User) -> dict:
         c = comments.get(n.comment_id)
         out.append({
             "id": n.id, "kind": n.kind, "post_id": n.post_id, "comment_id": n.comment_id,
-            "actor": None if a is None else {"name": "فريق DZPLAY" if team else names.shown_name(a),
+            "actor": None if a is None else {"name": brand.team_name() if team else names.shown_name(a),
                                              "public_id": None if team else a.public_id,
                                              "avatar_url": None if team else avatar_url(a)},
             "preview": preview(c.content, 120) if c is not None and c.deleted_at is None else None,

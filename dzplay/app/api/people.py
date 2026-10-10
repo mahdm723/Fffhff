@@ -101,7 +101,7 @@ def complete_onboarding(body: OnboardingBody, request: Request) -> dict:
         if body.age_confirmed is not True:
             from app.errors import AppError
 
-            raise AppError(400, "age_required", "يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام DZPLAY.")
+            raise AppError(400, "age_required", f"يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام {st.settings.APP_NAME}.")
         if user.display_name is None or body.display_name is not None:
             names.change_name(db, st.settings, user, body.display_name)
         names.set_gender(user, body.gender)

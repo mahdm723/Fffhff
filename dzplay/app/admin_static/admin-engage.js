@@ -1,5 +1,6 @@
 // Admin panel — team comments from the library (or a new text), running jobs, and the comment library itself.
 // (V6: the V5 "boost" of likes/dislikes was removed — counts are real only.)
+import { appName } from '/js/brand.js';
 import { h, sheet, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 import {
@@ -148,7 +149,7 @@ async function showComments(body) {
   const appearanceHint = h('p', { class: 'admin-meta' });
   const paintAppearance = () => {
     appearanceHint.textContent = appearance === 'official'
-      ? 'يظهر باسم «DZPLAY الرسمي» مع شارة التوثيق.'
+      ? `يظهر باسم «${appName()} الرسمي» مع شارة التوثيق.`
       : 'يظهر باسم «dzplay» من أحد حسابات النظام (لا تدخل في المطابقة ولا في إحصائيات المستخدمين).';
   };
   paintAppearance();
@@ -192,7 +193,7 @@ async function showComments(body) {
     sourceBox),
   h('fieldset', { class: 'admin-fieldset' },
     h('legend', { text: 'الظهور' }),
-    segmented([['dzplay', 'dzplay'], ['official', 'DZPLAY الرسمي']], appearance, (v) => { appearance = v; paintAppearance(); }, 'الظهور'),
+    segmented([['dzplay', 'dzplay'], ['official', `${appName()} الرسمي`]], appearance, (v) => { appearance = v; paintAppearance(); }, 'الظهور'),
     appearanceHint,
     h('p', { class: 'admin-meta', text: 'يصل التعليق لصاحب الفكرة فقط (مثل أي تعليق).' })),
   timing.el,

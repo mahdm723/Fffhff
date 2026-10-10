@@ -1,9 +1,10 @@
 // Notifications never reveal the sender or the message text.
 import { api } from './api.js';
+import { appName } from './brand.js';
 import { state } from './store.js';
 
 const KEY = 'dz:notify';
-const BODY = 'لديك رسالة جديدة على DZPLAY';
+const body = () => `لديك رسالة جديدة على ${appName()}`;
 
 const supported = () => 'Notification' in window;
 const flag = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
@@ -58,10 +59,10 @@ export async function refreshPushSubscription() {
 
 export async function showLocalNotification() {
   if (!(await notificationsEnabled())) return;
-  const options = { body: BODY, tag: 'dz-message', renotify: true, icon: '/icons/icon-192.png', data: { url: '/#/messages' } };
+  const options = { body: body(), tag: 'dz-message', renotify: true, icon: '/icons/icon-192.png', data: { url: '/#/messages' } };
   const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
-  if (reg) reg.showNotification('DZPLAY', options);
-  else new Notification('DZPLAY', options);
+  if (reg) reg.showNotification(appName(), options);
+  else new Notification(appName(), options);
 }
 
 export async function disableForLogout() {

@@ -1,79 +1,39 @@
-// The privacy policy shown in Profile → Privacy and, once, as a notice when it changes.
+// The privacy policy shown in Profile → Privacy and, once, as a notice when the policies change.
+// V6 phase 8: the text comes from the content system (editable from the panel), like the /policies pages.
 import { api } from './api.js';
+import { appName } from './brand.js';
+import { forgetContent, loadContent, safeHtml } from './content.js';
 import { h, sheet } from './ui.js';
 
-function v5Section() {
-  return [
-    h('h3', { text: 'الصور والنجمة الزرقاء' }),
-    h('ul', {},
-      h('li', { text: 'الصور تُحفظ في مستودع خاص على Telegram يملكه DZPLAY، ويمرّرها خادمنا فقط. تُحذف منها كل البيانات الوصفية (الموقع ونوع الجهاز والتاريخ) وتُفحص آليًا قبل الحفظ.' }),
-      h('li', { text: 'صور المحادثات مموّهة حتى تفتحها، وتختفي عند الطرفين بعد مدة قصيرة، ولا يراها فريق الإشراف إلا إذا أُبلغ عنها.' }),
-      h('li', { text: 'النجمة الزرقاء علامة حساب رسمي داخل المنصة، وليست تحققًا من الهوية، ولا نطلب أي وثيقة.' }),
-      h('li', { text: 'يمكنك حذف حسابك بنفسك من حسابي ← حذف حسابي.' }),
-    ),
-    h('p', {}, h('a', { href: '/policies/privacy', target: '_blank', rel: 'noopener' }, 'سياسة الخصوصية كاملة'), ' · ',
-      h('a', { href: '/policies', target: '_blank', rel: 'noopener' }, 'كل السياسات والشروط')),
-  ];
+function links() {
+  const a = (href, text) => h('a', { href, target: '_blank', rel: 'noopener' }, text);
+  return h('p', { class: 'policy-links' }, a('/policies/privacy', 'سياسة الخصوصية'), ' · ', a('/policies/terms', 'شروط الاستخدام'),
+    ' · ', a('/policies/guidelines', 'إرشادات المجتمع'), ' · ', a('/policies', 'كل السياسات'));
 }
 
-function whatsNewSection() {
-  return [
-    h('h3', { text: 'الأسماء والمعرّف' }),
-    h('ul', {},
-      h('li', { text: 'لكل حساب اسم يختاره صاحبه (وصورة إن شاء) ومعرّف عام مثل DZ-7K4P2M يظهرون للآخرين. البريد لا يظهر أبدًا.' }),
-      h('li', { text: 'الجنس اختياري ويظهر كأيقونة صغيرة فقط، ولا يظهر إن اخترت "أفضّل عدم الذكر".' }),
-      h('li', { text: 'يمكنك إيقاف الرسائل المباشرة أو الظهور في البحث بالاسم من حسابي ← الخصوصية والتواصل.' }),
-    ),
-  ];
-}
-
-function protectionSection() {
-  return [
-    h('h3', { text: 'ما يستطيع فريق DZPLAY الاطلاع عليه' }),
-    h('ul', {},
-      h('li', { text: 'لتشغيل التطبيق والإشراف عليه وحماية المستخدمين، يستطيع فريق إدارة DZPLAY الاطلاع على بيانات الحسابات (ومنها البريد الإلكتروني وتاريخ التسجيل والنشاط)، والمنشورات، والتعليقات بما فيها التعليقات الخاصة، والرسائل والمحادثات ما دامت محفوظة على الخادم.' }),
-      h('li', { text: 'الوصول محمي بحساب مشرف وتحقق بخطوتين، وكل اطلاع وكل إجراء يُسجَّل في سجل داخلي.' }),
-      h('li', { text: 'تُفحص الرسائل والتعليقات آليًا بحثًا عن التهديد أو الابتزاز أو التحرش أو السب أو طلب الأرقام والحسابات، ويُحفظ النص المرصود للمراجعة.' }),
-      h('li', { text: 'قد يضيف فريق DZPLAY تعليقات لتنشيط المحتوى، تظهر باسم dzplay أو باسم الحساب الرسمي. أعداد الإعجاب وعدم الإعجاب حقيقية دائمًا.' }),
-    ),
-    h('h3', { text: 'ما لا يتغير' }),
-    h('p', { text: 'لا يعرف الآخرون بريدك أو رقمك أو موقعك، وتعليقات أفكارك يراها أنت فقط.' }),
-  ];
-}
-
-/** `changesFirst`: lead with what changed (the one-time notice). */
-export function privacyContent({ changesFirst = false } = {}) {
-  return h('div', { class: 'prose' },
-    changesFirst ? v5Section() : null,
-    h('h3', { text: 'ما يراه الآخرون' }),
-    h('p', { text: 'اسمك الظاهر ومعرّفك العام DZ وأيقونة الجنس إن اخترتها، في الأفكار والتعليقات والمحادثات. لا يُعرض لهم بريدك أو رقمك أو موقعك أو أي معرّف داخلي.' }),
-    h('h3', { text: 'ما نحتفظ به' }),
-    h('ul', {},
-      h('li', { text: 'بريدك وكلمة مرور مشفّرة (أو معرّف Google) لتسجيل الدخول فقط.' }),
-      h('li', { text: 'الرسائل مؤقتة: تُحذف من الخادم تلقائيًا بعد قراءتها بوقت قصير أو بعد انتهاء مدتها.' }),
-      h('li', { text: 'عناوين IP لا تُحفظ كما هي: نحفظ بصمة مشفّرة غير قابلة للعكس فقط لمنع الإساءة والمحاولات الآلية.' }),
-    ),
-    whatsNewSection(),
-    changesFirst ? null : v5Section(),
-    protectionSection(),
-    h('h3', { text: 'على جهازك' }),
-    h('p', { text: 'نسخة من محادثاتك تُحفظ على جهازك لتبقى مرئية لك، وتُمسح عند تسجيل الخروج.' }),
-  );
+function policy(key) {
+  const box = h('div', { class: 'prose' }, h('p', { class: 'muted', text: 'جارٍ التحميل…' }));
+  loadContent(key).then((c) => box.replaceChildren(...(c
+    ? [safeHtml(c.html), h('p', { class: 'muted', text: `آخر تحديث: ${c.updated}` })]
+    : [h('p', { text: 'تعذّر التحميل. افتح الرابط أدناه.' })])));
+  return box;
 }
 
 export function privacySheet() {
   sheet((panel, close) => {
     panel.append(
-      h('h2', { text: 'الخصوصية في DZPLAY' }),
-      privacyContent(),
+      h('h2', { text: `الخصوصية في ${appName()}` }),
+      policy('privacy'),
+      links(),
       h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إغلاق')),
     );
   });
 }
 
-/** Shown once to accounts that have not seen the current policy (me.privacy_notice). */
+/** Shown once to accounts that have not accepted the current version of the policies (me.privacy_notice). */
 export function showPrivacyNotice(me, then = () => {}) {
   if (!me || !me.privacy_notice) { then(); return; }
+  forgetContent(); // the text has just changed
   const ack = () => {
     me.privacy_notice = false;
     api.post('/api/me/privacy-ack').catch(() => {}); // shown again next time if this fails
@@ -83,8 +43,9 @@ export function showPrivacyNotice(me, then = () => {}) {
     panel.classList.add('privacy-notice');
     panel.append(
       h('h2', { text: 'تحديث في سياسة الخصوصية' }),
-      h('p', { class: 'privacy-notice__lead', text: 'حدّثنا سياسة الخصوصية. هذا ما تغيّر، ثم باقي السياسة:' }),
-      privacyContent({ changesFirst: true }),
+      h('p', { class: 'privacy-notice__lead', text: `حدّثنا سياسات ${appName()}. اقرأها، ويمكنك فتح الشروط والإرشادات من الروابط:` }),
+      links(),
+      policy('privacy'),
       h('div', { class: 'actions' }, h('button', { class: 'btn btn--primary btn--block', onclick: close }, 'فهمت')),
     );
   }, ack);

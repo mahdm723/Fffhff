@@ -1,4 +1,5 @@
 // Admin panel — users: search/filters, full user page, actions, conversations.
+import { appName } from '/js/brand.js';
 import { h, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 import {
@@ -105,7 +106,7 @@ export function openUser(id) {
       };
       body.replaceChildren(
         h('section', { class: 'admin-group glass' },
-          h('h3', { class: 'admin-email', dir: 'ltr', text: u.email || (u.team === 'official' ? 'DZPLAY الرسمي' : 'حساب نظام') }),
+          h('h3', { class: 'admin-email', dir: 'ltr', text: u.email || (u.team === 'official' ? `${appName()} الرسمي` : 'حساب نظام') }),
           h('dl', { class: 'admin-group__rows' },
             ...[['الاسم الظاهر', u.display_name || 'dzplay (افتراضي)'], ['المعرّف العام', u.public_id || '—'],
               ['الجنس', GENDER[u.gender] || 'غير محدد'], ['تأكيد 18+', u.age_confirmed_at ? when(u.age_confirmed_at) : 'لم يؤكد بعد'],

@@ -28,7 +28,7 @@ from app.models import NameHistory, User
 from app.services import moderation
 
 # Zero-width, joiners, bidi embeddings/overrides/isolates, Arabic letter mark, fillers, BOM, variation selectors.
-_INVISIBLE = re.compile("[­͏؜ᅟᅠ឴឵᠋-᠏​-‏‪-‮"
+_INVISIBLE = re.compile("[­͏؜ᅟᅠ឴឵᠋-᠏​-‏\u202a-\u202e"
                         "⁠-⁯ㅤ︀-️﻿ﾠ\U000e0000-\U000e007f]")
 _TASHKEEL = re.compile("[ؐ-ًؚ-ٰٟۖ-ۭـ]")  # marks + tatweel
 _ALLOWED = re.compile(r"^[ء-غف-ي٠-٩A-Za-z0-9 _]+$")
@@ -94,7 +94,9 @@ def clean(raw: object, settings: Settings) -> str:
     if not re.search(r"[ء-يA-Za-z]", name):
         raise AppError(400, "invalid_name", "الاسم يجب أن يحتوي حروفًا.")
     sk = skeleton(name)
-    if sk in _reserved(settings) or "dzplay" in sk or "دزبلاي" in sk or "ديزدبلاي" in sk:
+    brand = skeleton(settings.APP_NAME)  # V6 phase 8: the current app name (and the old one) cannot be impersonated
+    if (sk in _reserved(settings) or "dzplay" in sk or "دزبلاي" in sk or "ديزدبلاي" in sk
+            or (len(brand) >= 4 and brand in sk)):
         raise AppError(400, "reserved_name", "هذا الاسم محجوز. اختر اسمًا آخر.")
     hit = moderation.scan(name, settings.NAME_BLOCKED_WORDS)
     if hit.categories:

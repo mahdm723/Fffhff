@@ -24,6 +24,20 @@ export function resetFeedCache() {
 function readPane() { try { return localStorage.getItem(PANE_KEY) === 'market' ? 'market' : 'ideas'; } catch { return 'ideas'; } }
 function writePane(v) { try { localStorage.setItem(PANE_KEY, v); } catch { /* ignore */ } }
 
+// V6 phase 8: the announcement from the content system (empty = none); hidden once closed, back when it changes.
+function announcementBanner(config) {
+  const text = config && config.announcement;
+  if (!text) return null;
+  const key = 'dz.ann';
+  try { if (localStorage.getItem(key) === text) return null; } catch { /* storage blocked */ }
+  const bar = h('div', { class: 'announce glass', role: 'status' }, icon('bell'), h('p', { dir: 'auto', text }),
+    h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'إخفاء الإعلان', onclick: () => {
+      try { localStorage.setItem(key, text); } catch { /* ignore */ }
+      bar.remove();
+    } }, icon('close')));
+  return bar;
+}
+
 export function renderHome(page, ctx) {
   page.classList.add('page--home');
   const marketPane = h('section', { class: 'home-pane home-pane--market', id: 'pane-market', 'aria-label': 'السوق' });
@@ -275,8 +289,9 @@ function renderIdeasPane(page, { config, navigate }) {
   }
 
   const bell = h('button', { class: 'icon-btn glass bell-btn', type: 'button', 'aria-label': 'الإشعارات', onclick: () => navigate('#/notifications') }, icon('bell'));
-  page.replaceChildren(
+  page.replaceChildren(...[
     h('header', { class: 'topbar' }, wordmark(), bell),
+    announcementBanner(config),
     composer,
     h('div', { class: 'section-head' },
       h('h2', { class: 'section-title', text: 'أفكار من الآخرين' }),
@@ -284,7 +299,7 @@ function renderIdeasPane(page, { config, navigate }) {
     ),
     list,
     status,
-  );
+  ].filter(Boolean)); // replaceChildren would print null
   requestAnimationFrame(() => document.dispatchEvent(new CustomEvent('dz:badges'))); // paint the bell's count
 
   const fresh = feedState.posts.length && Date.now() - feedState.loadedAt < STALE_MS;

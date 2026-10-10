@@ -45,7 +45,7 @@ def test_name_change_cooldown(hx):
 
 @pytest.mark.parametrize("bad", [
     "DZPLAY الرسمي", "DzP1ay", "dzplay_dz", "d z p l a y", "Adm1n", "ADMIN", "support", "Moderator", "الإدارة", "مشرف",
-    "‮nimda", "Ahm​ed", "Аdmin",  # RTL override, zero-width, Cyrillic А
+    "\u202enimda", "Ahm​ed", "Аdmin",  # RTL override, zero-width, Cyrillic А
     "ab", "x" * 30, "Ahmed😀", "<b>x</b>", "12345", "0552123456 ali",
 ])
 def test_bad_names_are_refused(hx, bad):

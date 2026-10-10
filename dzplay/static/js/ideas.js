@@ -1,5 +1,6 @@
 // Public ideas: post cards, reactions, public comments with replies (V6), likers and reports.
 // Post text is only ever inserted with textContent.
+import { appName } from './brand.js';
 import { api } from './api.js';
 import { icon } from './icons.js';
 import { openViewer } from './media-pick.js';
@@ -131,7 +132,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
             nameLine(c.author.name, c.author.gender, 'comment__name', c.author.verified))
           : nameLine(c.author.name, null, 'comment__name');
         const head = h('div', { class: 'comment__head' }, nameEl,
-          c.team ? h('span', { class: 'chip chip--team', text: c.official ? 'رسمي' : 'فريق DZPLAY' }) : '',
+          c.team ? h('span', { class: 'chip chip--team', text: c.official ? 'رسمي' : `فريق ${appName()}` }) : '',
           h('span', { class: 'comment__time', text: formatListTime(c.created_at) }));
         const actions = h('div', { class: 'comment__actions' },
           c.can_reply ? h('button', { class: 'link-btn', type: 'button', onclick: () => setReply(c) }, 'رد') : '',

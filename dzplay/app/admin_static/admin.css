@@ -322,3 +322,8 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .admin-seg > button { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
 .admin-main { overflow-x: clip; }
 .admin-actions .input { flex: 1 1 160px; min-width: 0; }
+
+/* V6 phase 8: «النصوص» */
+.admin-editor { width: 100%; min-height: 280px; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 14px; line-height: 1.7; resize: vertical; }
+.admin-preview { padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); max-height: 420px; overflow: auto; }
+.admin-preview--mail { white-space: pre-wrap; font-size: 14px; }

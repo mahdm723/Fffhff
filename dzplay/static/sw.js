@@ -1,7 +1,7 @@
-// DZPLAY service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v26';
+// Service worker: offline app shell + privacy-preserving push notifications.
+const VERSION = 'dz-v27';
 const SHELL = [
-  '/', '/css/app.css', '/manifest.webmanifest',
+  '/', '/css/app.css', '/css/accents.css', '/manifest.webmanifest', '/js/theme-boot.js', '/js/brand.js', '/js/content.js', '/js/appearance.js',
   '/js/app.js', '/js/api.js', '/js/ui.js', '/js/icons.js', '/js/store.js', '/js/notify.js',
   '/js/antibot.js', '/js/pow-worker.js', '/js/ideas.js', '/js/privacy.js', '/js/people.js', '/js/onboarding.js', '/js/native.js', '/js/keyboard.js', '/js/media-pick.js', '/js/views/support.js', '/js/views/membership.js', '/js/views/earnings.js', '/js/views/giveaway.js', '/js/views/contact.js',
   '/js/views/auth.js', '/js/views/home.js', '/js/views/messages.js', '/js/views/chat.js', '/js/views/profile.js', '/js/views/user.js', '/js/views/market.js', '/js/views/users.js', '/js/views/notifications.js', '/js/views/post.js',
@@ -50,8 +50,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (windows.some((w) => w.visibilityState === 'visible')) return; // the open app already shows it
-    await self.registration.showNotification(data.title || 'DZPLAY', {
-      body: data.body || 'لديك رسالة جديدة على DZPLAY',
+    await self.registration.showNotification(data.title || 'رسالة جديدة', { // the server sends the app's name
+      body: data.body || 'لديك رسالة جديدة',
       tag: 'dz-message',
       renotify: true,
       icon: '/icons/icon-192.png',

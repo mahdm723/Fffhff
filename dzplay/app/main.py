@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import html
+import json
+import re
 import logging
 import mimetypes
 from collections.abc import AsyncIterator
@@ -15,7 +18,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -24,7 +27,9 @@ from app.api import account as account_api
 from app.api import admin as admin_api
 from app.api import admin_money as admin_money_api
 from app.api import admin_v5 as admin_v5_api
+from app.api import admin_cms as admin_cms_api
 from app.api import auth as auth_api
+from app.api import cms as cms_api
 from app.api import download as download_api
 from app.api import giveaway as giveaway_api
 from app.api import market as market_api
@@ -50,7 +55,19 @@ log = logging.getLogger("dzplay")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
 _ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m in (
-    "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5", "admin-money")}}
+    "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5", "admin-money",
+    "admin-texts")}}
+
+
+def brand(page: str, settings: Settings) -> str:
+    """{{APP_NAME}} / {{WORDMARK}} in a page: the name from APP_NAME, escaped; in the wordmark a dot in the name
+    becomes the gradient dot (DALTA.BIT → DALTA●BIT), otherwise the dot follows the name."""
+    name = settings.APP_NAME
+    first, dot, rest = name.partition(".")
+    mark = f'{html.escape(first)}<span class="wordmark__dot"></span>{html.escape(rest) if dot else ""}'
+    return page.replace("{{APP_NAME}}", html.escape(name)).replace("{{WORDMARK}}", mark)
+
+
 _CSRF_EXEMPT = {"/api/telegram/webhook"}  # authenticated by Telegram's secret header instead
 
 # Don't depend on the host's /etc/mime.types (ES modules require a JS MIME type).
@@ -209,7 +226,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
             state.bot.shutdown()
         state.pipeline.shutdown()
 
-    app = FastAPI(title="DZPLAY", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title=settings.APP_NAME, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.dz = state
     csp = _csp(settings)
     admin_prefix = settings.ADMIN_PATH
@@ -284,6 +301,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(rewards_api.router)
     app.include_router(giveaway_api.router)
     app.include_router(policies_api.router)
+    app.include_router(cms_api.router)
     app.include_router(posts_api.router)
     app.include_router(telegram_api.router)
     app.include_router(uploads_api.router)
@@ -292,6 +310,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         app.include_router(admin_api.router, prefix=admin_prefix)
         app.include_router(admin_v5_api.router, prefix=admin_prefix)
         app.include_router(admin_money_api.router, prefix=admin_prefix)
+        app.include_router(admin_cms_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)
 
     @app.get("/.well-known/assetlinks.json", include_in_schema=False)
@@ -311,19 +330,28 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         apk = STATIC_DIR / "download" / "dzplay.apk"
         if not apk.is_file():
             raise StarletteHTTPException(404)
-        return FileResponse(apk, media_type="application/vnd.android.package-archive", filename="DZPLAY.apk")
+        return FileResponse(apk, media_type="application/vnd.android.package-archive", filename=(re.sub(r"[^A-Za-z0-9._-]", "", settings.APP_NAME) or "app") + ".apk")
 
     if STATIC_DIR.is_dir():
         @app.get("/", include_in_schema=False)
-        def index() -> FileResponse:
-            return FileResponse(STATIC_DIR / "index.html")
+        @app.get("/index.html", include_in_schema=False)
+        def index() -> HTMLResponse:
+            """The app shell, with the name from APP_NAME (V6 phase 8: one setting renames the whole app)."""
+            return HTMLResponse(brand((STATIC_DIR / "index.html").read_text(encoding="utf-8"), settings))
+
+        @app.get("/manifest.webmanifest", include_in_schema=False)
+        def manifest() -> Response:
+            data = json.loads((STATIC_DIR / "manifest.webmanifest").read_text(encoding="utf-8"))
+            data["name"] = data["short_name"] = settings.APP_NAME
+            return Response(json.dumps(data, ensure_ascii=False), media_type="application/manifest+json",
+                            headers={"Cache-Control": "no-cache"})
 
         if settings.admin_enabled:
             @app.get(admin_prefix, include_in_schema=False)
             def admin_page() -> HTMLResponse:
                 """The admin panel (secret path; never linked from the app)."""
-                html = (ADMIN_STATIC_DIR / "admin.html").read_text(encoding="utf-8")
-                return HTMLResponse(html.replace("{{ADMIN_PATH}}", admin_prefix))
+                page = (ADMIN_STATIC_DIR / "admin.html").read_text(encoding="utf-8")
+                return HTMLResponse(brand(page.replace("{{ADMIN_PATH}}", admin_prefix), settings))
 
             @app.get(admin_prefix + "/assets/{name}", include_in_schema=False)
             def admin_asset(name: str) -> FileResponse:

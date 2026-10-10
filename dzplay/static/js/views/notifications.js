@@ -1,5 +1,6 @@
 // V6 phase 4: «الإشعارات» — comments on my ideas, replies to my comments (later: membership, rewards…).
 // Opening the page marks everything read.
+import { appName } from '../brand.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import * as store from '../store.js';
@@ -11,7 +12,7 @@ const TEXT = {
 };
 
 export function notificationText(n) {
-  const who = (n.actor && n.actor.name) || 'DZPLAY';
+  const who = (n.actor && n.actor.name) || appName();
   if (TEXT[n.kind]) return TEXT[n.kind](who);
   return (n.data && n.data.text) || 'إشعار جديد';
 }
@@ -27,7 +28,7 @@ export function renderNotifications(page, { navigate, onMe }) {
   function item(n) {
     const open = () => { if (n.post_id) navigate(`#/post/${n.post_id}${n.comment_id ? `/${n.comment_id}` : ''}`); };
     return h('li', {}, h('button', { class: `notif ${n.read ? '' : 'is-unread'}`, type: 'button', onclick: open },
-      personAvatar(n.actor ? n.actor.name : 'DZPLAY', { size: 'sm', url: n.actor ? n.actor.avatar_url : null }),
+      personAvatar(n.actor ? n.actor.name : appName(), { size: 'sm', url: n.actor ? n.actor.avatar_url : null }),
       h('span', { class: 'notif__text' }, h('b', { text: notificationText(n) }),
         n.preview ? h('small', { class: 'notif__preview', dir: 'auto', text: n.preview }) : '',
         h('small', { class: 'notif__time', text: formatListTime(n.created_at) })),

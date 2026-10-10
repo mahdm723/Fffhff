@@ -231,12 +231,12 @@ def main() -> int:
                 conn.execute("UPDATE users SET gender = NULL, gender_asked_at = NULL WHERE email LIKE ?", (f"lina{suffix}%",))
             b.goto(base + "/#/home")
             b.reload()
-            expect(b.locator(".sheet h2", has_text="جديد في DZPLAY")).to_be_visible(timeout=10000)
+            expect(b.locator(".sheet h2", has_text="جديد في DALTA.BIT")).to_be_visible(timeout=10000)
             run.shot(b, "v4-12-gentle-gender")
             b.locator(".sheet").get_by_role("button", name="لاحقًا").click()
             b.reload()
             b.wait_for_timeout(1500)
-            expect(b.locator(".sheet h2", has_text="جديد في DZPLAY")).to_have_count(0)
+            expect(b.locator(".sheet h2", has_text="جديد في DALTA.BIT")).to_have_count(0)
             run.step("Old account got the gender prompt once; 'later' is remembered")
 
             for page, who in ((a, "A"), (b, "B")):

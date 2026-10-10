@@ -1,5 +1,6 @@
 // Shared helpers of the admin panel modules (API client, formatting, small UI pieces).
 // All server data is inserted with textContent (h() / text:), never innerHTML.
+import { appName } from '/js/brand.js';
 import { confirmSheet, h, sheet, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 
@@ -145,7 +146,7 @@ export function teamBadge(author) {
 export function authorLine(author) {
   if (!author) return h('span', { class: 'admin-meta', text: 'حساب محذوف' });
   return h('span', { class: 'admin-author' },
-    author.team ? h('b', { text: author.team === 'official' ? 'DZPLAY الرسمي' : 'حساب نظام (dzplay)' })
+    author.team ? h('b', { text: author.team === 'official' ? `${appName()} الرسمي` : 'حساب نظام (dzplay)' })
       : userRef(author.id, author.email || shortRef(author.id)),
     author.display_name && !author.team ? h('bdi', { class: 'admin-meta', text: author.display_name }) : null,
     teamBadge(author));

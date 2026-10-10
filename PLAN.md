@@ -1,6 +1,6 @@
 # PLAN — DZPLAY V6 (Pivot)
 
-> الحالة: **المراحل 1 → 7 منتهية. التالي: 8.**
+> الحالة: **المراحل 1 → 8 منتهية. التالي: 9.**
 > العمل على الفرع `claude/github-access-check-c1exvo`، ولكل مرحلة commits تبدأ بـ`V6 phase N:` (الوسوم لا تُدفع من هذه البيئة).
 > كل المسارات أدناه نسبةً إلى `dzplay/`.
 
@@ -461,7 +461,17 @@
 
 ---
 
-## المرحلة 8 — نظام المحتوى والمظهر
+## المرحلة 8 — نظام المحتوى والمظهر ✅
+> **ما نُفّذ:**
+> - **نظام المحتوى:**
+>   - `services/cms.py` مع `content_blocks` و`content_revisions`؛
+>   - `services/markdown.py`: يهرّب كل شيء، وروابط `https` أو `/…` فقط؛
+>   - `/policies/*` و`/api/content/{key}` (عام، لا يخدم `email.*`)؛
+>   - تبويب «النصوص»؛
+>   - إعادة الموافقة بـ`content.ack_version` (تغيير جوهري + 2FA).
+> - **المظهر:** `services/appearance.py` يولّد `static/css/accents.css`؛ 7 ألوان، والتباين ≥ 4.5 مختبَر؛ و`users.appearance`؛ و`theme-boot.js`.
+> - **الاسم `DALTA.BIT`** من `APP_NAME` في كل مكان، عبر `brand.js` و`services/brand.py`، و`index.html`/الـmanifest يعرضهما الخادم، والاسم محجوز في الأسماء.
+> - **قرار تنفيذ:** بلا cache للمحتوى، فالقراءة مباشرة من DB.
 ### CMS
 - **جداول جديدة:**
   - `content_blocks`: `key`، `title`، `body_md`، `updated_at`، `updated_by`، `major_version`.

@@ -1,6 +1,6 @@
-# DZPLAY
+# DALTA.BIT (سابقًا DZPLAY)
 
-> الاسم مؤقت: يُغيَّر لاحقًا من إعداد واحد (`APP_NAME`).
+> الاسم من إعداد واحد (`APP_NAME`): الواجهة، واللوحة، والسياسات، والبريد، والبوت، وAndroid. المعرّفات الداخلية (`io.dzplay.app`، `/opt/dzplay`، الكوكيز، `DZPLAYAndroid`) لا تتغير.
 
 ## المبدأ
 مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بيانات المستخدم: لا يُعرض بريده أو أي بيانات خاصة عنه إلا ما يختار إظهاره بنفسه (الاسم، الصورة، المنشورات).
@@ -58,6 +58,9 @@
   - `services/membership.py`: العضوية، والاسترجاع، وأزرار Telegram `ms:`.
   - `services/rewards.py` و`withdrawals.py`: «أرباحي» والدعوات والسحب.
   - `services/giveaway.py`: الظرف الأحمر.
+  - `services/cms.py` + `markdown.py`: نظام المحتوى (`content_blocks`/`content_revisions`). النصوص الافتراضية في الكود، و`{{متغيرات}}` من الإعدادات، والمحوّل يهرّب كل شيء. إعادة الموافقة عبر `cms.ack_version`.
+  - `services/appearance.py`: الألوان، ومصدرها الوحيد. `python -m app.services.appearance --write` يولّد `static/css/accents.css`، واختبار يتحقق من التباين ≥ 4.5.
+  - `services/brand.py` (الخادم) و`static/js/brand.js` (الواجهة): اسم التطبيق. لا تكتب الاسم في الكود.
   - اللوحة: `admin_static/admin-money.js` + `api/admin_money.py`.
 - **الرسائل:** المباشرة وطلبات المراسلة فقط. الرسائل المجهولة العشوائية (matching، كشف الهوية) حُذفت في المرحلة 1ب. المحادثات المجهولة القديمة (`kind IS NULL`) للقراءة فقط (`messaging.require_open`)، ثم تُصدَّر مشفّرة وتُحذف بعد `LEGACY_ANON_RETENTION_DAYS`.
 
@@ -65,6 +68,7 @@
 - CSP صارم `'self'`: لا inline scripts ولا `style=""`. العرض يُضبط بـ`el.style.width` من JS.
 - `replaceChildren(...)` و`append(...)` مع `.filter(Boolean)` (لأن `null` يُطبع نصًا).
 - كل تغيير في ملفات الواجهة يتطلب رفع `VERSION` في `static/sw.js`.
+- نصوص من نظام المحتوى تُدرج عبر `content.js` (`safeHtml` يعيد فحص الوسوم)، ولا تُدرج بـ`innerHTML` مباشرة.
 
 ### التشغيل محليًا
 ```bash

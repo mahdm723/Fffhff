@@ -4,6 +4,7 @@ import secrets
 from pathlib import Path
 
 from fastapi import APIRouter, Request, Response
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.deps import (
     clear_session_cookie,
@@ -22,11 +23,10 @@ from app.api.schemas import (
     ResetRequestBody,
     ResetVerifyBody,
 )
-from app.config import PRIVACY_VERSION
 from app.errors import AppError, rate_limited
 from app.security.sessions import create_session, revoke_session
 from app.services import auth as auth_service
-from app.services import password_reset
+from app.services import appearance, cms, password_reset
 from app.services.ideas import own_profile
 from app.services.messaging import profile
 from app.services.rate_limit import Limit
@@ -39,7 +39,10 @@ _APK = Path(__file__).resolve().parent.parent.parent / "static" / "download" / "
 
 @router.get("/config")
 def public_config(request: Request) -> dict:
-    s = get_state(request).settings
+    st = get_state(request)
+    s = st.settings
+    with st.database.session() as db:  # V6 phase 8: short texts from the content system
+        footer, welcome, announcement = (cms.text(db, s, k) for k in ("profile_footer", "welcome", "announcement"))
     return {
         "app_name": s.APP_NAME,
         "antibot_enabled": s.ANTIBOT_ENABLED,
@@ -56,7 +59,9 @@ def public_config(request: Request) -> dict:
         "password_reset_enabled": get_state(request).bot is not None,
         "reset_code_hours": max(1, s.RESET_CODE_TTL // 3600),
         "reset_max_attempts": s.RESET_MAX_CODE_ATTEMPTS,
-        "footer_text": s.FOOTER_TEXT,
+        "footer_text": footer,
+        "welcome_text": welcome,
+        "announcement": announcement,
         "names": {"min": s.NAME_MIN_LENGTH, "max": s.NAME_MAX_LENGTH, "cooldown_days": s.NAME_CHANGE_COOLDOWN_DAYS,
                   "default": s.DEFAULT_DISPLAY_NAME},
         "direct_before_reply": s.DIRECT_MSG_BEFORE_REPLY_LIMIT,
@@ -203,9 +208,27 @@ def me(request: Request) -> dict:
 
 @router.post("/me/privacy-ack")
 def privacy_ack(request: Request) -> dict:
-    """The user has read the current privacy notice."""
+    """The user has read the current version of the policies (V6 phase 8: raised by a «major change» in the panel)."""
     st = get_state(request)
     with st.database.session() as db:
         user = current_user(request, db)
-        user.privacy_ack_version = PRIVACY_VERSION
-        return {"ok": True, "version": PRIVACY_VERSION}
+        version = cms.ack_version(db)
+        user.privacy_ack_version = version
+        return {"ok": True, "version": version}
+
+
+class AppearanceBody(BaseModel):
+    """V6 phase 8: only these three fields; anything else is refused."""
+
+    model_config = ConfigDict(extra="forbid")
+    mode: str = Field(max_length=10)
+    accent: str = Field(max_length=16)
+    font: str = Field(max_length=10)
+
+
+@router.put("/me/appearance")
+def set_appearance(body: AppearanceBody, request: Request) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        user = current_user(request, db)
+        return {"appearance": appearance.save(user, body.model_dump())}

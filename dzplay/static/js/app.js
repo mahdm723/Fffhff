@@ -1,4 +1,6 @@
 // DZPLAY client entry point: boot, routing and the app shell.
+import { applyAppearance } from './appearance.js';
+import { appName } from './brand.js';
 import { api } from './api.js';
 import { initKeyboard } from './keyboard.js';
 import { forgetNative, initNative } from './native.js';
@@ -73,7 +75,7 @@ function setTabBadge(tab, n) {
 
 function updateBadges() {
   const n = store.unreadTotal();
-  document.title = n ? `(${n}) DZPLAY` : 'DZPLAY';
+  document.title = n ? `(${n}) ${appName()}` : appName();
   setTabBadge('messages', n || store.requestCount());
   setTabBadge('profile', (store.state.me && store.state.me.unseen_comments) || 0);
   const bell = (store.state.me && store.state.me.unread_notifications) || 0; // V6: the bell on Home
@@ -146,6 +148,7 @@ function route() {
 
 function onMe(me) {
   store.state.me = { ...store.state.me, ...me };
+  if (me && me.appearance) applyAppearance(me.appearance);
   updateBadges();
 }
 
@@ -179,6 +182,7 @@ function hadSession() { try { return localStorage.getItem('dz:session') === '1';
 
 function startSession(me) {
   store.state.me = me;
+  if (me && me.appearance) applyAppearance(me.appearance); // V6 phase 8
   try { localStorage.setItem('dz:session', '1'); } catch { /* ignore */ }
   route();
   store.startRealtime();

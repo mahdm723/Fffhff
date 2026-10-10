@@ -7,9 +7,8 @@ import io
 import pytest
 from PIL import Image
 
-from app.api.policies import PRINCIPLE
 from app.models import AdminAuditLog, LedgerEntry, MediaItem, Post, User
-from app.services import tunables
+from app.services import cms, tunables
 from tests import fake_telegram as tg
 from tests.conftest import PASSWORD
 
@@ -35,7 +34,7 @@ def jpeg() -> bytes:
 def test_policy_pages_start_with_the_principle_and_have_no_script(hx, slug):
     r = hx.client().get(f"/policies/{slug}")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
-    assert PRINCIPLE in r.text and "<script" not in r.text
+    assert cms.principle(hx.settings) in r.text and "<script" not in r.text
     assert "script-src 'self'" in r.headers["content-security-policy"]
 
 

@@ -6,6 +6,7 @@ import hashlib
 
 from sqlalchemy import func, select
 
+from app.config import Settings
 from app.models import FcmToken
 from app.services import app_release, fcm
 from tests.conftest import chat, reply
@@ -48,7 +49,7 @@ def test_push_payloads_carry_no_identity():
     assert not hasattr(fcm, "call_message")  # V6: calls were removed
     from app.services import push
 
-    assert not hasattr(push, "CALL_PAYLOAD") and set(push.PUSH_PAYLOAD) == {"title", "body", "url"}
+    assert not hasattr(push, "CALL_PAYLOAD") and set(push.push_payload(Settings(SECRET_KEY="x" * 40))) == {"title", "body", "url"}
 
 
 def test_offline_recipient_gets_a_message_alert_only(hx):

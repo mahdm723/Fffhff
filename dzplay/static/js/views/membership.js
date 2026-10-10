@@ -1,5 +1,6 @@
 // V6 phase 5: «عضويتي» — features only (the blue star, ideas with a picture, chat pictures). Never any return.
 // Pay once to the wallet shown (QR + copy), send the TXID, the team checks it. Optional refund within the window.
+import { contentBlock } from '../content.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { copyText, formatDay, h, starMark, toast } from '../ui.js';
@@ -10,6 +11,7 @@ export function renderMembership(page, { navigate, onMe }) {
     h('header', { class: 'topbar topbar--back' },
       h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': 'رجوع', onclick: () => navigate('#/profile') }, icon('back')),
       h('h1', { class: 'page-title', text: 'عضويتي' })),
+    contentBlock('membership_intro', 'mem-intro glass'),
     body);
 
   const features = (d) => h('ul', { class: 'mem-features glass' }, ...d.features.map((f) => h('li', {}, icon('check'), h('span', { text: f }))));

@@ -28,13 +28,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import clock
-from app.config import PRIVACY_VERSION, Settings
+from app.config import Settings
 from app.errors import AppError, rate_limited
 from app.models import AuthThrottle, SecurityEvent, User
 from app.security import pow as antibot
 from app.security.crypto import keyed_hash
 from app.security.passwords import hash_password, needs_rehash, verify_password
-from app.services import google_auth
+from app.services import cms, google_auth
 
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s.]{2,63}$")
 _INVALID_CREDENTIALS = "البريد الإلكتروني أو كلمة المرور غير صحيحة."
@@ -161,7 +161,7 @@ def register(db: Session, settings: Settings, ctx: ClientContext, *, email: obje
         raise AppError(409, "email_taken", "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.")
     now = clock.utcnow()
     user = User(email=email_n, password_hash=hash_password(pw), registration_ip_hash=ctx.ip_hash,
-                privacy_ack_version=PRIVACY_VERSION, gender=gender, gender_asked_at=now, age_confirmed_at=now,
+                privacy_ack_version=cms.ack_version(db), gender=gender, gender_asked_at=now, age_confirmed_at=now,
                 display_name=name, name_norm=names.search_key(name))
     db.add(user)
     try:
@@ -322,7 +322,7 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
 
     _check_registration_quota(db, settings, ctx)
     user = User(email=email_n, google_sub=sub, password_hash=None, registration_ip_hash=ctx.ip_hash,
-                privacy_ack_version=PRIVACY_VERSION, onboarding_required=True)
+                privacy_ack_version=cms.ack_version(db), onboarding_required=True)
     db.add(user)
     try:
         db.flush()

@@ -106,6 +106,8 @@ env_has ADMIN_PATH || { set_env ADMIN_PATH "/panel-$(openssl rand -hex 8)"; ok "
 env_has TELEGRAM_WEBHOOK_SECRET || set_env TELEGRAM_WEBHOOK_SECRET "$(openssl rand -hex 32)"
 # The old default footer line is no longer shown (a text you set yourself is kept).
 sed -i 's|^FOOTER_TEXT=صُنع في ولاية سعيدة / حساسنة / قرية تامسنة$|FOOTER_TEXT=|' .env
+# V6 phase 8: the app is now called DALTA.BIT (only the old default name is changed; a name you set is kept).
+sed -i 's|^APP_NAME=DZPLAY$|APP_NAME=DALTA.BIT|' .env
 # V6 phase 6: chat pictures stay 60 s once opened (only the old default is changed; a value you set is kept).
 sed -i 's|^CHAT_IMAGE_TTL_AFTER_VIEW=120$|CHAT_IMAGE_TTL_AFTER_VIEW=60|' .env
 # V6: calls were removed — their TURN secret is no longer used.

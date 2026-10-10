@@ -1,3 +1,4 @@
+import { appName } from '../brand.js';
 import { api } from '../api.js';
 import { createAntibot } from '../antibot.js';
 import { genderPicker, nameInput } from '../onboarding.js';
@@ -58,7 +59,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
     const sent = h('div', { class: 'reset__sent glass', role: 'status', hidden: true });
     const step1 = h('form', { novalidate: true, class: 'reset__step' },
       h('h2', { class: 'reset__title', text: 'استعادة الحساب' }),
-      h('p', { class: 'reset__lead', text: 'أدخل بريدك. يراجع فريق DZPLAY الطلب، ثم يصلك رمز على بريدك الإلكتروني.' }),
+      h('p', { class: 'reset__lead', text: `أدخل بريدك. يراجع فريق ${appName()} الطلب، ثم يصلك رمز على بريدك الإلكتروني.` }),
       emailF, antibot1.el, err1, send1);
 
     // step 2 — the code from the e-mail
@@ -195,7 +196,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
       if (isRegister && !nameValue) { error.textContent = 'اكتب اسمًا يظهر للآخرين.'; return; }
       const genderValue = isRegister ? form.querySelector('input[name="reg-gender"]:checked')?.value : null;
       if (isRegister && !genderValue) { error.textContent = 'اختر: رجل، أنثى، أو أفضّل عدم الذكر.'; return; }
-      if (isRegister && !adult.checked) { error.textContent = 'يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام DZPLAY.'; return; }
+      if (isRegister && !adult.checked) { error.textContent = `يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام ${appName()}.`; return; }
       submit.disabled = true;
       const label = submit.textContent;
       try {
@@ -261,7 +262,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
     h('main', { class: 'auth' },
       h('div', { class: 'auth__brand' },
         wordmark(true),
-        h('p', { class: 'auth__tagline', text: 'شارك مشاعرك مع شخص آخر' }),
+        h('p', { class: 'auth__tagline', text: config.welcome_text || 'مجتمع للمتداولين وأخبار العملات الرقمية والتحليلات.' }),
       ),
       tabs,
       formSlot,

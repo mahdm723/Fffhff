@@ -1,6 +1,6 @@
 """V5 support tickets.
 
-* A ticket is e-mailed to SUPPORT_INBOX_EMAIL: subject "[DZPLAY #1024] …", Reply-To = the user's own
+* A ticket is e-mailed to SUPPORT_INBOX_EMAIL: subject "[<APP_NAME> #1024] …", Reply-To = the user's own
   e-mail (so a reply written in Gmail reaches the user directly), body with the public ID (never the
   internal id). A short notice goes to the admin's Telegram chat.
 * Replies written in the panel appear in «تذاكري» and the user gets an e-mail that a reply is waiting.

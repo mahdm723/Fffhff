@@ -1,4 +1,5 @@
 // DOM helpers. User content is only ever inserted with textContent — never innerHTML.
+import { appName, wordmarkParts } from './brand.js';
 import { icon } from './icons.js';
 
 export function h(tag, attrs = {}, ...children) {
@@ -91,7 +92,9 @@ export function idChip(publicId) {
 }
 
 export function wordmark(large = false) {
-  return h('div', { class: `wordmark ${large ? 'wordmark--lg' : ''}`, 'aria-label': 'dzplay' }, 'dzplay', h('span', { class: 'wordmark__dot' }));
+  const [first, rest] = wordmarkParts();
+  return h('div', { class: `wordmark ${large ? 'wordmark--lg' : ''}`, 'aria-label': appName() },
+    first, h('span', { class: 'wordmark__dot' }), rest || null);
 }
 
 export function toast(message, type = 'info', ms = 3200) {

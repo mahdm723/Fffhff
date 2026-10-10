@@ -364,7 +364,7 @@ def test_android_apk_download(hx, tmp_path, monkeypatch):
     assert c.get("/api/config").json()["android_apk_url"] == ("/download/dzplay.apk" if present else None)
     if present:
         assert r.headers["content-type"] == "application/vnd.android.package-archive"
-        assert 'filename="DZPLAY.apk"' in r.headers["content-disposition"]
+        assert 'filename="DALTA.BIT.apk"' in r.headers["content-disposition"]
     assert auth_api._APK == apk_dir / "dzplay.apk"
 
 

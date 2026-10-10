@@ -1,5 +1,6 @@
 // V6 phase 5b: «أرباحي» (owner only) — promotional rewards, separate from the membership: available / on hold /
 // total from the ledger, the history by source, and «سحب» (TRC20 / BEP20, fee shown before confirming).
+import { appName } from '../brand.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { formatDay, h, sheet, toast } from '../ui.js';
@@ -113,10 +114,10 @@ export function renderReferrals(page, { navigate }) {
       const d = await api.get('/api/rewards/referrals');
       const link = d.link.startsWith('http') ? d.link : `${location.origin}${d.link}`;
       const share = async () => {
-        const text = 'انضم إلى DZPLAY: مجتمع للمتداولين لمشاركة الأخبار والتحليلات والأفكار.';
+        const text = `انضم إلى ${appName()}: مجتمع للمتداولين لمشاركة الأخبار والتحليلات والأفكار.`;
         try {
           if (window.DZPLAYAndroid) { window.DZPLAYAndroid.share(`${text} ${link}`); return; }
-          if (navigator.share) { await navigator.share({ title: 'DZPLAY', text, url: link }); return; }
+          if (navigator.share) { await navigator.share({ title: appName(), text, url: link }); return; }
           await navigator.clipboard.writeText(link);
           toast('نُسخ الرابط.');
         } catch (e) { if (e && e.name !== 'AbortError') toast(link, 'info', 8000); }

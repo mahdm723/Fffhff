@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from app.api.deps import current_user, get_state
-from app.services import market
+from app.services import cms, market
 
 router = APIRouter(prefix="/api", tags=["market"])
 
@@ -15,4 +15,6 @@ def market_list(request: Request) -> dict:
     st = get_state(request)
     with st.database.session() as db:
         current_user(request, db)
-        return market.current(db, st.settings)
+        out = market.current(db, st.settings)
+        out["disclaimer"] = cms.text(db, st.settings, "market_disclaimer")  # V6 phase 8: editable in the panel
+        return out

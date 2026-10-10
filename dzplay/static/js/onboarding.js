@@ -1,6 +1,7 @@
 // After sign-in: new Google accounts must answer name + gender + 18+ (like e-mail registration);
 // V6: accounts that never chose a name must choose one (they cannot post or write before);
 // accounts from before V4 get one gentle, skippable gender question.
+import { appName } from './brand.js';
 import { api } from './api.js';
 import { h, sheet, toast } from './ui.js';
 
@@ -43,7 +44,7 @@ function chooseName(onMe, onLogout) {
     });
     panel.append(
       h('h2', { text: 'اختر اسمك' }),
-      h('p', { text: 'أصبح لكل حساب في DZPLAY اسم يظهر مع أفكارك وتعليقاتك ورسائلك. لا يظهر بريدك أبدًا.' }),
+      h('p', { text: `أصبح لكل حساب في ${appName()} اسم يظهر مع أفكارك وتعليقاتك ورسائلك. لا يظهر بريدك أبدًا.` }),
       h('div', { class: 'field' }, h('label', { for: 'ob-name', text: 'الاسم الظاهر' }), input,
         h('small', { class: 'field__hint', text: 'من 3 إلى 20 حرفًا: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط.' })),
       err,
@@ -65,7 +66,7 @@ function mandatory(onMe, onLogout, needsName = false) {
       const name = nameField ? nameField.value.trim().replace(/\s+/g, ' ') : null;
       if (nameField && !name) { err.textContent = 'اكتب اسمًا يظهر للآخرين.'; return; }
       if (!gender) { err.textContent = 'اختر: رجل، أنثى، أو أفضّل عدم الذكر.'; return; }
-      if (!adult.checked) { err.textContent = 'يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام DZPLAY.'; return; }
+      if (!adult.checked) { err.textContent = `يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام ${appName()}.`; return; }
       go.disabled = true;
       try {
         const me = await api.post('/api/me/onboarding', { gender, age_confirmed: true, ...(name ? { display_name: name } : {}) });
@@ -101,7 +102,7 @@ function gentle(onMe) {
       } catch (e) { toast(e.message, 'error'); save.disabled = false; }
     });
     panel.append(
-      h('h2', { text: 'جديد في DZPLAY' }),
+      h('h2', { text: `جديد في ${appName()}` }),
       h('p', { text: 'أصبح لكل حساب اسم يختاره ومعرّف DZ. هل تريد إضافة جنسك؟ يظهر كأيقونة صغيرة بجانب اسمك، ولا يظهر إن اخترت "أفضّل عدم الذكر".' }),
       genderPicker('g-gender'),
       h('div', { class: 'actions' }, save, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'لاحقًا')),

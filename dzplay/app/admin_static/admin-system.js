@@ -2,6 +2,7 @@
 // password-reset requests, failed sign-ins, data cleanup and the admin-account CLI.
 import { h, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
+import { appName } from '/js/brand.js';
 import {
   attempt, authorLine, bytes, call, chip, confirmDanger, emptyState, field, fmt, hooks, sectionHead, spinner, userRef, when,
 } from './admin-common.js';
@@ -194,7 +195,7 @@ const MAILBOX = {
 
 function smtpSection(profile) {
   const M = MAILBOX[profile];
-  const appName = (document.title || '').trim().split(/\s+/).pop() || 'DALTA.BIT';
+  const name = appName();
   const status = h('div', {}, spinner());
   const host = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: '253', placeholder: 'smtp.gmail.com' });
   const port = h('input', { class: 'input', dir: 'ltr', type: 'number', min: '1', max: '65535', value: '587', inputmode: 'numeric' });
@@ -202,14 +203,14 @@ function smtpSection(profile) {
     h('option', { value: 'starttls', text: 'STARTTLS (587)' }), h('option', { value: 'ssl', text: 'SSL (465)' }));
   const user = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: '200', placeholder: profile === 'support' ? 'support.you@gmail.com' : 'no-reply.you@gmail.com' });
   const pass = h('input', { class: 'input', dir: 'ltr', type: 'password', autocomplete: 'new-password', maxlength: '200' });
-  const sender = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', maxlength: '200', placeholder: `${appName} <you@gmail.com>` });
+  const sender = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', maxlength: '200', placeholder: `${name} <you@gmail.com>` });
   const testTo = h('input', { class: 'input', dir: 'ltr', type: 'email', autocomplete: 'off', maxlength: '254', placeholder: 'you@gmail.com' });
   const code = h('input', { class: 'input', dir: 'ltr', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '6', placeholder: '123456' });
   const save = h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, icon('bell'), 'حفظ وإرسال بريد تجربة');
   const removeBtn = h('button', { type: 'button', class: 'btn btn--danger btn--sm', hidden: true }, 'إزالة الإعداد');
   const testBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', hidden: true }, 'إرسال تجربة');
   const gmail = h('button', { type: 'button', class: 'btn btn--ghost btn--sm' }, 'إعداد Gmail');
-  const senderFor = (addr) => `${appName}${profile === 'support' ? ' — الدعم' : ''} <${addr}>`;
+  const senderFor = (addr) => `${name}${profile === 'support' ? ' — الدعم' : ''} <${addr}>`;
   gmail.addEventListener('click', () => {
     host.value = 'smtp.gmail.com'; port.value = '587'; security.value = 'starttls';
     if (!sender.value && user.value) sender.value = senderFor(user.value.trim());

@@ -18,7 +18,7 @@ import unicodedata
 from app.errors import AppError
 
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
-_INVISIBLE = re.compile("[​⁠﻿‪-‮⁦-⁩]")
+_INVISIBLE = re.compile("[​⁠﻿\u202a-\u202e\u2066-\u2069]")
 _MANY_NEWLINES = re.compile(r"\n{3,}")
 _HTML_TAG = re.compile(r"<\s*/?\s*[a-zA-Z!][^>]*>")
 _URL = re.compile(
@@ -50,7 +50,7 @@ def clean_message(raw: object, max_length: int, link_policy: str) -> str:
     if _HTML_TAG.search(text):
         raise AppError(400, "html_not_allowed", "لا يُسمح بإرسال أكواد HTML. أرسل نصًا عاديًا فقط.")
     if link_policy == "reject" and _URL.search(text):
-        raise AppError(400, "links_not_allowed", "لا يُسمح بإرسال الروابط في DZPLAY.")
+        raise AppError(400, "links_not_allowed", "لا يُسمح بإرسال الروابط في الرسائل.")
     return text
 
 

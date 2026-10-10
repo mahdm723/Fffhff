@@ -1,3 +1,5 @@
+import { appearanceSheet } from '../appearance.js';
+import { appName } from '../brand.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { profilePosts } from '../ideas.js';
@@ -215,10 +217,10 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
 
   async function shareApp() {
     const url = `${location.origin}${config.download_page || '/download'}`;
-    const text = 'جرّب DZPLAY: مجتمع للمتداولين، أفكار وتحليلات وأخبار العملات الرقمية، وتراسل دون أن ينكشف بريدك. حمّل التطبيق من هنا:';
+    const text = `جرّب ${appName()}: مجتمع للمتداولين، أفكار وتحليلات وأخبار العملات الرقمية، وتراسل دون أن ينكشف بريدك. حمّل التطبيق من هنا:`;
     try {
       if (window.DZPLAYAndroid) { window.DZPLAYAndroid.share(`${text} ${url}`); return; } // native share sheet in the app
-      if (navigator.share) { await navigator.share({ title: 'DZPLAY', text, url }); return; }
+      if (navigator.share) { await navigator.share({ title: appName(), text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
       toast('نُسخ رابط التطبيق. أرسله لأصدقائك.');
     } catch (err) {
@@ -275,17 +277,19 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       item('spark', 'الظرف الأحمر 🧧', () => navigate('#/giveaway')),
       item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
       item('send', 'تواصل معنا', () => navigate('#/contact')),
+      item('spark', 'المظهر', () => me && appearanceSheet(me, (a) => { me.appearance = a; })),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,
       item('block', 'المحظورون', blockedSheet),
       item('shield', 'سياسة الخصوصية', privacySheet),
       item('info', 'السياسات والشروط', () => window.open('/policies', '_blank', 'noopener')),
-      config && config.android_apk_url ? item('send', 'مشاركة تطبيق DZPLAY', shareApp) : null,
+      item('info', 'عن التطبيق', () => window.open('/policies/about', '_blank', 'noopener')),
+      config && config.android_apk_url ? item('send', `مشاركة تطبيق ${appName()}`, shareApp) : null,
       item('logout', 'تسجيل الخروج', logout, h('span', { class: 'menu__end' }), 'menu__item--danger'),
       item('trash', 'حذف حسابي', deleteAccount, h('span', { class: 'menu__end' }), 'menu__item--danger'),
     ),
     postsSlot,
-    h('p', { class: 'version', text: 'DZPLAY · نسخة تجريبية' }),
+    h('p', { class: 'version', text: `${appName()} · نسخة تجريبية` }),
     ...(config && config.footer_text ? [h('p', { class: 'profile-footer', text: config.footer_text })] : []), // replaceChildren would print null
   );
   ageItem.replaceChildren(item('check', 'تأكيد العمر (18+)', async () => {

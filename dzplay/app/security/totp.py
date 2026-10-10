@@ -53,7 +53,7 @@ def matching_step(secret: str, code: str, now_ts: float, window: int = 1) -> int
     return found
 
 
-def provisioning_uri(secret: str, account: str, issuer: str = "DZPLAY") -> str:
+def provisioning_uri(secret: str, account: str, issuer: str = "DALTA.BIT") -> str:
     return (f"otpauth://totp/{quote(issuer)}:{quote(account)}?secret={secret}&issuer={quote(issuer)}"
             f"&algorithm=SHA1&digits={DIGITS}&period={STEP}")
 

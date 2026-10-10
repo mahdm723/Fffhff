@@ -391,6 +391,22 @@ class Run:
         assert mail_card.get_by_label("الخادم (SMTP)").input_value() == "smtp.gmail.com"
         assert mail_card.get_by_label("المنفذ").input_value() == "587"
         self.step("e-mail form: manual mode shown, the Gmail button fills smtp.gmail.com:587")
+        page.get_by_role("tab", name="النصوص").click()  # V6 phase 8: the content system
+        page.locator(".admin-line--btn", has_text="شروط السحب").click()
+        editor = page.locator(".admin-editor")
+        expect(editor).to_be_visible(timeout=10000)
+        editor.fill("# عنوان تجريبي\n<script>alert(1)</script> **غامق** [رابط](javascript:alert(1))")
+        preview = page.locator(".admin-preview")
+        expect(preview.locator("h2")).to_have_count(1, timeout=10000)  # the debounced preview has caught up
+        expect(preview.locator("h2")).to_have_text("عنوان تجريبي")
+        expect(preview.locator("strong")).to_have_text("غامق")
+        assert preview.locator("script, a").count() == 0  # escaped, and javascript: links are never links
+        self.shot(page, "14c-texts-editor")
+        page.keyboard.press("Escape")
+        self.step("«النصوص»: editor with a live preview through the same safe converter (no HTML, no javascript: links)")
+        page.get_by_role("tab", name="الأمان والنظام").click()
+        mail_card = page.locator(".admin-group", has_text="بريد النظام (الرموز والإشعارات)")
+        expect(mail_card).to_be_visible(timeout=10000)
         mail_card.scroll_into_view_if_needed()
         self.shot(page, "14b-mail-form-dark")
         block = page.locator(".admin-event", has_text="حظر دخول")

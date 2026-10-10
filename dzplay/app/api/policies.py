@@ -1,8 +1,10 @@
-"""Policy pages: privacy, terms, community guidelines, blue star.
+"""Policy and help pages: privacy, terms, guidelines, membership / rewards / withdrawal / red envelope terms,
+blue star, about, FAQ, contact.
 
-Server-rendered (no JavaScript, CSP-safe like /download). Numbers come from the running settings, so
-the text always matches what the app really does (TTLs, archive switch, retention, limits). Plain Arabic.
-No personal information about the owner appears anywhere.
+V6 phase 8: the texts come from the content system (services/cms.py) — editable from the panel, with
+{{variables}} filled from the running settings so they always match what the app really does. Server-rendered
+(no JavaScript, CSP-safe like /download); the Markdown converter escapes all HTML. No personal information about
+the owner appears anywhere.
 """
 
 from __future__ import annotations
@@ -15,154 +17,32 @@ from starlette.exceptions import HTTPException
 
 from app.api.deps import get_state
 from app.config import Settings
+from app.services import cms
 
 router = APIRouter(tags=["policies"])
 
-PRINCIPLE = ("DZPLAY مساحة لإبداء الرأي والكتابة ومشاركة الأفكار والمشاعر بأعلى قدر من الخصوصية. هويتك الحقيقية محمية: "
-             "لا يرى أي مستخدم آخر بريدك أو بياناتك أو أي معلومة عنك إلا ما تختار إظهاره بنفسك.")
-UPDATED = "2026-10-07"
-PAGES = {
-    "privacy": "سياسة الخصوصية",
-    "terms": "شروط الاستخدام",
-    "guidelines": "إرشادات المجتمع",
-    "verification": "النجمة الزرقاء",
-}
+MAIN = ("privacy", "terms", "guidelines", "verification")
 
 
-def _days(seconds: int) -> str:
-    d = seconds / 86400
-    return f"{d:g} يوم" if d >= 1 else f"{seconds // 3600} ساعة"
+def principle(settings: Settings) -> str:
+    return cms.principle(settings)
 
 
-def _privacy(s: Settings) -> str:
-    archive = ("لا نؤرشف صور المحادثات: بعد انتهائها تُحذف نهائيًا (إلا إذا أُبلغ عنها)."
-               if not s.CHAT_IMAGE_ARCHIVE else
-               "إعداد الأرشفة مفعّل حاليًا: تُحفظ نسخة من صور المحادثات بعد انتهائها في مستودع التخزين الخاص ولا يراها أي مستخدم.")
-    return f"""
-<h2>1. ما نجمعه ولماذا</h2>
-<ul>
-<li><b>البريد الإلكتروني وكلمة مرور مشفّرة</b> (أو معرّف Google): لتسجيل الدخول، واستعادة الحساب، وردود الدعم، وإشعارات الحساب فقط. لا يظهر لأي مستخدم.</li>
-<li><b>الاسم الظاهر والمعرّف العام (DZ-…)</b>، والجنس إن اخترته: تظهر للآخرين لأنك اخترت ذلك. يمكنك ترك الاسم «dzplay».</li>
-<li><b>تأكيد العمر (18+)</b>: لا نطلب تاريخ ميلادك.</li>
-<li><b>ما تنشره</b>: الأفكار وصورها، والتعليقات.</li>
-<li><b>الرسائل</b>: مؤقتة؛ تُحذف من الخادم بعد {_days(s.MESSAGE_TTL)} على الأكثر، وأسرع بعد قراءتها ({_days(s.MESSAGE_TTL_AFTER_READ)}). المحادثة الخاملة تُحذف بعد {_days(s.CONVERSATION_IDLE_TTL)}. الرسائل المجهولة العشوائية أُوقفت؛ المحادثات المجهولة القديمة تبقى للقراءة فقط ثم تُحذف بعد {s.LEGACY_ANON_RETENTION_DAYS} أيام.</li>
-<li><b>عناوين IP</b>: لا نحفظها كما هي؛ نحفظ بصمة مشفّرة غير قابلة للعكس فقط لمنع الإساءة والمحاولات الآلية.</li>
-<li><b>إشعارات الهاتف</b> (اختيارية): رمز الجهاز اللازم لإيصال الإشعار فقط، ولا يحمل الإشعار اسمًا أو نص رسالة.</li>
-<li><b>الدعم</b>: نص التذكرة، ونرسله إلى بريد فريق الدعم مع معرّفك العام فقط.</li>
-<li><b>العضوية</b>: المبلغ والشبكة ورقم عملية الدفع (TXID)، وعند الاسترجاع عنوان المحفظة التي تختارها. لا نطلب اسمًا حقيقيًا ولا وثائق. تُحفظ هذه السجلات المالية لأغراض المحاسبة حتى بعد حذف الحساب (بلا بريد).</li>
-</ul>
-
-<h2>2. ما يراه الآخرون</h2>
-<p>اسمك الظاهر ومعرّفك العام وأيقونة الجنس إن اخترتها، والنجمة الزرقاء إن كان حسابك موثّقًا: في الأفكار والتعليقات والبحث والمحادثات. لا يرى أحد بريدك أو رقمك أو موقعك أو أي معرّف داخلي.</p>
-
-<h2>3. اطلاع فريق الإدارة</h2>
-<p>لتشغيل الخدمة والإشراف عليها وحماية المستخدمين، يستطيع فريق الإدارة الاطلاع على بيانات الحسابات (ومنها البريد) والمنشورات والتعليقات، والرسائل ما دامت محفوظة، والصور المنشورة، وصور المحادثات المبلَّغ عنها فقط. الوصول محمي بحساب مشرف وتحقق بخطوتين، وكل اطلاع وكل إجراء يُسجَّل في سجل تدقيق داخلي. تُفحص الرسائل والتعليقات والصور آليًا بحثًا عن المحتوى الضار.</p>
-
-<h2>4. مزوّد التخزين الخارجي</h2>
-<p>الصور تُحفظ في <b>قناة خاصة على Telegram</b> يملكها DZPLAY ويصل إليها البوت الخاص بالمنصة فقط. خادمنا يمرّر الملفات ولا يحتفظ إلا بنسخة مؤقتة لتسريع العرض. تطبيقك لا يتصل بـTelegram أبدًا، ولا يحصل أي مستخدم على مرجع الملف. تصل نسخة من الصور المنشورة (وليس صور المحادثات) إلى مجموعة خاصة بالمشرفين للمراجعة.</p>
-
-<h2>5. حذف البيانات الوصفية والفحص</h2>
-<p>قبل الحفظ يُعاد ترميز كل صورة، وتُحذف كل البيانات الوصفية: الموقع (GPS)، ونوع الجهاز، والتاريخ وغيرها. يُفحص الملف على جهازك ثم على الخادم بنموذج آلي لكشف المحتوى الإباحي، ويُرفض المخالف قبل حفظه. لا يوجد فحص آلي يكشف أعمار الأشخاص؛ لذلك نعتمد على البلاغات والمراجعة البشرية.</p>
-
-<h2>6. صور المحادثات</h2>
-<ul>
-<li>إرسال الصور في المحادثات ميزة للأعضاء، ويستطيع أي مستخدم استقبالها وفتحها.</li>
-<li>تصل مموّهة، ولا تظهر إلا عند ضغط المستلم عليها، ثم تبقى {s.CHAT_IMAGE_TTL_AFTER_VIEW} ثانية فقط وتختفي عند الطرفين.</li>
-<li>الصورة التي لا تُفتح تُحذف بعد {_days(s.CHAT_IMAGE_UNOPENED_TTL)}.</li>
-<li>بعد انتهائها تُحذف فورًا من الخادم ومن الأجهزة، وتُحذف نسخة التخزين بعد مهلة إبلاغ قصيرة ({max(1, s.CHAT_IMAGE_REPORT_GRACE // 60)} دقيقة) لا يراها خلالها أحد.</li>
-<li>{archive}</li>
-<li>الصورة المبلَّغ عنها تُحفظ دليلًا للمراجعة حتى {s.MEDIA_EVIDENCE_RETENTION_DAYS} يومًا.</li>
-<li>في تطبيق أندرويد تُمنع لقطة الشاشة أثناء العرض، لكن لا يمكن منع تصوير الشاشة بجهاز آخر: لا ترسل ما لا تقبل أن يُرى.</li>
-</ul>
-
-<h2>7. العمر</h2>
-<p>DZPLAY للبالغين (18 سنة فأكثر) فقط.</p>
-
-<h2>8. مدة الاحتفاظ</h2>
-<ul>
-<li>الرسائل والمحادثات: كما في البند 1.</li>
-<li>البلاغات: {_days(s.REPORT_RETENTION)}. الأحداث الأمنية: {_days(s.SECURITY_EVENT_RETENTION)}. سجل تدقيق الإدارة: {_days(s.AUDIT_LOG_RETENTION)}.</li>
-<li>النسخ المؤقتة على الخادم: تُحذف عند عدم استعمالها {_days(s.MEDIA_CACHE_TTL)}.</li>
-<li>الحساب وما تنشره: ما دام حسابك موجودًا.</li>
-</ul>
-
-<h2>9. حذف الحساب</h2>
-<p>من <b>حسابي ← حذف حسابي</b>. يُحذف فورًا: الحساب والجلسات، والملف والاسم، والأفكار وصورها وتعليقاتها وتفاعلاتها، وتعليقاتك وتفاعلاتك، والمحادثات والرسائل، وتذاكر الدعم، وطلبات التوثيق، ورموز الإشعارات. وتُحذف صورك من مستودع التخزين. يبقى فقط: ما أُبلغ عنه كدليل (حتى {s.MEDIA_EVIDENCE_RETENTION_DAYS} يومًا)، والبلاغات التي قدّمها آخرون (حتى {_days(s.REPORT_RETENTION)})، وسطر في سجل التدقيق بأن حسابًا حُذف (المعرّف العام فقط).</p>
-
-<h2>10. التواصل</h2>
-<p>من داخل التطبيق: <b>حسابي ← الدعم والمساعدة</b>.</p>"""
+def _pages() -> dict[str, str]:
+    return {k: s.title for k, s in cms.registry().items() if s.kind == "page"}
 
 
-def _terms(s: Settings) -> str:
-    refund = (f"يمكن طلب استرجاعها خلال {s.MEMBERSHIP_REFUND_WINDOW_DAYS} أيام من تفعيلها، ويُعاد المبلغ ناقص رسوم "
-              f"{s.MEMBERSHIP_REFUND_FEE:g} USDT، وتتوقف الميزات عند الإرجاع." if s.MEMBERSHIP_REFUNDABLE
-              else "لا تُسترجع قيمة العضوية بعد تفعيلها.")
-    return f"""
-<h2>1. القبول</h2>
-<p>باستعمالك DZPLAY تقبل هذه الشروط وسياسة الخصوصية وإرشادات المجتمع.</p>
-<h2>2. الأهلية</h2>
-<p>يجب أن يكون عمرك 18 سنة أو أكثر. حساب واحد لكل شخص، وأنت مسؤول عن حماية كلمة مرورك.</p>
-<h2>3. محتواك</h2>
-<p>أنت مسؤول عمّا تنشره وترسله. تمنح DZPLAY إذنًا بعرض محتواك المنشور داخل المنصة. يجوز لنا إخفاء أو حذف أي محتوى يخالف الإرشادات، وإيقاف أو حظر الحسابات المخالفة.</p>
-<h2>4. الخصوصية بين المستخدمين</h2>
-<p>يمنع كشف هوية مستخدم آخر أو نشر بياناته أو محاولة معرفتها، أو تسجيل المحادثات والصور المؤقتة ونشرها.</p>
-<h2>5. النجمة الزرقاء</h2>
-<p>النجمة تعني حسابًا رسميًا موثوقًا داخل المنصة، وليست تحققًا من الهوية الحقيقية، ويمكن سحبها عند المخالفة. التفاصيل في <a href="/policies/verification">صفحة النجمة الزرقاء</a>.</p>
-<h2>5ب. العضوية</h2>
-<p>العضوية دفعة واحدة ({s.MEMBERSHIP_PRICE:g} USDT حاليًا) تمنح <b>ميزات داخل التطبيق فقط</b>: النجمة الزرقاء، ونشر الأفكار مع صورة، وصور المحادثة المؤقتة. <b>لا علاقة لها بالتداول ولا بأي ربح أو عائد مالي</b>، ولا تدخل في شروط أي مكافأة. {refund} يُدفع بالعملة والشبكة المعروضتين في «عضويتي» فقط؛ الإرسال على شبكة أخرى قد يضيع المبلغ.</p>
-<h2>5ج. المكافآت الترويجية</h2>
-<p>مكافآت ترويجية <b>منفصلة تمامًا عن العضوية</b> ولا علاقة لها بالتداول: دعوة صديق أصبح عضوًا ({s.REFERRAL_REWARD:g} USDT، معلّقة {s.REFERRAL_HOLD_DAYS} يومًا، مستوى واحد فقط)، والمسابقات، ومكافآت النشاط. تُلغى مكافأة الدعوة إن استُرجعت عضوية الصديق، وتُراجع الدعوات المشبوهة يدويًا. السحب بحد أدنى {s.WITHDRAW_MIN:g} USDT وتُخصم رسوم الشبكة ({s.WITHDRAW_FEE:g} USDT) من المبلغ المرسل، بعد كلمة المرور ورمز بالبريد. الدعوات الوهمية أو المكررة تُلغى مكافآتها وقد يُوقف الحساب.</p>
-<h2>5د. الظرف الأحمر</h2>
-<p>مسابقة مجانية لا تتطلب عضوية ولا دفعًا. مشاركة واحدة لكل شخص في الجولة، ببريد يُؤكَّد برمز. بعد انتهاء الجولة يُسحب الفائزون عشوائيًا بين المشاركات المؤكدة، وتُستبعد الحسابات الموقوفة والمشاركات المكررة من نفس الشبكة. يُسجَّل السحب للتدقيق، ويصل رمز الجائزة إلى البريد فقط. قد تُعرض أسماء الفائزين (الاسم الظاهر فقط).</p>
-<h2>6. الخدمة</h2>
-<p>نقدّم الخدمة «كما هي» ونعمل على استمرارها، لكن قد تتوقف أحيانًا للصيانة. يمكن تعديل هذه الشروط، ونُعلمك داخل التطبيق بالتغييرات المهمة.</p>
-<h2>7. التواصل</h2>
-<p>حسابي ← الدعم والمساعدة.</p>"""
-
-
-def _guidelines(s: Settings) -> str:
-    return f"""
-<h2>مسموح ومرحّب به</h2>
-<p>الرأي والكتابة والخواطر والنقاش باحترام، ومشاركة المشاعر والتجارب.</p>
-<h2>ممنوع</h2>
-<ul>
-<li>التهديد والابتزاز والتحرش والمضايقة والتنمر.</li>
-<li>المحتوى الجنسي أو الإباحي أو العاري، في الأفكار أو الصور أو صور المحادثات.</li>
-<li><b>أي محتوى يخص قاصرًا بشكل جنسي أو مسيء: يُحذف فورًا ويُحظر صاحبه نهائيًا، ويُحتفظ بنسخة دليل.</b></li>
-<li>خطاب الكراهية والتحريض على العنف.</li>
-<li>نشر أرقام الهواتف والحسابات والعناوين والبيانات الشخصية، لك أو لغيرك، أو طلبها.</li>
-<li>الروابط والإعلانات والرسائل المزعجة والحسابات الوهمية.</li>
-<li>انتحال صفة DZPLAY أو فريقه، أو استعمال رموز تشبه النجمة في الأسماء.</li>
-</ul>
-<h2>الصور</h2>
-<p>صورة واحدة مع الفكرة كل 24 ساعة (حاليًا {s.IDEA_IMAGE_LIMIT_PER_24H})، وتُراجع من فريق الإشراف. صور المحادثات مؤقتة وتُتاح بعد رد الطرف الآخر. يُرفض آليًا ما يبدو مخالفًا.</p>
-<h2>البلاغات</h2>
-<p>استعمل زر «إبلاغ» على أي محتوى. البلاغات سرية. عند {s.REPORT_AUTO_HIDE_THRESHOLD or '—'} بلاغات من أشخاص مختلفين يُخفى المحتوى مؤقتًا حتى المراجعة.</p>
-<h2>العقوبات</h2>
-<p>حسب الخطورة: حذف المحتوى، أو إيقاف مؤقت، أو حظر نهائي، أو سحب النجمة.</p>"""
-
-
-def _verification(s: Settings) -> str:
-    return """
-<h2>ما هي النجمة الزرقاء؟</h2>
-<p>علامة تعني أن الحساب <b>رسمي وموثوق داخل DZPLAY</b>. <b>ليست تحققًا من الهوية الحقيقية</b>، ولا نطلب أي وثيقة أو اسم حقيقي أو صورة شخصية.</p>
-<h2>كيف أحصل عليها؟</h2>
-<p>تأتي النجمة مع <b>العضوية</b> (حسابي ← عضويتي). من كان يملك النجمة قبل العضوية يحتفظ بها. نجمة العضوية تزول إن انتهت العضوية أو استُرجعت، وكل نجمة يمكن سحبها عند المخالفة.</p>
-<h2>أين تظهر؟</h2>
-<p>في الملف الشخصي والأفكار والتعليقات والبحث والمحادثات.</p>"""
-
-
-RENDER = {"privacy": _privacy, "terms": _terms, "guidelines": _guidelines, "verification": _verification}
-
-
-def _page(title: str, inner: str) -> str:
-    nav = " · ".join(f'<a href="/policies/{k}">{v}</a>' for k, v in PAGES.items())
+def _page(settings: Settings, title: str, inner: str, updated: str | None) -> str:
+    pages = _pages()
+    nav = " · ".join(f'<a href="/policies/{k}">{html.escape(pages[k])}</a>' for k in MAIN) + ' · <a href="/policies">المزيد</a>'
+    app = html.escape(settings.APP_NAME)
+    meta = f'<p class="dl-meta">آخر تحديث: {html.escape(updated)}</p>' if updated else ""
     return f"""<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{html.escape(title)} — DZPLAY</title>
+  <title>{html.escape(title)} — {app}</title>
   <meta name="referrer" content="no-referrer">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/css/download.css">
@@ -170,13 +50,13 @@ def _page(title: str, inner: str) -> str:
 </head>
 <body>
   <main class="dl policy">
-    <header class="dl-head"><a href="/"><img class="dl-icon" src="/icons/icon-192.png" width="64" height="64" alt="DZPLAY"></a>
+    <header class="dl-head"><a href="/"><img class="dl-icon" src="/icons/icon-192.png" width="64" height="64" alt="{app}"></a>
       <h1>{html.escape(title)}</h1></header>
-    <blockquote class="policy-principle">«{PRINCIPLE}»</blockquote>
+    <blockquote class="policy-principle">«{html.escape(principle(settings))}»</blockquote>
     <article class="dl-card policy-body">{inner}</article>
-    <p class="dl-meta">آخر تحديث: {UPDATED}</p>
+    {meta}
     <nav class="policy-nav">{nav}</nav>
-    <p class="dl-foot"><a href="/">العودة إلى DZPLAY</a> · <a href="/download">تحميل التطبيق</a></p>
+    <p class="dl-foot"><a href="/">العودة إلى {app}</a> · <a href="/download">تحميل التطبيق</a></p>
   </main>
 </body>
 </html>"""
@@ -184,12 +64,17 @@ def _page(title: str, inner: str) -> str:
 
 @router.get("/policies", include_in_schema=False)
 def policies_index(request: Request) -> HTMLResponse:
-    items = "".join(f'<li><a href="/policies/{k}">{v}</a></li>' for k, v in PAGES.items())
-    return HTMLResponse(_page("السياسات والشروط", f"<ul>{items}</ul>"), headers={"Cache-Control": "no-cache"})
+    st = get_state(request)
+    items = "".join(f'<li><a href="/policies/{k}">{html.escape(v)}</a></li>' for k, v in _pages().items())
+    return HTMLResponse(_page(st.settings, "السياسات والشروط", f"<ul>{items}</ul>", None), headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/policies/{slug}", include_in_schema=False)
 def policy(slug: str, request: Request) -> HTMLResponse:
-    if slug not in RENDER:
+    if slug not in _pages():
         raise HTTPException(404)
-    return HTMLResponse(_page(PAGES[slug], RENDER[slug](get_state(request).settings)), headers={"Cache-Control": "no-cache"})
+    st = get_state(request)
+    with st.database.session() as db:
+        cur = cms.current(db, st.settings, slug)
+        inner = cms.page_html(db, st.settings, slug)
+    return HTMLResponse(_page(st.settings, cur["title"], inner, cms.updated_label(cur)), headers={"Cache-Control": "no-cache"})

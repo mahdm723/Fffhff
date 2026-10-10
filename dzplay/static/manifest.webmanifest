@@ -1,7 +1,7 @@
 {
-  "name": "DZPLAY",
-  "short_name": "DZPLAY",
-  "description": "شارك مشاعرك مع شخص آخر — رسائل مجهولة الهوية.",
+  "name": "{{APP_NAME}}",
+  "short_name": "{{APP_NAME}}",
+  "description": "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار.",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "/#/home",

@@ -103,11 +103,11 @@ def _telegram(settings, args, transport=None) -> None:
             text = " ".join(args.text).strip()[:3500]
             if not text:
                 raise SystemExit("empty alert")
-            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, f"🚨 DZPLAY — تنبيه الخادم\n{text}")
+            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, f"🚨 {settings.APP_NAME} — تنبيه الخادم\n{text}")
             print("Alert sent.")
             return
         if args.cmd == "bot-test":
-            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, "✅ DZPLAY متصل.\n\n" + HELP)
+            tg.send_message(settings.TELEGRAM_ADMIN_CHAT_ID, f"✅ {settings.APP_NAME} متصل.\n\n" + HELP)
             print("Test message sent to the admin chat.")
             return
         info = tg.webhook_info()

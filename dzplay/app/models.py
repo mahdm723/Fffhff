@@ -116,6 +116,7 @@ class User(Base):
     referral_code: Mapped[str | None] = mapped_column(String(12), nullable=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # V6 5c: confirmed by a code once
     device_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    appearance: Mapped[str | None] = mapped_column(Text, nullable=True)  # V6 phase 8: JSON {mode, accent, font}
 
 
 class NameHistory(Base):
@@ -906,3 +907,32 @@ class AppSetting(Base):
     value: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     updated_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class ContentBlock(Base):
+    """V6 phase 8: an edited text of the content system (services/cms.py). No row = the default text in the code."""
+
+    __tablename__ = "content_blocks"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    body_md: Mapped[str] = mapped_column(Text, default="")
+    major_version: Mapped[int] = mapped_column(Integer, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class ContentRevision(Base):
+    """V6 phase 8: every save of a text (and «back to the default»), for the history and restore."""
+
+    __tablename__ = "content_revisions"
+    __table_args__ = (Index("ix_content_revisions_key", "key", "id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    body_md: Mapped[str] = mapped_column(Text, default="")
+    major_version: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    created_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(300), nullable=True)

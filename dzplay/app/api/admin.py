@@ -602,7 +602,7 @@ def _hello(st) -> str | None:
     from app.services.telegram_bot import HELP
 
     try:
-        st.telegram.send_message(st.bot.admin_id, "✅ DZPLAY متصل. أرسل فيديو أو صورة مع وصف لنشرها.\n\n" + HELP)
+        st.telegram.send_message(st.bot.admin_id, f"✅ {st.settings.APP_NAME} متصل. أرسل فيديو أو صورة مع وصف لنشرها.\n\n" + HELP)
         return None
     except TelegramError as exc:
         if "chat not found" in str(exc).lower() or "403" in str(exc):
