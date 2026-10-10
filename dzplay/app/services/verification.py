@@ -369,22 +369,23 @@ def notify_admin(state, request_id: str) -> None:
 
 
 def notify_user(state, request_id: str) -> None:
-    from app.services import mailer, runtime_config
+    from app.services import mail
 
     with state.database.session() as db:
         req = db.get(VerificationRequest, request_id)
         user = db.get(User, req.user_id) if req else None
         if req is None or user is None or not user.email:
             return
-        settings = runtime_config.effective_settings(db, state.settings)
-        status, note, email = req.status, req.admin_note, user.email
-    text = {"accepted": "تمت الموافقة على طلب التوثيق. تظهر الآن النجمة الزرقاء بجانب اسمك.",
-            "rejected": f"رُفض طلب التوثيق. السبب: {note or '—'}",
-            "needs_fix": f"طلب التوثيق يحتاج تصحيحًا: {note or '—'}\nادخل إلى التطبيق ← حسابي ← التوثيق لتعديله."}.get(status)
-    if not text:
+        status, note = req.status, req.admin_note
+        text = {"accepted": "تمت الموافقة على طلب التوثيق. تظهر الآن النجمة الزرقاء بجانب اسمك.",
+                "rejected": f"رُفض طلب التوثيق. السبب: {note or '—'}",
+                "needs_fix": f"طلب التوثيق يحتاج تصحيحًا: {note or '—'}\nادخل إلى التطبيق ← حسابي ← التوثيق لتعديله."}.get(status)
+        out = mail.prepare(db, state.settings, "system", user.email, "email.notice",
+                           {"topic": "طلب التوثيق", "message": text}) if text else None
+    if out is None:
         return
     try:
-        mailer.send_text(settings, email, f"{settings.APP_NAME}: طلب التوثيق", f"مرحبًا،\n\n{text}\n\nفريق {settings.APP_NAME}")
+        mail.deliver(out)
     except Exception as exc:  # noqa: BLE001
         log.info("verification mail not sent: %s", type(exc).__name__)
 

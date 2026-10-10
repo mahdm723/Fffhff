@@ -14,6 +14,7 @@ import { renderHome, resetFeedCache } from './views/home.js';
 import { renderMessages } from './views/messages.js';
 import { renderProfile } from './views/profile.js';
 import { renderSupport, renderTicket } from './views/support.js';
+import { renderContact } from './views/contact.js';
 import { renderMembership } from './views/membership.js';
 import { renderEarnings, renderReferrals } from './views/earnings.js';
 import { renderGiveaway } from './views/giveaway.js';
@@ -53,6 +54,7 @@ function parseRoute() {
   if (location.hash === '#/giveaway') return { name: 'giveaway' };
   if (location.hash === '#/referrals') return { name: 'referrals' };
   if (location.hash === '#/support') return { name: 'support' };
+  if (location.hash === '#/contact') return { name: 'contact' };
   if (location.hash === '#/membership' || location.hash === '#/verify') return { name: 'membership' }; // V6: the star comes with the membership
   const name = location.hash.replace(/^#\//, '');
   return { name: TABS.some((t) => t.id === name) ? name : 'home' };
@@ -116,7 +118,7 @@ function route() {
     shell = buildShell();
     root.replaceChildren(shell.el);
   }
-  const activeTab = ['post', 'notifications'].includes(r.name) ? 'home' : r.name === 'user' ? 'users' : ['support', 'ticket', 'membership', 'earnings', 'referrals', 'giveaway'].includes(r.name) ? 'profile' : r.name;
+  const activeTab = ['post', 'notifications'].includes(r.name) ? 'home' : r.name === 'user' ? 'users' : ['support', 'ticket', 'contact', 'membership', 'earnings', 'referrals', 'giveaway'].includes(r.name) ? 'profile' : r.name;
   for (const btn of shell.nav.querySelectorAll('.nav__btn')) {
     if (btn.dataset.tab === activeTab) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
   }
@@ -132,6 +134,7 @@ function route() {
   else if (r.name === 'user') cleanupView = renderUser(shell.page, { ...ctx, ref: r.ref, publicId: r.publicId }) || null;
   else if (r.name === 'support') cleanupView = renderSupport(shell.page, ctx) || null;
   else if (r.name === 'ticket') cleanupView = renderTicket(shell.page, { ...ctx, ticketId: r.id }) || null;
+  else if (r.name === 'contact') cleanupView = renderContact(shell.page, ctx) || null;
   else if (r.name === 'membership') cleanupView = renderMembership(shell.page, ctx) || null;
   else if (r.name === 'earnings') cleanupView = renderEarnings(shell.page, ctx) || null;
   else if (r.name === 'referrals') cleanupView = renderReferrals(shell.page, ctx) || null;

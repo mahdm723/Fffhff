@@ -332,6 +332,40 @@ def phase5c_giveaway(run: Run, a: Page, adm, smtp) -> None:
     run.step("draw after the end (fresh 2FA) → prize code by e-mail only; «ربحت» + winners' names in the app")
 
 
+def phase7_contact(run: Run, a: Page, adm, smtp) -> None:
+    """The support mailbox is set from the panel (fresh 2FA) → «تواصل معنا» shows its address → a new ticket is
+    e-mailed from it to the support inbox with Reply-To = the user."""
+    sys.path.insert(0, str(ROOT))
+    from app.security import totp
+
+    a.goto(run.base + "/#/profile")
+    a.get_by_role("button", name="تواصل معنا").click()
+    expect(a.get_by_role("button", name="فتح تذكرة دعم")).to_be_visible(timeout=10000)
+    expect(a.locator(".contact__addr")).to_have_count(0)  # no official address yet
+    step = totp.current_step(time.time())
+    while totp.current_step(time.time()) == step:  # step-up codes are single-use: wait for a new 30 s step
+        time.sleep(0.5)
+    r = adm.put("/api/admin/smtp/support", json={
+        "host": "127.0.0.1", "port": smtp.port, "security": "none", "username": "", "password": "e2e-app-pass",
+        "sender": "DALTA.BIT — الدعم <support@dzplay.test>", "test_to": "",
+        "code": totp.code_at(adm.totp_secret, totp.current_step(time.time()))})
+    assert r.status_code == 200, r.text
+    a.reload()
+    expect(a.locator(".contact__addr")).to_have_text("support@dzplay.test", timeout=10000)
+    run.shot(a, "v6-contact")
+    n = len(smtp.messages)
+    status = a.evaluate("""fetch('/api/support/tickets', {method: 'POST', headers: {'Content-Type': 'application/json',
+      'X-DZ-Requested': '1'}, body: JSON.stringify({category: 'other', body: 'سؤال من صفحة تواصل معنا'})}).then((r) => r.status)""")
+    assert status == 201, status
+    deadline = time.time() + 15
+    while time.time() < deadline and len(smtp.messages) <= n:
+        time.sleep(0.3)
+    m = smtp.messages[-1]
+    assert m["to"] == ["support@dzplay.test"] and "support@dzplay.test" in m["msg"]["From"], (m["to"], m["msg"]["From"])
+    assert m["msg"]["Reply-To"] == f"v6a{os.getpid()}@example.com", m["msg"]["Reply-To"]  # A's own address
+    run.step("support mailbox set from the panel → «تواصل معنا» shows it → tickets are e-mailed from it (Reply-To = user)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8773)
@@ -366,6 +400,7 @@ def main() -> int:
             adm = admin_client(base, db_url)
             phase5b_rewards(run, browser, a, adm, smtp, suffix)
             phase5c_giveaway(run, a, adm, smtp)
+            phase7_contact(run, a, adm, smtp)
             phase2_market(run, a, fake)
             browser.close()
     finally:

@@ -401,20 +401,25 @@ def notify_admin_refund(state, refund_id: str) -> None:
 
 
 def mail_user(state, user_id: str, what: str, note: str = "") -> None:
-    from app.services import mailer, runtime_config
+    """V6 phase 7: system mailbox. accepted / rejected have their own texts; refund_* and withdraw_* use email.notice."""
+    from app.services import mail
 
     with state.database.session() as db:
         user = db.get(User, user_id)
         if user is None or not user.email:
             return
-        settings = runtime_config.effective_settings(db, state.settings)
-        email = user.email
-    if not settings.smtp_enabled:
+        if what == "accepted":
+            key, values = "email.membership_accepted", {}
+        elif what == "rejected":
+            key, values = "email.membership_rejected", {"note": note or "—"}
+        else:
+            topic = "السحب" if what.startswith("withdraw") else "العضوية"
+            key, values = "email.notice", {"topic": topic, "message": note}
+        out = mail.prepare(db, state.settings, "system", user.email, key, values)
+    if out is None:
         return
-    text = {"accepted": "تم تفعيل عضويتك. أصبحت ميزات الأعضاء متاحة لك (النجمة الزرقاء، الأفكار مع صورة، صور المحادثة).",
-            "rejected": f"لم نتمكن من قبول طلب العضوية. السبب: {note or '—'}"}.get(what, note)
     try:
-        mailer.send_text(settings, email, f"{settings.APP_NAME}: العضوية", f"مرحبًا،\n\n{text}\n\nفريق {settings.APP_NAME}")
+        mail.deliver(out)
     except Exception as exc:  # noqa: BLE001
         log.info("membership mail not sent: %s", type(exc).__name__)
 

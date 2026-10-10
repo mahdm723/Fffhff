@@ -36,9 +36,9 @@ from app.models import PasswordReset, SecurityEvent, User
 from app.security.crypto import keyed_hash, new_token, sha256_hex
 from app.security.passwords import hash_password, verify_password
 from app.security.sessions import revoke_all_sessions
-from app.services import audit, runtime_config
+from app.services import audit, mail, runtime_config
 from app.services.auth import ClientContext, _check_antibot, log_event, normalize_email, validate_new_password
-from app.services.mailer import MailError, send_reset_code
+from app.services.mailer import MailError
 from app.services.rate_limit import Limit
 
 log = logging.getLogger("dzplay.reset")
@@ -172,8 +172,10 @@ def set_code_and_send(database, settings: Settings, short_id: str, code: str | N
         r.expires_at = r.code_set_at + timedelta(seconds=settings.RESET_CODE_TTL)
         email, sid = user.email, r.short_id
         audit.record(db, "telegram", "reset_code_set", target_type="reset", target_id=sid)
-        eff = runtime_config.effective_settings(db, settings)  # SMTP set in the admin panel applies live
-    if not eff.smtp_enabled:
+        hours = max(1, settings.RESET_CODE_TTL // 3600)
+        # V6 phase 7: system mailbox, editable text (email.reset); None = no mailbox set up → manual mode
+        out = mail.prepare(db, settings, "system", email, "email.reset", {"code": code, "hours": hours}, highlight=code)
+    if out is None:
         # Manual mode (no e-mail server configured): the admin sends the code to the user themselves.
         with database.session() as db:
             r = _find_active(db, sid)
@@ -187,7 +189,7 @@ def set_code_and_send(database, settings: Settings, short_id: str, code: str | N
                 f"صالح {hours} ساعة ولمرة واحدة. يكتبه في التطبيق ثم يختار كلمة مرور جديدة.\n"
                 "(لإرسال الرمز تلقائيًا: لوحة التحكم ← الأمان والنظام ← البريد)")
     try:
-        send_reset_code(eff, email, code)
+        mail.deliver(out)
     except MailError as exc:
         log.warning("reset e-mail failed for request %s: %s", sid, exc)
         with database.session() as db:

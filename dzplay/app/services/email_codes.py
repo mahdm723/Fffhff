@@ -35,7 +35,7 @@ def mask(email: str) -> str:
 
 def send(db: Session, settings: Settings, limiter, user: User, purpose: str, email: str | None = None) -> dict:
     """Create a code and e-mail it now (raises 503 when the mail cannot be sent: nothing is kept)."""
-    from app.services import mailer, runtime_config
+    from app.services import mail, runtime_config
     from app.services.rate_limit import Limit
 
     if purpose not in PURPOSES:
@@ -57,11 +57,9 @@ def send(db: Session, settings: Settings, limiter, user: User, purpose: str, ema
                      created_at=now, expires_at=now + timedelta(seconds=settings.EMAIL_CODE_TTL)))
     db.flush()
     minutes = max(1, settings.EMAIL_CODE_TTL // 60)
-    text = (f"مرحبًا،\n\nرمز التأكيد ({PURPOSES[purpose]}): {code}\n\nصالح {minutes} دقيقة. "
-            f"لا تشاركه مع أي أحد: فريق {settings.APP_NAME} لا يطلبه منك أبدًا.\n"
-            f"إن لم تطلبه أنت فتجاهل هذه الرسالة وغيّر كلمة المرور.\n\nفريق {settings.APP_NAME}")
-    try:
-        mailer.send_text(effective, to, f"{settings.APP_NAME}: رمز التأكيد {code}", text)
+    try:  # V6 phase 7: system mailbox, editable text (email.code)
+        mail.send(db, settings, "system", to, "email.code", {"purpose": PURPOSES[purpose], "code": code, "minutes": minutes},
+                  highlight=code)
     except Exception:  # noqa: BLE001 - MailError and anything else: no code without the e-mail
         db.rollback()
         raise AppError(503, "mail_failed", "تعذّر إرسال البريد الآن. حاول بعد قليل.") from None

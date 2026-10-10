@@ -185,7 +185,9 @@ def admin_set_status(db: Session, ticket_id: int, status: str) -> dict:
 
 
 def notify_new(state, ticket_id: int, first: bool) -> None:
-    from app.services import mailer, runtime_config
+    """V6 phase 7: from the support mailbox to the support inbox (SUPPORT_INBOX_EMAIL, else the official
+    support address); Reply-To = the user, so answering the e-mail reaches them directly."""
+    from app.services import mail
 
     with state.database.session() as db:
         t = db.get(SupportTicket, ticket_id)
@@ -194,18 +196,15 @@ def notify_new(state, ticket_id: int, first: bool) -> None:
             return
         last = db.execute(select(SupportMessage).where(SupportMessage.ticket_id == t.id)
                           .order_by(SupportMessage.id.desc()).limit(1)).scalar()
-        settings = runtime_config.effective_settings(db, state.settings)
-        info = (number(t), CATEGORIES.get(t.category, t.category), t.subject, u.public_id, u.email, last.body if last else "")
-    num, cat, subj, pid, email, body = info
-    inbox = settings.SUPPORT_INBOX_EMAIL.strip()
-    if inbox:
+        num, cat, subj, pid, body = (number(t), CATEGORIES.get(t.category, t.category), t.subject, u.public_id,
+                                     last.body if last else "")
+        inbox = state.settings.SUPPORT_INBOX_EMAIL.strip() or mail.support_address(db, state.settings)
+        out = mail.prepare(db, state.settings, "support", inbox, "email.ticket_new",
+                           {"ticket": num, "subject": subj, "kind": "تذكرة جديدة" if first else "رد جديد من المستخدم",
+                            "category": cat, "public_id": pid, "message": body}, reply_to=u.email) if inbox else None
+    if out is not None:
         try:
-            mailer.send_text(
-                settings, inbox, f"[{settings.APP_NAME} #{num}] {subj}",
-                f"{'تذكرة جديدة' if first else 'رد جديد من المستخدم'} #{num}\n"
-                f"النوع: {cat}\nالمعرّف العام: {pid}\n\n{body}\n\n"
-                "— الرد على هذا البريد يصل مباشرة إلى بريد المستخدم. للرد داخل التطبيق استعمل لوحة القيادة ← الدعم.",
-                reply_to=email)
+            mail.deliver(out)
         except Exception as exc:  # noqa: BLE001 - mail is best effort; the ticket is saved anyway
             log.warning("support mail not sent: %s", type(exc).__name__)
     if state.bot is not None:
@@ -213,19 +212,19 @@ def notify_new(state, ticket_id: int, first: bool) -> None:
 
 
 def notify_user_reply(state, ticket_id: int) -> None:
-    from app.services import mailer, runtime_config
+    """V6 phase 7: from the support mailbox to the user; Reply-To = the official support address."""
+    from app.services import mail
 
     with state.database.session() as db:
         t = db.get(SupportTicket, ticket_id)
         u = db.get(User, t.user_id) if t else None
         if t is None or u is None or not u.email or u.is_system or u.is_official:
             return
-        settings = runtime_config.effective_settings(db, state.settings)
-        num, subj, email = number(t), t.subject, u.email
+        out = mail.prepare(db, state.settings, "support", u.email, "email.ticket_reply",
+                           {"ticket": number(t), "subject": t.subject})
+    if out is None:
+        return
     try:
-        mailer.send_text(settings, email, f"[{settings.APP_NAME} #{num}] تم الرد على تذكرتك",
-                         f"مرحبًا،\n\nردّ فريق الدعم على تذكرتك #{num} ({subj}).\n"
-                         f"ادخل إلى {settings.APP_NAME} ← حسابي ← الدعم ← تذاكري لقراءة الرد.\n\nفريق {settings.APP_NAME}",
-                         reply_to=settings.SUPPORT_INBOX_EMAIL.strip() or None)
+        mail.deliver(out)
     except Exception as exc:  # noqa: BLE001
         log.warning("support reply mail not sent: %s", type(exc).__name__)

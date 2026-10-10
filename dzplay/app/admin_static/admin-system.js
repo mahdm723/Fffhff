@@ -44,7 +44,8 @@ export async function renderSystem(main) {
 
   body.replaceChildren(
     botSection(),
-    smtpSection(),
+    smtpSection('system'),
+    smtpSection('support'),
     h('div', { class: 'admin-groups' },
       card('ذاكرة الوسائط المؤقتة', 'image',
         h('div', { class: 'admin-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct),
@@ -171,42 +172,67 @@ function botSection() {
   return card('بوت Telegram', 'send', h('p', { class: 'admin-meta', text: 'للإحصائيات (/stats)، وطلبات استعادة كلمات المرور، وأزرار الإشراف على الصور والتوثيق.' }), status, h('div', { class: 'admin-actions' }, testBtn, removeBtn), form);
 }
 
-// ------------------------------------------------------------------ e-mail for recovery codes (password is write-only)
+// ------------------------------------------------------------------ e-mail: two mailboxes (password is write-only)
+// V6 phase 7: «بريد النظام» (codes, membership, rewards, prizes — "do not reply" footer) and «بريد الدعم»
+// (tickets and replies; its address is shown to users in «تواصل معنا»). Without its own settings the
+// support mailbox uses the system one.
 
-function smtpSection() {
+const MAILBOX = {
+  system: {
+    title: 'بريد النظام (الرموز والإشعارات)', base: '/api/admin/smtp',
+    note: 'يرسل رموز الاستعادة والسحب والاسترجاع، والعضوية والمكافآت والظرف الأحمر، وتنبيهات الأمان. تنتهي رسائله بـ«رسالة آلية، لا ترد عليها». بدون إعداد: الاستعادة يدوية عبر Telegram، والرموز الأخرى غير متاحة.',
+    on: 'يعمل — تُرسل الرموز والإشعارات تلقائيًا',
+    off: 'غير مُعدّ — وضع يدوي: يصلك رمز الاستعادة في Telegram لترسله أنت إلى المستخدم',
+  },
+  support: {
+    title: 'بريد الدعم (التذاكر والردود)', base: '/api/admin/smtp/support',
+    note: 'يرسل إشعارات التذاكر إلى صندوق الدعم وردودكم إلى المستخدمين. عنوانه هو «بريد الدعم الرسمي» الظاهر في صفحة «تواصل معنا»، ويُستعمل Reply-To لرسائل النظام.',
+    on: 'يعمل — من حساب الدعم',
+    off: 'غير مُعدّ بعد — تُرسل رسائل الدعم من بريد النظام مؤقتًا',
+  },
+};
+
+function smtpSection(profile) {
+  const M = MAILBOX[profile];
+  const appName = (document.title || '').trim().split(/\s+/).pop() || 'DALTA.BIT';
   const status = h('div', {}, spinner());
   const host = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: '253', placeholder: 'smtp.gmail.com' });
   const port = h('input', { class: 'input', dir: 'ltr', type: 'number', min: '1', max: '65535', value: '587', inputmode: 'numeric' });
   const security = h('select', { class: 'input admin-select', dir: 'ltr' },
     h('option', { value: 'starttls', text: 'STARTTLS (587)' }), h('option', { value: 'ssl', text: 'SSL (465)' }));
-  const user = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: '200', placeholder: 'you@gmail.com' });
+  const user = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off', maxlength: '200', placeholder: profile === 'support' ? 'support.you@gmail.com' : 'no-reply.you@gmail.com' });
   const pass = h('input', { class: 'input', dir: 'ltr', type: 'password', autocomplete: 'new-password', maxlength: '200' });
-  const sender = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', maxlength: '200', placeholder: 'DZPLAY <you@gmail.com>' });
+  const sender = h('input', { class: 'input', dir: 'ltr', autocomplete: 'off', maxlength: '200', placeholder: `${appName} <you@gmail.com>` });
   const testTo = h('input', { class: 'input', dir: 'ltr', type: 'email', autocomplete: 'off', maxlength: '254', placeholder: 'you@gmail.com' });
   const code = h('input', { class: 'input', dir: 'ltr', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '6', placeholder: '123456' });
   const save = h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, icon('bell'), 'حفظ وإرسال بريد تجربة');
-  const removeBtn = h('button', { type: 'button', class: 'btn btn--danger btn--sm', hidden: true }, 'إزالة إعداد البريد');
+  const removeBtn = h('button', { type: 'button', class: 'btn btn--danger btn--sm', hidden: true }, 'إزالة الإعداد');
+  const testBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', hidden: true }, 'إرسال تجربة');
   const gmail = h('button', { type: 'button', class: 'btn btn--ghost btn--sm' }, 'إعداد Gmail');
+  const senderFor = (addr) => `${appName}${profile === 'support' ? ' — الدعم' : ''} <${addr}>`;
   gmail.addEventListener('click', () => {
     host.value = 'smtp.gmail.com'; port.value = '587'; security.value = 'starttls';
-    if (!sender.value && user.value) sender.value = `DZPLAY <${user.value}>`;
+    if (!sender.value && user.value) sender.value = senderFor(user.value.trim());
     user.focus();
   });
-  user.addEventListener('change', () => { if (!sender.value && user.value.includes('@')) sender.value = `DZPLAY <${user.value.trim()}>`; });
+  user.addEventListener('change', () => { if (!sender.value && user.value.includes('@')) sender.value = senderFor(user.value.trim()); });
 
   const paint = (s) => {
-    status.replaceChildren(rows(s.configured
-      ? [['الحالة', 'يعمل — تُرسل رموز الاستعادة بالبريد تلقائيًا', 'admin-ok'], ['المصدر', SOURCE[s.source] || s.source],
-        ['الخادم', `${s.host}:${s.port} (${s.security})`], ['المرسل', s.sender || '—'], ['كلمة المرور', s.password_set ? 'محفوظة' : '—']]
-      : [['الحالة', 'غير مُعدّ — وضع يدوي: يصلك رمز الاستعادة في Telegram لترسله أنت إلى المستخدم', 'admin-warn']]));
-    if (s.configured) {
+    const own = s.configured && !s.inherited;
+    status.replaceChildren(rows(own
+      ? [['الحالة', M.on, 'admin-ok'], ['المصدر', SOURCE[s.source] || s.source],
+        ['الخادم', `${s.host}:${s.port} (${s.security})`], ['المرسل', s.sender || '—'], ['كلمة المرور', s.password_set ? 'محفوظة' : '—'],
+        ...(profile === 'support' ? [['بريد الدعم الرسمي', s.support_address || '—']] : [])]
+      : [['الحالة', M.off, 'admin-warn'], ...(profile === 'support' && s.support_address ? [['بريد الدعم الرسمي', s.support_address]] : [])]));
+    if (own) {
       host.value = s.host || ''; port.value = String(s.port || 587); security.value = s.security === 'ssl' ? 'ssl' : 'starttls';
       user.value = s.username || ''; sender.value = s.sender || '';
       pass.placeholder = s.password_set ? 'اتركها فارغة للإبقاء على الحالية' : '';
     }
-    removeBtn.hidden = s.source !== 'panel';
+    removeBtn.hidden = !(own && s.source === 'panel');
+    testBtn.hidden = !s.configured;
   };
-  const load = async () => { const s = await attempt(() => call('GET', '/api/admin/smtp')); if (s) paint(s); };
+  const load = async () => { const s = await attempt(() => call('GET', M.base)); if (s) paint(s); };
 
   const form = h('form', {
     class: 'admin-form',
@@ -214,7 +240,7 @@ function smtpSection() {
       e.preventDefault();
       if (!/^[0-9]{6}$/.test(code.value.trim())) { toast('اكتب رمز التحقق من تطبيق المصادقة (6 أرقام).', 'error'); code.focus(); return; }
       save.disabled = true;
-      const s = await attempt(() => call('PUT', '/api/admin/smtp', {
+      const s = await attempt(() => call('PUT', M.base, {
         host: host.value.trim(), port: Math.trunc(Number(port.value) || 0), security: security.value, username: user.value.trim(),
         password: pass.value, sender: sender.value.trim(), test_to: testTo.value.trim(), code: code.value.trim(),
       }));
@@ -227,27 +253,33 @@ function smtpSection() {
       else toast(testTo.value ? 'حُفظ ✅ — تحقق من وصول بريد التجربة.' : 'حُفظ ✅');
     },
   },
-  h('p', { class: 'admin-meta', text: 'بدون إعداد البريد تعمل الاستعادة يدويًا: يصلك الرمز في Telegram وترسله أنت. لإرساله تلقائيًا: Gmail ← فعّل التحقق بخطوتين في حساب Google ← أنشئ «كلمة مرور التطبيقات» (App Password) ← الصقها هنا.' }),
+  h('p', { class: 'admin-meta', text: 'Gmail: أنشئ الحساب ← فعّل التحقق بخطوتين في حساب Google ← أنشئ «كلمة مرور التطبيقات» (App Password) ← الصقها هنا. الخادم smtp.gmail.com والمنفذ 587 (STARTTLS)، واسم المستخدم هو عنوان Gmail نفسه.' }),
   h('div', { class: 'admin-actions' }, gmail),
   h('div', { class: 'admin-filters__row' }, field('الخادم (SMTP)', host), field('المنفذ', port)),
   field('التشفير', security),
-  field('اسم المستخدم (بريدك)', user),
+  field('اسم المستخدم (البريد)', user),
   field('كلمة المرور (App Password)', pass),
   field('اسم وعنوان المرسل', sender),
   field('أرسل بريد تجربة إلى (اختياري)', testTo),
   field('رمز التحقق من تطبيق المصادقة', code),
   save);
 
+  testBtn.addEventListener('click', async () => {
+    const to = testTo.value.trim();
+    if (!to) { toast('اكتب عنوانًا في «أرسل بريد تجربة إلى».', 'error'); testTo.focus(); return; }
+    if (await attempt(() => call('POST', `${M.base}/test`, { to }))) toast('أُرسل ✅ — تحقق من صندوق الوارد.');
+  });
   removeBtn.addEventListener('click', async () => {
     if (!/^[0-9]{6}$/.test(code.value.trim())) { toast('اكتب رمز التحقق أولًا.', 'error'); code.focus(); return; }
-    if (!(await confirmDanger('إزالة إعداد البريد؟', 'تعود الاستعادة إلى الوضع اليدوي (أو إعداد ملف .env إن وُجد).', 'إزالة'))) return;
-    const s = await attempt(() => call('POST', '/api/admin/smtp/remove', { code: code.value.trim() }));
+    const after = profile === 'support' ? 'تُرسل رسائل الدعم من بريد النظام.' : 'تعود الاستعادة إلى الوضع اليدوي (أو إعداد ملف .env إن وُجد).';
+    if (!(await confirmDanger('إزالة إعداد البريد؟', after, 'إزالة'))) return;
+    const s = await attempt(() => call('POST', `${M.base}/remove`, { code: code.value.trim() }));
     code.value = '';
-    if (s) { paint(s); toast('أُزيل إعداد البريد.'); }
+    if (s) { paint(s); toast('أُزيل الإعداد.'); }
   });
 
   load();
-  return card('البريد (رموز استعادة كلمة المرور)', 'bell', status, h('div', { class: 'admin-actions' }, removeBtn), form);
+  return card(M.title, 'bell', h('p', { class: 'admin-meta', text: M.note }), status, h('div', { class: 'admin-actions' }, testBtn, removeBtn), form);
 }
 
 function blocksSection(blocks) {

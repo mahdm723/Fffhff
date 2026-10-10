@@ -958,3 +958,11 @@ body::before {
 .gw-winners h3 { margin: 0 0 6px; font-size: 15px; }
 .gw-winners ul { margin: 0; padding-inline-start: 18px; }
 .gw-terms { text-align: center; font-size: 12.5px; }
+
+/* V6 phase 7: «تواصل معنا» */
+.contact { display: grid; gap: 14px; padding: 18px 16px; border-radius: var(--radius); }
+.contact__lead { margin: 0; }
+.contact__mail { display: grid; gap: 8px; justify-items: start; padding-top: 6px; border-top: 1px solid var(--line); }
+.contact__mail .muted { margin: 8px 0 0; }
+.contact__addr { font-size: 17px; font-weight: 700; word-break: break-all; }
+.contact__note { margin: 0; font-size: 13px; }

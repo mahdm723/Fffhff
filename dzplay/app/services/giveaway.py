@@ -233,7 +233,7 @@ def cancel(db: Session, r: GiveawayRound, actor: str) -> dict:
 
 
 def mail_code(state, winner_id: int) -> None:
-    from app.services import mailer, runtime_config
+    from app.services import mail
 
     with state.database.session() as db:
         w = db.get(GiveawayWinner, winner_id)
@@ -241,16 +241,14 @@ def mail_code(state, winner_id: int) -> None:
         r = db.get(GiveawayRound, w.round_id) if w else None
         if w is None or entry is None or r is None or not w.code_sealed:
             return
-        settings = runtime_config.effective_settings(db, state.settings)
         code = unseal(state.settings.SECRET_KEY, _PURPOSE, w.code_sealed)
-        to, title = entry.email, r.title
-    if not code or not settings.smtp_enabled:
+        out = mail.prepare(db, state.settings, "system", entry.email, "email.giveaway", {"title": r.title, "code": code},
+                           highlight=code) if code else None
+    if out is None:
         log.warning("giveaway code not mailed (mail off or code unreadable)")
         return
-    text = (f"مبروك! 🧧\n\nربحت في «{title}». رمز جائزتك:\n\n{code}\n\n"
-            f"لا تشاركه مع أحد. فريق {settings.APP_NAME} لن يطلبه منك أبدًا.\n\nفريق {settings.APP_NAME}")
     try:
-        mailer.send_text(settings, to, f"{settings.APP_NAME}: جائزتك في الظرف الأحمر", text)
+        mail.deliver(out)
         with state.database.session() as db:
             w = db.get(GiveawayWinner, winner_id)
             if w is not None:

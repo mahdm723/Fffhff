@@ -700,29 +700,67 @@ class SmtpTestBody(_Body):
     to: str = Field(max_length=254)
 
 
-def _smtp_status(st) -> dict:
+def _smtp_status(st, profile: str = "system") -> dict:
+    from app.services import mail
+
     with st.database.session() as db:
-        cfg = runtime_config.smtp_config(db, st.settings)
-    return {"configured": cfg["source"] != "none", "source": cfg["source"], "host": cfg["host"] or None, "port": cfg["port"],
+        cfg = runtime_config.smtp_config(db, st.settings, profile)
+        support = mail.support_address(db, st.settings)
+    return {"profile": profile, "configured": cfg["source"] != "none", "source": cfg["source"],
+            "inherited": bool(cfg.get("inherited")), "host": cfg["host"] or None, "port": cfg["port"],
             "security": cfg["security"], "username": cfg["username"] or None, "sender": cfg["from"] or None,
-            "password_set": bool(cfg["password"])}
+            "password_set": bool(cfg["password"]), "support_address": support or None}
 
 
-def _send_test_mail(st, to: str) -> str | None:
-    from app.services.mailer import MailError, send_test
+def _send_test_mail(st, to: str, profile: str = "system") -> str | None:
+    from app.services import mail
+    from app.services.mailer import MailError
 
     to = (to or "").strip()
     if not runtime_config._EMAIL_RE.match(to):
         return "عنوان بريد التجربة غير صالح."
     with st.database.session() as db:
-        eff = runtime_config.effective_settings(db, st.settings)
+        out = mail.prepare(db, st.settings, profile, to, "email.test", {"mailbox": mail.LABELS[profile]})
+    if out is None:
+        return "البريد غير مُعدّ بعد."
     try:
-        send_test(eff, to)
+        mail.deliver(out)
         return None
     except MailError as exc:
         return f"تعذّر إرسال بريد التجربة ({exc}). تحقق من الخادم والمنفذ واسم المستخدم وكلمة المرور."
 
 
+def _smtp_save(body: SmtpBody, request: Request, ac: AdminContext, profile: str) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+    with st.database.session() as db:
+        runtime_config.save_smtp(db, st.settings, host=body.host, port=body.port, security=body.security,
+                                 username=body.username, password=body.password, sender=body.sender, actor=ac.actor,
+                                 profile=profile)
+        _record(db, ac, "smtp_update", target_type="smtp", target_id=f"{profile}:{body.host[:24]}")
+    out = _smtp_status(st, profile)
+    out["test_error"] = _send_test_mail(st, body.test_to, profile) if body.test_to else None
+    return out
+
+
+def _smtp_test(body: SmtpTestBody, request: Request, profile: str) -> dict:
+    problem = _send_test_mail(get_state(request), body.to, profile)
+    if problem:
+        raise AppError(502, "test_failed", problem)
+    return {"ok": True}
+
+
+def _smtp_remove(body: StepUpBody, request: Request, ac: AdminContext, profile: str) -> dict:
+    st = get_state(request)
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+        runtime_config.clear_smtp(db, profile)
+        _record(db, ac, "smtp_remove", target_type="smtp", target_id=profile)
+    return _smtp_status(st, profile)
+
+
+# system mailbox (V5 routes, unchanged)
 @router.get("/smtp")
 def smtp_get(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     return _smtp_status(get_state(request))
@@ -730,34 +768,37 @@ def smtp_get(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
 
 @router.put("/smtp")
 def smtp_put(body: SmtpBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    with st.database.session() as db:
-        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
-    with st.database.session() as db:
-        runtime_config.save_smtp(db, st.settings, host=body.host, port=body.port, security=body.security,
-                                 username=body.username, password=body.password, sender=body.sender, actor=ac.actor)
-        _record(db, ac, "smtp_update", target_type="smtp", target_id=body.host[:32])
-    out = _smtp_status(st)
-    out["test_error"] = _send_test_mail(st, body.test_to) if body.test_to else None
-    return out
+    return _smtp_save(body, request, ac, "system")
 
 
 @router.post("/smtp/test")
 def smtp_test(body: SmtpTestBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    problem = _send_test_mail(st, body.to)
-    if problem:
-        raise AppError(502, "test_failed", problem)
-    return {"ok": True}
+    return _smtp_test(body, request, "system")
 
 
 @router.post("/smtp/remove")
 def smtp_remove(body: StepUpBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    st = get_state(request)
-    with st.database.session() as db:
-        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
-        runtime_config.clear_smtp(db)
-        _record(db, ac, "smtp_remove", target_type="smtp")
-    return _smtp_status(st)
+    return _smtp_remove(body, request, ac, "system")
+
+
+# V6 phase 7: support mailbox (tickets and replies)
+@router.get("/smtp/support")
+def smtp_support_get(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    return _smtp_status(get_state(request), "support")
+
+
+@router.put("/smtp/support")
+def smtp_support_put(body: SmtpBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    return _smtp_save(body, request, ac, "support")
+
+
+@router.post("/smtp/support/test")
+def smtp_support_test(body: SmtpTestBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    return _smtp_test(body, request, "support")
+
+
+@router.post("/smtp/support/remove")
+def smtp_support_remove(body: StepUpBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    return _smtp_remove(body, request, ac, "support")
 
 

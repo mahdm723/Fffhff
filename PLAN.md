@@ -1,6 +1,6 @@
 # PLAN — DZPLAY V6 (Pivot)
 
-> الحالة: **المراحل 1 و1ب و1ج و2 و3 و4 و5 و5ب و5ج و6 منتهية. التالي: 7 (بعد موافقة المالك).**
+> الحالة: **المراحل 1 → 7 منتهية. التالي: 8.**
 > العمل على الفرع `claude/github-access-check-c1exvo`، ولكل مرحلة commits تبدأ بـ`V6 phase N:` (الوسوم لا تُدفع من هذه البيئة).
 > كل المسارات أدناه نسبةً إلى `dzplay/`.
 
@@ -440,7 +440,12 @@
 
 ---
 
-## المرحلة 7 — البريد الرسمي والدعم
+## المرحلة 7 — البريد الرسمي والدعم ✅
+> **ما نُفّذ:**
+> - `runtime_config` بملفين: `system` (المفاتيح القديمة `smtp.*`) و`support` (`smtp.support.*`، ويرجع إلى `system`).
+> - `services/mail.py` (prepare/deliver، والتذييل، وReply-To، وتنبيه Telegram مرة كل 30 دقيقة)، و`services/mail_templates.py` (مفاتيح `email.*` بمتغيرات آمنة).
+> - `/api/contact` و`#/contact`، وبطاقتا بريد في اللوحة، والدليل القسم 21 (خطوات Gmail).
+> - الاختبارات: `tests/test_mail_v6.py`.
 - **`services/mailer.py`:**
   - ملفان `system` و`support`، لكل واحد إعداد SMTP مختوم في `runtime_config` (`smtp.system.*`، `smtp.support.*`)، مع رجوع إلى `.env` للنظام.
   - واجهة إعداد Gmail الحالية في اللوحة تُكرَّر لكل ملف، مع زر «إرسال تجربة».

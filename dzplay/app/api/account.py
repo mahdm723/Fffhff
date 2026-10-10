@@ -1,4 +1,4 @@
-"""V5 user endpoints: support tickets («تذاكري») and the blue-star request."""
+"""V5 user endpoints: support tickets («تذاكري») and the blue-star request. V6 phase 7: «تواصل معنا»."""
 
 from __future__ import annotations
 
@@ -32,6 +32,16 @@ class VerifyBody(_Body):
     reason: str = Field(max_length=5000)
     amount: Any = None
     txid: str = Field(max_length=300)
+
+
+@router.get("/contact")
+def contact(request: Request) -> dict:
+    """«تواصل معنا»: the official support address (set by the admin), public like the policies."""
+    from app.services import mail
+
+    st = get_state(request)
+    with st.database.session() as db:
+        return {"app_name": st.settings.APP_NAME, "support_email": mail.support_address(db, st.settings) or None}
 
 
 @router.get("/support/tickets")

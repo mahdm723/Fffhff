@@ -383,7 +383,9 @@ class Run:
         self.step("bot form: token + chat ID + 2FA code; a wrong code is refused and the token field is cleared")
         bot_card.scroll_into_view_if_needed()
         self.shot(page, "14a-bot-form-dark")
-        mail_card = page.locator(".admin-group", has_text="البريد (رموز استعادة كلمة المرور)")
+        expect(page.locator(".admin-group", has_text="بريد الدعم (التذاكر والردود)").locator(".admin-row").first).to_contain_text(
+            "تُرسل رسائل الدعم من بريد النظام مؤقتًا")  # V6 phase 7: the second mailbox
+        mail_card = page.locator(".admin-group", has_text="بريد النظام (الرموز والإشعارات)")
         expect(mail_card.locator(".admin-row").first).to_contain_text("وضع يدوي")
         mail_card.get_by_role("button", name="إعداد Gmail").click()
         assert mail_card.get_by_label("الخادم (SMTP)").input_value() == "smtp.gmail.com"

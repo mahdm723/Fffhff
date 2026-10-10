@@ -50,6 +50,9 @@ class AppState:
 
         state.pipeline = MediaPipeline(state)
         media_items.install(media)
+        from app.services import mail
+
+        mail.install(state)  # V6 phase 7: failed deliveries are reported to the admin chat
         state.hub.system_handler = state.on_system_event
         if settings.fcm_enabled:
             from app.services.fcm import FcmNotifier

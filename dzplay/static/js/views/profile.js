@@ -274,6 +274,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       item('plusUser', 'دعوة الأصدقاء', () => navigate('#/referrals')),
       item('spark', 'الظرف الأحمر 🧧', () => navigate('#/giveaway')),
       item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
+      item('send', 'تواصل معنا', () => navigate('#/contact')),
       item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
       ageItem,
       item('block', 'المحظورون', blockedSheet),

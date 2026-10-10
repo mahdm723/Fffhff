@@ -54,6 +54,7 @@
     - قيد `ux_ledger_source` للـidempotency، و`lock_user` قبل أي فحص رصيد؛
     - أنواع الحركات لا تستعمل أبدًا أنواع V5 المحذوفة (`earning|payout|adjustment|reversal`).
   - `services/email_codes.py`: رموز البريد (`refund`، `withdraw`، `giveaway`).
+  - `services/mail.py`: البريد الصادر بملفين، `system` (رسائل آلية بتذييل «لا ترد») و`support` (التذاكر). النصوص من `mail_templates.py` (`email.*`)، والمتغيرات بـregex لا بـ`str.format`.
   - `services/membership.py`: العضوية، والاسترجاع، وأزرار Telegram `ms:`.
   - `services/rewards.py` و`withdrawals.py`: «أرباحي» والدعوات والسحب.
   - `services/giveaway.py`: الظرف الأحمر.

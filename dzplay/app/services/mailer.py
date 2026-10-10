@@ -1,4 +1,5 @@
-"""Outgoing e-mail (SMTP from settings). Used only for password-recovery codes.
+"""Outgoing e-mail over SMTP (low level). V6 phase 7: the texts, the two mailboxes (system / support) and the
+failure alerts live in services/mail.py; this module only builds and delivers a message.
 
 The message contains the code and nothing else about the account. SMTP
 credentials (from .env or the admin panel, sealed in the database) are never logged.
@@ -74,14 +75,17 @@ def send_reset_code(settings: Settings, to_email: str, code: str) -> None:
     _deliver(settings, msg)
 
 
-def send_text(settings: Settings, to_email: str, subject: str, text: str, reply_to: str | None = None) -> None:
-    """A plain-text notification (V5: support tickets, verification, earnings)."""
+def send_text(settings: Settings, to_email: str, subject: str, text: str, reply_to: str | None = None,
+              html_body: str | None = None) -> None:
+    """A plain-text message (with an optional HTML alternative)."""
     if not settings.smtp_enabled:
         raise MailError("SMTP is not configured")
     msg = _message(settings, to_email, subject[:200])
     if reply_to:
         msg["Reply-To"] = reply_to
     msg.set_content(text)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
     _deliver(settings, msg)
 
 
