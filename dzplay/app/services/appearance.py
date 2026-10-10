@@ -21,6 +21,10 @@ MIN_TEXT = 4.5
 
 # The page background and card surface of each mode (must match static/css/app.css).
 SURFACES = {"dark": ("#0c0e18", "#161a29"), "light": ("#f5f2ec", "#ffffff")}
+# The blue star (membership badge) of each mode — a graphic, so ≥ 3:1 (WCAG 1.4.11) on the page and cards, and its
+# white check ≥ 3:1 on it (must match --star in static/css/app.css).
+STAR = {"dark": "#2a86ff", "light": "#1a73e8"}
+MIN_GRAPHIC = 3.0
 
 # name: (label, dark (stop 1, stop 2), light (stop 1, stop 2)). The first one is the default (the DALTA.BIT identity).
 ACCENTS: dict[str, tuple[str, tuple[str, str], tuple[str, str]]] = {

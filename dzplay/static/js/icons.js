@@ -1,4 +1,20 @@
 // Inline SVG icons (static, trusted markup — never mixed with user content).
+
+// The blue star, computed so it is exactly symmetric: a 12-point rosette centred on (12, 12) (filled and
+// stroked with round joins, which softens every point the same way) and a check mark made of two 45° strokes
+// whose bounding box is centred on the same point (x 7.5…16.5, y 8.875…15.125).
+function rosette(points = 12, outer = 10.75, inner = 9.25) {
+  const d = [];
+  for (let i = 0; i < points * 2; i += 1) {
+    const r = i % 2 ? inner : outer;
+    const a = -Math.PI / 2 + (i * Math.PI) / points;
+    d.push(`${i ? 'L' : 'M'}${(12 + r * Math.cos(a)).toFixed(3)} ${(12 + r * Math.sin(a)).toFixed(3)}`);
+  }
+  return `${d.join('')}Z`;
+}
+export const STAR_SEAL = rosette();
+export const STAR_CHECK = 'M7.5 12.375 10.25 15.125 16.5 8.875';
+
 const P = {
   image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
   close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
@@ -35,7 +51,7 @@ const P = {
   volume: '<path d="M4 9.5v5h4l5 4v-13l-5 4H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
   volumeOff: '<path d="M4 9.5v5h4l5 4v-13l-5 4H4Z"/><path d="m17 9.5 5 5M22 9.5l-5 5"/>',
   reels: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M3 8h18M8 3l3 5M14 3l3 5"/><path d="m10.5 11.5 4 2.5-4 2.5Z"/>',
-  verified: '<path d="m12 2 2.4 1.8 3-.2.8 2.9 2.5 1.7-1 2.8 1 2.8-2.5 1.7-.8 2.9-3-.2L12 22l-2.4-1.8-3 .2-.8-2.9L3.3 15.8l1-2.8-1-2.8 2.5-1.7.8-2.9 3 .2Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  verified: `<path d="${STAR_SEAL}"/><path d="${STAR_CHECK}"/>`, // outline (menus); the badge is ui.starMark
   spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>',
   video: '<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="m15.5 10.5 6-3.5v10l-6-3.5"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>',

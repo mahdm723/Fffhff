@@ -92,7 +92,7 @@ export function renderMembership(page, { navigate, onMe }) {
     const req = d.request;
     let status;
     if (d.member) {
-      status = h('section', { class: 'mem-status mem-status--on glass' }, starMark(),
+      status = h('section', { class: 'mem-status mem-status--on glass' }, starMark({ large: true }),
         h('div', {}, h('h2', { text: 'عضويتك مفعّلة' }), h('p', { text: `منذ ${formatDay(d.member_since)}` })));
     } else if (req && req.status === 'pending') {
       status = h('section', { class: 'mem-status glass' }, icon('clock'),

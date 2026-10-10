@@ -42,6 +42,19 @@ def test_generated_css_is_in_sync_and_surfaces_match_the_stylesheet():
         assert "color: #fff" not in rule, rule
 
 
+def test_the_blue_star_reads_in_both_modes():
+    app_css = (STATIC / "css" / "app.css").read_text()
+    for mode, star in ap.STAR.items():
+        bg, card = ap.SURFACES[mode]
+        assert f"--star: {star};" in app_css, mode
+        assert min(ap.contrast(star, bg), ap.contrast(star, card)) >= ap.MIN_GRAPHIC, mode  # the badge on the page
+        assert ap.contrast(star, ap.WHITE) >= ap.MIN_GRAPHIC, mode  # its white check
+    # one size next to every name; the badge is drawn from computed (symmetric) geometry, not a hand-made path
+    assert re.search(r"\.star-mark \{[^}]*width: 18px; height: 18px;", app_css)
+    icons = (STATIC / "js" / "icons.js").read_text()
+    assert "export const STAR_SEAL = rosette();" in icons and "STAR_CHECK = 'M7.5 12.375 10.25 15.125 16.5 8.875'" in icons
+
+
 def test_appearance_is_saved_validated_and_returned(make_harness):
     hx = make_harness()
     a = hx.user()

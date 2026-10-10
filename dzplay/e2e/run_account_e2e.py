@@ -68,13 +68,15 @@ def main() -> int:
             a.goto(base + "/#/profile")
             a.get_by_role("button", name="الدعم والمساعدة").click()
             a.get_by_role("radio", name="الحساب").click()
-            a.locator("#ticket-subject").fill("لا أستطيع تغيير اسمي")
+            a.locator("#ticket-subject").fill("لا أستطيع تغيير اسمي منذ أيام رغم أنني انتظرت المدة المطلوبة كاملة")
             a.locator("#ticket-body").fill("أحاول تغيير اسمي فتظهر رسالة انتظار.")
             run.shot(a, "c01-support-form")
             a.get_by_role("button", name="إرسال إلى الدعم").click()
             expect(a.get_by_text("أُرسلت تذكرتك رقم #1001")).to_be_visible(timeout=10000)
             expect(a.locator(".ticket-item", has_text="لا أستطيع تغيير اسمي")).to_be_visible()
-            run.step("ticket #1001 sent")
+            # V6 phase 10b: a long subject in «تذاكري» used to make the whole page wider than the phone
+            assert a.evaluate("() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "support page wider than the screen"
+            run.step("ticket #1001 sent (long subject, the page keeps the screen width)")
             tid = adm.get("/api/admin/support").json()["tickets"][0]["id"]
             assert adm.post(f"/api/admin/support/{tid}/reply", json={"body": "يمكن تغيير الاسم كل 14 يومًا."}).status_code == 200
             expect(a.get_by_text("رد جديد").first).to_be_visible(timeout=10000)  # live, through the WebSocket

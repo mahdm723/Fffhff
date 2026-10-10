@@ -295,7 +295,7 @@ export function renderChat(root, { conversationId, navigate }) {
     }
     if (store.isRequest(conv)) {
       footer.replaceChildren(h('div', { class: 'request-bar' },
-        h('p', { class: 'request-bar__title' }, nameLine(conv.peer, conv.peer_card && conv.peer_card.gender), ' يريد مراسلتك'),
+        h('p', { class: 'request-bar__title' }, nameLine(conv.peer, conv.peer_card && conv.peer_card.gender, '', !!(conv.peer_card && conv.peer_card.verified)), ' يريد مراسلتك'),
         h('p', { class: 'request-bar__text', text: 'لن يعرف أنك قرأت رسائله حتى تقبل. إذا تجاهلت الطلب يختفي دون إشعاره.' }),
         h('div', { class: 'request-bar__actions' },
           h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => answer('accept') }, 'قبول'),
@@ -338,7 +338,7 @@ export function renderChat(root, { conversationId, navigate }) {
       panel.append(
         h('div', { class: 'peer-info' },
           personAvatar(conv.peer, { size: 'lg', anonymous: anon, active: !!card.active, url: card.avatar_url }),
-          h('h2', {}, nameLine(conv.peer, card.gender)),
+          h('h2', {}, nameLine(conv.peer, card.gender, '', !!card.verified)),
           card.public_id ? idChip(card.public_id) : h('p', { text: 'هوية هذا الشخص مخفية. يظهر باسم dzplay.' }),
         ),
         h('div', { class: 'actions' },

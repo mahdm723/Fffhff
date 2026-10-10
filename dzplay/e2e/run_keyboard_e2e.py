@@ -100,6 +100,16 @@ def main() -> int:
             a.goto(base + "/#/profile")
             a.get_by_role("button", name="تعديل الملف").click()
             check(run, a, a.locator("#display-name"), a.locator(".sheet").get_by_role("button", name="حفظ"), "edit-profile")
+
+            # V6 phase 10b: support — the new-ticket text and its send button, then the reply box of a ticket
+            a.goto(base + "/#/support")
+            expect(a.locator("#ticket-body")).to_be_visible(timeout=10000)
+            check(run, a, a.locator("#ticket-body"), a.get_by_role("button", name="إرسال إلى الدعم"), "new-ticket")
+            a.locator("#ticket-body").fill("مشكلة لتجربة لوحة المفاتيح")
+            a.get_by_role("button", name="إرسال إلى الدعم").click()
+            a.locator(".ticket-item").first.click()
+            expect(a.locator(".ticket-composer textarea")).to_be_visible(timeout=10000)
+            check(run, a, a.locator(".ticket-composer textarea"), a.locator(".ticket-composer .send-btn"), "ticket-reply")
             browser.close()
     finally:
         proc.terminate()

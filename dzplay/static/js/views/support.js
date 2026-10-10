@@ -62,13 +62,13 @@ export function renderSupport(page, { navigate }) {
 
   page.replaceChildren(
     topbar('الدعم والمساعدة', () => navigate('#/profile')),
-    h('section', { class: 'card glass', 'data-kb-block': '' },
+    h('section', { class: 'card glass' },
       h('h2', { class: 'card__title', text: 'تذكرة جديدة' }),
       h('p', { class: 'card__note', text: 'يرى فريق الدعم معرّفك العام فقط، ويرد عليك هنا وعلى بريدك المسجّل.' }),
       chips,
       h('div', { class: 'field' }, subject),
-      h('div', { class: 'field' }, body),
-      send),
+      // with the keyboard open, the text you type and its send button stay on screen together
+      h('div', { 'data-kb-block': '' }, h('div', { class: 'field' }, body), send)),
     h('h2', { class: 'section-title', text: 'تذاكري' }),
     list,
   );
@@ -82,9 +82,10 @@ export function renderTicket(page, { navigate, ticketId }) {
   const head = h('div', { class: 'ticket-head' });
   const thread = h('div', { class: 'ticket-thread', 'aria-live': 'polite' });
   const footer = h('div');
-  const input = h('textarea', { class: 'input', rows: '2', maxlength: '3200', dir: 'auto', placeholder: 'اكتب ردك…', 'aria-label': 'ردك' });
-  autoGrow(input, 200);
-  const send = h('button', { class: 'btn btn--primary', type: 'button', disabled: true }, icon('send'), 'إرسال');
+  // the same composer as a chat: one line that grows with the text (up to 140px), a round send button
+  const input = h('textarea', { rows: '1', maxlength: '3200', dir: 'auto', placeholder: 'اكتب ردك…', 'aria-label': 'ردك' });
+  autoGrow(input, 140);
+  const send = h('button', { class: 'send-btn', type: 'button', disabled: true, 'aria-label': 'إرسال الرد' }, icon('send'));
   input.addEventListener('input', () => { send.disabled = !input.value.trim(); });
 
   async function load() {
@@ -111,6 +112,7 @@ export function renderTicket(page, { navigate, ticketId }) {
     try {
       await api.post(`/api/support/tickets/${ticketId}/messages`, { body: input.value.trim() });
       input.value = '';
+      input.dispatchEvent(new Event('input')); // back to one line
       load();
     } catch (err) { toast(err.message, 'error'); send.disabled = false; }
   });

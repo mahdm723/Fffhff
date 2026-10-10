@@ -1,6 +1,6 @@
 // DOM helpers. User content is only ever inserted with textContent — never innerHTML.
 import { appName, wordmarkParts } from './brand.js';
-import { icon } from './icons.js';
+import { STAR_CHECK, STAR_SEAL, icon } from './icons.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -70,9 +70,20 @@ export function nameLine(name, gender, cls = '', verified = false) {
     verified ? starMark() : null, genderMark(gender));
 }
 
-/** V5: the blue star (an official, trusted account — not an identity check). */
-export function starMark() {
-  return h('span', { class: 'star-mark', title: 'حساب موثّق' }, icon('verified'), h('span', { class: 'sr-only', text: 'حساب موثّق' }));
+/** The blue star (the membership badge): one size next to every name (18px, centred on the text line);
+ *  `large` for the decorative badge on the membership pages. Colours: --star (per theme) + a white check. */
+export function starMark({ large = false } = {}) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const [cls, d] of [['star-mark__seal', STAR_SEAL], ['star-mark__check', STAR_CHECK]]) {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('class', cls);
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return h('span', { class: `star-mark${large ? ' star-mark--lg' : ''}`, title: 'حساب موثّق' }, svg, h('span', { class: 'sr-only', text: 'حساب موثّق' }));
 }
 
 export async function copyText(text, done = 'نُسخ.') {
@@ -114,12 +125,17 @@ export function sheet(build, onClose = null, { dismissible = true } = {}) {
     closed = true;
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('hashchange', onRoute);
     if (onClose) onClose();
-    if (prev && prev.focus) prev.focus();
+    if (prev && prev.focus && prev.isConnected) prev.focus();
   };
   const onKey = (e) => { if (e.key === 'Escape' && dismissible) close(); };
+  // leaving the page (a link inside the sheet, or the phone's back button) closes it: it never stays over
+  // the next page. Mandatory sheets (privacy notice, onboarding) are not dismissible and stay.
+  const onRoute = () => { if (dismissible) close(); };
   backdrop.addEventListener('click', (e) => { if (e.target === backdrop && dismissible) close(); });
   document.addEventListener('keydown', onKey);
+  window.addEventListener('hashchange', onRoute);
   build(panel, close);
   backdrop.append(panel);
   document.body.append(backdrop);
@@ -172,7 +188,10 @@ export function formatListTime(iso) {
 export function autoGrow(textarea, max = 140) {
   const fit = () => {
     textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, max) + 'px';
+    // box-sizing: border-box — the height includes the borders, scrollHeight does not (without them the
+    // line and its placeholder were cut by 2px)
+    const borders = textarea.offsetHeight - textarea.clientHeight;
+    textarea.style.height = Math.min(textarea.scrollHeight + borders, max) + 'px';
   };
   textarea.addEventListener('input', fit);
   requestAnimationFrame(fit);
