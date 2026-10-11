@@ -22,7 +22,8 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-export const REPORT_REASONS = [
+// functions: translated when shown, not when the module loads (V6 phase 12)
+export const REPORT_REASONS = () => [
   ['spam', t('رسائل مزعجة (سبام)')],
   ['harassment', t('تحرش أو مضايقة')],
   ['threat', t('تهديد')],
@@ -57,11 +58,11 @@ export function personAvatar(name, { size = '', anonymous = false, active = fals
   return el;
 }
 
-const GENDER = { male: ['male', t('رجل')], female: ['female', t('أنثى')] };
+const GENDER = () => ({ male: ['male', t('رجل')], female: ['female', t('أنثى')] });
 
 /** Small gender icon next to a name (nothing for "prefer not to say"). */
 export function genderMark(gender) {
-  const g = GENDER[gender];
+  const g = GENDER()[gender];
   if (!g) return null;
   return h('span', { class: `gender gender--${gender}`, title: g[1] }, icon(g[0]), h('span', { class: 'sr-only', text: g[1] }));
 }

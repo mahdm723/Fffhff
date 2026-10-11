@@ -6,7 +6,9 @@
 
 export const LANGS = ['ar', 'fr', 'en'];
 const DIRS = { ar: 'rtl', fr: 'ltr', en: 'ltr' };
-const LOCALES = { ar: 'ar-DZ', fr: 'fr-DZ', en: 'en-GB' }; // ar-DZ keeps the Latin digits used until now
+const LOCALES = { ar: 'ar-DZ', fr: 'fr-DZ', en: 'en-GB' }; // dates (ar-DZ keeps the Latin digits used until now)
+// numbers and amounts: Arabic keeps «12.50» with Latin digits as before (ar-DZ would write «12,50»)
+const NUMBER_LOCALES = { ar: 'en-US', fr: 'fr-DZ', en: 'en-GB' };
 export const NAMES = { ar: 'العربية', fr: 'Français', en: 'English' };
 const KEY = 'dz.lang';
 const DICT = (code) => `dz:i18n:${code}`;
@@ -39,6 +41,7 @@ function readDict(code) {
 export function lang() { return current; }
 export function dir() { return DIRS[current]; }
 export function locale() { return LOCALES[current]; }
+export function numberLocale() { return NUMBER_LOCALES[current]; }
 export function isRtl() { return DIRS[current] === 'rtl'; }
 
 function applyToDocument() {
@@ -74,6 +77,11 @@ export async function refreshDictionary() {
     if (code === current) messages = data.messages || {};
     return !old || JSON.parse(old).version !== data.version;
   } catch { return false; }
+}
+
+/** Is the dictionary of the current language already on this device (from an earlier visit)? */
+export function hasDictionary() {
+  return ADMIN || stored(DICT(current)) !== null;
 }
 
 export function onLangChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
@@ -118,15 +126,14 @@ export function tNodes(msgid, params = {}) {
 
 // --- numbers, money and dates in the language's format ----------------------------------------------
 export function fmtNumber(n, options = {}) {
-  try { return new Intl.NumberFormat(LOCALES[current], options).format(n); } catch { return String(n); }
+  try { return new Intl.NumberFormat(NUMBER_LOCALES[current], options).format(n); } catch { return String(n); }
 }
 
-/** 50 → «50 USDT», 12.5 → «12.50 USDT» (fr: «12,50 USDT»). */
+/** 50 → «50.00 USDT», 12.5 → «12.50 USDT» (fr: «12,50 USDT»): amounts always show their cents. */
 export function fmtMoney(value, currency = 'USDT') {
   const n = Number(value);
   if (!Number.isFinite(n)) return `${value} ${currency}`;
-  const whole = Number.isInteger(n);
-  return `${fmtNumber(n, { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 })} ${currency}`;
+  return `${fmtNumber(n, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false })} ${currency}`;
 }
 
 export function fmtDate(d, options = { day: 'numeric', month: 'long', year: 'numeric' }) {

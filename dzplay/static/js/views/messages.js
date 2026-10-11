@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 // the old random-message draft is not used any more
 try { localStorage.removeItem('dz:draft'); } catch { /* ignore */ }
 
-const SYSTEM_PREVIEW = { reveal: t('كُشفت الهوية') };
+const SYSTEM_PREVIEW = { get reveal() { return t('كُشفت الهوية'); } };
 
 function previewText(c) {
   const last = c.last_message;

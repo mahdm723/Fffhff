@@ -398,3 +398,23 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .brand-notif__head { display: flex; align-items: center; gap: 6px; color: #5b6070; }
 .brand-earlier > summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
 .brand-earlier[open] > summary { margin-bottom: 12px; }
+
+/* V6 phase 12: «اللغات والنصوص» — every text in three languages side by side (stacked on a phone) */
+.chip--warn { background: color-mix(in srgb, var(--warn, #f5a524) 26%, transparent); color: var(--ink); }
+.i18n-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.i18n-row { position: relative; border-radius: var(--radius); padding: 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.i18n-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.i18n-cell:hover, .i18n-cell:focus-visible { border-color: var(--accent); }
+.i18n-cell.is-missing { border-style: dashed; }
+.i18n-cell.is-missing .i18n-cell__text { color: var(--ink3, var(--ink2)); }
+.i18n-cell__lang { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--ink2); }
+.i18n-cell__lang .chip { font-size: 11px; padding: 1px 8px; }
+.i18n-cell__text { overflow-wrap: anywhere; line-height: 1.6; }
+.i18n-where { overflow-wrap: anywhere; font-size: 11px; }
+.i18n-original { font-weight: 700; overflow-wrap: anywhere; }
+.i18n-missing { padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line); }
+@media (min-width: 900px) {
+  .i18n-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .i18n-where { grid-column: 1 / -1; }
+}

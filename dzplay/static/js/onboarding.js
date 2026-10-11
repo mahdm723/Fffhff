@@ -6,11 +6,11 @@ import { api } from './api.js';
 import { h, sheet, toast } from './ui.js';
 import { t } from './i18n.js';
 
-export const GENDER_CHOICES = [['male', t('رجل')], ['female', t('أنثى')], ['unspecified', t('أفضّل عدم الذكر')]];
+export const GENDER_CHOICES = () => [['male', t('رجل')], ['female', t('أنثى')], ['unspecified', t('أفضّل عدم الذكر')]];
 
 export function genderPicker(name, selected = null) {
   return h('div', { class: 'gender-pick', role: 'radiogroup', 'aria-label': t('الجنس') },
-    ...GENDER_CHOICES.map(([value, label]) => h('label', { class: 'gender-pick__opt' },
+    ...GENDER_CHOICES().map(([value, label]) => h('label', { class: 'gender-pick__opt' },
       h('input', { type: 'radio', name, value, checked: value === selected }), h('span', { text: label }))));
 }
 

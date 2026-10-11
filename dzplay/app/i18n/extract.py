@@ -189,7 +189,11 @@ def main(argv: list[str] | None = None) -> int:
     text = json.dumps(entries, ensure_ascii=False, indent=1) + "\n"
     gaps = missing(entries)
     if "--check" in argv:
-        stale = not OUT.exists() or OUT.read_text(encoding="utf-8") != text
+        # stale = a text was added, removed or changed kind (the "where" line numbers are only informative)
+        def shape(items):
+            return sorted((e["id"], e["client"], e["plural"]) for e in items)
+
+        stale = not OUT.exists() or shape(json.loads(OUT.read_text(encoding="utf-8"))) != shape(entries)
         if stale:
             print("app/i18n/msgids.json is stale: run python -m app.i18n.extract")
         for lang, ids in gaps.items():

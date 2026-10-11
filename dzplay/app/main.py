@@ -43,6 +43,7 @@ from app.api import messages as messages_api
 from app.api import notifications as notifications_api
 from app.api import people as people_api
 from app.api import policies as policies_api
+from app.api import admin_i18n as admin_i18n_api
 from app.api import posts as posts_api
 from app.api import rewards as rewards_api
 from app.api import telegram as telegram_api
@@ -60,7 +61,7 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
 _ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m in (
     "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5", "admin-money",
-    "admin-texts", "admin-brand")}}
+    "admin-texts", "admin-brand", "admin-i18n")}}
 
 
 def brand(page: str, settings: Settings, base: str = "") -> str:
@@ -100,6 +101,7 @@ for _ext, _type in {".js": "text/javascript", ".webmanifest": "application/manif
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 MAX_BODY_BYTES = 64 * 1024  # API bodies are tiny JSON documents
 _UPLOAD_PATH = "/api/uploads"  # V5: file uploads carry their own per-purpose cap (app.services.media_items)
+I18N_IMPORT_BYTES = 3 * 1024 * 1024  # V6 phase 12: a translation file (every text + the policy pages), panel only
 
 
 def _error(status: int, code: str, message: str, retry_after: int | None = None, params: dict | None = None) -> JSONResponse:
@@ -264,7 +266,8 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         if in_admin and not admin_auth.ip_allowed(settings, client_ip(request, settings)):
             return _error(404, "not_found", "غير موجود.")  # outside the allowlist the panel does not exist
         is_api = path.startswith("/api/") or (in_admin and path.startswith(admin_prefix + "/api/"))
-        if is_api and path != _UPLOAD_PATH and int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
+        cap = I18N_IMPORT_BYTES if in_admin and path.startswith(admin_prefix + "/api/admin/i18n/import") else MAX_BODY_BYTES
+        if is_api and path != _UPLOAD_PATH and int(request.headers.get("content-length") or 0) > cap:
             return _error(413, "too_large", "الطلب كبير جدًا.")
         if is_api and request.method not in _SAFE_METHODS and path not in _CSRF_EXEMPT:
             # CSRF defence in depth (cookies are SameSite=Strict as well): a custom
@@ -339,6 +342,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         app.include_router(admin_money_api.router, prefix=admin_prefix)
         app.include_router(admin_cms_api.router, prefix=admin_prefix)
         app.include_router(admin_brand_api.router, prefix=admin_prefix)
+        app.include_router(admin_i18n_api.router, prefix=admin_prefix)
     app.include_router(ws_api.router)
 
     @app.get("/.well-known/assetlinks.json", include_in_schema=False)

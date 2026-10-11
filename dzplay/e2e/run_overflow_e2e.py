@@ -16,7 +16,10 @@ their detail views):
 
 All problems are listed at the end (one run shows everything); any problem fails the test.
 
-    python e2e/run_overflow_e2e.py [--shots DIR]
+V6 phase 12: --lang fr|en runs the app and the public pages in that language (left to right); the panel stays in
+Arabic, so it is checked with the Arabic run.
+
+    python e2e/run_overflow_e2e.py [--lang ar|fr|en] [--shots DIR]
 """
 
 from __future__ import annotations
@@ -34,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import run_admin_e2e as ae  # noqa: E402  (server with ADMIN_PATH, seeded panel data, admin accounts)
 from run_e2e import Run  # noqa: E402
 
+from app import i18n  # noqa: E402
 from app.services.appearance import ACCENTS, STAR  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +47,12 @@ LONG_WORD = "BTCUSDT" * 20  # one unbroken 140-character word
 NAME_A = "عبد الرحمن المصطفاوي"  # 20 characters: the longest name allowed
 NAME_B = "Maximilian Alexander"
 PROBLEMS: list[str] = []
+LANG = "ar"  # --lang: the app and the public pages in this language (the panel is always Arabic)
+
+
+def T(msgid: str) -> str:
+    """The text the app shows for this Arabic msgid in the language under test."""
+    return i18n.tr(msgid, LANG)
 
 INJECT_SAFE_TOP = f"document.documentElement.style.setProperty('--dz-safe-top', '{SAFE_TOP}px')"
 
@@ -242,7 +252,7 @@ def seed_long(base: str, db_url: str) -> dict:
 
 def user_pages(run: Run, browser, base: str, data: dict, width: int) -> None:
     ctx = browser.new_context(viewport={"width": width, "height": 780}, device_scale_factor=2, is_mobile=True,
-                              has_touch=True, locale="ar", color_scheme="dark")
+                              has_touch=True, locale=LANG, color_scheme="dark")
     ctx.add_cookies([{"name": c.name, "value": c.value, "domain": "127.0.0.1", "path": "/"} for c in data["a"].cookies.jar])
     page = ctx.new_page()
     page.set_default_timeout(15000)
@@ -313,13 +323,17 @@ def user_pages(run: Run, browser, base: str, data: dict, width: int) -> None:
     run.shot(page, f"{width}-search")
 
     visit("#/profile", ".id-card__name")
-    page.get_by_role("button", name="تعديل الملف").click()
+    page.get_by_role("button", name=T("تعديل الملف")).click()
     expect(page.locator(".sheet")).to_be_visible()
     check(page, f"{width} edit-profile sheet", ".sheet")
     page.keyboard.press("Escape")
-    page.get_by_role("button", name="المظهر").click()
+    page.get_by_role("button", name=T("المظهر")).click()
     expect(page.locator(".sheet")).to_be_visible()
     check(page, f"{width} appearance sheet", ".sheet")
+    page.keyboard.press("Escape")
+    page.get_by_role("button", name=T("اللغة")).click()
+    expect(page.locator(".sheet")).to_be_visible()
+    check(page, f"{width} language sheet", ".sheet")
     page.keyboard.press("Escape")
 
     # leaving a page closes its sheet (it used to stay over the next page)
@@ -327,10 +341,13 @@ def user_pages(run: Run, browser, base: str, data: dict, width: int) -> None:
     page.evaluate("() => { location.hash = '#/support'; }")
     expect(page.locator(".ticket-item").first).to_be_visible()
     problem_if(page.locator(".sheet-backdrop").count() != 0, f"{width}: the comments sheet stayed open over «الدعم»")
+    want = (LANG, i18n.direction(LANG))
+    got = tuple(page.evaluate("() => [document.documentElement.lang, document.documentElement.dir]"))
+    problem_if(got != want, f"{width}: <html lang dir> is {got}, not {want}")
 
     for place in ("profile", "post", "comments", "likers", "users", "search", "conversations", "chat"):
         problem_if(not stars.get(place), f"{width}: no blue star shown in {place}")
-    if width == WIDTHS[0]:
+    if width == WIDTHS[0] and LANG == "ar":
         star_themes(run, page)
     ctx.close()
     run.step(f"{width}px: home (both panes), 14 pages and 5 sheets fit; stars in {', '.join(sorted(stars))}")
@@ -370,13 +387,13 @@ def star_themes(run: Run, page: Page) -> None:
 
 def public_pages(run: Run, browser, base: str, width: int) -> None:
     ctx = browser.new_context(viewport={"width": width, "height": 780}, device_scale_factor=2, is_mobile=True,
-                              has_touch=True, locale="ar", color_scheme="light")
+                              has_touch=True, locale=LANG, color_scheme="light")
     page = ctx.new_page()
     run.watch(page, f"public-{width}")
     page.goto(base + "/")
     expect(page.locator(".auth")).to_be_visible(timeout=15000)
     check(page, f"{width} sign-in")
-    page.get_by_role("tab", name="حساب جديد").click()
+    page.get_by_role("tab", name=T("حساب جديد")).click()
     check(page, f"{width} sign-up")
     run.shot(page, f"{width}-signup")
     for path in ("/policies/privacy", "/policies/terms", "/policies/membership_terms", "/download"):
@@ -390,7 +407,7 @@ def public_pages(run: Run, browser, base: str, width: int) -> None:
 
 PANEL_TABS = ("overview", "users", "content", "engage", "reports", "media", "membership", "rewards", "giveaway",
               "texts", "brand", "support", "settings", "system", "logs")
-DETAIL = {"users": ".admin-card--tap", "content": ".admin-card--tap", "support": ".admin-line--btn", "texts": ".admin-line--btn"}
+DETAIL = {"users": ".admin-card--tap", "content": ".admin-card--tap", "support": ".admin-line--btn", "texts": ".i18n-cell"}
 
 
 LOGO_ORDER_JS = r"""() => {
@@ -466,8 +483,12 @@ def panel_pages(run: Run, browser, base: str, width: int, admin: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8774)
-    parser.add_argument("--shots", default=str(ROOT / "e2e" / "screenshots-overflow"))
+    parser.add_argument("--shots", default="")
+    parser.add_argument("--lang", choices=i18n.LANGS, default="ar")
     args = parser.parse_args()
+    global LANG
+    LANG = args.lang
+    args.shots = args.shots or str(ROOT / "e2e" / ("screenshots-overflow" + ("" if LANG == "ar" else f"-{LANG}")))
     proc, base, db_url = ae.start_server(args.port)
     run = Run(base, Path(args.shots))
     try:
@@ -477,10 +498,11 @@ def main() -> int:
         with sync_playwright() as p:
             browser = p.chromium.launch(executable_path=chromium if os.path.exists(chromium) else None)
             for width, admin in zip(WIDTHS, ("owner", "light")):
-                print(f"Width {width}px")
+                print(f"Width {width}px · {LANG}")
                 user_pages(run, browser, base, data, width)
                 public_pages(run, browser, base, width)
-                panel_pages(run, browser, base, width, admin)
+                if LANG == "ar":  # the panel is always Arabic
+                    panel_pages(run, browser, base, width, admin)
             browser.close()
     finally:
         proc.terminate()
@@ -492,7 +514,7 @@ def main() -> int:
         if errors:
             print("\nBrowser errors:\n  " + "\n  ".join(errors))
         return 1
-    print(f"\nOVERFLOW E2E PASSED. Screenshots in {run.shots}")
+    print(f"\nOVERFLOW E2E PASSED ({LANG}). Screenshots in {run.shots}")
     return 0
 
 

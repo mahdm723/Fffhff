@@ -5,8 +5,8 @@ import { h, sheet, toast } from './ui.js';
 import { t } from './i18n.js';
 
 const KEY = 'dz.appearance';
-const MODES = [['system', t('حسب الجهاز')], ['light', t('فاتح')], ['dark', t('داكن')]];
-const FONTS = [['normal', t('عادي')], ['large', t('كبير')]];
+const MODES = () => [['system', t('حسب الجهاز')], ['light', t('فاتح')], ['dark', t('داكن')]];  // translated when shown
+const FONTS = () => [['normal', t('عادي')], ['large', t('كبير')]];
 
 export function applyAppearance(a) {
   if (!a) return;
@@ -33,8 +33,8 @@ export function appearanceSheet(me, onSaved) {
         b.addEventListener('click', () => { cur[field] = id; paint(); });
         return b;
       }));
-    const modeRow = segs(MODES, 'mode', t('الوضع'));
-    const fontRow = segs(FONTS, 'font', t('حجم الخط'));
+    const modeRow = segs(MODES(), 'mode', t('الوضع'));
+    const fontRow = segs(FONTS(), 'font', t('حجم الخط'));
     const swatches = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': t('اللون') },
       ...choices.map((c) => {
         const b = h('button', { type: 'button', class: 'swatch', role: 'radio', 'aria-label': c.label, title: c.label, 'data-id': c.id });

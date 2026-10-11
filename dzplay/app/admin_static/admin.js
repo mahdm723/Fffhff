@@ -13,7 +13,7 @@ import { openEngage, renderEngage } from './admin-engage.js';
 import { renderSystem } from './admin-system.js';
 import { renderMedia, renderSettings, renderSupport } from './admin-v5.js';
 import { renderGiveaway, renderMembership, renderRewards } from './admin-money.js';
-import { renderTexts } from './admin-texts.js';
+import { renderLanguages } from './admin-i18n.js';
 import { renderBrand } from './admin-brand.js';
 
 const REFRESH_MS = 30_000;
@@ -25,7 +25,7 @@ const parseDay = (d) => { const [y, m, dd] = d.split('-').map(Number); return ne
 
 // ------------------------------------------------------------------ labels
 
-const REASONS = Object.fromEntries(REPORT_REASONS);
+const REASONS = Object.fromEntries(REPORT_REASONS());
 const TARGETS = { message: 'رسالة', conversation: 'محادثة', post: 'فكرة منشورة', comment: 'تعليق' };
 const RESOLUTIONS = { dismiss: 'تم التجاهل', warn: 'تحذير', remove: 'حُذف المحتوى', suspend: 'أُوقف الحساب', ban: 'حُظر الحساب' };
 const ACTIONS = {
@@ -77,7 +77,7 @@ const TABS = [
   ['membership', 'العضوية والدفع'],
   ['rewards', 'المكافآت والسحب'],
   ['giveaway', 'الظرف الأحمر'],
-  ['texts', 'النصوص'],
+  ['texts', 'اللغات والنصوص'],
   ['brand', 'الهوية'],
   ['support', 'الدعم'],
   ['settings', 'الإعدادات'],
@@ -190,7 +190,7 @@ function showTab(id) {
   ({
     overview: renderOverview, users: renderUsers, content: renderContent, engage: renderEngage, reports: renderReports,
     system: renderSystem, logs: renderSecurity,
-    media: renderMedia, membership: renderMembership, rewards: renderRewards, giveaway: renderGiveaway, texts: renderTexts, brand: renderBrand, support: renderSupport, settings: renderSettings,
+    media: renderMedia, membership: renderMembership, rewards: renderRewards, giveaway: renderGiveaway, texts: renderLanguages, brand: renderBrand, support: renderSupport, settings: renderSettings,
   })[id](main);
   window.scrollTo({ top: 0 });
 }

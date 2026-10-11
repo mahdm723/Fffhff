@@ -391,7 +391,8 @@ class Run:
         assert mail_card.get_by_label("الخادم (SMTP)").input_value() == "smtp.gmail.com"
         assert mail_card.get_by_label("المنفذ").input_value() == "587"
         self.step("e-mail form: manual mode shown, the Gmail button fills smtp.gmail.com:587")
-        page.get_by_role("tab", name="النصوص").click()  # V6 phase 8: the content system
+        page.get_by_role("tab", name="اللغات والنصوص").click()  # V6 phase 8: the content system (phase 12: 3 languages)
+        page.get_by_role("tab", name="الصفحات والبريد").click()
         page.locator(".admin-line--btn", has_text="شروط السحب").click()
         editor = page.locator(".admin-editor")
         expect(editor).to_be_visible(timeout=10000)
@@ -403,7 +404,7 @@ class Run:
         assert preview.locator("script, a").count() == 0  # escaped, and javascript: links are never links
         self.shot(page, "14c-texts-editor")
         page.keyboard.press("Escape")
-        self.step("«النصوص»: editor with a live preview through the same safe converter (no HTML, no javascript: links)")
+        self.step("«اللغات والنصوص»: editor with a live preview through the same safe converter (no HTML, no javascript: links)")
         page.get_by_role("tab", name="الأمان والنظام").click()
         mail_card = page.locator(".admin-group", has_text="بريد النظام (الرموز والإشعارات)")
         expect(mail_card).to_be_visible(timeout=10000)
@@ -456,7 +457,7 @@ class Run:
         page.locator(".antibot").click()
         expect(page.locator(".antibot")).to_have_attribute("data-state", "done", timeout=20000)
         page.get_by_role("button", name="دخول").click()
-        expect(page.locator(".privacy-notice h2")).to_have_text("تحديث في سياسة الخصوصية", timeout=15000)
+        expect(page.locator(".privacy-notice > h2")).to_have_text("تحديث في سياسة الخصوصية", timeout=15000)
         self.shot(page, "26-privacy-notice")
         page.get_by_role("button", name="فهمت").click()
         expect(page.locator(".privacy-notice")).to_have_count(0)

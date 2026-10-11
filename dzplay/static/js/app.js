@@ -24,7 +24,7 @@ import { renderUser } from './views/user.js';
 import { renderUsers } from './views/users.js';
 import { renderNotifications } from './views/notifications.js';
 import { renderPost } from './views/post.js';
-import { refreshDictionary, t } from './i18n.js';
+import { hasDictionary, refreshDictionary, t } from './i18n.js';
 import { syncAccountLanguage } from './language.js';
 
 const root = document.getElementById('app');
@@ -32,10 +32,11 @@ let cleanupView = null;
 let shell = null;
 
 const TABS = [
-  { id: 'home', label: t('الرئيسية'), icon: 'feather' },
-  { id: 'users', label: t('المستخدمون'), icon: 'users' },
-  { id: 'messages', label: t('الرسائل'), icon: 'chat' },
-  { id: 'profile', label: t('حسابي'), icon: 'user' },
+  // getters: translated when the bar is drawn (a panel edit redraws it in the new words)
+  { id: 'home', get label() { return t('الرئيسية'); }, icon: 'feather' },
+  { id: 'users', get label() { return t('المستخدمون'); }, icon: 'users' },
+  { id: 'messages', get label() { return t('الرسائل'); }, icon: 'chat' },
+  { id: 'profile', get label() { return t('حسابي'); }, icon: 'user' },
 ];
 
 function navigate(hash) {
@@ -234,6 +235,12 @@ async function boot() {
   if (!document.querySelector('.status-scrim')) document.body.append(h('div', { class: 'status-scrim', 'aria-hidden': 'true' }));
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   store.loadCache();
+  // V6 phase 12: the dictionary of the language — awaited the first time (one small request), afterwards the copy
+  // on the device is used at once and refreshed behind (the page is redrawn if a text changed in the panel)
+  const hadDictionary = hasDictionary();
+  const dictionary = refreshDictionary();
+  if (!hadDictionary) await dictionary;
+  else dictionary.then((changed) => { if (changed && store.state.me) { shell = null; route(); } });
   try {
     store.state.config = await api.get('/api/config');
     try { localStorage.setItem('dz:config', JSON.stringify(store.state.config)); } catch { /* ignore */ }

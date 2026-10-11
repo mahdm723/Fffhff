@@ -10,19 +10,19 @@ import {
 } from '../ui.js';
 import { t } from '../i18n.js';
 
-const STATUS = {
+const STATUS = () => ({  // translated when shown
   pending: ['clock', t('قيد الإرسال')],
   sent: ['check', t('أُرسلت')],
   delivered: ['checks', t('وصلت')],
   read: ['checks', t('شوهدت')],
-};
+});
 const GROUP_MS = 5 * 60 * 1000;
 const TYPING_SEND_EVERY = 3000;
 const TYPING_IDLE = 4000;
 const TYPING_SHOW_MAX = 6000;
 
 function statusIcon(status) {
-  const s = STATUS[status];
+  const s = STATUS()[status];
   if (!s) return null;
   return h('span', { class: `status status--${status}`, title: s[1] }, icon(s[0]), h('span', { class: 'sr-only', text: s[1] }));
 }
@@ -225,7 +225,7 @@ export function renderChat(root, { conversationId, navigate }) {
       img ? img.node : h('span', { text: m.content, dir: 'auto' }));
     const detail = h('div', { class: 'bubble__detail' },
       h('time', { datetime: m.created_at, text: formatTime(m.created_at) }),
-      m.mine && STATUS[m.status] ? h('span', { text: ` · ${STATUS[m.status][1]}` }) : null,
+      m.mine && STATUS()[m.status] ? h('span', { text: ` · ${STATUS()[m.status][1]}` }) : null,
       !m.mine ? h('button', { class: 'link-btn', type: 'button', onclick: () => reportSheet(m.id) }, t('إبلاغ')) : null,
     );
     b.addEventListener('click', () => {
@@ -236,7 +236,7 @@ export function renderChat(root, { conversationId, navigate }) {
     });
     const col = h('div', { class: 'bubble-col' }, b, detail);
     if (m.mine && m.id === lastMineId && m.status !== 'failed') {
-      col.append(h('div', { class: `bubble__status bubble__status--${m.status}` }, statusIcon(m.status), h('span', { text: (STATUS[m.status] || [])[1] || '' })));
+      col.append(h('div', { class: `bubble__status bubble__status--${m.status}` }, statusIcon(m.status), h('span', { text: (STATUS()[m.status] || [])[1] || '' })));
     }
     if (m.status === 'failed') {
       col.append(h('div', { class: 'bubble__failed' },
@@ -394,7 +394,7 @@ export function renderChat(root, { conversationId, navigate }) {
     sheet((panel, close) => {
       const details = h('textarea', { class: 'input', rows: '3', maxlength: '500', placeholder: t('تفاصيل إضافية (اختياري)') });
       const alsoBlock = h('input', { type: 'checkbox', checked: true });
-      const choices = REPORT_REASONS.map(([value, label], i) =>
+      const choices = REPORT_REASONS().map(([value, label], i) =>
         h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'reason', value, checked: i === 0 }), h('span', { text: label })));
       const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('إرسال البلاغ'));
       submit.addEventListener('click', async () => {

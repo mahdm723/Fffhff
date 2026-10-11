@@ -3,10 +3,10 @@
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { h, sheet } from '../ui.js';
-import { t, locale } from '../i18n.js';
+import { t, numberLocale } from '../i18n.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
-const compact = new Intl.NumberFormat(locale(), { notation: 'compact', maximumFractionDigits: 1 });
+const compact = new Intl.NumberFormat(numberLocale(), { notation: 'compact', maximumFractionDigits: 1 });
 
 function svg(tag, attrs) {
   const el = document.createElementNS(SVG, tag);
@@ -18,7 +18,7 @@ function formatPrice(p) {
   const v = Number(p);
   if (!Number.isFinite(v)) return '—';
   const digits = v >= 1000 ? 2 : v >= 1 ? 4 : v >= 0.01 ? 5 : 8;
-  return new Intl.NumberFormat(locale(), { maximumFractionDigits: digits }).format(v);
+  return new Intl.NumberFormat(numberLocale(), { maximumFractionDigits: digits }).format(v);
 }
 
 function pct(v) { return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`; }

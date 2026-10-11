@@ -5,7 +5,8 @@ import * as store from '../store.js';
 import { autoGrow, formatListTime, h, toast } from '../ui.js';
 import { t } from '../i18n.js';
 
-const CATEGORIES = [
+// a function: the texts are translated when shown (in the language of the moment), not when the module loads
+const CATEGORIES = () => [
   ['technical', t('مشكلة تقنية')], ['account', t('الحساب')], ['verification', t('التوثيق')], ['payment', t('الدفع')],
   ['report', t('بلاغ')], ['suggestion', t('اقتراح')], ['other', t('أخرى')],
 ];
@@ -23,7 +24,7 @@ function statusChip(tk) {
 export function renderSupport(page, { navigate }) {
   let category = 'technical';
   const chips = h('div', { class: 'chips', role: 'radiogroup', 'aria-label': t('نوع المشكلة') });
-  const paintChips = () => chips.replaceChildren(...CATEGORIES.map(([id, label]) => h('button', {
+  const paintChips = () => chips.replaceChildren(...CATEGORIES().map(([id, label]) => h('button', {
     type: 'button', class: `chip-btn ${id === category ? 'is-on' : ''}`, role: 'radio', 'aria-checked': String(id === category),
     onclick: () => { category = id; paintChips(); },
   }, label)));

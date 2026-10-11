@@ -329,7 +329,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
 export function reportSheet({ postId = null, commentId = null }) {
   sheet((panel, close) => {
     const details = h('textarea', { class: 'input', rows: '3', maxlength: '500', placeholder: t('تفاصيل إضافية (اختياري)') });
-    const choices = REPORT_REASONS.map(([value, label], i) =>
+    const choices = REPORT_REASONS().map(([value, label], i) =>
       h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'reason', value, checked: i === 0 }), h('span', { text: label })));
     const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('إرسال البلاغ'));
     submit.addEventListener('click', async () => {

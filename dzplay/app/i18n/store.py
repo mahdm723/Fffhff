@@ -71,6 +71,19 @@ def _clean(value: object, plural: bool) -> object:
     return text
 
 
+@lru_cache(maxsize=1)
+def _keys() -> dict[str, str]:
+    return {key_of(e["id"]): e["id"] for e in catalog()}
+
+
+def msgid_of(key: str) -> str:
+    """The text behind a row key of the panel table (sha1 of the Arabic text)."""
+    msgid = _keys().get(key) if isinstance(key, str) else None
+    if msgid is None:
+        raise AppError(404, "not_found", "غير موجود.")
+    return msgid
+
+
 def _known(msgid: str) -> dict:
     for entry in catalog():
         if entry["id"] == msgid:
@@ -96,6 +109,8 @@ def set_text(db: Session, lang: str, msgid: str, value: object, actor: str, note
 
 
 def reset_text(db: Session, lang: str, msgid: str, actor: str, note: str | None = None) -> None:
+    if lang not in i18n.LANGS:
+        raise AppError(400, "invalid_input", "لغة غير معروفة.")
     _known(msgid)
     key = key_of(msgid)
     db.execute(delete(I18nText).where(I18nText.lang == lang, I18nText.key == key))
@@ -129,8 +144,10 @@ def effective(msgid: str, lang: str) -> object | None:
     return i18n.lookup(msgid, lang)
 
 
-def listing(lang_filter: str | None = None, q: str = "", missing: str | None = None) -> dict:
-    """The panel table: every text with its three languages side by side."""
+def listing(lang_filter: str | None = None, q: str = "", missing: str | None = None, edited: bool = False,
+            offset: int = 0, limit: int = 100) -> dict:
+    """The panel table: every text with its three languages side by side. Filters: a search (any language),
+    «missing in fr / en», «edited in the panel»; pages of `limit` rows."""
     q = (q or "").strip().lower()
     rows, missing_count = [], {lang: 0 for lang in i18n.LANGS if lang != i18n.DEFAULT}
     for entry in catalog():
@@ -144,12 +161,27 @@ def listing(lang_filter: str | None = None, q: str = "", missing: str | None = N
                 missing_count[lang] += 1
         if missing and cells.get(missing, {}).get("text") is not None:
             continue
+        if edited and not any(c["edited"] for c in cells.values()):
+            continue
         if q and q not in msgid.lower() and not any(q in json.dumps(c["text"], ensure_ascii=False).lower()
                                                     for c in cells.values() if c["text"] is not None):
             continue
-        rows.append({"msgid": msgid, "where": entry.get("where", [])[:5], "client": entry.get("client", False),
-                     "plural": entry.get("plural", False), "cells": cells})
-    return {"total": len(catalog()), "missing": missing_count, "rows": rows[:400], "shown": len(rows)}
+        rows.append({"key": key_of(msgid), "msgid": msgid, "where": entry.get("where", [])[:5],
+                     "client": entry.get("client", False), "plural": entry.get("plural", False), "cells": cells})
+    offset, limit = max(0, int(offset)), max(1, min(int(limit), 200))
+    return {"total": len(catalog()), "missing": missing_count, "rows": rows[offset:offset + limit], "shown": len(rows),
+            "offset": offset, "limit": limit}
+
+
+def detail(db: Session, lang: str, key: str) -> dict:
+    """One text in one language for the editor: the Arabic original, the shipped default, the edit, the history."""
+    if lang not in i18n.LANGS:
+        raise AppError(400, "invalid_input", "لغة غير معروفة.")
+    msgid = msgid_of(key)
+    entry = _known(msgid)
+    return {"key": key, "lang": lang, "msgid": msgid, "plural": entry.get("plural", False), "where": entry.get("where", [])[:8],
+            "client": entry.get("client", False), "text": effective(msgid, lang), "default": i18n.defaults(lang).get(msgid),
+            "edited": msgid in i18n.OVERRIDES.get(lang, {}), "revisions": revisions(db, lang, msgid)}
 
 
 @lru_cache(maxsize=8)
@@ -166,7 +198,20 @@ def client_messages(lang: str) -> dict:
     return {"lang": lang, "dir": i18n.DIRS[lang], "locale": i18n.LOCALES[lang], "version": version, "messages": messages}
 
 
-def export(lang: str) -> dict:
+def _content_rows(db: Session, settings, lang: str) -> dict:
+    from app.services import cms
+
+    out = {}
+    for key, sp in cms.registry().items():
+        cur = cms.current(db, settings, key, lang)
+        if not cur["missing"]:
+            out[key] = {"title": cur["title"] if sp.kind != "text" else None, "body": cur["body"]}
+    return out
+
+
+def export(lang: str, db: Session | None = None, settings=None) -> dict:
+    """A translation file: every interface text of lang (edits included) and, with a database, the content system's
+    texts (policies, short texts, e-mails) — {"format": "dalta-i18n/1", "lang", "messages", "content"}."""
     if lang not in i18n.LANGS:
         raise AppError(400, "invalid_input", "لغة غير معروفة.")
     messages = {}
@@ -174,16 +219,31 @@ def export(lang: str) -> dict:
         value = effective(entry["id"], lang)
         if value is not None:
             messages[entry["id"]] = value
-    return {"format": "dalta-i18n/1", "lang": lang, "count": len(messages), "messages": messages}
+    out = {"format": "dalta-i18n/1", "lang": lang, "count": len(messages), "messages": messages}
+    if db is not None:
+        out["content"] = _content_rows(db, settings, lang)
+    return out
 
 
-def import_preview(lang: str, data: dict) -> dict:
-    """What an import would change (nothing is written): changed, unchanged, unknown texts."""
+def _file(data: object) -> tuple[dict, dict]:
+    if not isinstance(data, dict):
+        raise AppError(400, "invalid_input", "ملف غير صالح: يجب أن يكون JSON على شكل {النص العربي: الترجمة}.")
+    if "messages" in data or "content" in data:
+        messages, content = data.get("messages") or {}, data.get("content") or {}
+    else:
+        messages, content = data, {}
+    if not isinstance(messages, dict) or not isinstance(content, dict):
+        raise AppError(400, "invalid_input", "ملف غير صالح: يجب أن يكون JSON على شكل {النص العربي: الترجمة}.")
+    return messages, content
+
+
+def import_preview(lang: str, data: dict, db: Session | None = None, settings=None) -> dict:
+    """What an import would change (nothing is written): changed, unchanged and unknown texts and content keys."""
     if lang not in i18n.LANGS:
         raise AppError(400, "invalid_input", "لغة غير معروفة.")
-    messages = data.get("messages") if isinstance(data, dict) and "messages" in data else data
-    if not isinstance(messages, dict):
-        raise AppError(400, "invalid_input", "ملف غير صالح: يجب أن يكون JSON على شكل {النص العربي: الترجمة}.")
+    messages, content = _file(data)
+    if isinstance(data, dict) and data.get("lang") not in (None, lang):
+        raise AppError(400, "invalid_input", "لغة الملف لا تطابق اللغة المختارة.")
     known = {e["id"]: e for e in catalog()}
     changes, unknown, same = [], [], 0
     for msgid, value in messages.items():
@@ -197,11 +257,35 @@ def import_preview(lang: str, data: dict) -> dict:
             same += 1
             continue
         changes.append({"msgid": msgid, "old": old, "new": value})
-    return {"lang": lang, "changes": changes, "unchanged": same, "unknown": unknown[:50], "unknown_count": len(unknown)}
+    content_changes = []
+    if content and db is not None:
+        from app.services import cms
+
+        registry = cms.registry()
+        for key, value in content.items():
+            if key not in registry or not isinstance(value, dict) or not isinstance(value.get("body"), str):
+                unknown.append(str(key)[:64])
+                continue
+            cur = cms.current(db, settings, key, lang)
+            title = value.get("title") if isinstance(value.get("title"), str) else None
+            if not cur["missing"] and cur["body"] == value["body"] and (title is None or title == cur["title"]):
+                same += 1
+                continue
+            content_changes.append({"key": key, "name": registry[key].title, "title": title, "body": value["body"]})
+    return {"lang": lang, "changes": changes, "content_changes": content_changes, "unchanged": same,
+            "unknown": unknown[:50], "unknown_count": len(unknown)}
 
 
-def import_apply(db: Session, lang: str, data: dict, actor: str) -> dict:
-    preview = import_preview(lang, data)
+def import_apply(db: Session, lang: str, data: dict, actor: str, settings=None) -> dict:
+    """Apply an import: every change is saved like an edit from the panel, with its revision (the backup)."""
+    preview = import_preview(lang, data, db, settings)
     for change in preview["changes"]:
         set_text(db, lang, change["msgid"], change["new"], actor, "استيراد ملف")
-    return {"applied": len(preview["changes"]), "unchanged": preview["unchanged"], "unknown_count": preview["unknown_count"]}
+    if preview["content_changes"]:
+        from app.services import cms
+
+        for change in preview["content_changes"]:
+            cms.save(db, settings, change["key"], body=change["body"], title=change["title"], note="استيراد ملف",
+                     actor=actor, lang=lang)
+    return {"applied": len(preview["changes"]), "content_applied": len(preview["content_changes"]),
+            "unchanged": preview["unchanged"], "unknown_count": preview["unknown_count"]}
