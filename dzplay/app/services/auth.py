@@ -35,9 +35,10 @@ from app.security import pow as antibot
 from app.security.crypto import keyed_hash
 from app.security.passwords import hash_password, needs_rehash, verify_password
 from app.services import cms, google_auth
+from app.i18n import N_
 
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,189}\.[^@\s.]{2,63}$")
-_INVALID_CREDENTIALS = "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+_INVALID_CREDENTIALS = N_("البريد الإلكتروني أو كلمة المرور غير صحيحة.")
 _BLOCKED = "تم إيقاف محاولات تسجيل الدخول مؤقتًا بسبب كثرة المحاولات الخاطئة."
 
 
@@ -76,7 +77,8 @@ def validate_new_password(settings: Settings, password: object, confirm: object,
     if password != confirm:
         raise AppError(400, "password_mismatch", "كلمتا المرور غير متطابقتين.")
     if len(password) < settings.PASSWORD_MIN_LENGTH:
-        raise AppError(400, "weak_password", f"كلمة المرور يجب أن تكون {settings.PASSWORD_MIN_LENGTH} أحرف على الأقل.")
+        raise AppError(400, "weak_password", "كلمة المرور يجب أن تكون {n} أحرف على الأقل.",
+                       params={"n": settings.PASSWORD_MIN_LENGTH})
     if len(password) > settings.PASSWORD_MAX_LENGTH:
         raise AppError(400, "invalid_password", "كلمة المرور طويلة جدًا.")
     if password.strip().lower() == email or len(set(password)) < 4:

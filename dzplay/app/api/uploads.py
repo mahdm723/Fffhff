@@ -19,6 +19,7 @@ from app.errors import AppError
 from app.models import MediaItem
 from app.services import media_items
 from app.services.messaging import Effects
+from app.i18n import N_
 
 router = APIRouter(prefix="/api", tags=["uploads"])
 
@@ -116,7 +117,7 @@ async def upload(request: Request, purpose: str = Query(max_length=8),
             with st.database.session() as db:
                 item = db.get(MediaItem, item_id)
                 if item is not None:
-                    item.state, item.error = "failed", "لم يكتمل الرفع."
+                    item.state, item.error = "failed", N_("لم يكتمل الرفع.")
         await run_in_threadpool(failed)
         if isinstance(exc, AppError):
             raise

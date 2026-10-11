@@ -45,7 +45,7 @@ def withdraw_code(request: Request) -> dict:
         if not st.settings.WITHDRAW_ENABLED:
             raise AppError(403, "withdraw_off", "السحب متوقف حاليًا.")
         if ledger.balances(db, user.id, "rewards")["available"] < ledger.to_minor(st.settings.WITHDRAW_MIN):
-            raise AppError(400, "below_min", f"رصيدك المتاح أقل من حد السحب ({st.settings.WITHDRAW_MIN:g} USDT).")
+            raise AppError(400, "below_min", "رصيدك المتاح أقل من حد السحب ({min} USDT).", params={"min": f"{st.settings.WITHDRAW_MIN:g}"})
         return email_codes.send(db, st.settings, st.limiter, user, "withdraw")
 
 

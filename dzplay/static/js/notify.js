@@ -2,9 +2,10 @@
 import { api } from './api.js';
 import { appName } from './brand.js';
 import { state } from './store.js';
+import { t } from './i18n.js';
 
 const KEY = 'dz:notify';
-const body = () => `لديك رسالة جديدة على ${appName()}`;
+const body = () => t('لديك رسالة جديدة على {app}', { app: appName() });
 
 const supported = () => 'Notification' in window;
 const flag = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
@@ -39,7 +40,7 @@ async function unsubscribePush() {
 }
 
 export async function setNotifications(on) {
-  if (!supported()) throw new Error('المتصفح لا يدعم الإشعارات.');
+  if (!supported()) throw new Error(t('المتصفح لا يدعم الإشعارات.'));
   if (!on) {
     try { localStorage.removeItem(KEY); } catch { /* ignore */ }
     await unsubscribePush();

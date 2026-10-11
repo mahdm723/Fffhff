@@ -8,6 +8,7 @@
 import { api, ApiError } from './api.js';
 import { icon } from './icons.js';
 import { h } from './ui.js';
+import { t } from './i18n.js';
 
 const MB = 1024 * 1024;
 let cfgCache = null;
@@ -129,11 +130,11 @@ const toBlob = (canvas, type, q) => new Promise((resolve) => canvas.toBlob(resol
 
 /** Checks and compresses a picture. Returns { blob, width, height, preview } or throws PickError (Arabic). */
 export async function prepareImage(file, cfg, { onStage, square = 0 } = {}) {
-  if (!file) throw new PickError('لم تُختر صورة.');
+  if (!file) throw new PickError(t('لم تُختر صورة.'));
   const found = sniff(await head(file));
-  if (!found || found.kind !== 'image') throw new PickError('هذا الملف ليس صورة مدعومة (JPEG أو PNG أو WebP أو HEIC).');
-  if (!cfg.image_types.includes(found.type)) throw new PickError('نوع الصورة غير مسموح.');
-  if (file.size > cfg.image_max_mb * MB * 4) throw new PickError(`الصورة كبيرة جدًا (الحد ${cfg.image_max_mb} MB).`);
+  if (!found || found.kind !== 'image') throw new PickError(t('هذا الملف ليس صورة مدعومة (JPEG أو PNG أو WebP أو HEIC).'));
+  if (!cfg.image_types.includes(found.type)) throw new PickError(t('نوع الصورة غير مسموح.'));
+  if (file.size > cfg.image_max_mb * MB * 4) throw new PickError(t('الصورة كبيرة جدًا (الحد {image_max_mb} MB).', { image_max_mb: cfg.image_max_mb }));
   let bitmap;
   try { bitmap = await decode(file); } catch { bitmap = null; }
   if (!bitmap) {
@@ -141,12 +142,12 @@ export async function prepareImage(file, cfg, { onStage, square = 0 } = {}) {
     if (found.type === 'heic' && file.size <= cfg.image_max_mb * MB) {
       return { blob: file, width: 0, height: 0, preview: null };
     }
-    throw new PickError('تعذّر فتح الصورة. جرّب صورة أخرى.');
+    throw new PickError(t('تعذّر فتح الصورة. جرّب صورة أخرى.'));
   }
   const w = bitmap.width || bitmap.naturalWidth;
   const ht = bitmap.height || bitmap.naturalHeight;
-  if (Math.min(w, ht) < cfg.image_min_side) throw new PickError('الصورة صغيرة جدًا.');
-  if (Math.max(w, ht) > cfg.image_max_side) throw new PickError('أبعاد الصورة كبيرة جدًا.');
+  if (Math.min(w, ht) < cfg.image_min_side) throw new PickError(t('الصورة صغيرة جدًا.'));
+  if (Math.max(w, ht) > cfg.image_max_side) throw new PickError(t('أبعاد الصورة كبيرة جدًا.'));
   let canvas = canvasFor(bitmap, cfg.device_max_side);
   if (bitmap.close) bitmap.close();
   if (square) canvas = squareFrom(canvas, square);
@@ -154,11 +155,11 @@ export async function prepareImage(file, cfg, { onStage, square = 0 } = {}) {
     onStage && onStage('scan');
     let scores = null;
     try { scores = await nsfwScores(canvasFor(canvas, 224)); } catch { scores = null; } // model unavailable: the server checks
-    if (scores && refused(scores, cfg)) throw new PickError('لا يمكن نشر هذه الصورة: تبدو مخالفة لإرشادات المجتمع.');
+    if (scores && refused(scores, cfg)) throw new PickError(t('لا يمكن نشر هذه الصورة: تبدو مخالفة لإرشادات المجتمع.'));
   }
   const blob = await toBlob(canvas, 'image/jpeg', cfg.device_quality);
-  if (!blob) throw new PickError('تعذّر تجهيز الصورة.');
-  if (blob.size > cfg.image_max_mb * MB) throw new PickError(`الصورة كبيرة جدًا (الحد ${cfg.image_max_mb} MB).`);
+  if (!blob) throw new PickError(t('تعذّر تجهيز الصورة.'));
+  if (blob.size > cfg.image_max_mb * MB) throw new PickError(t('الصورة كبيرة جدًا (الحد {image_max_mb} MB).', { image_max_mb: cfg.image_max_mb }));
   return { blob, width: canvas.width, height: canvas.height, preview: URL.createObjectURL(blob) };
 }
 
@@ -179,9 +180,9 @@ export function uploadBlob(blob, { purpose, conversationId = null, onProgress } 
       try { data = JSON.parse(xhr.responseText); } catch { /* empty */ }
       if (xhr.status >= 200 && xhr.status < 300 && data && data.upload) { resolve(data.upload); return; }
       const err = (data && data.error) || {};
-      reject(new ApiError(xhr.status, err.code || 'error', err.message || 'تعذّر رفع الملف.', err.retry_after ?? null));
+      reject(new ApiError(xhr.status, err.code || 'error', err.message || t('تعذّر رفع الملف.'), err.retry_after ?? null));
     };
-    xhr.onerror = () => reject(new ApiError(0, 'network', 'لا يوجد اتصال بالإنترنت.'));
+    xhr.onerror = () => reject(new ApiError(0, 'network', t('لا يوجد اتصال بالإنترنت.')));
     xhr.send(blob);
   });
 }
@@ -193,11 +194,11 @@ export async function waitReady(id, { timeoutMs = 10 * 60 * 1000 } = {}) {
   while (Date.now() < until) {
     const { upload } = await api.get(`/api/uploads/${encodeURIComponent(id)}`);
     if (upload.state === 'ready') return upload;
-    if (upload.state === 'rejected' || upload.state === 'failed') throw new PickError(upload.error || 'الملف مرفوض.');
+    if (upload.state === 'rejected' || upload.state === 'failed') throw new PickError(upload.error || t('الملف مرفوض.'));
     await new Promise((r) => setTimeout(r, delay));
     delay = Math.min(2000, delay + 250);
   }
-  throw new PickError('استغرقت المعالجة وقتًا طويلًا. حاول مرة أخرى.');
+  throw new PickError(t('استغرقت المعالجة وقتًا طويلًا. حاول مرة أخرى.'));
 }
 
 // ------------------------------------------------------------------ full-screen viewer
@@ -205,13 +206,13 @@ export async function waitReady(id, { timeoutMs = 10 * 60 * 1000 } = {}) {
  * Full-screen picture. `src` is a URL or a Blob URL. Options: countdown (seconds) with onExpire,
  * secure (Android app: no screenshots while open), onReport.
  */
-export function openViewer(src, { alt = 'صورة', countdown = null, onExpire = null, secure = false, onReport = null, onClose = null } = {}) {
+export function openViewer(src, { alt = t('صورة'), countdown = null, onExpire = null, secure = false, onReport = null, onClose = null } = {}) {
   const native = window.DZPLAYAndroid;
   if (secure && native && native.setSecure) { try { native.setSecure(true); } catch { /* old app */ } }
   const img = h('img', { class: 'viewer__img', src, alt, draggable: 'false' });
   const timer = h('span', { class: 'viewer__timer', hidden: countdown == null });
-  const closeBtn = h('button', { class: 'viewer__btn', type: 'button', 'aria-label': 'إغلاق' }, icon('close'));
-  const report = onReport ? h('button', { class: 'viewer__btn viewer__btn--text', type: 'button' }, icon('flag'), 'إبلاغ') : null;
+  const closeBtn = h('button', { class: 'viewer__btn', type: 'button', 'aria-label': t('إغلاق') }, icon('close'));
+  const report = onReport ? h('button', { class: 'viewer__btn viewer__btn--text', type: 'button' }, icon('flag'), t('إبلاغ')) : null;
   const overlay = h('div', { class: 'viewer', role: 'dialog', 'aria-modal': 'true', 'aria-label': alt },
     h('div', { class: 'viewer__bar' }, closeBtn, timer, report),
     img);
@@ -229,7 +230,7 @@ export function openViewer(src, { alt = 'صورة', countdown = null, onExpire =
     if (onClose) onClose();
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  const paint = () => { timer.replaceChildren(icon('timer'), h('span', { text: `${Math.max(0, left)} ث` })); };
+  const paint = () => { timer.replaceChildren(icon('timer'), h('span', { text: t('{n} ث', { n: Math.max(0, left) }) })); };
   if (countdown != null) {
     paint();
     tick = setInterval(() => {

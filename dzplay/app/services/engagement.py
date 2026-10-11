@@ -51,7 +51,7 @@ def _check_targets(settings: Settings, target_type: str, ids: list[str]) -> list
         raise AppError(400, "invalid_target", "نوع المنشور غير صالح.")
     ids = list(dict.fromkeys(str(i)[:32] for i in ids if i))
     if not ids or len(ids) > settings.ENGAGEMENT_MAX_TARGETS:
-        raise AppError(400, "invalid_targets", f"اختر من 1 إلى {settings.ENGAGEMENT_MAX_TARGETS} منشورًا.")
+        raise AppError(400, "invalid_targets", "اختر من 1 إلى {n} منشورًا.", params={"n": settings.ENGAGEMENT_MAX_TARGETS})
     return ids
 
 

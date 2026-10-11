@@ -12,12 +12,17 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.errors import AppError
+from app.i18n import LANGS, N_, tr
 from app.models import User
 from app.security.passwords import verify_password
 from app.services import admin_access, audit
 from app.services.messaging import Effects
 
-CONFIRM_TEXT = "حذف حسابي"
+CONFIRM_TEXT = N_("حذف حسابي")  # V6 phase 12: accepted in each language (as shown in the app)
+
+
+def _confirm_words() -> set[str]:
+    return {tr(CONFIRM_TEXT, lang).strip().casefold() for lang in LANGS}
 
 
 def delete_own(db: Session, user: User, *, password: object, confirm: object, effects: Effects, store=None) -> None:
@@ -26,8 +31,8 @@ def delete_own(db: Session, user: User, *, password: object, confirm: object, ef
     if user.password_hash:
         if not isinstance(password, str) or not verify_password(user.password_hash, password):
             raise AppError(403, "wrong_password", "كلمة المرور غير صحيحة.")
-    elif not isinstance(confirm, str) or confirm.strip() != CONFIRM_TEXT:  # Google-only accounts
-        raise AppError(400, "confirm_required", f"اكتب «{CONFIRM_TEXT}» للتأكيد.")
+    elif not isinstance(confirm, str) or confirm.strip().casefold() not in _confirm_words():  # Google-only accounts
+        raise AppError(400, "confirm_required", "اكتب «{text}» للتأكيد.", params={"text": tr(CONFIRM_TEXT)})
     public_id = user.public_id
     admin_access.delete_account(db, user.id, effects, store)
     audit.record(db, "user", "account_self_delete", target_type="user", target_id=public_id)

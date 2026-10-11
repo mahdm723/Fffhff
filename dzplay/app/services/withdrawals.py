@@ -67,14 +67,14 @@ def request(db: Session, settings: Settings, user: User, body: dict, effects: Ef
         raise AppError(400, "invalid_network", "اختر الشبكة من القائمة.")
     address = body.get("address").strip() if isinstance(body.get("address"), str) else ""
     if not re.match(REFUND_NETWORKS[network]["address"], address):
-        raise AppError(400, "invalid_address", f"العنوان لا يطابق شكل عناوين {nets[network]}.")
+        raise AppError(400, "invalid_address", "العنوان لا يطابق شكل عناوين {network}.", params={"network": nets[network]})
     try:
         amount = ledger.to_minor(body.get("amount"))
     except Exception:  # noqa: BLE001
         raise AppError(400, "invalid_amount", "أدخل المبلغ.") from None
     fee = ledger.to_minor(settings.WITHDRAW_FEE)
     if amount < ledger.to_minor(settings.WITHDRAW_MIN):
-        raise AppError(400, "below_min", f"أقل مبلغ للسحب {settings.WITHDRAW_MIN:g} USDT.")
+        raise AppError(400, "below_min", "أقل مبلغ للسحب {min} USDT.", params={"min": f"{settings.WITHDRAW_MIN:g}"})
     if amount <= fee:
         raise AppError(400, "below_fee", "المبلغ يجب أن يكون أكبر من الرسوم.")
     ledger.lock_user(db, user.id)  # from here: one withdrawal at a time for this user (PostgreSQL row lock)

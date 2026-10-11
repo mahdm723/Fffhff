@@ -33,6 +33,7 @@ from app.services.messaging import (
     require_adult,
 )
 from app.services.rate_limit import Limit
+from app.i18n import N_, tr
 
 log = logging.getLogger("dzplay.media_items")
 
@@ -99,7 +100,7 @@ def avatar_quota(db: Session, settings: Settings, user: User) -> dict:
 
 
 def _avatar_limit(quota: dict) -> AppError:
-    return AppError(429, "avatar_limit", f"يمكنك تغيير صورتك {quota['limit']} مرات في اليوم. حاول لاحقًا.",
+    return AppError(429, "avatar_limit", "يمكنك تغيير صورتك {n} مرات في اليوم. حاول لاحقًا.", params={"n": quota["limit"]},
                     retry_after=_retry(quota["next_at"]))
 
 
@@ -161,7 +162,7 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
     if length <= 0:
         raise AppError(400, "empty_file", "الملف فارغ.")
     if length > cap:
-        raise AppError(413, "file_too_large", f"الملف أكبر من الحد المسموح ({cap // MB} MB).")
+        raise AppError(413, "file_too_large", "الملف أكبر من الحد المسموح ({mb} MB).", params={"mb": cap // MB})
     if isinstance(caption, str):
         caption_check(settings, caption)
     conv = None
@@ -206,7 +207,7 @@ def _retry(next_at: str | None) -> int:
 
 def status_of(db: Session, user: User, media_id: object) -> dict:
     item = _own(db, user, media_id)
-    return {"id": item.id, "state": item.state, "error": item.error if item.state in ("rejected", "failed") else None,
+    return {"id": item.id, "state": item.state, "error": tr(item.error) if item.state in ("rejected", "failed") and item.error else None,
             "width": item.width, "height": item.height}
 
 
@@ -227,7 +228,7 @@ def claim(db: Session, user: User, media_id: object, purpose: str) -> MediaItem:
     if item.state in ("uploaded", "processing"):
         raise AppError(409, "media_processing", "الملف ما زال قيد المعالجة. انتظر لحظة.")
     if item.state in ("rejected", "failed"):
-        raise AppError(400, "media_rejected", item.error or "الملف مرفوض.")
+        raise AppError(400, "media_rejected", item.error or N_("الملف مرفوض."))
     if item.state != "ready" or item.attached_id:
         raise AppError(409, "media_used", "هذا الملف مستخدم بالفعل.")
     return item
@@ -547,7 +548,7 @@ def tick(db: Session, settings: Settings, effects: Effects) -> dict:
         if item.state == "ready":  # uploaded but never posted
             discard(db, item, "unused", "removed", effects)
         else:  # stuck (worker restarted)
-            item.state, item.error = "failed", "انتهت مهلة المعالجة."
+            item.state, item.error = "failed", N_("انتهت مهلة المعالجة.")
         done["orphans"] += 1
     old = now - timedelta(days=2)
     for item in db.execute(select(MediaItem).where(

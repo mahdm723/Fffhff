@@ -1,4 +1,5 @@
 // Thin fetch wrapper. Session lives in an HttpOnly cookie (never readable from JS).
+import { lang, t } from './i18n.js';
 
 export class ApiError extends Error {
   constructor(status, code, message, retryAfter = null) {
@@ -34,7 +35,7 @@ async function doRequest(method, path, body) {
   const init = {
     method,
     credentials: 'same-origin',
-    headers: { 'X-DZ-Requested': '1', Accept: 'application/json' },
+    headers: { 'X-DZ-Requested': '1', Accept: 'application/json', 'X-DZ-Lang': lang() },
     cache: 'no-store',
   };
   if (body !== undefined) {
@@ -45,13 +46,13 @@ async function doRequest(method, path, body) {
   try {
     res = await fetch(path, init);
   } catch {
-    throw new ApiError(0, 'network', 'لا يوجد اتصال بالإنترنت.');
+    throw new ApiError(0, 'network', t('لا يوجد اتصال بالإنترنت.'));
   }
   let data = null;
   try { data = await res.json(); } catch { /* empty body */ }
   if (!res.ok) {
     const err = (data && data.error) || {};
-    throw new ApiError(res.status, err.code || 'error', err.message || 'حدث خطأ. حاول مرة أخرى.', err.retry_after ?? null);
+    throw new ApiError(res.status, err.code || 'error', err.message || t('حدث خطأ. حاول مرة أخرى.'), err.retry_after ?? null);
   }
   return data;
 }

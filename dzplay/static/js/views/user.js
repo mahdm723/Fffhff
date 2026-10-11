@@ -5,6 +5,7 @@ import { icon } from '../icons.js';
 import { profilePosts } from '../ideas.js';
 import { messagePerson } from '../people.js';
 import { h, idChip, nameLine, personAvatar } from '../ui.js';
+import { t } from '../i18n.js';
 
 export function renderUser(page, { ref, publicId, navigate }) {
   const stats = h('div', { class: 'stats' });
@@ -14,18 +15,18 @@ export function renderUser(page, { ref, publicId, navigate }) {
 
   page.replaceChildren(
     h('header', { class: 'topbar topbar--back' },
-      h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': 'رجوع', onclick: () => (history.length > 1 ? history.back() : navigate('#/home')) }, icon('back')),
-      h('h1', { class: 'page-title', text: 'ملف عام' }),
+      h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': t('رجوع'), onclick: () => (history.length > 1 ? history.back() : navigate('#/home')) }, icon('back')),
+      h('h1', { class: 'page-title', text: t('ملف عام') }),
     ),
     card,
     stats,
     posts,
   );
-  stats.replaceChildren(stat('–', 'منشورات'), stat('–', 'إعجاب'), stat('–', 'عدم إعجاب'));
+  stats.replaceChildren(stat('–', t('منشورات')), stat('–', t('إعجاب')), stat('–', t('عدم إعجاب')));
 
   const unavailable = () => {
     card.replaceChildren(personAvatar('dzplay', { size: 'xl' }), h('div', { class: 'id-card__name' }, nameLine('dzplay')));
-    posts.replaceChildren(h('div', { class: 'empty glass' }, icon('info'), h('h2', { text: 'هذا الملف غير متاح' })));
+    posts.replaceChildren(h('div', { class: 'empty glass' }, icon('info'), h('h2', { text: t('هذا الملف غير متاح') })));
   };
 
   (async () => {
@@ -40,11 +41,11 @@ export function renderUser(page, { ref, publicId, navigate }) {
     if (!person && p.public_id) person = await api.get(`/api/people/${encodeURIComponent(p.public_id)}`).catch(() => null);
     const msgBtn = person
       ? h('button', { class: 'btn btn--primary', type: 'button', onclick: () => messagePerson(person.public_id, navigate, person) },
-        icon('chat'), person.conversation_id ? 'فتح المحادثة' : 'مراسلة')
+        icon('chat'), person.conversation_id ? t('فتح المحادثة') : t('مراسلة'))
       : null;
     if (msgBtn && !person.can_message && !person.conversation_id) {
       msgBtn.disabled = true;
-      msgBtn.title = 'لا يستقبل رسائل مباشرة';
+      msgBtn.title = t('لا يستقبل رسائل مباشرة');
     }
     card.replaceChildren(...[
       personAvatar(p.name, { size: 'xl', url: p.avatar_url }),
@@ -52,10 +53,10 @@ export function renderUser(page, { ref, publicId, navigate }) {
       idChip(p.public_id),
       msgBtn ? h('div', { class: 'id-card__actions' }, msgBtn) : null,
     ].filter(Boolean));
-    stats.replaceChildren(stat(p.stats.posts, 'منشورات'), stat(p.stats.likes, 'إعجاب'), stat(p.stats.dislikes, 'عدم إعجاب'));
+    stats.replaceChildren(stat(p.stats.posts, t('منشورات')), stat(p.stats.likes, t('إعجاب')), stat(p.stats.dislikes, t('عدم إعجاب')));
     posts.replaceChildren(
-      h('h2', { class: 'section-title', text: 'منشوراته' }),
-      profilePosts(ref, { navigate, emptyText: 'لا توجد منشورات.' }),
+      h('h2', { class: 'section-title', text: t('منشوراته') }),
+      profilePosts(ref, { navigate, emptyText: t('لا توجد منشورات.') }),
     );
   })();
 }

@@ -21,6 +21,7 @@ import time
 from pathlib import Path
 
 from app.config import Settings
+from app.i18n import N_
 
 log = logging.getLogger("dzplay.media_check")
 
@@ -158,16 +159,16 @@ def process_image(settings: Settings, src: Path, out: Path, job: dict) -> dict:
     import warnings
 
     warnings.simplefilter("error", Image.DecompressionBombWarning)  # between 1x and 2x the limit: refuse too
-    bad = Rejected("bad_image", "الصورة غير صالحة أو تالفة.")
+    bad = Rejected("bad_image", N_("الصورة غير صالحة أو تالفة."))
     try:
         with Image.open(src) as probe:
             w, h = probe.size
             if w * h > max_pixels:  # checked from the header: no decoding of a bomb
-                raise Rejected("too_many_pixels", "أبعاد الصورة كبيرة جدًا.")
+                raise Rejected("too_many_pixels", N_("أبعاد الصورة كبيرة جدًا."))
             if min(w, h) < int(job.get("min_side") or 1):
-                raise Rejected("too_small", "الصورة صغيرة جدًا.")
+                raise Rejected("too_small", N_("الصورة صغيرة جدًا."))
             if max(w, h) > int(job.get("max_side") or 100000):
-                raise Rejected("too_large_dims", "أبعاد الصورة كبيرة جدًا.")
+                raise Rejected("too_large_dims", N_("أبعاد الصورة كبيرة جدًا."))
             probe.seek(0)
             im = ImageOps.exif_transpose(probe)  # apply the camera rotation; the metadata itself is dropped
             im = im.convert("RGB")
@@ -175,7 +176,7 @@ def process_image(settings: Settings, src: Path, out: Path, job: dict) -> dict:
     except Rejected:
         raise
     except Image.DecompressionBombError:
-        raise Rejected("too_many_pixels", "أبعاد الصورة كبيرة جدًا.") from None
+        raise Rejected("too_many_pixels", N_("أبعاد الصورة كبيرة جدًا.")) from None
     except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
         raise bad from None
     im.thumbnail((settings.IMAGE_MAX_SIDE, settings.IMAGE_MAX_SIDE))
@@ -189,7 +190,7 @@ def process_image(settings: Settings, src: Path, out: Path, job: dict) -> dict:
         worst, refused = nsfw_verdict(scores, float(job["nsfw_block"]), float(job["nsfw_sexy"]))
         result["nsfw"] = round(worst, 4)
         if refused:
-            raise Rejected("nsfw", "لا يمكن نشر هذه الصورة: تبدو مخالفة لإرشادات المجتمع.")
+            raise Rejected("nsfw", N_("لا يمكن نشر هذه الصورة: تبدو مخالفة لإرشادات المجتمع."))
     if job.get("blur"):
         result["blur"] = blur_preview(clean)
     clean.save(out, "WEBP", quality=settings.IMAGE_QUALITY, method=4)
@@ -237,7 +238,7 @@ def run_job(settings: Settings, tmp_dir: Path, job: dict) -> dict:
         found = sniff(head)
         allowed = set(job.get("types") or ())
         if found is None or found[1] not in allowed or found[0] != "image" or job.get("kind") != "image":
-            raise Rejected("bad_type", "نوع الملف غير مسموح." if found else "الملف ليس صورة صالحة.")
+            raise Rejected("bad_type", N_("نوع الملف غير مسموح.") if found else N_("الملف ليس صورة صالحة."))
         meta = process_image(settings, p["in"], p["img"], job)
         meta.update(ok=True, type=found[1], outputs=list(OUTPUTS[found[0]]), ms=round((time.perf_counter() - started) * 1000))
         return meta
@@ -245,10 +246,10 @@ def run_job(settings: Settings, tmp_dir: Path, job: dict) -> dict:
         p["img"].unlink(missing_ok=True)
         return {"ok": False, "code": exc.code, "error": str(exc)}
     except FileNotFoundError:
-        return {"ok": False, "code": "missing", "error": "انتهت مهلة الرفع، أعد المحاولة."}
+        return {"ok": False, "code": "missing", "error": N_("انتهت مهلة الرفع، أعد المحاولة.")}
     except Exception:  # noqa: BLE001 - a broken file must never crash the worker
         log.exception("media job failed")
         p["img"].unlink(missing_ok=True)
-        return {"ok": False, "code": "error", "error": "تعذّرت معالجة الملف."}
+        return {"ok": False, "code": "error", "error": N_("تعذّرت معالجة الملف.")}
     finally:
         p["in"].unlink(missing_ok=True)

@@ -190,6 +190,11 @@ a { color: var(--lilac); }
 /* ---------- auth ---------- */
 .auth { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; padding: calc(28px + var(--safe-t)) 22px calc(28px + var(--safe-b)); max-width: 440px; margin: 0 auto; }
 .auth__brand { text-align: center; margin-bottom: 26px; }
+.auth__top { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.lang-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--glass-border); border-radius: 999px; padding: 6px 12px;
+  background: var(--surface-2); color: var(--ink-2); font: inherit; font-size: 13px; }
+.lang-btn svg { width: 16px; height: 16px; }
+.seg.seg--stack { grid-auto-flow: row; }
 .auth__tagline { color: var(--ink-2); margin: 6px 0 0; font-size: 17px; }
 .segmented { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 4px; margin-bottom: 20px; }
 .segmented button { border: 0; background: none; padding: 10px; border-radius: 12px; font-weight: 700; color: var(--ink-3); transition: background .2s, color .2s; }
@@ -366,7 +371,8 @@ body.kb-open .sheet { max-height: calc(100dvh - var(--kb) - 12px); overflow-y: a
 }
 .chat__composer textarea:focus, .ticket-composer textarea:focus { border-color: var(--lilac); }
 .send-btn { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--grad); color: var(--on-accent); display: grid; place-items: center; flex: none; }
-.send-btn svg { width: 22px; height: 22px; transform: scaleX(-1); } /* RTL: arrow points left */
+.send-btn svg { width: 22px; height: 22px; }
+[dir="rtl"] .send-btn svg { transform: scaleX(-1); } /* RTL: arrow points left */
 .send-btn[disabled] { opacity: .45; }
 .closed-bar { padding: 14px 16px calc(14px + var(--safe-b)); text-align: center; color: var(--ink-2); border-top: 1px solid var(--line); background: var(--surface); font-size: 14px; }
 
@@ -390,7 +396,11 @@ body.kb-open .sheet { max-height: calc(100dvh - var(--kb) - 12px); overflow-y: a
 .menu__item svg { width: 22px; height: 22px; color: var(--ink-3); flex: none; }
 .menu__item > span:not(.menu__end):not(.switch) { flex: 1; }
 .menu__item > .menu__end, .menu__item > .switch { flex: none; }
-.menu__item .chev { width: 18px; height: 18px; transform: scaleX(-1); }
+.menu__item .chev { width: 18px; height: 18px; }
+[dir="rtl"] .menu__item .chev { transform: scaleX(-1); }
+/* V6 phase 12: French / English mirror the RTL arrows (back, chevrons); never the logo (.logo-mark) */
+[dir="ltr"] .icon--dir { transform: scaleX(-1); }
+[dir="ltr"] .menu__item .chev { transform: none; }
 .menu__item--danger, .menu__item--danger svg { color: var(--danger); }
 .switch { width: 46px; height: 28px; border-radius: 14px; background: var(--surface-3); position: relative; flex: none; transition: background .2s; }
 .switch::after { content: ""; position: absolute; top: 3px; inset-inline-start: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: inset-inline-start .2s; }

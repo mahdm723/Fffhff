@@ -102,6 +102,7 @@ class AppState:
         from app.services import runtime_config
 
         self.reload_tunables()
+        self.reload_i18n()
         with self.database.session() as db:
             cfg = runtime_config.telegram_config(db, self.settings)
         if cfg["source"] == "panel":
@@ -114,9 +115,21 @@ class AppState:
         with self.database.session() as db:
             tunables.apply(db, self.settings, self.bot.settings if self.bot is not None else None)
 
+    def reload_i18n(self) -> None:
+        """V6 phase 12: the interface texts edited in the panel (all languages)."""
+        from app.i18n import store
+
+        with self.database.session() as db:
+            store.load(db)
+
     def on_system_event(self, event: dict) -> None:
         if event.get("type") == "tunables":
             self.reload_tunables()
+        elif event.get("type") == "i18n":
+            self.reload_i18n()
+            users = self.hub.local_users()
+            if users:  # the open apps fetch their dictionary again and redraw the page
+                self.hub._deliver_local(users, {"type": "i18n"})
 
     def dispatch(self, effects: Effects) -> None:
         """Fire realtime signals / push after a successful commit."""

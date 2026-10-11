@@ -117,6 +117,7 @@ class User(Base):
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # V6 5c: confirmed by a code once
     device_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
     appearance: Mapped[str | None] = mapped_column(Text, nullable=True)  # V6 phase 8: JSON {mode, accent, font}
+    language: Mapped[str | None] = mapped_column(String(5), nullable=True)  # V6 phase 12: ar|fr|en (NULL = not chosen yet)
 
 
 class NameHistory(Base):
@@ -936,3 +937,49 @@ class ContentRevision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     created_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
     note: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    lang: Mapped[str | None] = mapped_column(String(5), nullable=True)  # V6 phase 12: NULL = Arabic (the original)
+
+
+class ContentTranslation(Base):
+    """V6 phase 12: a content-system text in French or English, edited in the panel. No row = the default translation
+    shipped in the code (app/i18n/content.py), then the Arabic text."""
+
+    __tablename__ = "content_translations"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    lang: Mapped[str] = mapped_column(String(5), primary_key=True)
+    title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    body_md: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class I18nText(Base):
+    """V6 phase 12: an interface text edited in the panel, for one language. `key` is the hash of the Arabic source
+    text (msgid); no row = the default translation in app/i18n/<lang>.json, then the Arabic text itself."""
+
+    __tablename__ = "i18n_texts"
+
+    lang: Mapped[str] = mapped_column(String(5), primary_key=True)
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    msgid: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)  # a plain text, or JSON {"one": …, "other": …} for a plural
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    updated_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class I18nRevision(Base):
+    """V6 phase 12: every change of an interface text (edit, import, restore, back to the default): the backup."""
+
+    __tablename__ = "i18n_revisions"
+    __table_args__ = (Index("ix_i18n_revisions_key", "lang", "key", "id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    lang: Mapped[str] = mapped_column(String(5))
+    key: Mapped[str] = mapped_column(String(40))
+    msgid: Mapped[str] = mapped_column(Text)
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)  # NULL = back to the default
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    created_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(300), nullable=True)
+

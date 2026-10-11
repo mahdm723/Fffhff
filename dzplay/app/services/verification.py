@@ -198,7 +198,7 @@ def _clean_amount(settings: Settings, amount: object) -> str:
     if not value.is_finite() or value <= 0 or value > Decimal("1000000") or value.as_tuple().exponent < -8:
         raise AppError(400, "invalid_amount", "أدخل المبلغ الذي أرسلته (رقم).")
     if settings.PAYMENT_MIN_AMOUNT and value < Decimal(str(settings.PAYMENT_MIN_AMOUNT)):
-        raise AppError(400, "amount_too_low", f"أقل مبلغ مقبول هو {settings.PAYMENT_MIN_AMOUNT:g}.")
+        raise AppError(400, "amount_too_low", "أقل مبلغ مقبول هو {min}.", params={"min": f"{settings.PAYMENT_MIN_AMOUNT:g}"})
     return format(value.normalize(), "f")
 
 
@@ -206,7 +206,8 @@ def _clean_txid(network: str, txid: object) -> str:
     tx = txid.strip() if isinstance(txid, str) else ""
     rule = NETWORKS.get(network, NETWORKS["OTHER"])["tx"]
     if not re.match(rule, tx):
-        raise AppError(400, "invalid_txid", f"رقم العملية (TXID) لا يطابق شكل شبكة {NETWORKS.get(network, {}).get('label', network)}.")
+        raise AppError(400, "invalid_txid", "رقم العملية (TXID) لا يطابق شكل شبكة {network}.",
+                       params={"network": NETWORKS.get(network, {}).get("label", network)})
     return tx
 
 

@@ -46,7 +46,7 @@ def clean_message(raw: object, max_length: int, link_policy: str) -> str:
     if not text:
         raise AppError(400, "empty_message", "لا يمكن إرسال رسالة فارغة.")
     if len(text) > max_length:
-        raise AppError(400, "message_too_long", f"الرسالة أطول من الحد المسموح ({max_length} حرف).")
+        raise AppError(400, "message_too_long", "الرسالة أطول من الحد المسموح ({n} حرف).", params={"n": max_length})
     if _HTML_TAG.search(text):
         raise AppError(400, "html_not_allowed", "لا يُسمح بإرسال أكواد HTML. أرسل نصًا عاديًا فقط.")
     if link_policy == "reject" and _URL.search(text):

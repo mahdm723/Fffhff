@@ -94,6 +94,11 @@ class Hub:
                 if not conns:
                     del self._queues[user_id]
 
+    def local_users(self) -> list[str]:
+        """Users with an open connection on this instance (V6 phase 12: a text changed in the panel)."""
+        with self._lock:
+            return [uid for uid, conns in self._queues.items() if conns]
+
     def is_online(self, user_id: str) -> bool:
         with self._lock:
             return bool(self._queues.get(user_id))

@@ -4,13 +4,14 @@ import { contentBlock } from '../content.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { copyText, formatDay, h, starMark, toast } from '../ui.js';
+import { t } from '../i18n.js';
 
 export function renderMembership(page, { navigate, onMe }) {
-  const body = h('div', { class: 'membership' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': 'جارٍ التحميل' })));
+  const body = h('div', { class: 'membership' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': t('جارٍ التحميل') })));
   page.replaceChildren(
     h('header', { class: 'topbar topbar--back' },
-      h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': 'رجوع', onclick: () => navigate('#/profile') }, icon('back')),
-      h('h1', { class: 'page-title', text: 'عضويتي' })),
+      h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': t('رجوع'), onclick: () => navigate('#/profile') }, icon('back')),
+      h('h1', { class: 'page-title', text: t('عضويتي') })),
     contentBlock('membership_intro', 'mem-intro glass'),
     body);
 
@@ -18,25 +19,25 @@ export function renderMembership(page, { navigate, onMe }) {
 
   function payBox(d) {
     const p = d.payment;
-    if (!p) return h('div', { class: 'pay pay--off glass' }, icon('clock'), h('p', { text: 'الدفع غير متاح حاليًا. حاول لاحقًا.' }));
+    if (!p) return h('div', { class: 'pay pay--off glass' }, icon('clock'), h('p', { text: t('الدفع غير متاح حاليًا. حاول لاحقًا.') }));
     const txid = h('input', { class: 'input', id: 'mem-txid', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', placeholder: 'TXID / Hash' });
-    const send = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'إرسال رقم العملية');
+    const send = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('إرسال رقم العملية'));
     const err = h('div', { class: 'form-error', role: 'alert' });
     send.addEventListener('click', async () => {
       err.textContent = '';
-      if (!txid.value.trim()) { err.textContent = 'أدخل رقم العملية (TXID) بعد الدفع.'; return; }
+      if (!txid.value.trim()) { err.textContent = t('أدخل رقم العملية (TXID) بعد الدفع.'); return; }
       send.disabled = true;
-      try { paint(await api.post('/api/membership/requests', { txid: txid.value.trim() })); toast('أُرسل طلبك وسيُراجع قريبًا.'); }
+      try { paint(await api.post('/api/membership/requests', { txid: txid.value.trim() })); toast(t('أُرسل طلبك وسيُراجع قريبًا.')); }
       catch (e) { err.textContent = e.message; send.disabled = false; }
     });
     return h('section', { class: 'pay glass' },
-      h('h3', { text: `ادفع ${d.price} ${p.currency} مرة واحدة على شبكة ${p.network_label}` }),
-      h('img', { class: 'pay__qr', src: p.qr, alt: 'رمز QR لعنوان المحفظة', width: '180', height: '180' }),
+      h('h3', { text: t('ادفع {price} {currency} مرة واحدة على شبكة {network_label}', { price: d.price, currency: p.currency, network_label: p.network_label }) }),
+      h('img', { class: 'pay__qr', src: p.qr, alt: t('رمز QR لعنوان المحفظة'), width: '180', height: '180' }),
       h('div', { class: 'pay__wallet' }, h('code', { dir: 'ltr', text: p.wallet }),
-        h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => copyText(p.wallet, 'نُسخ العنوان.') }, icon('copy'), 'نسخ')),
-      h('p', { class: 'pay__warn' }, icon('info'), `أرسل ${p.currency} على شبكة ${p.network_label} فقط. الإرسال على شبكة أخرى يضيع المبلغ ولا يمكن استرجاعه.`),
+        h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => copyText(p.wallet, t('نُسخ العنوان.')) }, icon('copy'), t('نسخ'))),
+      h('p', { class: 'pay__warn' }, icon('info'), t('أرسل {currency} على شبكة {network_label} فقط. الإرسال على شبكة أخرى يضيع المبلغ ولا يمكن استرجاعه.', { currency: p.currency, network_label: p.network_label })),
       p.note ? h('p', { class: 'muted', dir: 'auto', text: p.note }) : '',
-      h('div', { class: 'field' }, h('label', { for: 'mem-txid', text: 'رقم العملية بعد الدفع' }), txid), err, send);
+      h('div', { class: 'field' }, h('label', { for: 'mem-txid', text: t('رقم العملية بعد الدفع') }), txid), err, send);
   }
 
   function refundBox(d) {
@@ -44,28 +45,28 @@ export function renderMembership(page, { navigate, onMe }) {
     if (!r.enabled) return '';
     const last = r.request;
     if (last && last.status === 'requested') {
-      return h('section', { class: 'mem-refund glass' }, h('h3', { text: 'الاسترجاع' }),
-        h('p', { text: `طلبك قيد التنفيذ: ${last.amount} USDT إلى عنوانك على ${last.network}.` }));
+      return h('section', { class: 'mem-refund glass' }, h('h3', { text: t('الاسترجاع') }),
+        h('p', { text: t('طلبك قيد التنفيذ: {amount} USDT إلى عنوانك على {network}.', { amount: last.amount, network: last.network }) }));
     }
     if (!r.eligible) {
-      return last ? h('section', { class: 'mem-refund glass' }, h('h3', { text: 'الاسترجاع' }),
-        h('p', { text: last.status === 'done' ? `تم إرجاع ${last.amount} USDT.` : `رُفض طلب الاسترجاع: ${last.reason || ''}` })) : '';
+      return last ? h('section', { class: 'mem-refund glass' }, h('h3', { text: t('الاسترجاع') }),
+        h('p', { text: last.status === 'done' ? t('تم إرجاع {amount} USDT.', { amount: last.amount }) : t('رُفض طلب الاسترجاع: {reason}', { reason: last.reason || '' }) })) : '';
     }
-    const open = h('button', { class: 'btn btn--ghost btn--block', type: 'button' }, 'طلب استرجاع العضوية');
-    const box = h('section', { class: 'mem-refund glass' }, h('h3', { text: 'الاسترجاع' }),
-      h('p', { text: `يمكنك طلب الاسترجاع حتى ${formatDay(r.deadline)}: يُعاد ${r.amount} USDT (بعد رسوم ${r.fee}) وتتوقف ميزات العضوية.` }),
+    const open = h('button', { class: 'btn btn--ghost btn--block', type: 'button' }, t('طلب استرجاع العضوية'));
+    const box = h('section', { class: 'mem-refund glass' }, h('h3', { text: t('الاسترجاع') }),
+      h('p', { text: t('يمكنك طلب الاسترجاع حتى {date}: يُعاد {amount} USDT (بعد رسوم {fee}) وتتوقف ميزات العضوية.', { date: formatDay(r.deadline), amount: r.amount, fee: r.fee }) }),
       open);
     open.addEventListener('click', () => {
       const network = h('select', { class: 'input', id: 'refund-network' }, ...Object.entries(r.networks).map(([k, v]) => h('option', { value: k, text: v })));
-      const address = h('input', { class: 'input', id: 'refund-address', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', placeholder: 'عنوان محفظتك' });
-      const password = h('input', { class: 'input', id: 'refund-password', type: 'password', autocomplete: 'current-password', placeholder: 'كلمة المرور' });
-      const code = h('input', { class: 'input', id: 'refund-code', dir: 'ltr', inputmode: 'numeric', maxlength: '6', placeholder: 'الرمز من بريدك' });
-      const sendCode = h('button', { class: 'btn btn--ghost btn--sm', type: 'button' }, 'أرسل الرمز إلى بريدي');
+      const address = h('input', { class: 'input', id: 'refund-address', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', placeholder: t('عنوان محفظتك') });
+      const password = h('input', { class: 'input', id: 'refund-password', type: 'password', autocomplete: 'current-password', placeholder: t('كلمة المرور') });
+      const code = h('input', { class: 'input', id: 'refund-code', dir: 'ltr', inputmode: 'numeric', maxlength: '6', placeholder: t('الرمز من بريدك') });
+      const sendCode = h('button', { class: 'btn btn--ghost btn--sm', type: 'button' }, t('أرسل الرمز إلى بريدي'));
       const err = h('div', { class: 'form-error', role: 'alert' });
-      const go = h('button', { class: 'btn btn--danger btn--block', type: 'button' }, 'تأكيد طلب الاسترجاع');
+      const go = h('button', { class: 'btn btn--danger btn--block', type: 'button' }, t('تأكيد طلب الاسترجاع'));
       sendCode.addEventListener('click', async () => {
         sendCode.disabled = true;
-        try { const s = await api.post('/api/membership/refund/code', {}); toast(`أُرسل الرمز إلى ${s.sent_to}`); }
+        try { const s = await api.post('/api/membership/refund/code', {}); toast(t('أُرسل الرمز إلى {sent_to}', { sent_to: s.sent_to })); }
         catch (e) { err.textContent = e.message; }
         setTimeout(() => { sendCode.disabled = false; }, 30000);
       });
@@ -74,15 +75,15 @@ export function renderMembership(page, { navigate, onMe }) {
         go.disabled = true;
         try {
           paint(await api.post('/api/membership/refund', { network: network.value, address: address.value.trim(), password: password.value, code: code.value.trim() }));
-          toast('أُرسل طلب الاسترجاع.');
+          toast(t('أُرسل طلب الاسترجاع.'));
         } catch (e) { err.textContent = e.message; go.disabled = false; }
       });
-      box.replaceChildren(h('h3', { text: 'طلب الاسترجاع' }),
-        h('p', { class: 'muted', text: `يصلك ${r.amount} USDT على الشبكة التي تختارها. تأكد من العنوان جيدًا.` }),
-        h('div', { class: 'field' }, h('label', { for: 'refund-network', text: 'الشبكة' }), network),
-        h('div', { class: 'field' }, h('label', { for: 'refund-address', text: 'عنوان المحفظة' }), address),
-        h('div', { class: 'field' }, h('label', { for: 'refund-password', text: 'كلمة المرور' }), password),
-        h('div', { class: 'field' }, h('label', { for: 'refund-code', text: 'رمز التأكيد' }), h('div', { class: 'mem-code' }, code, sendCode)),
+      box.replaceChildren(h('h3', { text: t('طلب الاسترجاع') }),
+        h('p', { class: 'muted', text: t('يصلك {amount} USDT على الشبكة التي تختارها. تأكد من العنوان جيدًا.', { amount: r.amount }) }),
+        h('div', { class: 'field' }, h('label', { for: 'refund-network', text: t('الشبكة') }), network),
+        h('div', { class: 'field' }, h('label', { for: 'refund-address', text: t('عنوان المحفظة') }), address),
+        h('div', { class: 'field' }, h('label', { for: 'refund-password', text: t('كلمة المرور') }), password),
+        h('div', { class: 'field' }, h('label', { for: 'refund-code', text: t('رمز التأكيد') }), h('div', { class: 'mem-code' }, code, sendCode)),
         err, go);
     });
     return box;
@@ -93,22 +94,22 @@ export function renderMembership(page, { navigate, onMe }) {
     let status;
     if (d.member) {
       status = h('section', { class: 'mem-status mem-status--on glass' }, starMark({ large: true }),
-        h('div', {}, h('h2', { text: 'عضويتك مفعّلة' }), h('p', { text: `منذ ${formatDay(d.member_since)}` })));
+        h('div', {}, h('h2', { text: t('عضويتك مفعّلة') }), h('p', { text: t('منذ {date}', { date: formatDay(d.member_since) }) })));
     } else if (req && req.status === 'pending') {
       status = h('section', { class: 'mem-status glass' }, icon('clock'),
-        h('div', {}, h('h2', { text: 'طلبك: قيد المراجعة' }), h('p', { dir: 'ltr', class: 'muted', text: req.txid })));
+        h('div', {}, h('h2', { text: t('طلبك: قيد المراجعة') }), h('p', { dir: 'ltr', class: 'muted', text: req.txid })));
     } else {
       status = h('section', { class: 'mem-status glass' }, icon('verified'),
-        h('div', {}, h('h2', { text: `العضوية: ${d.price} ${d.currency} مرة واحدة` }),
-          h('p', { text: 'ميزات إضافية داخل التطبيق. لا علاقة لها بالتداول ولا بأي عائد مالي.' })));
+        h('div', {}, h('h2', { text: t('العضوية: {price} {currency} مرة واحدة', { price: d.price, currency: d.currency }) }),
+          h('p', { text: t('ميزات إضافية داخل التطبيق. لا علاقة لها بالتداول ولا بأي عائد مالي.') })));
     }
     body.replaceChildren(
       status,
-      req && req.status === 'rejected' && !d.member ? h('p', { class: 'mem-note', text: `رُفض طلبك السابق: ${req.note || ''}` }) : '',
-      h('h3', { class: 'section-title', text: 'ميزات الأعضاء' }), features(d),
+      req && req.status === 'rejected' && !d.member ? h('p', { class: 'mem-note', text: t('رُفض طلبك السابق: {note}', { note: req.note || '' }) }) : '',
+      h('h3', { class: 'section-title', text: t('ميزات الأعضاء') }), features(d),
       d.member || (req && req.status === 'pending') ? '' : payBox(d),
       d.member ? refundBox(d) : '',
-      h('p', { class: 'muted mem-terms' }, 'التفاصيل في ', h('a', { href: '/policies/terms', target: '_blank', rel: 'noopener' }, 'شروط الاستخدام'), '.'));
+      h('p', { class: 'muted mem-terms' }, t('التفاصيل في '), h('a', { href: '/policies/terms', target: '_blank', rel: 'noopener' }, t('شروط الاستخدام')), '.'));
   }
 
   async function load() {

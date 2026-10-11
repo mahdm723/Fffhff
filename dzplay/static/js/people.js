@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { icon } from './icons.js';
 import * as store from './store.js';
 import { autoGrow, h, idChip, nameLine, personAvatar, sheet, toast } from './ui.js';
+import { t } from './i18n.js';
 
 const ID_RE = /^dz-?[2-9a-hj-np-z]{6}$/i;
 
@@ -12,7 +13,7 @@ export function confirmAge() {
     let ok = false;
     sheet((panel, close) => {
       const box = h('input', { type: 'checkbox' });
-      const go = h('button', { class: 'btn btn--primary btn--block', type: 'button', disabled: true }, 'تأكيد');
+      const go = h('button', { class: 'btn btn--primary btn--block', type: 'button', disabled: true }, t('تأكيد'));
       box.addEventListener('change', () => { go.disabled = !box.checked; });
       go.addEventListener('click', async () => {
         go.disabled = true;
@@ -24,10 +25,10 @@ export function confirmAge() {
         } catch (err) { toast(err.message, 'error'); go.disabled = false; }
       });
       panel.append(
-        h('h2', { text: 'تأكيد العمر' }),
-        h('p', { text: 'الرسائل المباشرة متاحة للبالغين فقط.' }),
-        h('label', { class: 'choice' }, box, h('span', { text: 'أؤكد أن عمري 18 سنة أو أكثر وأوافق على شروط الاستخدام.' })),
-        h('div', { class: 'actions' }, go, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')),
+        h('h2', { text: t('تأكيد العمر') }),
+        h('p', { text: t('الرسائل المباشرة متاحة للبالغين فقط.') }),
+        h('label', { class: 'choice' }, box, h('span', { text: t('أؤكد أن عمري 18 سنة أو أكثر وأوافق على شروط الاستخدام.') })),
+        h('div', { class: 'actions' }, go, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إلغاء'))),
       );
     }, () => resolve(ok));
   });
@@ -39,16 +40,16 @@ export async function messagePerson(publicId, navigate, known = null) {
   try {
     if (!card || card.can_message === undefined) card = await api.get(`/api/people/${encodeURIComponent(publicId)}`);
   } catch (err) {
-    toast(err.status === 404 ? 'هذا الحساب غير متاح.' : err.message, 'error');
+    toast(err.status === 404 ? t('هذا الحساب غير متاح.') : err.message, 'error');
     return;
   }
   if (card.conversation_id) { navigate(`#/chat/${card.conversation_id}`); return; }
-  if (!card.can_message) { toast('هذا الشخص لا يستقبل رسائل مباشرة.', 'error'); return; }
+  if (!card.can_message) { toast(t('هذا الشخص لا يستقبل رسائل مباشرة.'), 'error'); return; }
   if (store.state.me && store.state.me.age_confirmed === false && !(await confirmAge())) return;
   const max = store.state.config.max_message_length;
   sheet((panel, close) => {
-    const text = h('textarea', { class: 'input', rows: '3', dir: 'auto', maxlength: String(max), placeholder: 'اكتب أول رسالة…', 'aria-label': 'أول رسالة' });
-    const go = h('button', { class: 'btn btn--primary btn--block', type: 'button', disabled: true }, icon('send'), 'إرسال طلب المراسلة');
+    const text = h('textarea', { class: 'input', rows: '3', dir: 'auto', maxlength: String(max), placeholder: t('اكتب أول رسالة…'), 'aria-label': t('أول رسالة') });
+    const go = h('button', { class: 'btn btn--primary btn--block', type: 'button', disabled: true }, icon('send'), t('إرسال طلب المراسلة'));
     autoGrow(text, 160);
     text.addEventListener('input', () => { go.disabled = !text.value.trim(); });
     go.addEventListener('click', async () => {
@@ -65,7 +66,7 @@ export async function messagePerson(publicId, navigate, known = null) {
     });
     panel.append(
       h('div', { class: 'peer-info peer-info--row' }, personAvatar(card.name, { size: 'sm', url: card.avatar_url }), h('div', {}, nameLine(card.name, card.gender, '', card.verified), h('small', { dir: 'ltr', text: card.public_id }))),
-      h('p', { text: 'ستصله رسالتك كطلب مراسلة. لا تستطيع إرسال أكثر من بضع رسائل حتى يقبل أو يرد.' }),
+      h('p', { text: t('ستصله رسالتك كطلب مراسلة. لا تستطيع إرسال أكثر من بضع رسائل حتى يقبل أو يرد.') }),
       h('div', { class: 'field' }, text),
       h('div', { class: 'actions' }, go),
     );
@@ -76,11 +77,11 @@ export async function messagePerson(publicId, navigate, known = null) {
 export function searchBox(navigate) {
   const input = h('input', {
     class: 'input', type: 'search', dir: 'auto', maxlength: '40', enterkeyhint: 'search',
-    placeholder: 'اسم أو معرّف مثل DZ-7K4P2M', 'aria-label': 'ابحث عن شخص بالاسم أو المعرّف',
+    placeholder: t('اسم أو معرّف مثل DZ-7K4P2M'), 'aria-label': t('ابحث عن شخص بالاسم أو المعرّف'),
   });
-  const go = h('button', { class: 'icon-btn', type: 'submit', 'aria-label': 'بحث' }, icon('search'));
+  const go = h('button', { class: 'icon-btn', type: 'submit', 'aria-label': t('بحث') }, icon('search'));
   const results = h('ul', { class: 'people-list', 'aria-live': 'polite' });
-  const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, 'عرض المزيد');
+  const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, t('عرض المزيد'));
   const status = h('p', { class: 'people-status' });
   let query = '';
   let page = 0;
@@ -91,25 +92,25 @@ export function searchBox(navigate) {
       personAvatar(p.name, { url: p.avatar_url }),
       h('div', { class: 'person__body' }, nameLine(p.name, p.gender, 'person__name', p.verified), h('small', { class: 'person__id', dir: 'ltr', text: p.public_id })),
       h('div', { class: 'person__actions' },
-        h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => messagePerson(p.public_id, navigate) }, 'مراسلة'),
-        h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => navigate(p.profile_ref ? `#/u/${p.profile_ref}` : `#/id/${p.public_id}`) }, 'عرض الملف'),
+        h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => messagePerson(p.public_id, navigate) }, t('مراسلة')),
+        h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => navigate(p.profile_ref ? `#/u/${p.profile_ref}` : `#/id/${p.public_id}`) }, t('عرض الملف')),
       ));
   }
 
   async function run(next = false) {
     const q = input.value.trim();
     if (!next) {
-      if (q.length < 2) { results.replaceChildren(); status.textContent = q ? 'اكتب حرفين على الأقل.' : ''; more.hidden = true; return; }
+      if (q.length < 2) { results.replaceChildren(); status.textContent = q ? t('اكتب حرفين على الأقل.') : ''; more.hidden = true; return; }
       query = q; page = 0;
     } else page += 1;
-    status.textContent = 'جارٍ البحث…';
+    status.textContent = t('جارٍ البحث…');
     try {
       const data = await api.get(`/api/people/search?q=${encodeURIComponent(query)}&page=${page}`);
       if (!next) results.replaceChildren();
       results.append(...data.results.map(row));
       more.hidden = !data.has_more;
       status.textContent = results.children.length ? ''
-        : ID_RE.test(query) ? 'لا يوجد حساب متاح بهذا المعرّف.' : 'لا نتائج. الأشخاص باسم dzplay يُعثر عليهم بالمعرّف فقط.';
+        : ID_RE.test(query) ? t('لا يوجد حساب متاح بهذا المعرّف.') : t('لا نتائج. الأشخاص باسم dzplay يُعثر عليهم بالمعرّف فقط.');
     } catch (err) {
       status.textContent = err.message;
       more.hidden = true;
@@ -121,8 +122,8 @@ export function searchBox(navigate) {
   const form = h('form', { class: 'people-search', role: 'search' }, input, go);
   form.addEventListener('submit', (e) => { e.preventDefault(); clearTimeout(timer); run(); });
   return h('section', { class: 'people glass' },
-    h('h2', { class: 'people__title' }, icon('plusUser'), 'ابحث عن أشخاص'),
-    h('p', { class: 'people__hint', text: 'ابحث بالاسم أو بالمعرّف. لا يظهر البريد أبدًا.' }),
+    h('h2', { class: 'people__title' }, icon('plusUser'), t('ابحث عن أشخاص')),
+    h('p', { class: 'people__hint', text: t('ابحث بالاسم أو بالمعرّف. لا يظهر البريد أبدًا.') }),
     form, status, results, more);
 }
 

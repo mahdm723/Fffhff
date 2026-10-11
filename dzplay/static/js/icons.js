@@ -39,6 +39,7 @@ const P = {
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/>',
   bubbles: '<path d="M14 9a6 6 0 0 1-8.7 5.4L2 16l1.2-3.4A6 6 0 1 1 14 9Z"/><path d="M10 18.5a6 6 0 0 0 8.7 1.5L22 21l-1.2-3.3A6 6 0 0 0 16.5 9"/>',
   thumbUp: '<path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3Z"/><path d="M7 10l4-7a2.5 2.5 0 0 1 2.9 3.1L13 10h5.6a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.2 21H7"/>',
   thumbDown: '<path d="M17 14V3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-3Z"/><path d="M17 14l-4 7a2.5 2.5 0 0 1-2.9-3.1L11 14H5.4a2 2 0 0 1-2-2.4l1.4-7A2 2 0 0 1 6.8 3H17"/>',
@@ -79,6 +80,8 @@ export function icon(name, cls = '') {
   svg.setAttribute('stroke-linejoin', 'round');
   svg.setAttribute('aria-hidden', 'true');
   if (cls) svg.setAttribute('class', cls);
+  // V6 phase 12: arrows drawn for the RTL layout; mirrored in French / English (app.css [dir="ltr"] .icon--dir)
+  if (name === 'back' || name === 'chev') svg.classList.add('icon--dir');
   svg.innerHTML = P[name] || '';
   return svg;
 }

@@ -2,6 +2,7 @@
 import { appName, wordmarkParts } from './brand.js';
 import { STAR_CHECK, STAR_SEAL, icon } from './icons.js';
 import { LOGO } from './logo-shapes.js';
+import { t, locale } from './i18n.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -22,12 +23,12 @@ export function h(tag, attrs = {}, ...children) {
 }
 
 export const REPORT_REASONS = [
-  ['spam', 'رسائل مزعجة (سبام)'],
-  ['harassment', 'تحرش أو مضايقة'],
-  ['threat', 'تهديد'],
-  ['inappropriate', 'محتوى غير لائق'],
-  ['minor', 'محتوى يخص قاصرًا'],
-  ['other', 'سبب آخر'],
+  ['spam', t('رسائل مزعجة (سبام)')],
+  ['harassment', t('تحرش أو مضايقة')],
+  ['threat', t('تهديد')],
+  ['inappropriate', t('محتوى غير لائق')],
+  ['minor', t('محتوى يخص قاصرًا')],
+  ['other', t('سبب آخر')],
 ];
 
 export function avatar(size = '') {
@@ -47,7 +48,7 @@ export function personAvatar(name, { size = '', anonymous = false, active = fals
     el = h('div', { class: `${cls} avatar--photo`, 'aria-hidden': 'true' }, img);
     img.addEventListener('error', () => { el.replaceWith(personAvatar(name, { size, active })); }, { once: true });
   } else {
-    const letter = (Array.from(name.trim())[0] || '?').toLocaleUpperCase('ar');
+    const letter = (Array.from(name.trim())[0] || '?').toLocaleUpperCase(locale());
     let n = 0;
     for (const ch of name) n = (n * 31 + ch.codePointAt(0)) >>> 0;
     el = h('div', { class: `${cls} avatar--letter avatar--t${n % AVATAR_TONES}`, 'aria-hidden': 'true' }, h('span', { text: letter }));
@@ -56,7 +57,7 @@ export function personAvatar(name, { size = '', anonymous = false, active = fals
   return el;
 }
 
-const GENDER = { male: ['male', 'رجل'], female: ['female', 'أنثى'] };
+const GENDER = { male: ['male', t('رجل')], female: ['female', t('أنثى')] };
 
 /** Small gender icon next to a name (nothing for "prefer not to say"). */
 export function genderMark(gender) {
@@ -84,10 +85,10 @@ export function starMark({ large = false } = {}) {
     path.setAttribute('d', d);
     svg.append(path);
   }
-  return h('span', { class: `star-mark${large ? ' star-mark--lg' : ''}`, title: 'حساب موثّق' }, svg, h('span', { class: 'sr-only', text: 'حساب موثّق' }));
+  return h('span', { class: `star-mark${large ? ' star-mark--lg' : ''}`, title: t('حساب موثّق') }, svg, h('span', { class: 'sr-only', text: t('حساب موثّق') }));
 }
 
-export async function copyText(text, done = 'نُسخ.') {
+export async function copyText(text, done = t('نُسخ.')) {
   try {
     await navigator.clipboard.writeText(text);
     toast(done);
@@ -99,7 +100,7 @@ export async function copyText(text, done = 'نُسخ.') {
 /** "DZ-XXXXXX" chip with a copy button. */
 export function idChip(publicId) {
   if (!publicId) return null;
-  return h('button', { class: 'id-chip', type: 'button', 'aria-label': `نسخ المعرّف ${publicId}`, onclick: () => copyText(publicId, 'نُسخ المعرّف.') },
+  return h('button', { class: 'id-chip', type: 'button', 'aria-label': t('نسخ المعرّف {publicId}', { publicId }), onclick: () => copyText(publicId, t('نُسخ المعرّف.')) },
     h('span', { dir: 'ltr', text: publicId }), icon('copy'));
 }
 
@@ -151,9 +152,9 @@ export function wordmark(large = false) {
 
 export function toast(message, type = 'info', ms = 3200) {
   const box = document.getElementById('toasts');
-  const t = h('div', { class: `toast ${type === 'error' ? 'toast--error' : ''}`, text: message });
-  box.append(t);
-  setTimeout(() => t.remove(), ms);
+  const el = h('div', { class: `toast ${type === 'error' ? 'toast--error' : ''}`, text: message });
+  box.append(el);
+  setTimeout(() => el.remove(), ms);
 }
 
 export function sheet(build, onClose = null, { dismissible = true } = {}) {
@@ -195,15 +196,16 @@ export function confirmSheet({ title, text, confirm, danger = false }) {
         h('p', { text }),
         h('div', { class: 'actions' },
           h('button', { class: `btn btn--block ${danger ? 'btn--danger' : 'btn--primary'}`, onclick: () => finish(true) }, confirm),
-          h('button', { class: 'btn btn--block btn--ghost', onclick: () => finish(false) }, 'إلغاء'),
+          h('button', { class: 'btn btn--block btn--ghost', onclick: () => finish(false) }, t('إلغاء')),
         ),
       );
     }, () => resolve(answer)); // backdrop / Escape resolve to false
   });
 }
 
-const timeFmt = new Intl.DateTimeFormat('ar-DZ', { hour: '2-digit', minute: '2-digit' });
-const dayFmt = new Intl.DateTimeFormat('ar-DZ', { day: 'numeric', month: 'long' });
+// V6 phase 12: in the language's format (the app reloads when the language changes)
+const timeFmt = new Intl.DateTimeFormat(locale(), { hour: '2-digit', minute: '2-digit' });
+const dayFmt = new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'long' });
 
 export function formatTime(iso) { return iso ? timeFmt.format(new Date(iso)) : ''; }
 
@@ -213,8 +215,8 @@ export function formatDay(iso) {
   const d = new Date(iso);
   const now = new Date();
   const y = new Date(now); y.setDate(now.getDate() - 1);
-  if (sameDay(d, now)) return 'اليوم';
-  if (sameDay(d, y)) return 'أمس';
+  if (sameDay(d, now)) return t('اليوم');
+  if (sameDay(d, y)) return t('أمس');
   return dayFmt.format(d);
 }
 

@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from app import i18n
 from app.api.deps import (
     clear_session_cookie,
     client_context,
@@ -65,6 +66,8 @@ def public_config(request: Request) -> dict:
         "names": {"min": s.NAME_MIN_LENGTH, "max": s.NAME_MAX_LENGTH, "cooldown_days": s.NAME_CHANGE_COOLDOWN_DAYS,
                   "default": s.DEFAULT_DISPLAY_NAME},
         "direct_before_reply": s.DIRECT_MSG_BEFORE_REPLY_LIMIT,
+        # V6 phase 12: the offered languages (the app picks the phone's one the first time)
+        "languages": [{"code": c, "name": i18n.NAMES[c], "dir": i18n.DIRS[c]} for c in i18n.LANGS],
     }
 
 

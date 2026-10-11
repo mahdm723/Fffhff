@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app import clock
 from app.errors import AppError
 from app.models import UsedChallenge
+from app.i18n import N_
 
 PURPOSES = ("register", "login", "reset")
 
@@ -62,7 +63,7 @@ def solve(challenge: dict) -> int | None:
     return None
 
 
-_INVALID = "فشل التحقق من أنك لست روبوتًا. أعد المحاولة."
+_INVALID = N_("فشل التحقق من أنك لست روبوتًا. أعد المحاولة.")
 
 
 def verify_solution(db: Session, secret: str, purpose: str, payload: dict | None, min_max_number: int) -> None:

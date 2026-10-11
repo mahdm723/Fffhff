@@ -5,9 +5,10 @@ import { icon } from '../icons.js';
 import { infiniteSentinel } from '../ideas.js';
 import { searchBox } from '../people.js';
 import { h, nameLine, personAvatar, toast } from '../ui.js';
+import { t } from '../i18n.js';
 
 export function renderUsers(page, { navigate }) {
-  const list = h('div', { class: 'users-list', role: 'list', 'aria-label': 'كل المستخدمين' });
+  const list = h('div', { class: 'users-list', role: 'list', 'aria-label': t('كل المستخدمين') });
   const status = h('div', { class: 'feed-status' });
   let cursor = null;
   let done = false;
@@ -24,15 +25,15 @@ export function renderUsers(page, { navigate }) {
   async function load() {
     if (loading || done) return;
     loading = true;
-    status.replaceChildren(h('span', { class: 'spinner', 'aria-label': 'جارٍ التحميل' }));
+    status.replaceChildren(h('span', { class: 'spinner', 'aria-label': t('جارٍ التحميل') }));
     try {
       const d = await api.get(`/api/people${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);
       list.append(...d.results.map(personRow));
       cursor = d.next_cursor;
       done = !d.next_cursor;
-      status.replaceChildren(list.children.length ? '' : h('p', { class: 'feed-end', text: 'لا يوجد مستخدمون آخرون بعد. ادعُ أصدقاءك.' }));
+      status.replaceChildren(list.children.length ? '' : h('p', { class: 'feed-end', text: t('لا يوجد مستخدمون آخرون بعد. ادعُ أصدقاءك.') }));
     } catch (err) {
-      status.replaceChildren(h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => load() }, 'إعادة المحاولة'));
+      status.replaceChildren(h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => load() }, t('إعادة المحاولة')));
       if (!err.isNetwork) toast(err.message, 'error');
     } finally {
       loading = false;
@@ -41,9 +42,9 @@ export function renderUsers(page, { navigate }) {
 
   const sentinel = infiniteSentinel(() => { if (list.children.length) load(); });
   page.replaceChildren(
-    h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: 'المستخدمون' })),
+    h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: t('المستخدمون') })),
     searchBox(navigate),
-    h('h2', { class: 'section-title', text: 'نشطون مؤخرًا' }),
+    h('h2', { class: 'section-title', text: t('نشطون مؤخرًا') }),
     h('section', { class: 'users glass' }, list),
     status, sentinel);
   load();

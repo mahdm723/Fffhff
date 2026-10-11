@@ -675,4 +675,5 @@ def own_profile(db: Session, user: User, settings=None) -> dict:
     data["privacy_notice"] = (user.privacy_ack_version or 0) < cms.ack_version(db)
     data["appearance"] = appearance.clean(user.appearance)
     data["appearance_choices"] = appearance.choices()
+    data["language"] = user.language  # V6 phase 12: NULL = not chosen yet (the app saves its own)
     return data

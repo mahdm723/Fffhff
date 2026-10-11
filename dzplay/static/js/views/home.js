@@ -6,6 +6,7 @@ import { infiniteSentinel, onIdeaChange, postCard } from '../ideas.js';
 import { PickError, chooseFile, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
 import { autoGrow, h, logoLockup, newClientId, toast } from '../ui.js';
 import { renderMarket } from './market.js';
+import { t } from '../i18n.js';
 
 const DRAFT_KEY = 'dz:idea-draft';
 const PANE_KEY = 'dz:home-pane';
@@ -31,7 +32,7 @@ function announcementBanner(config) {
   const key = 'dz.ann';
   try { if (localStorage.getItem(key) === text) return null; } catch { /* storage blocked */ }
   const bar = h('div', { class: 'announce glass', role: 'status' }, icon('bell'), h('p', { dir: 'auto', text }),
-    h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'إخفاء الإعلان', onclick: () => {
+    h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': t('إخفاء الإعلان'), onclick: () => {
       try { localStorage.setItem(key, text); } catch { /* ignore */ }
       bar.remove();
     } }, icon('close')));
@@ -40,15 +41,15 @@ function announcementBanner(config) {
 
 export function renderHome(page, ctx) {
   page.classList.add('page--home');
-  const marketPane = h('section', { class: 'home-pane home-pane--market', id: 'pane-market', 'aria-label': 'السوق' });
-  const ideasPane = h('section', { class: 'home-pane home-pane--ideas', id: 'pane-ideas', 'aria-label': 'الأفكار' });
+  const marketPane = h('section', { class: 'home-pane home-pane--market', id: 'pane-market', 'aria-label': t('السوق') });
+  const ideasPane = h('section', { class: 'home-pane home-pane--ideas', id: 'pane-ideas', 'aria-label': t('الأفكار') });
   const pager = h('div', { class: 'home-pager' }, marketPane, ideasPane);
   const tab = (id, label, pane) => h('button', {
     type: 'button', role: 'tab', class: 'home-switch__tab', 'aria-controls': pane.id, dataset: { pane: id },
     onclick: () => show(id, true),
   }, label);
-  const tabs = [tab('market', 'السوق', marketPane), tab('ideas', 'الأفكار', ideasPane)];
-  const switcher = h('div', { class: 'home-switch', role: 'tablist', 'aria-label': 'الصفحة الرئيسية' },
+  const tabs = [tab('market', t('السوق'), marketPane), tab('ideas', t('الأفكار'), ideasPane)];
+  const switcher = h('div', { class: 'home-switch', role: 'tablist', 'aria-label': t('الصفحة الرئيسية') },
     h('div', { class: 'home-switch__inner glass glass--blur' }, ...tabs, h('span', { class: 'home-switch__bar', 'aria-hidden': 'true' })));
   page.replaceChildren(pager, switcher);
 
@@ -95,13 +96,13 @@ function renderIdeasPane(page, { config, navigate }) {
 
   // ------------------------------------------------------------ composer
   const textarea = h('textarea', {
-    id: 'idea-compose', rows: '3', 'aria-label': 'فكرتك', placeholder: 'اكتب فكرة تريد مشاركتها مع الآخرين…', maxlength: String(max + 200),
+    id: 'idea-compose', rows: '3', 'aria-label': t('فكرتك'), placeholder: t('اكتب فكرة تريد مشاركتها مع الآخرين…'), maxlength: String(max + 200),
   });
   textarea.value = readDraft();
   const counter = h('span', { class: 'counter' });
-  const publish = h('button', { class: 'btn btn--primary btn--sm', type: 'button' }, 'نشر');
+  const publish = h('button', { class: 'btn btn--primary btn--sm', type: 'button' }, t('نشر'));
   // V5: one picture per idea (IDEA_IMAGE_LIMIT_PER_24H), checked + compressed on the phone first.
-  const imageBtn = h('button', { class: 'icon-btn icon-btn--plain idea-composer__img', type: 'button', 'aria-label': 'إضافة صورة', hidden: true }, icon('image'));
+  const imageBtn = h('button', { class: 'icon-btn icon-btn--plain idea-composer__img', type: 'button', 'aria-label': t('إضافة صورة'), hidden: true }, icon('image'));
   const imageNote = h('span', { class: 'idea-composer__note', hidden: true });
   const mediaBox = h('div', { class: 'idea-media', hidden: true });
   let picked = null; // { blob, preview }
@@ -115,7 +116,7 @@ function renderIdeasPane(page, { config, navigate }) {
     if (!quota.member) { // V6 phase 4: picture posts are a membership feature
       imageBtn.hidden = true;
       imageNote.hidden = false;
-      imageNote.replaceChildren(h('button', { class: 'link-btn', type: 'button', onclick: () => navigate('#/membership') }, 'الصور للأعضاء'));
+      imageNote.replaceChildren(h('button', { class: 'link-btn', type: 'button', onclick: () => navigate('#/membership') }, t('الصور للأعضاء')));
       return;
     }
     imageBtn.hidden = false;
@@ -134,7 +135,7 @@ function renderIdeasPane(page, { config, navigate }) {
       const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
       const ss = String(s % 60).padStart(2, '0');
       imageNote.hidden = false;
-      imageNote.textContent = `الصورة التالية بعد ${hh}:${mm}:${ss}`;
+      imageNote.textContent = t('الصورة التالية بعد {hh}:{mm}:{ss}', { hh, mm, ss });
     };
     tickNote();
     if (quota.remaining <= 0) quotaTimer = setInterval(tickNote, 1000);
@@ -152,8 +153,8 @@ function renderIdeasPane(page, { config, navigate }) {
     update();
   }
   function showPicked(stage = '') {
-    const img = picked.preview ? h('img', { src: picked.preview, alt: 'الصورة المختارة' }) : h('div', { class: 'idea-media__ph' }, icon('image'));
-    const remove = h('button', { class: 'idea-media__x', type: 'button', 'aria-label': 'إزالة الصورة', disabled: busy, onclick: clearPicked }, icon('close'));
+    const img = picked.preview ? h('img', { src: picked.preview, alt: t('الصورة المختارة') }) : h('div', { class: 'idea-media__ph' }, icon('image'));
+    const remove = h('button', { class: 'idea-media__x', type: 'button', 'aria-label': t('إزالة الصورة'), disabled: busy, onclick: clearPicked }, icon('close'));
     mediaBox.replaceChildren(...[img, remove, stage ? h('div', { class: 'idea-media__stage', text: stage }) : null].filter(Boolean));
     mediaBox.hidden = false;
   }
@@ -166,15 +167,15 @@ function renderIdeasPane(page, { config, navigate }) {
       const cfg = await uploadConfig();
       if (picked) clearPicked();
       picked = { blob: null, preview: null };
-      showPicked('جارٍ فحص الصورة…');
-      picked = await prepareImage(file, cfg, { onStage: () => showPicked('جارٍ فحص الصورة…') });
+      showPicked(t('جارٍ فحص الصورة…'));
+      picked = await prepareImage(file, cfg, { onStage: () => showPicked(t('جارٍ فحص الصورة…')) });
       busy = false;
       showPicked();
     } catch (err) {
       busy = false;
       picked = null;
       mediaBox.hidden = true;
-      toast(err instanceof PickError ? err.message : (err.message || 'تعذّر تجهيز الصورة.'), 'error', 4500);
+      toast(err instanceof PickError ? err.message : (err.message || t('تعذّر تجهيز الصورة.')), 'error', 4500);
     }
     paintQuota();
     update();
@@ -183,8 +184,8 @@ function renderIdeasPane(page, { config, navigate }) {
     h('div', { class: 'idea-composer__head' },
       h('span', { class: 'idea-composer__icon' }, icon('bulb')),
       h('div', {},
-        h('h1', { id: 'idea-title', class: 'idea-composer__title', text: 'شارك فكرة' }),
-        h('p', { class: 'idea-composer__sub', text: 'يقرؤها الجميع، ويظهر معها اسمك الذي اخترته.' }),
+        h('h1', { id: 'idea-title', class: 'idea-composer__title', text: t('شارك فكرة') }),
+        h('p', { class: 'idea-composer__sub', text: t('يقرؤها الجميع، ويظهر معها اسمك الذي اخترته.') }),
       ),
     ),
     textarea,
@@ -217,11 +218,11 @@ function renderIdeasPane(page, { config, navigate }) {
       let mediaId = null;
       if (withImage) {
         await api.post('/api/uploads/precheck', { purpose: 'idea', caption: content || null });
-        showPicked('جارٍ الرفع 0%');
+        showPicked(t('جارٍ الرفع 0%'));
         const up = await uploadBlob(picked.blob, {
-          purpose: 'idea', onProgress: (f) => showPicked(f < 1 ? `جارٍ الرفع ${Math.round(f * 100)}%` : 'جارٍ الفحص على الخادم…'),
+          purpose: 'idea', onProgress: (f) => showPicked(f < 1 ? t('جارٍ الرفع {pct}%', { pct: Math.round(f * 100) }) : t('جارٍ الفحص على الخادم…')),
         });
-        showPicked('جارٍ الفحص على الخادم…');
+        showPicked(t('جارٍ الفحص على الخادم…'));
         await waitReady(up.id);
         mediaId = up.id;
       }
@@ -234,20 +235,20 @@ function renderIdeasPane(page, { config, navigate }) {
       feedState.posts.unshift(created);
       list.prepend(postCard(created, { navigate, onRemoved: removed }));
       clearEmpty();
-      toast(created.status === 'pending' ? 'أُرسلت فكرتك، وستظهر بعد مراجعة الصورة.' : 'نُشرت فكرتك ✨');
+      toast(created.status === 'pending' ? t('أُرسلت فكرتك، وستظهر بعد مراجعة الصورة.') : t('نُشرت فكرتك ✨'));
     } catch (err) {
       busy = false;
       if (picked) showPicked();
       toast(err.message, 'error', 4500);
       if (err.code === 'idea_image_limit') { clearPicked(); refreshQuota(); }
     }
-    publish.textContent = 'نشر';
+    publish.textContent = t('نشر');
     update();
   });
   refreshQuota();
 
   // ------------------------------------------------------------ feed
-  const refreshBtn = h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': 'أفكار أخرى' }, icon('refresh'));
+  const refreshBtn = h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': t('أفكار أخرى') }, icon('refresh'));
   refreshBtn.addEventListener('click', () => { resetFeedCache(); list.replaceChildren(); loadMore(true); });
 
   function removed(id) { feedState.posts = feedState.posts.filter((p) => p.id !== id); }
@@ -257,16 +258,16 @@ function renderIdeasPane(page, { config, navigate }) {
   function showEmpty() {
     list.replaceChildren(h('div', { class: 'empty glass' },
       icon('bulb'),
-      h('h2', { text: 'لا توجد أفكار بعد' }),
-      h('p', { text: 'كن أول من يشارك فكرة مع الجميع.' }),
-      h('button', { class: 'btn btn--primary', type: 'button', onclick: () => textarea.focus() }, 'اكتب أول فكرة'),
+      h('h2', { text: t('لا توجد أفكار بعد') }),
+      h('p', { text: t('كن أول من يشارك فكرة مع الجميع.') }),
+      h('button', { class: 'btn btn--primary', type: 'button', onclick: () => textarea.focus() }, t('اكتب أول فكرة')),
     ));
   }
 
   async function loadMore(first = false) {
     if (loading || (feedState.done && !first)) return;
     loading = true;
-    status.replaceChildren(h('span', { class: 'spinner', 'aria-label': 'جارٍ التحميل' }));
+    status.replaceChildren(h('span', { class: 'spinner', 'aria-label': t('جارٍ التحميل') }));
     try {
       const qs = feedState.cursor ? `?cursor=${encodeURIComponent(feedState.cursor)}` : '';
       const data = await api.get(`/api/posts/feed${qs}`);
@@ -279,22 +280,22 @@ function renderIdeasPane(page, { config, navigate }) {
       for (const p of fresh) list.append(postCard(p, { navigate, onRemoved: removed }));
       if (!feedState.posts.length) showEmpty();
       status.replaceChildren(feedState.done && feedState.posts.length
-        ? h('p', { class: 'feed-end', text: 'شاهدت كل الأفكار الحالية. اضغط ↻ لترتيب جديد.' }) : '');
+        ? h('p', { class: 'feed-end', text: t('شاهدت كل الأفكار الحالية. اضغط ↻ لترتيب جديد.') }) : '');
     } catch (err) {
-      status.replaceChildren(h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => loadMore() }, 'إعادة المحاولة'));
+      status.replaceChildren(h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => loadMore() }, t('إعادة المحاولة')));
       if (!err.isNetwork) toast(err.message, 'error');
     } finally {
       loading = false;
     }
   }
 
-  const bell = h('button', { class: 'icon-btn glass bell-btn', type: 'button', 'aria-label': 'الإشعارات', onclick: () => navigate('#/notifications') }, icon('bell'));
+  const bell = h('button', { class: 'icon-btn glass bell-btn', type: 'button', 'aria-label': t('الإشعارات'), onclick: () => navigate('#/notifications') }, icon('bell'));
   page.replaceChildren(...[
     h('header', { class: 'topbar' }, logoLockup({ size: 24, pulse: true }), bell),
     announcementBanner(config),
     composer,
     h('div', { class: 'section-head' },
-      h('h2', { class: 'section-title', text: 'أفكار من الآخرين' }),
+      h('h2', { class: 'section-title', text: t('أفكار من الآخرين') }),
       refreshBtn,
     ),
     list,

@@ -6,6 +6,7 @@ import { icon } from './icons.js';
 import { openViewer } from './media-pick.js';
 import * as store from './store.js';
 import { REPORT_REASONS, autoGrow, confirmSheet, formatListTime, h, nameLine, personAvatar, sheet, toast } from './ui.js';
+import { t } from './i18n.js';
 
 const CLAMP_CHARS = 420;
 
@@ -29,7 +30,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   const card = h('article', { class: 'post-card glass', 'data-post': post.id });
 
   const authorBtn = h('button', {
-    class: 'post-card__author', type: 'button', 'aria-label': `عرض ملف ${state.author.name}`,
+    class: 'post-card__author', type: 'button', 'aria-label': t('عرض ملف {name}', { name: state.author.name }),
     onclick: () => navigate && navigate(state.mine ? '#/profile' : `#/u/${state.author.ref}`),
   },
   personAvatar(state.author.name, { size: 'sm', url: state.author.avatar_url }),
@@ -37,7 +38,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
     nameLine(state.author.name, state.author.gender, 'post-card__name', state.author.verified),
     h('span', { class: 'post-card__time', text: formatListTime(state.created_at) }),
   ));
-  const moreBtn = h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'خيارات المنشور' }, icon('more'));
+  const moreBtn = h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': t('خيارات المنشور') }, icon('more'));
   moreBtn.addEventListener('click', () => postMenu());
 
   const body = h('p', { class: 'post-card__body', text: state.content });
@@ -45,7 +46,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   let expandBtn = null;
   if (long) {
     body.classList.add('is-clamped');
-    expandBtn = h('button', { class: 'post-card__expand', type: 'button' }, 'اقرأ المزيد');
+    expandBtn = h('button', { class: 'post-card__expand', type: 'button' }, t('اقرأ المزيد'));
     expandBtn.addEventListener('click', () => { body.classList.remove('is-clamped'); expandBtn.remove(); });
   }
 
@@ -59,18 +60,18 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   likersBtn.addEventListener('click', () => openLikers());
 
   function paint() {
-    likeBtn.replaceChildren(icon('thumbUp'), h('span', { text: count(state.likes) }), h('span', { class: 'sr-only', text: 'إعجاب' }));
-    dislikeBtn.replaceChildren(icon('thumbDown'), h('span', { text: count(state.dislikes) }), h('span', { class: 'sr-only', text: 'عدم إعجاب' }));
+    likeBtn.replaceChildren(icon('thumbUp'), h('span', { text: count(state.likes) }), h('span', { class: 'sr-only', text: t('إعجاب') }));
+    dislikeBtn.replaceChildren(icon('thumbDown'), h('span', { text: count(state.dislikes) }), h('span', { class: 'sr-only', text: t('عدم إعجاب') }));
     likeBtn.setAttribute('aria-pressed', String(state.my_reaction === 'like'));
     dislikeBtn.setAttribute('aria-pressed', String(state.my_reaction === 'dislike'));
     likeBtn.disabled = dislikeBtn.disabled = !state.can_react;
     const c = state.comments || { count: 0, unseen: 0 };
-    commentBtn.replaceChildren(...[icon('comment'), h('span', { text: c.count ? `تعليقات (${count(c.count)})` : 'تعليق' }),
-      state.mine && c.unseen ? h('span', { class: 'chip chip--hot', text: `${c.unseen} جديد` }) : null]
+    commentBtn.replaceChildren(...[icon('comment'), h('span', { text: c.count ? t('تعليقات ({n})', { n: count(c.count) }) : t('تعليق') }),
+      state.mine && c.unseen ? h('span', { class: 'chip chip--hot', text: t('{n} جديد', { n: c.unseen }) }) : null]
       .filter(Boolean)); // replaceChildren would print "null"
-    commentBtn.setAttribute('aria-label', `التعليقات${c.count ? `: ${c.count}` : ''}`);
+    commentBtn.setAttribute('aria-label', c.count ? t('التعليقات: {n}', { n: c.count }) : t('التعليقات'));
     likersBtn.hidden = !state.likes;
-    likersBtn.textContent = state.likes === 1 ? 'أعجب شخصًا واحدًا' : `أعجب ${count(state.likes)} أشخاص`;
+    likersBtn.textContent = state.likes === 1 ? t('أعجب شخصًا واحدًا') : t('أعجب {n} أشخاص', { n: count(state.likes) });
   }
 
   async function toggle(kind) {
@@ -101,11 +102,11 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   function openComments(focusId = null) {
     sheet(async (panel, close) => {
       const max = store.state.config.max_comment_length;
-      const list = h('ul', { class: 'comment-list' }, h('li', { class: 'comment-list__empty', text: 'جارٍ التحميل…' }));
-      const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, 'تعليقات أقدم…');
+      const list = h('ul', { class: 'comment-list' }, h('li', { class: 'comment-list__empty', text: t('جارٍ التحميل…') }));
+      const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, t('تعليقات أقدم…'));
       const replyNote = h('div', { class: 'comment-reply', hidden: true });
-      const ta = h('textarea', { class: 'input', rows: '1', maxlength: String(max + 50), placeholder: 'اكتب تعليقًا…', 'aria-label': 'تعليقك' });
-      const send = h('button', { class: 'icon-btn send-btn', type: 'button', disabled: true, 'aria-label': 'إرسال التعليق' }, icon('send'));
+      const ta = h('textarea', { class: 'input', rows: '1', maxlength: String(max + 50), placeholder: t('اكتب تعليقًا…'), 'aria-label': t('تعليقك') });
+      const send = h('button', { class: 'icon-btn send-btn', type: 'button', disabled: true, 'aria-label': t('إرسال التعليق') }, icon('send'));
       let replyTo = null;
       let next = null;
       ta.addEventListener('input', () => { send.disabled = !ta.value.trim() || ta.value.length > max; });
@@ -117,8 +118,8 @@ export function postCard(post, { navigate, onRemoved } = {}) {
         replyTo = c;
         replyNote.hidden = !c;
         if (c) {
-          replyNote.replaceChildren(h('span', { text: `ردّ على ${c.author.name}` }),
-            h('button', { class: 'link-btn', type: 'button', onclick: () => setReply(null) }, 'إلغاء'));
+          replyNote.replaceChildren(h('span', { text: t('ردّ على {name}', { name: c.author.name }) }),
+            h('button', { class: 'link-btn', type: 'button', onclick: () => setReply(null) }, t('إلغاء')));
           ta.focus();
         }
       }
@@ -132,12 +133,12 @@ export function postCard(post, { navigate, onRemoved } = {}) {
             nameLine(c.author.name, c.author.gender, 'comment__name', c.author.verified))
           : nameLine(c.author.name, null, 'comment__name');
         const head = h('div', { class: 'comment__head' }, nameEl,
-          c.team ? h('span', { class: 'chip chip--team', text: c.official ? 'رسمي' : `فريق ${appName()}` }) : '',
+          c.team ? h('span', { class: 'chip chip--team', text: c.official ? t('رسمي') : t('فريق {app}', { app: appName() }) }) : '',
           h('span', { class: 'comment__time', text: formatListTime(c.created_at) }));
         const actions = h('div', { class: 'comment__actions' },
-          c.can_reply ? h('button', { class: 'link-btn', type: 'button', onclick: () => setReply(c) }, 'رد') : '',
-          c.private ? h('span', { class: 'comment__private' }, icon('lock'), 'تعليق خاص قديم') : '',
-          h('button', { class: 'icon-btn icon-btn--plain comment__more', type: 'button', 'aria-label': 'خيارات التعليق',
+          c.can_reply ? h('button', { class: 'link-btn', type: 'button', onclick: () => setReply(c) }, t('رد')) : '',
+          c.private ? h('span', { class: 'comment__private' }, icon('lock'), t('تعليق خاص قديم')) : '',
+          h('button', { class: 'icon-btn icon-btn--plain comment__more', type: 'button', 'aria-label': t('خيارات التعليق'),
             onclick: () => commentMenu(c, li, thread) }, icon('more')));
         const li = h('li', { class: `comment ${c.parent_id ? 'comment--reply' : ''}`, 'data-comment': c.id }, who,
           h('div', { class: 'comment__main' }, head,
@@ -171,7 +172,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
             document.dispatchEvent(new CustomEvent('dz:badges'));
           }
           if (!list.children.length) {
-            list.replaceChildren(h('li', { class: 'comment-list__empty', text: 'لا توجد تعليقات بعد. كن أول من يعلّق.' }));
+            list.replaceChildren(h('li', { class: 'comment-list__empty', text: t('لا توجد تعليقات بعد. كن أول من يعلّق.') }));
           }
           if (focusId) {
             const el = list.querySelector(`[data-comment="${CSS.escape(focusId)}"]`);
@@ -207,8 +208,8 @@ export function postCard(post, { navigate, onRemoved } = {}) {
         send.disabled = !ta.value.trim();
       });
       panel.append(
-        h('div', { class: 'comments-sheet__head' }, h('h2', { text: 'التعليقات' }),
-          h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'إغلاق', onclick: close }, icon('close'))),
+        h('div', { class: 'comments-sheet__head' }, h('h2', { text: t('التعليقات') }),
+          h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': t('إغلاق'), onclick: close }, icon('close'))),
         h('div', { class: 'comments-sheet__body' }, list, more),
         h('div', { class: 'comments-sheet__composer' }, replyNote, h('div', { class: 'comment-composer' }, ta, send)));
       load(true);
@@ -219,20 +220,20 @@ export function postCard(post, { navigate, onRemoved } = {}) {
     sheet((panel, close) => {
       const buttons = [];
       if (!c.mine) {
-        buttons.push(h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: () => { close(); reportSheet({ commentId: c.id }); } }, icon('flag'), 'الإبلاغ عن التعليق'));
+        buttons.push(h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: () => { close(); reportSheet({ commentId: c.id }); } }, icon('flag'), t('الإبلاغ عن التعليق')));
       }
       if (state.mine && !c.mine && !c.team) {
         buttons.push(h('button', { class: 'btn btn--danger btn--block', type: 'button', onclick: async () => {
           close();
-          const ok = await confirmSheet({ title: 'حظر صاحب التعليق؟', text: 'لن يستطيع التعليق على أفكارك أو مراسلتك.', confirm: 'حظر', danger: true });
+          const ok = await confirmSheet({ title: t('حظر صاحب التعليق؟'), text: t('لن يستطيع التعليق على أفكارك أو مراسلتك.'), confirm: t('حظر'), danger: true });
           if (!ok) return;
-          try { await api.post(`/api/comments/${encodeURIComponent(c.id)}/block`); (thread || li).remove(); toast('تم الحظر.'); } catch (err) { toast(err.message, 'error'); }
-        } }, icon('block'), 'حظر صاحب التعليق'));
+          try { await api.post(`/api/comments/${encodeURIComponent(c.id)}/block`); (thread || li).remove(); toast(t('تم الحظر.')); } catch (err) { toast(err.message, 'error'); }
+        } }, icon('block'), t('حظر صاحب التعليق')));
       }
       if (c.can_delete) {
         buttons.push(h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: async () => {
           close();
-          const ok = await confirmSheet({ title: 'حذف التعليق؟', text: 'يختفي عند الجميع.', confirm: 'حذف', danger: true });
+          const ok = await confirmSheet({ title: t('حذف التعليق؟'), text: t('يختفي عند الجميع.'), confirm: t('حذف'), danger: true });
           if (!ok) return;
           try {
             await api.del(`/api/comments/${encodeURIComponent(c.id)}`);
@@ -241,18 +242,18 @@ export function postCard(post, { navigate, onRemoved } = {}) {
             paint();
             emitChange({ id: state.id, post: { ...state } });
           } catch (err) { toast(err.message, 'error'); }
-        } }, icon('trash'), 'حذف التعليق'));
+        } }, icon('trash'), t('حذف التعليق')));
       }
-      panel.append(h('h2', { text: 'خيارات التعليق' }), h('div', { class: 'actions' }, ...buttons,
-        h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')));
+      panel.append(h('h2', { text: t('خيارات التعليق') }), h('div', { class: 'actions' }, ...buttons,
+        h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إلغاء'))));
     });
   }
 
   // V6 phase 4: who liked (never who disliked: that stays a number)
   function openLikers() {
     sheet(async (panel, close) => {
-      const list = h('ul', { class: 'likers' }, h('li', { class: 'comment-list__empty', text: 'جارٍ التحميل…' }));
-      const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, 'المزيد');
+      const list = h('ul', { class: 'likers' }, h('li', { class: 'comment-list__empty', text: t('جارٍ التحميل…') }));
+      const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, t('المزيد'));
       let cursor = null;
       async function load(first) {
         try {
@@ -265,13 +266,13 @@ export function postCard(post, { navigate, onRemoved } = {}) {
             h('small', { class: 'user-row__id', dir: 'ltr', text: p.public_id }))))));
           cursor = d.next_cursor;
           more.hidden = !cursor;
-          if (!list.children.length) list.replaceChildren(h('li', { class: 'comment-list__empty', text: 'لا إعجابات بعد.' }));
+          if (!list.children.length) list.replaceChildren(h('li', { class: 'comment-list__empty', text: t('لا إعجابات بعد.') }));
         } catch (err) { list.replaceChildren(h('li', { class: 'comment-list__empty', text: err.message })); }
       }
       more.addEventListener('click', () => load(false));
       panel.classList.add('sheet--tall');
-      panel.append(h('h2', { text: 'أعجبتهم الفكرة' }), list, more,
-        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إغلاق')));
+      panel.append(h('h2', { text: t('أعجبتهم الفكرة') }), list, more,
+        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إغلاق'))));
       load(true);
     });
   }
@@ -281,19 +282,19 @@ export function postCard(post, { navigate, onRemoved } = {}) {
       const items = state.mine
         ? [h('button', { class: 'btn btn--danger btn--block', type: 'button', onclick: async () => {
           close();
-          const ok = await confirmSheet({ title: 'حذف هذه الفكرة؟', text: 'سيُحذف المنشور وكل تفاعلاته وتعليقاته نهائيًا.', confirm: 'حذف', danger: true });
+          const ok = await confirmSheet({ title: t('حذف هذه الفكرة؟'), text: t('سيُحذف المنشور وكل تفاعلاته وتعليقاته نهائيًا.'), confirm: t('حذف'), danger: true });
           if (!ok) return;
           try {
             await api.del(`/api/posts/${encodeURIComponent(state.id)}`);
             card.remove();
             emitChange({ id: state.id, removed: true });
             if (onRemoved) onRemoved(state.id);
-            toast('حُذفت الفكرة.');
+            toast(t('حُذفت الفكرة.'));
           } catch (err) { toast(err.message, 'error'); }
-        } }, icon('trash'), 'حذف المنشور')]
-        : [h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: () => { close(); reportSheet({ postId: state.id }); } }, icon('flag'), 'الإبلاغ عن المنشور')];
-      panel.append(h('h2', { text: 'خيارات المنشور' }), h('div', { class: 'actions' }, ...items,
-        h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')));
+        } }, icon('trash'), t('حذف المنشور'))]
+        : [h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: () => { close(); reportSheet({ postId: state.id }); } }, icon('flag'), t('الإبلاغ عن المنشور'))];
+      panel.append(h('h2', { text: t('خيارات المنشور') }), h('div', { class: 'actions' }, ...items,
+        h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إلغاء'))));
     });
   }
 
@@ -301,13 +302,13 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   let media = null;
   if (state.media && state.media.url) {
     const m = state.media;
-    const img = h('img', { src: m.url, alt: 'صورة مرفقة بالفكرة', loading: 'lazy', decoding: 'async',
+    const img = h('img', { src: m.url, alt: t('صورة مرفقة بالفكرة'), loading: 'lazy', decoding: 'async',
       width: m.width || null, height: m.height || null });
-    media = h('button', { class: 'post-card__media', type: 'button', 'aria-label': 'عرض الصورة بملء الشاشة',
-      onclick: () => openViewer(m.url, { alt: 'صورة مرفقة بالفكرة' }) }, img);
+    media = h('button', { class: 'post-card__media', type: 'button', 'aria-label': t('عرض الصورة بملء الشاشة'),
+      onclick: () => openViewer(m.url, { alt: t('صورة مرفقة بالفكرة') }) }, img);
   }
-  const review = state.status === 'pending' ? 'بانتظار مراجعة الصورة — لا يراها غيرك الآن'
-    : state.status === 'hidden' ? 'مخفية مؤقتًا للمراجعة بعد بلاغات' : null;
+  const review = state.status === 'pending' ? t('بانتظار مراجعة الصورة — لا يراها غيرك الآن')
+    : state.status === 'hidden' ? t('مخفية مؤقتًا للمراجعة بعد بلاغات') : null;
 
   paint();
   if (!state.content) body.hidden = true;
@@ -327,10 +328,10 @@ export function postCard(post, { navigate, onRemoved } = {}) {
 
 export function reportSheet({ postId = null, commentId = null }) {
   sheet((panel, close) => {
-    const details = h('textarea', { class: 'input', rows: '3', maxlength: '500', placeholder: 'تفاصيل إضافية (اختياري)' });
+    const details = h('textarea', { class: 'input', rows: '3', maxlength: '500', placeholder: t('تفاصيل إضافية (اختياري)') });
     const choices = REPORT_REASONS.map(([value, label], i) =>
       h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'reason', value, checked: i === 0 }), h('span', { text: label })));
-    const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'إرسال البلاغ');
+    const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('إرسال البلاغ'));
     submit.addEventListener('click', async () => {
       submit.disabled = true;
       const reason = panel.querySelector('input[name="reason"]:checked')?.value;
@@ -338,12 +339,12 @@ export function reportSheet({ postId = null, commentId = null }) {
       try {
         await api.post(path, { reason, details: details.value.trim() || null });
         close();
-        toast('شكرًا لك. تم إرسال البلاغ وسيُراجع.');
+        toast(t('شكرًا لك. تم إرسال البلاغ وسيُراجع.'));
       } catch (err) { toast(err.message, 'error'); submit.disabled = false; }
     });
     panel.append(
-      h('h2', { text: commentId ? 'الإبلاغ عن تعليق' : 'الإبلاغ عن منشور' }),
-      h('p', { text: 'البلاغات سرية. نحتفظ فقط بالنص المُبلّغ عنه لمراجعته.' }),
+      h('h2', { text: commentId ? t('الإبلاغ عن تعليق') : t('الإبلاغ عن منشور') }),
+      h('p', { text: t('البلاغات سرية. نحتفظ فقط بالنص المُبلّغ عنه لمراجعته.') }),
       ...choices,
       h('div', { class: 'field' }, details),
       h('div', { class: 'actions' }, submit),
@@ -363,7 +364,7 @@ export function infiniteSentinel(load) {
 /** A person's posts (newest first) with "load more". Used by own profile and public previews. */
 export function profilePosts(ref, { navigate, emptyText }) {
   const wrap = h('div', { class: 'feed' });
-  const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, 'عرض المزيد');
+  const more = h('button', { class: 'btn btn--ghost btn--block', type: 'button', hidden: true }, t('عرض المزيد'));
   let before = null;
   async function load() {
     more.disabled = true;

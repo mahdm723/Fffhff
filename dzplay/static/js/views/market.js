@@ -3,9 +3,10 @@
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { h, sheet } from '../ui.js';
+import { t, locale } from '../i18n.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
-const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+const compact = new Intl.NumberFormat(locale(), { notation: 'compact', maximumFractionDigits: 1 });
 
 function svg(tag, attrs) {
   const el = document.createElementNS(SVG, tag);
@@ -17,7 +18,7 @@ function formatPrice(p) {
   const v = Number(p);
   if (!Number.isFinite(v)) return '—';
   const digits = v >= 1000 ? 2 : v >= 1 ? 4 : v >= 0.01 ? 5 : 8;
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: digits }).format(v);
+  return new Intl.NumberFormat(locale(), { maximumFractionDigits: digits }).format(v);
 }
 
 function pct(v) { return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`; }
@@ -25,11 +26,11 @@ function pct(v) { return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`; }
 function ago(iso) {
   if (!iso) return '';
   const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
-  if (s < 60) return 'الآن';
+  if (s < 60) return t('الآن');
   const m = Math.round(s / 60);
-  if (m < 60) return `منذ ${m} د`;
+  if (m < 60) return t('منذ {m} د', { m });
   const hh = Math.round(m / 60);
-  return hh < 48 ? `منذ ${hh} س` : `منذ ${Math.round(hh / 24)} يوم`;
+  return hh < 48 ? t('منذ {hh} س', { hh }) : t('منذ {n} يوم', { n: Math.round(hh / 24) });
 }
 
 // 24 h hourly closes as a thin line (no axes: a shape hint, the numbers are in the row).
@@ -63,20 +64,20 @@ function details(c) {
         change(c.change_pct)),
       h('div', { class: 'mk-sheet__price', dir: 'ltr', text: formatPrice(c.price) }),
       h('div', { class: 'mk-sheet__spark' }, sparkline(c.spark, up, 320, 90)),
-      h('p', { class: 'mk-sheet__note', text: 'آخر 24 ساعة (سعر الإغلاق كل ساعة).' }),
+      h('p', { class: 'mk-sheet__note', text: t('آخر 24 ساعة (سعر الإغلاق كل ساعة).') }),
       h('dl', { class: 'mk-stats' },
-        h('div', {}, h('dt', { text: 'أعلى سعر 24 س' }), h('dd', { dir: 'ltr', text: formatPrice(c.high24) })),
-        h('div', {}, h('dt', { text: 'أدنى سعر 24 س' }), h('dd', { dir: 'ltr', text: formatPrice(c.low24) })),
-        h('div', {}, h('dt', { text: 'حجم التداول 24 س' }), h('dd', { dir: 'ltr', text: `${compact.format(c.turnover24)} USDT` })),
-        h('div', {}, h('dt', { text: 'الزوج' }), h('dd', { dir: 'ltr', text: c.symbol }))),
-      h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إغلاق'));
+        h('div', {}, h('dt', { text: t('أعلى سعر 24 س') }), h('dd', { dir: 'ltr', text: formatPrice(c.high24) })),
+        h('div', {}, h('dt', { text: t('أدنى سعر 24 س') }), h('dd', { dir: 'ltr', text: formatPrice(c.low24) })),
+        h('div', {}, h('dt', { text: t('حجم التداول 24 س') }), h('dd', { dir: 'ltr', text: `${compact.format(c.turnover24)} USDT` })),
+        h('div', {}, h('dt', { text: t('الزوج') }), h('dd', { dir: 'ltr', text: c.symbol }))),
+      h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إغلاق')));
   });
 }
 
 function row(c) {
   const up = c.change_pct > 0;
   const b = h('button', { class: 'mk-row', type: 'button', dataset: { symbol: c.symbol },
-    'aria-label': `${c.base}: ${formatPrice(c.price)} دولار، ${pct(c.change_pct)} خلال 24 ساعة` },
+    'aria-label': t('{base}: {price} دولار، {pct} خلال 24 ساعة', { base: c.base, price: formatPrice(c.price), pct: pct(c.change_pct) }) },
   h('span', { class: 'mk-row__name', dir: 'ltr' }, h('b', { text: c.base }), h('small', { text: '/USDT' })),
   sparkline(c.spark, up),
   h('span', { class: 'mk-row__nums', dir: 'ltr' }, h('span', { class: 'mk-row__price', text: formatPrice(c.price) }), change(c.change_pct)));
@@ -99,47 +100,47 @@ function paintList(list, coins) {
 }
 
 export function renderMarket(pane) {
-  const gainers = h('div', { class: 'mk-list', role: 'list', 'aria-label': 'الأعلى ربحًا' });
-  const losers = h('div', { class: 'mk-list', role: 'list', 'aria-label': 'الأعلى خسارة' });
+  const gainers = h('div', { class: 'mk-list', role: 'list', 'aria-label': t('الأعلى ربحًا') });
+  const losers = h('div', { class: 'mk-list', role: 'list', 'aria-label': t('الأعلى خسارة') });
   const updated = h('span', { class: 'mk-updated' });
   const banner = h('div', { class: 'mk-banner', role: 'status', hidden: true });
   const disclaimer = h('p', { class: 'mk-disclaimer' });
-  const body = h('div', { class: 'mk-body' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': 'جارٍ التحميل' })));
+  const body = h('div', { class: 'mk-body' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': t('جارٍ التحميل') })));
   let data = null;
   let timer = null;
   let tick = null;
   let visible = false;
   let loading = false;
 
-  const refreshBtn = h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': 'تحديث الأسعار' }, icon('refresh'));
+  const refreshBtn = h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': t('تحديث الأسعار') }, icon('refresh'));
   refreshBtn.addEventListener('click', () => load());
 
   pane.replaceChildren(
     h('header', { class: 'mk-head' },
-      h('div', {}, h('h1', { class: 'mk-title', text: 'السوق' }), h('p', { class: 'mk-sub' }, 'أكبر تحرّك خلال 24 ساعة · ', updated)),
+      h('div', {}, h('h1', { class: 'mk-title', text: t('السوق') }), h('p', { class: 'mk-sub' }, t('أكبر تحرّك خلال 24 ساعة · '), updated)),
       refreshBtn),
     banner, body, disclaimer);
 
   function paint() {
     disclaimer.textContent = data.disclaimer || '';
-    updated.textContent = data.updated_at ? `آخر تحديث ${ago(data.updated_at)}` : '';
+    updated.textContent = data.updated_at ? t('آخر تحديث {ago}', { ago: ago(data.updated_at) }) : '';
     if (!data.enabled) {
       banner.hidden = true;
-      body.replaceChildren(h('div', { class: 'empty glass' }, icon('chart'), h('h2', { text: 'السوق متوقف حاليًا' }),
-        h('p', { text: 'سيعود قريبًا.' })));
+      body.replaceChildren(h('div', { class: 'empty glass' }, icon('chart'), h('h2', { text: t('السوق متوقف حاليًا') }),
+        h('p', { text: t('سيعود قريبًا.') })));
       return;
     }
     banner.hidden = !(data.stale && data.updated_at);
-    banner.replaceChildren(icon('clock'), h('span', { text: `الأسعار لم تُحدَّث منذ مدة (${ago(data.updated_at)}). قد لا تكون حالية.` }));
+    banner.replaceChildren(icon('clock'), h('span', { text: t('الأسعار لم تُحدَّث منذ مدة ({ago}). قد لا تكون حالية.', { ago: ago(data.updated_at) }) }));
     if (!data.gainers.length && !data.losers.length) {
-      body.replaceChildren(h('div', { class: 'empty glass' }, icon('chart'), h('h2', { text: 'لا توجد بيانات بعد' }),
-        h('p', { text: 'تُجلب الأسعار خلال لحظات، حاول بعد قليل.' })));
+      body.replaceChildren(h('div', { class: 'empty glass' }, icon('chart'), h('h2', { text: t('لا توجد بيانات بعد') }),
+        h('p', { text: t('تُجلب الأسعار خلال لحظات، حاول بعد قليل.') })));
       return;
     }
     if (!body.contains(gainers)) {
       body.replaceChildren(
-        h('section', { class: 'mk-section glass' }, h('h2', { class: 'mk-section__title' }, icon('trendUp'), 'الأعلى ربحًا'), gainers),
-        h('section', { class: 'mk-section glass' }, h('h2', { class: 'mk-section__title' }, icon('trendDown'), 'الأعلى خسارة'), losers));
+        h('section', { class: 'mk-section glass' }, h('h2', { class: 'mk-section__title' }, icon('trendUp'), t('الأعلى ربحًا')), gainers),
+        h('section', { class: 'mk-section glass' }, h('h2', { class: 'mk-section__title' }, icon('trendDown'), t('الأعلى خسارة')), losers));
     }
     paintList(gainers, data.gainers);
     paintList(losers, data.losers);
@@ -154,7 +155,7 @@ export function renderMarket(pane) {
       paint();
     } catch (err) {
       if (!data) body.replaceChildren(h('div', { class: 'feed-status' },
-        h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => load() }, 'إعادة المحاولة')));
+        h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => load() }, t('إعادة المحاولة'))));
     } finally {
       loading = false;
       refreshBtn.disabled = false;
@@ -167,7 +168,7 @@ export function renderMarket(pane) {
     if (!visible || document.hidden) return;
     const every = Math.max(30, (data && data.refresh_seconds) || 60) * 1000;
     timer = setInterval(load, every);
-    tick = setInterval(() => { if (data && data.updated_at) updated.textContent = `آخر تحديث ${ago(data.updated_at)}`; }, 15000);
+    tick = setInterval(() => { if (data && data.updated_at) updated.textContent = t('آخر تحديث {ago}', { ago: ago(data.updated_at) }); }, 15000);
   }
   const onVisibility = () => { if (!document.hidden && visible) load(); schedule(); };
   document.addEventListener('visibilitychange', onVisibility);

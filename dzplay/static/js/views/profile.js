@@ -9,8 +9,10 @@ import { genderPicker } from '../onboarding.js';
 import { PickError, chooseFile, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
 import { confirmAge } from '../people.js';
 import { avatar, confirmSheet, formatDay, h, idChip, isAndroidApp, nameLine, personAvatar, sheet, toast } from '../ui.js';
+import { NAMES, lang, locale, t } from '../i18n.js';
+import { languageSheet } from '../language.js';
 
-const dateFmt = new Intl.DateTimeFormat('ar-DZ', { day: 'numeric', month: 'long' });
+const dateFmt = new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'long' });
 
 export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   let me = null;
@@ -21,7 +23,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
   const postsSlot = h('div');
   const notifSwitch = h('span', { class: 'switch', role: 'switch', 'aria-checked': 'false' });
   const supportBadge = h('span', { class: 'menu__end' }, icon('chev', 'chev'));
-  const paintSupport = (n) => supportBadge.replaceChildren(...[n ? h('span', { class: 'chip chip--hot', text: 'رد جديد' }) : null, icon('chev', 'chev')].filter(Boolean));
+  const paintSupport = (n) => supportBadge.replaceChildren(...[n ? h('span', { class: 'chip chip--hot', text: t('رد جديد') }) : null, icon('chev', 'chev')].filter(Boolean));
 
   function stat(num, label) {
     return h('div', { class: 'stat glass' }, h('div', { class: 'stat__num', text: String(num) }), h('div', { class: 'stat__label', text: label }));
@@ -34,51 +36,51 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     btn.setAttribute('aria-busy', 'true');
     try {
       const cfg = await uploadConfig(true);
-      if (!cfg.available) throw new PickError('رفع الصور غير متاح الآن. حاول لاحقًا.');
-      if (cfg.avatar && cfg.avatar.remaining <= 0) throw new PickError(`يمكنك تغيير صورتك ${cfg.avatar.limit} مرات في اليوم. حاول لاحقًا.`);
+      if (!cfg.available) throw new PickError(t('رفع الصور غير متاح الآن. حاول لاحقًا.'));
+      if (cfg.avatar && cfg.avatar.remaining <= 0) throw new PickError(t('يمكنك تغيير صورتك {n} مرات في اليوم. حاول لاحقًا.', { n: cfg.avatar.limit }));
       const picked = await prepareImage(file, cfg, { square: 512 });
       if (picked.preview) URL.revokeObjectURL(picked.preview);
       await api.post('/api/uploads/precheck', { purpose: 'avatar' });
-      toast('جارٍ رفع الصورة وفحصها…');
+      toast(t('جارٍ رفع الصورة وفحصها…'));
       const up = await uploadBlob(picked.blob, { purpose: 'avatar' });
       await waitReady(up.id);
       const r = await api.put('/api/me/avatar', { media_id: up.id });
       me = { ...me, avatar_url: r.avatar_url };
       if (onMe) onMe(me);
       drawCard();
-      toast('تم تحديث صورتك.');
+      toast(t('تم تحديث صورتك.'));
     } catch (err) {
-      toast(err instanceof PickError ? err.message : (err.message || 'تعذّر تحديث الصورة.'), 'error', 4500);
+      toast(err instanceof PickError ? err.message : (err.message || t('تعذّر تحديث الصورة.')), 'error', 4500);
     }
     btn.removeAttribute('aria-busy');
   }
 
   function avatarSheet() {
     sheet((panel, close) => {
-      panel.append(h('h2', { text: 'الصورة الشخصية' }),
-        h('p', { text: 'تظهر بجانب اسمك للجميع. تُفحص قبل النشر، ويمكن الإبلاغ عنها.' }),
+      panel.append(h('h2', { text: t('الصورة الشخصية') }),
+        h('p', { text: t('تظهر بجانب اسمك للجميع. تُفحص قبل النشر، ويمكن الإبلاغ عنها.') }),
         h('div', { class: 'actions' },
           h('button', { class: 'btn btn--primary btn--block', type: 'button', onclick: () => { close(); pickAvatar(idCard.querySelector('.avatar-edit')); } },
-            icon('image'), me.avatar_url ? 'تغيير الصورة' : 'اختيار صورة'),
+            icon('image'), me.avatar_url ? t('تغيير الصورة') : t('اختيار صورة')),
           me.avatar_url ? h('button', { class: 'btn btn--danger btn--block', type: 'button', onclick: async () => {
-            try { await api.del('/api/me/avatar'); me = { ...me, avatar_url: null }; drawCard(); close(); toast('أُزيلت الصورة.'); }
+            try { await api.del('/api/me/avatar'); me = { ...me, avatar_url: null }; drawCard(); close(); toast(t('أُزيلت الصورة.')); }
             catch (e) { toast(e.message, 'error'); }
-          } }, icon('trash'), 'إزالة الصورة') : '',
-          h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')));
+          } }, icon('trash'), t('إزالة الصورة')) : '',
+          h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إلغاء'))));
     });
   }
 
   function drawCard() {
-    const avatarBtn = h('button', { class: 'avatar-edit', type: 'button', 'aria-label': 'تغيير الصورة الشخصية', onclick: avatarSheet },
+    const avatarBtn = h('button', { class: 'avatar-edit', type: 'button', 'aria-label': t('تغيير الصورة الشخصية'), onclick: avatarSheet },
       personAvatar(me.display_name, { size: 'xl', url: me.avatar_url }), h('span', { class: 'avatar-edit__badge', 'aria-hidden': 'true' }, icon('image')));
     idCard.replaceChildren(...[
       avatarBtn,
       h('div', { class: 'id-card__name' }, nameLine(me.display_name, me.gender === 'unspecified' ? null : me.gender, '', me.verified)),
       idChip(me.public_id),
       h('p', { class: 'id-card__hint', text: me.has_custom_name
-        ? 'يظهر اسمك وصورتك في الأفكار والتعليقات والمحادثات.'
-        : 'اختر اسمًا يظهر للآخرين لتتمكن من النشر والمراسلة.' }),
-      h('div', { class: 'id-card__actions' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: editSheet }, icon('edit'), 'تعديل الملف')),
+        ? t('يظهر اسمك وصورتك في الأفكار والتعليقات والمحادثات.')
+        : t('اختر اسمًا يظهر للآخرين لتتمكن من النشر والمراسلة.') }),
+      h('div', { class: 'id-card__actions' }, h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: editSheet }, icon('edit'), t('تعديل الملف'))),
     ].filter(Boolean));
     ageItem.hidden = me.age_confirmed !== false;
   }
@@ -89,10 +91,10 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       const locked = !!me.next_name_change_at;
       const input = h('input', {
         class: 'input', id: 'display-name', dir: 'auto', maxlength: String(names.max), autocomplete: 'nickname',
-        value: me.has_custom_name ? me.display_name : '', placeholder: 'اسمك الظاهر', disabled: locked,
+        value: me.has_custom_name ? me.display_name : '', placeholder: t('اسمك الظاهر'), disabled: locked,
       });
       const err = h('div', { class: 'form-error', role: 'alert' });
-      const save = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'حفظ');
+      const save = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('حفظ'));
       const submit = async (body) => {
         err.textContent = '';
         if (!Object.keys(body).length) { close(); return; }
@@ -102,7 +104,7 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
           if (onMe) onMe(me);
           drawCard();
           close();
-          toast('حُفظ ملفك.');
+          toast(t('حُفظ ملفك.'));
         } catch (e) { err.textContent = e.message; save.disabled = false; }
       };
       save.addEventListener('click', () => {
@@ -114,25 +116,25 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
         submit(body);
       });
       panel.append(
-        h('h2', { text: 'تعديل الملف' }),
+        h('h2', { text: t('تعديل الملف') }),
         h('div', { class: 'field' },
-          h('label', { for: 'display-name', text: 'الاسم الظاهر' }),
+          h('label', { for: 'display-name', text: t('الاسم الظاهر') }),
           input,
           h('small', { class: 'field__hint', text: locked
-            ? `يمكنك تغيير الاسم مجددًا يوم ${dateFmt.format(new Date(me.next_name_change_at))}.`
-            : `من ${names.min} إلى ${names.max} حرفًا: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط. يمكن تغييره مرة كل ${names.cooldown_days} يومًا.` }),
+            ? t('يمكنك تغيير الاسم مجددًا يوم {date}.', { date: dateFmt.format(new Date(me.next_name_change_at)) })
+            : t('من {min} إلى {max} حرفًا: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط. يمكن تغييره مرة كل {n} يومًا.', { min: names.min, max: names.max, n: names.cooldown_days }) }),
         ),
-        h('div', { class: 'field' }, h('label', { text: 'الجنس' }), genderPicker('edit-gender', me.gender)),
+        h('div', { class: 'field' }, h('label', { text: t('الجنس') }), genderPicker('edit-gender', me.gender)),
         err,
-        h('div', { class: 'actions' }, save, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')),
+        h('div', { class: 'actions' }, save, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إلغاء'))),
       );
     });
   }
 
   function contactSheet() {
     const rows = [
-      ['accept_direct', 'استقبال الرسائل المباشرة', 'من يعرف اسمك أو معرّفك يستطيع إرسال طلب مراسلة.'],
-      ['searchable_by_name', 'الظهور في البحث بالاسم', 'عند الإيقاف يبقى بالإمكان إيجادك بمعرّفك DZ فقط.'],
+      ['accept_direct', t('استقبال الرسائل المباشرة'), t('من يعرف اسمك أو معرّفك يستطيع إرسال طلب مراسلة.')],
+      ['searchable_by_name', t('الظهور في البحث بالاسم'), t('عند الإيقاف يبقى بالإمكان إيجادك بمعرّفك DZ فقط.')],
     ];
     sheet((panel, close) => {
       const isOn = (k) => (k === 'accept_direct' ? me.privacy[k] === 'everyone' : !!me.privacy[k]);
@@ -152,8 +154,8 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
         });
         return h('li', {}, btn);
       }));
-      panel.append(h('h2', { text: 'الخصوصية والتواصل' }), list,
-        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'تم')));
+      panel.append(h('h2', { text: t('الخصوصية والتواصل') }), list,
+        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('تم'))));
     });
   }
 
@@ -164,18 +166,18 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
       drawCard();
       paintSupport(me.support_unread);
       statsBox.replaceChildren(
-        stat(me.ideas.posts, 'منشورات'),
-        stat(me.ideas.likes, 'إعجاب'),
-        stat(me.ideas.dislikes, 'عدم إعجاب'),
+        stat(me.ideas.posts, t('منشورات')),
+        stat(me.ideas.likes, t('إعجاب')),
+        stat(me.ideas.dislikes, t('عدم إعجاب')),
       );
       // Private messaging stats: only you see these (visitors see idea stats only).
       msgStats.replaceChildren(icon('lock'),
-        `رسائلك الخاصة: أرسلت ${me.stats.messages_sent} · استقبلت ${me.stats.messages_received} · ${me.stats.conversations} محادثة`);
+        t('رسائلك الخاصة: أرسلت {sent} · استقبلت {received} · {n} محادثة', { sent: me.stats.messages_sent, received: me.stats.messages_received, n: me.stats.conversations }));
       postsSlot.replaceChildren(
-        h('h2', { class: 'section-title', text: 'أفكاري' }),
-        profilePosts(me.ref, { navigate, emptyText: 'لم تنشر أي فكرة بعد. شارك أول فكرة من الصفحة الرئيسية.' }),
+        h('h2', { class: 'section-title', text: t('أفكاري') }),
+        profilePosts(me.ref, { navigate, emptyText: t('لم تنشر أي فكرة بعد. شارك أول فكرة من الصفحة الرئيسية.') }),
       );
-      if (me.status === 'suspended') toast('حسابك موقوف مؤقتًا للمراجعة. لا يمكنك إرسال رسائل حاليًا.', 'error', 6000);
+      if (me.status === 'suspended') toast(t('حسابك موقوف مؤقتًا للمراجعة. لا يمكنك إرسال رسائل حاليًا.'), 'error', 6000);
     } catch { /* offline: keep previous */ }
     notifSwitch.setAttribute('aria-checked', String(await notificationsEnabled()));
   }
@@ -185,29 +187,29 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     try {
       const result = await setNotifications(on);
       notifSwitch.setAttribute('aria-checked', String(result));
-      if (on && !result) toast('لم يتم السماح بالإشعارات من المتصفح.', 'error');
-    } catch (err) { toast(err.message || 'تعذّر تغيير الإشعارات.', 'error'); }
+      if (on && !result) toast(t('لم يتم السماح بالإشعارات من المتصفح.'), 'error');
+    } catch (err) { toast(err.message || t('تعذّر تغيير الإشعارات.'), 'error'); }
   }
 
   function blockedSheet() {
     sheet(async (panel, close) => {
-      const list = h('ul', { class: 'menu' }, h('li', {}, h('div', { class: 'menu__item' }, h('span', { text: 'جارٍ التحميل…' }))));
-      panel.append(h('h2', { text: 'المحظورون' }), h('p', { text: 'الأشخاص الذين حظرتهم لا يمكنهم مراسلتك ولن يُختاروا لك.' }), list,
-        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إغلاق')));
+      const list = h('ul', { class: 'menu' }, h('li', {}, h('div', { class: 'menu__item' }, h('span', { text: t('جارٍ التحميل…') }))));
+      panel.append(h('h2', { text: t('المحظورون') }), h('p', { text: t('الأشخاص الذين حظرتهم لا يمكنهم مراسلتك ولن يُختاروا لك.') }), list,
+        h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, t('إغلاق'))));
       try {
         const { blocks } = await api.get('/api/blocks');
         if (!blocks.length) {
-          list.replaceChildren(h('li', {}, h('div', { class: 'menu__item' }, h('span', { text: 'لم تحظر أحدًا.' }))));
+          list.replaceChildren(h('li', {}, h('div', { class: 'menu__item' }, h('span', { text: t('لم تحظر أحدًا.') }))));
           return;
         }
         list.replaceChildren(...blocks.map((b) => {
           const li = h('li', {}, h('div', { class: 'menu__item' },
             avatar('sm'),
-            h('span', {}, h('b', { text: b.name || 'dzplay', dir: 'auto' }), h('br'), h('small', { text: `حُظر ${formatDay(b.created_at)}` })),
+            h('span', {}, h('b', { text: b.name || 'dzplay', dir: 'auto' }), h('br'), h('small', { text: t('حُظر {date}', { date: formatDay(b.created_at) }) })),
             h('button', { class: 'btn btn--ghost', onclick: async () => {
-              try { await api.del(`/api/blocks/${encodeURIComponent(b.id)}`); li.remove(); toast('تم إلغاء الحظر.'); }
+              try { await api.del(`/api/blocks/${encodeURIComponent(b.id)}`); li.remove(); toast(t('تم إلغاء الحظر.')); }
               catch (err) { toast(err.message, 'error'); }
-            } }, 'إلغاء الحظر'),
+            } }, t('إلغاء الحظر')),
           ));
           return li;
         }));
@@ -217,12 +219,12 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
 
   async function shareApp() {
     const url = `${location.origin}${config.download_page || '/download'}`;
-    const text = `جرّب ${appName()}: مجتمع للمتداولين، أفكار وتحليلات وأخبار العملات الرقمية، وتراسل دون أن ينكشف بريدك. حمّل التطبيق من هنا:`;
+    const text = t('جرّب {app}: مجتمع للمتداولين، أفكار وتحليلات وأخبار العملات الرقمية، وتراسل دون أن ينكشف بريدك. حمّل التطبيق من هنا:', { app: appName() });
     try {
       if (window.DZPLAYAndroid) { window.DZPLAYAndroid.share(`${text} ${url}`); return; } // native share sheet in the app
       if (navigator.share) { await navigator.share({ title: appName(), text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
-      toast('نُسخ رابط التطبيق. أرسله لأصدقائك.');
+      toast(t('نُسخ رابط التطبيق. أرسله لأصدقائك.'));
     } catch (err) {
       if (err && err.name !== 'AbortError') toast(url, 'info', 8000);
     }
@@ -232,32 +234,32 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     sheet((panel, close) => {
       const google = me && me.sign_in_method === 'google';
       const input = google
-        ? h('input', { class: 'input', id: 'delete-confirm', placeholder: 'اكتب: حذف حسابي', autocomplete: 'off' })
-        : h('input', { class: 'input', id: 'delete-password', type: 'password', placeholder: 'كلمة المرور', autocomplete: 'current-password' });
+        ? h('input', { class: 'input', id: 'delete-confirm', placeholder: t('اكتب: {word}', { word: t('حذف حسابي') }), autocomplete: 'off' })
+        : h('input', { class: 'input', id: 'delete-password', type: 'password', placeholder: t('كلمة المرور'), autocomplete: 'current-password' });
       const err = h('div', { class: 'form-error', role: 'alert' });
-      const go = h('button', { class: 'btn btn--danger btn--block', type: 'button' }, icon('trash'), 'حذف حسابي نهائيًا');
+      const go = h('button', { class: 'btn btn--danger btn--block', type: 'button' }, icon('trash'), t('حذف حسابي نهائيًا'));
       go.addEventListener('click', async () => {
         err.textContent = '';
         go.disabled = true;
         try {
           await api.post('/api/me/delete', google ? { confirm: input.value.trim() } : { password: input.value });
           close();
-          toast('حُذف حسابك. شكرًا لأنك كنت معنا.');
+          toast(t('حُذف حسابك. شكرًا لأنك كنت معنا.'));
           onLogout();
         } catch (e) { err.textContent = e.message; go.disabled = false; }
       });
       panel.append(
-        h('h2', { text: 'حذف حسابي' }),
-        h('p', { text: 'سيُحذف نهائيًا ولا يمكن التراجع: حسابك واسمك ومعرّفك، وأفكارك وصورها وتعليقاتها، وتعليقاتك وتفاعلاتك، ومحادثاتك ورسائلك، وتذاكر الدعم، وطلبات التوثيق. وتُحذف صورك من مستودع التخزين.' }),
-        h('p', { class: 'muted', text: 'يبقى فقط ما أُبلغ عنه كدليل لمدة محدودة، والبلاغات التي قدّمها آخرون، وسطر في سجل الإدارة بأن حسابًا حُذف.' }),
-        h('a', { class: 'link-btn', href: '/policies/privacy', target: '_blank', rel: 'noopener' }, 'التفاصيل في سياسة الخصوصية'),
+        h('h2', { text: t('حذف حسابي') }),
+        h('p', { text: t('سيُحذف نهائيًا ولا يمكن التراجع: حسابك واسمك ومعرّفك، وأفكارك وصورها وتعليقاتها، وتعليقاتك وتفاعلاتك، ومحادثاتك ورسائلك، وتذاكر الدعم، وطلبات التوثيق. وتُحذف صورك من مستودع التخزين.') }),
+        h('p', { class: 'muted', text: t('يبقى فقط ما أُبلغ عنه كدليل لمدة محدودة، والبلاغات التي قدّمها آخرون، وسطر في سجل الإدارة بأن حسابًا حُذف.') }),
+        h('a', { class: 'link-btn', href: '/policies/privacy', target: '_blank', rel: 'noopener' }, t('التفاصيل في سياسة الخصوصية')),
         h('div', { class: 'field' }, input), err,
-        h('div', { class: 'actions' }, go, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'إلغاء')));
+        h('div', { class: 'actions' }, go, h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إلغاء'))));
     });
   }
 
   async function logout() {
-    const ok = await confirmSheet({ title: 'تسجيل الخروج؟', text: 'ستُمسح نسخة المحادثات المحفوظة على هذا الجهاز.', confirm: 'تسجيل الخروج', danger: true });
+    const ok = await confirmSheet({ title: t('تسجيل الخروج؟'), text: t('ستُمسح نسخة المحادثات المحفوظة على هذا الجهاز.'), confirm: t('تسجيل الخروج'), danger: true });
     if (ok) onLogout();
   }
 
@@ -265,36 +267,37 @@ export function renderProfile(page, { config, onLogout, navigate, onMe }) {
     h('li', {}, h('button', { class: `menu__item ${cls}`, type: 'button', onclick }, icon(ic), h('span', { text: label }), extra || icon('chev', 'chev')));
 
   page.replaceChildren(
-    h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: 'حسابي' })),
+    h('header', { class: 'topbar' }, h('h1', { class: 'page-title', text: t('حسابي') })),
     idCard,
     statsBox,
     msgStats,
     h('ul', { class: 'menu glass' },
-      isAndroidApp() ? null : item('bell', 'إشعارات الرسائل الجديدة', toggleNotifications, notifSwitch),
-      item('verified', 'عضويتي', () => navigate('#/membership')),
-      item('inbox', 'أرباحي', () => navigate('#/earnings')),
-      item('plusUser', 'دعوة الأصدقاء', () => navigate('#/referrals')),
-      item('spark', 'الظرف الأحمر 🧧', () => navigate('#/giveaway')),
-      item('info', 'الدعم والمساعدة', () => navigate('#/support'), supportBadge),
-      item('send', 'تواصل معنا', () => navigate('#/contact')),
-      item('spark', 'المظهر', () => me && appearanceSheet(me, (a) => { me.appearance = a; })),
-      item('lock', 'الخصوصية والتواصل', () => me && contactSheet()),
+      isAndroidApp() ? null : item('bell', t('إشعارات الرسائل الجديدة'), toggleNotifications, notifSwitch),
+      item('verified', t('عضويتي'), () => navigate('#/membership')),
+      item('inbox', t('أرباحي'), () => navigate('#/earnings')),
+      item('plusUser', t('دعوة الأصدقاء'), () => navigate('#/referrals')),
+      item('spark', t('الظرف الأحمر 🧧'), () => navigate('#/giveaway')),
+      item('info', t('الدعم والمساعدة'), () => navigate('#/support'), supportBadge),
+      item('send', t('تواصل معنا'), () => navigate('#/contact')),
+      item('spark', t('المظهر'), () => me && appearanceSheet(me, (a) => { me.appearance = a; })),
+      item('globe', t('اللغة'), () => languageSheet(), h('span', { class: 'menu__end', text: NAMES[lang()] })),
+      item('lock', t('الخصوصية والتواصل'), () => me && contactSheet()),
       ageItem,
-      item('block', 'المحظورون', blockedSheet),
-      item('shield', 'سياسة الخصوصية', privacySheet),
-      item('info', 'السياسات والشروط', () => window.open('/policies', '_blank', 'noopener')),
-      item('info', 'عن التطبيق', () => window.open('/policies/about', '_blank', 'noopener')),
-      config && config.android_apk_url ? item('send', `مشاركة تطبيق ${appName()}`, shareApp) : null,
-      item('logout', 'تسجيل الخروج', logout, h('span', { class: 'menu__end' }), 'menu__item--danger'),
-      item('trash', 'حذف حسابي', deleteAccount, h('span', { class: 'menu__end' }), 'menu__item--danger'),
+      item('block', t('المحظورون'), blockedSheet),
+      item('shield', t('سياسة الخصوصية'), privacySheet),
+      item('info', t('السياسات والشروط'), () => window.open('/policies', '_blank', 'noopener')),
+      item('info', t('عن التطبيق'), () => window.open('/policies/about', '_blank', 'noopener')),
+      config && config.android_apk_url ? item('send', t('مشاركة تطبيق {app}', { app: appName() }), shareApp) : null,
+      item('logout', t('تسجيل الخروج'), logout, h('span', { class: 'menu__end' }), 'menu__item--danger'),
+      item('trash', t('حذف حسابي'), deleteAccount, h('span', { class: 'menu__end' }), 'menu__item--danger'),
     ),
     postsSlot,
-    h('p', { class: 'version', text: `${appName()} · نسخة تجريبية` }),
+    h('p', { class: 'version', text: t('{app} · نسخة تجريبية', { app: appName() }) }),
     ...(config && config.footer_text ? [h('p', { class: 'profile-footer', text: config.footer_text })] : []), // replaceChildren would print null
   );
-  ageItem.replaceChildren(item('check', 'تأكيد العمر (18+)', async () => {
-    if (await confirmAge()) { me.age_confirmed = true; drawCard(); toast('شكرًا. تم التأكيد.'); }
+  ageItem.replaceChildren(item('check', t('تأكيد العمر (18+)'), async () => {
+    if (await confirmAge()) { me.age_confirmed = true; drawCard(); toast(t('شكرًا. تم التأكيد.')); }
   }).firstChild);
-  statsBox.replaceChildren(stat('–', 'منشورات'), stat('–', 'إعجاب'), stat('–', 'عدم إعجاب'));
+  statsBox.replaceChildren(stat('–', t('منشورات')), stat('–', t('إعجاب')), stat('–', t('عدم إعجاب')));
   load();
 }

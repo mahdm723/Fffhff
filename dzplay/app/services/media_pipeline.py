@@ -22,6 +22,7 @@ from app import clock
 from app.models import MediaItem, SecurityEvent
 from app.services import media_check
 from app.services.telegram import TelegramError
+from app.i18n import N_
 
 log = logging.getLogger("dzplay.uploads")
 
@@ -52,9 +53,9 @@ class MediaPipeline:
 
     def unavailable(self) -> str | None:
         if self.state.telegram is None or not self.storage_chat():
-            return "رفع الصور غير متاح حاليًا."
+            return N_("رفع الصور غير متاح حاليًا.")
         if self.settings.MEDIA_WORKER == "queue" and not self.worker_alive():
-            return "معالجة الصور متوقفة مؤقتًا. حاول بعد قليل."
+            return N_("معالجة الصور متوقفة مؤقتًا. حاول بعد قليل.")
         return None
 
     def busy(self, incoming: int) -> bool:
@@ -110,7 +111,7 @@ class MediaPipeline:
             self._process(item_id, job)
         except Exception:  # noqa: BLE001
             log.exception("upload %s failed", item_id[:8])
-            self._fail(item_id, "تعذّرت معالجة الملف. حاول مرة أخرى.")
+            self._fail(item_id, N_("تعذّرت معالجة الملف. حاول مرة أخرى."))
         finally:
             media_check.cleanup(self.tmp, item_id)
             with self._lock:
@@ -136,12 +137,12 @@ class MediaPipeline:
         r.lpush(QUEUE, json.dumps(job))
         got = r.brpop(RESULT + job["id"], timeout=self.settings.MEDIA_WORKER_TIMEOUT)
         if not got:
-            return {"ok": False, "code": "timeout", "error": "استغرقت المعالجة وقتًا طويلًا. حاول لاحقًا."}
+            return {"ok": False, "code": "timeout", "error": N_("استغرقت المعالجة وقتًا طويلًا. حاول لاحقًا.")}
         try:
             result = json.loads(got[1])
         except ValueError:
-            return {"ok": False, "code": "error", "error": "تعذّرت معالجة الملف."}
-        return result if isinstance(result, dict) else {"ok": False, "code": "error", "error": "تعذّرت معالجة الملف."}
+            return {"ok": False, "code": "error", "error": N_("تعذّرت معالجة الملف.")}
+        return result if isinstance(result, dict) else {"ok": False, "code": "error", "error": N_("تعذّرت معالجة الملف.")}
 
     def _notify(self, owner_id: str | None, item_id: str, state: str, error: str | None = None) -> None:
         if owner_id:
@@ -157,7 +158,7 @@ class MediaPipeline:
         self._notify(owner, item_id, "failed", error)
 
     def _reject(self, item_id: str, result: dict) -> None:
-        error = str(result.get("error") or "الملف مرفوض.")[:255]
+        error = str(result.get("error") or N_("الملف مرفوض."))[:255]
         with self.state.database.session() as db:
             item = db.get(MediaItem, item_id)
             if item is None:
@@ -183,17 +184,17 @@ class MediaPipeline:
                 return
             caption = f"#{item.purpose} {item.owner_public_id or '-'} {item_id[:12]}"
         if tg is None or not chat:
-            self._fail(item_id, "رفع الصور غير متاح حاليًا.")
+            self._fail(item_id, N_("رفع الصور غير متاح حاليًا."))
             return
         try:
             msg = tg.send_document(chat, files[main], f"{item_id[:12]}{EXT[main]}", MIME[main], caption)
         except TelegramError as exc:
             log.error("storage upload failed: %s", exc)
-            self._fail(item_id, "تعذّر حفظ الملف الآن. حاول بعد قليل.")
+            self._fail(item_id, N_("تعذّر حفظ الملف الآن. حاول بعد قليل."))
             return
         doc = msg.get("document") or {}
         if not doc.get("file_id"):
-            self._fail(item_id, "تعذّر حفظ الملف الآن. حاول بعد قليل.")
+            self._fail(item_id, N_("تعذّر حفظ الملف الآن. حاول بعد قليل."))
             return
         with self.state.database.session() as db:
             item = db.get(MediaItem, item_id)

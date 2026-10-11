@@ -3,6 +3,7 @@
 import { appName } from './brand.js';
 import { api } from './api.js';
 import { h, isAndroidApp, sheet } from './ui.js';
+import { t } from './i18n.js';
 
 const native = () => window.DZPLAYAndroid || null;
 
@@ -47,12 +48,12 @@ async function checkUpdate() {
   try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { /* ignore */ }
   sheet((panel, close) => {
     panel.append(...[
-      h('h2', { text: 'تحديث متوفر' }),
-      h('p', { text: `الإصدار ${rel.version_name} من تطبيق ${appName()} متاح (لديك ${mine}).` }),
+      h('h2', { text: t('تحديث متوفر') }),
+      h('p', { text: t('الإصدار {version_name} من تطبيق {app} متاح (لديك {mine}).', { version_name: rel.version_name, app: appName(), mine }) }),
       (rel.notes || []).length ? h('ul', { class: 'update-notes' }, ...rel.notes.slice(0, 5).map((n) => h('li', { text: n }))) : null,
       h('div', { class: 'actions' },
-        h('a', { class: 'btn btn--primary btn--block', href: '/download' }, 'تحميل التحديث'),
-        h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, 'لاحقًا')),
+        h('a', { class: 'btn btn--primary btn--block', href: '/download' }, t('تحميل التحديث')),
+        h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('لاحقًا'))),
     ].filter(Boolean));
   });
 }

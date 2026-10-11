@@ -214,7 +214,7 @@ def _clean_address(network: str, address: object) -> str:
     if rule is None:
         raise AppError(400, "invalid_network", "اختر الشبكة من القائمة.")
     if not re.match(rule["address"], a):
-        raise AppError(400, "invalid_address", f"العنوان لا يطابق شكل عناوين {rule['label']}.")
+        raise AppError(400, "invalid_address", "العنوان لا يطابق شكل عناوين {network}.", params={"network": rule["label"]})
     return a
 
 

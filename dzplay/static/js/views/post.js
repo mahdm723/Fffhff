@@ -3,13 +3,14 @@ import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { postCard } from '../ideas.js';
 import { h } from '../ui.js';
+import { t } from '../i18n.js';
 
 export function renderPost(page, { postId, commentId, navigate }) {
-  const slot = h('div', { class: 'feed' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': 'جارٍ التحميل' })));
+  const slot = h('div', { class: 'feed' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': t('جارٍ التحميل') })));
   page.replaceChildren(
     h('header', { class: 'topbar topbar--back' },
-      h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': 'رجوع', onclick: () => (history.length > 1 ? history.back() : navigate('#/home')) }, icon('back')),
-      h('h1', { class: 'page-title', text: 'فكرة' })),
+      h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': t('رجوع'), onclick: () => (history.length > 1 ? history.back() : navigate('#/home')) }, icon('back')),
+      h('h1', { class: 'page-title', text: t('فكرة') })),
     slot);
   (async () => {
     try {
@@ -18,7 +19,7 @@ export function renderPost(page, { postId, commentId, navigate }) {
       slot.replaceChildren(card);
       card.openComments(commentId);
     } catch {
-      slot.replaceChildren(h('div', { class: 'empty glass' }, icon('info'), h('h2', { text: 'هذه الفكرة لم تعد متاحة' })));
+      slot.replaceChildren(h('div', { class: 'empty glass' }, icon('info'), h('h2', { text: t('هذه الفكرة لم تعد متاحة') })));
     }
   })();
 }

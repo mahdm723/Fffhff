@@ -4,28 +4,29 @@ import { api } from './api.js';
 import { appName } from './brand.js';
 import { forgetContent, loadContent, safeHtml } from './content.js';
 import { h, sheet } from './ui.js';
+import { t } from './i18n.js';
 
 function links() {
   const a = (href, text) => h('a', { href, target: '_blank', rel: 'noopener' }, text);
-  return h('p', { class: 'policy-links' }, a('/policies/privacy', 'سياسة الخصوصية'), ' · ', a('/policies/terms', 'شروط الاستخدام'),
-    ' · ', a('/policies/guidelines', 'إرشادات المجتمع'), ' · ', a('/policies', 'كل السياسات'));
+  return h('p', { class: 'policy-links' }, a('/policies/privacy', t('سياسة الخصوصية')), ' · ', a('/policies/terms', t('شروط الاستخدام')),
+    ' · ', a('/policies/guidelines', t('إرشادات المجتمع')), ' · ', a('/policies', t('كل السياسات')));
 }
 
 function policy(key) {
-  const box = h('div', { class: 'prose' }, h('p', { class: 'muted', text: 'جارٍ التحميل…' }));
+  const box = h('div', { class: 'prose' }, h('p', { class: 'muted', text: t('جارٍ التحميل…') }));
   loadContent(key).then((c) => box.replaceChildren(...(c
-    ? [safeHtml(c.html), h('p', { class: 'muted', text: `آخر تحديث: ${c.updated}` })]
-    : [h('p', { text: 'تعذّر التحميل. افتح الرابط أدناه.' })])));
+    ? [safeHtml(c.html), h('p', { class: 'muted', text: t('آخر تحديث: {updated}', { updated: c.updated }) })]
+    : [h('p', { text: t('تعذّر التحميل. افتح الرابط أدناه.') })])));
   return box;
 }
 
 export function privacySheet() {
   sheet((panel, close) => {
     panel.append(
-      h('h2', { text: `الخصوصية في ${appName()}` }),
+      h('h2', { text: t('الخصوصية في {app}', { app: appName() }) }),
       policy('privacy'),
       links(),
-      h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, 'إغلاق')),
+      h('div', { class: 'actions' }, h('button', { class: 'btn btn--ghost btn--block', onclick: close }, t('إغلاق'))),
     );
   });
 }
@@ -42,11 +43,11 @@ export function showPrivacyNotice(me, then = () => {}) {
   sheet((panel, close) => {
     panel.classList.add('privacy-notice');
     panel.append(
-      h('h2', { text: 'تحديث في سياسة الخصوصية' }),
-      h('p', { class: 'privacy-notice__lead', text: `حدّثنا سياسات ${appName()}. اقرأها، ويمكنك فتح الشروط والإرشادات من الروابط:` }),
+      h('h2', { text: t('تحديث في سياسة الخصوصية') }),
+      h('p', { class: 'privacy-notice__lead', text: t('حدّثنا سياسات {app}. اقرأها، ويمكنك فتح الشروط والإرشادات من الروابط:', { app: appName() }) }),
       links(),
       policy('privacy'),
-      h('div', { class: 'actions' }, h('button', { class: 'btn btn--primary btn--block', onclick: close }, 'فهمت')),
+      h('div', { class: 'actions' }, h('button', { class: 'btn btn--primary btn--block', onclick: close }, t('فهمت'))),
     );
   }, ack);
 }

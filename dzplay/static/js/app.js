@@ -24,16 +24,18 @@ import { renderUser } from './views/user.js';
 import { renderUsers } from './views/users.js';
 import { renderNotifications } from './views/notifications.js';
 import { renderPost } from './views/post.js';
+import { refreshDictionary, t } from './i18n.js';
+import { syncAccountLanguage } from './language.js';
 
 const root = document.getElementById('app');
 let cleanupView = null;
 let shell = null;
 
 const TABS = [
-  { id: 'home', label: 'الرئيسية', icon: 'feather' },
-  { id: 'users', label: 'المستخدمون', icon: 'users' },
-  { id: 'messages', label: 'الرسائل', icon: 'chat' },
-  { id: 'profile', label: 'حسابي', icon: 'user' },
+  { id: 'home', label: t('الرئيسية'), icon: 'feather' },
+  { id: 'users', label: t('المستخدمون'), icon: 'users' },
+  { id: 'messages', label: t('الرسائل'), icon: 'chat' },
+  { id: 'profile', label: t('حسابي'), icon: 'user' },
 ];
 
 function navigate(hash) {
@@ -94,8 +96,8 @@ function updateConnectionBanner() {
 
 function buildShell() {
   const page = h('main', { class: 'page', id: 'page' });
-  const banner = h('div', { class: 'offline-banner', hidden: true, text: 'أنت غير متصل بالإنترنت. ستُرسل رسائلك عند عودة الاتصال.' });
-  const nav = h('nav', { class: 'nav', 'aria-label': 'التنقل الرئيسي' },
+  const banner = h('div', { class: 'offline-banner', hidden: true, text: t('أنت غير متصل بالإنترنت. ستُرسل رسائلك عند عودة الاتصال.') });
+  const nav = h('nav', { class: 'nav', 'aria-label': t('التنقل الرئيسي') },
     h('div', { class: 'nav__inner' },
       ...TABS.map((t) => h('button', { class: 'nav__btn', type: 'button', 'data-tab': t.id, onclick: () => navigate(`#/${t.id}`) }, icon(t.icon), t.label)),
     ),
@@ -181,6 +183,7 @@ function showAuth() {
 function hadSession() { try { return localStorage.getItem('dz:session') === '1'; } catch { return false; } }
 
 function startSession(me) {
+  if (me && me.display_name !== undefined) syncAccountLanguage(me); // V6 phase 12: may reload in the account's language
   store.state.me = me;
   if (me && me.appearance) applyAppearance(me.appearance); // V6 phase 8
   try { localStorage.setItem('dz:session', '1'); } catch { /* ignore */ }
@@ -197,11 +200,11 @@ store.subscribe((type, detail) => {
   if (type === 'sync') updateBadges();
   else if (type === 'connection') updateConnectionBanner();
   else if (type === 'unauthorized') {
-    if (store.state.me) { toast('انتهت الجلسة. سجّل الدخول من جديد.', 'error'); logout(); }
+    if (store.state.me) { toast(t('انتهت الجلسة. سجّل الدخول من جديد.'), 'error'); logout(); }
   } else if (type === 'incoming') {
     const inChat = parseRoute().name === 'chat';
     if (document.visibilityState !== 'visible') showLocalNotification();
-    else if (!inChat) toast(detail > 1 ? `وصلتك ${detail} رسائل جديدة` : 'وصلتك رسالة جديدة');
+    else if (!inChat) toast(detail > 1 ? t('وصلتك {n} رسائل جديدة', { n: detail }) : t('وصلتك رسالة جديدة'));
   } else if (type === 'comment') {
     if (store.state.me) store.state.me.unseen_comments = (store.state.me.unseen_comments || 0) + 1;
     updateBadges();
@@ -209,13 +212,15 @@ store.subscribe((type, detail) => {
     if (store.state.me) store.state.me.unread_notifications = (store.state.me.unread_notifications || 0) + 1;
     updateBadges();
     if (document.visibilityState !== 'visible') showLocalNotification();
-    else if (parseRoute().name !== 'notifications') toast('لديك إشعار جديد 🔔');
+    else if (parseRoute().name !== 'notifications') toast(t('لديك إشعار جديد 🔔'));
   } else if (type === 'account') { // V5: the blue star was granted / revoked, a request was decided
     api.get('/api/me').then((me) => onMe(me)).catch(() => {});
     document.dispatchEvent(new CustomEvent('dz:account'));
+  } else if (type === 'ws' && detail && detail.type === 'i18n') { // V6 phase 12: a text was edited in the panel
+    refreshDictionary().then(() => { shell = null; if (store.state.me) route(); });
   } else if (type === 'support') {
     if (store.state.me) store.state.me.support_unread = (store.state.me.support_unread || 0) + 1;
-    if (!['support', 'ticket'].includes(parseRoute().name)) toast('ردّ فريق الدعم على تذكرتك. افتح حسابي ← الدعم.');
+    if (!['support', 'ticket'].includes(parseRoute().name)) toast(t('ردّ فريق الدعم على تذكرتك. افتح حسابي ← الدعم.'));
     document.dispatchEvent(new CustomEvent('dz:support'));
   }
 });
@@ -237,8 +242,8 @@ async function boot() {
   }
   if (!store.state.config) {
     root.replaceChildren(h('div', { class: 'auth' },
-      h('p', { class: 'auth__tagline', text: 'تعذّر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.' }),
-      h('button', { class: 'btn btn--primary', onclick: () => location.reload() }, 'إعادة المحاولة')));
+      h('p', { class: 'auth__tagline', text: t('تعذّر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.') }),
+      h('button', { class: 'btn btn--primary', onclick: () => location.reload() }, t('إعادة المحاولة'))));
     return;
   }
   try {

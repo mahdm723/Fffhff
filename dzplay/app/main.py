@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app import i18n
 from app.api import account as account_api
 from app.api import admin as admin_api
 from app.api import admin_money as admin_money_api
@@ -33,6 +34,7 @@ from app.api import auth as auth_api
 from app.api import cms as cms_api
 from app.api import download as download_api
 from app.api import giveaway as giveaway_api
+from app.api import i18n as i18n_api
 from app.api import market as market_api
 from app.api import media as media_api
 from app.api import membership as membership_api
@@ -77,6 +79,14 @@ def brand(page: str, settings: Settings, base: str = "") -> str:
 OG_DESCRIPTION = "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك."
 
 
+def request_language(request: Request) -> str:
+    """V6 phase 12: the app sends its language (X-DZ-Lang); pages without JS: ?lang=, the dz_lang cookie, then
+    Accept-Language; Arabic otherwise."""
+    return (i18n.normalize(request.headers.get("x-dz-lang")) or i18n.normalize(request.query_params.get("lang"))
+            or i18n.normalize(request.cookies.get("dz_lang")) or i18n.from_accept_language(request.headers.get("accept-language"))
+            or i18n.DEFAULT)
+
+
 _CSRF_EXEMPT = {"/api/telegram/webhook"}  # authenticated by Telegram's secret header instead
 
 # Don't depend on the host's /etc/mime.types (ES modules require a JS MIME type).
@@ -88,8 +98,9 @@ MAX_BODY_BYTES = 64 * 1024  # API bodies are tiny JSON documents
 _UPLOAD_PATH = "/api/uploads"  # V5: file uploads carry their own per-purpose cap (app.services.media_items)
 
 
-def _error(status: int, code: str, message: str, retry_after: int | None = None) -> JSONResponse:
-    body = {"error": {"code": code, "message": message}}
+def _error(status: int, code: str, message: str, retry_after: int | None = None, params: dict | None = None) -> JSONResponse:
+    """The error body; the message (an Arabic msgid) in the request's language (V6 phase 12)."""
+    body = {"error": {"code": code, "message": i18n.tr(message, **(params or {}))}}
     headers = {}
     if retry_after is not None:
         body["error"]["retry_after"] = retry_after
@@ -243,6 +254,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
         path = request.url.path
+        i18n.set_current(request_language(request))
         in_admin = bool(admin_prefix) and (path == admin_prefix or path.startswith(admin_prefix + "/"))
         if in_admin and not admin_auth.ip_allowed(settings, client_ip(request, settings)):
             return _error(404, "not_found", "غير موجود.")  # outside the allowlist the panel does not exist
@@ -279,7 +291,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
 
     @app.exception_handler(AppError)
     async def app_error(_request: Request, exc: AppError):
-        return _error(exc.status, exc.code, exc.message, exc.retry_after)
+        return _error(exc.status, exc.code, exc.message, exc.retry_after, exc.params)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, _exc: RequestValidationError):
@@ -315,6 +327,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     app.include_router(telegram_api.router)
     app.include_router(uploads_api.router)
     app.include_router(account_api.router)
+    app.include_router(i18n_api.router)
     if settings.admin_enabled:
         app.include_router(admin_api.router, prefix=admin_prefix)
         app.include_router(admin_v5_api.router, prefix=admin_prefix)

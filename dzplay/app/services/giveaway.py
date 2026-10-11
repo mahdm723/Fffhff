@@ -200,7 +200,7 @@ def set_codes(db: Session, settings: Settings, r: GiveawayRound, codes: object, 
     if not isinstance(codes, list) or not codes or any(not isinstance(c, str) or not c.strip() or len(c) > 300 for c in codes):
         raise AppError(400, "invalid_codes", "أدخل رمزًا لكل فائز، أو رمزًا واحدًا للجميع.")
     if len(codes) not in (1, len(winners)):
-        raise AppError(400, "invalid_codes", f"أدخل {len(winners)} رموز (رمز لكل فائز) أو رمزًا واحدًا.")
+        raise AppError(400, "invalid_codes", "أدخل {n} رموز (رمز لكل فائز) أو رمزًا واحدًا.", params={"n": len(winners)})
     for i, w in enumerate(winners):
         w.code_sealed = seal(settings.SECRET_KEY, _PURPOSE, (codes[i] if len(codes) > 1 else codes[0]).strip())
     audit.record(db, actor, "giveaway_codes", target_type="giveaway", target_id=r.id, detail=f"{len(winners)} winners")

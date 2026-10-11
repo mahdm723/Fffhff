@@ -1,7 +1,7 @@
 // Service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v30';
+const VERSION = 'dz-v31';
 const SHELL = [
-  '/', '/css/app.css', '/css/accents.css', '/manifest.webmanifest', '/js/theme-boot.js', '/js/brand.js', '/js/content.js', '/js/appearance.js',
+  '/', '/css/app.css', '/css/accents.css', '/manifest.webmanifest', '/js/theme-boot.js', '/js/i18n.js', '/js/language.js', '/js/brand.js', '/js/content.js', '/js/appearance.js',
   '/js/app.js', '/js/api.js', '/js/ui.js', '/js/icons.js', '/js/store.js', '/js/notify.js',
   '/js/antibot.js', '/js/pow-worker.js', '/js/ideas.js', '/js/privacy.js', '/js/people.js', '/js/onboarding.js', '/js/native.js', '/js/keyboard.js', '/js/media-pick.js', '/js/views/support.js', '/js/views/membership.js', '/js/views/earnings.js', '/js/views/giveaway.js', '/js/views/contact.js',
   '/js/views/auth.js', '/js/views/home.js', '/js/views/messages.js', '/js/views/chat.js', '/js/views/profile.js', '/js/views/user.js', '/js/views/market.js', '/js/views/users.js', '/js/views/notifications.js', '/js/views/post.js',

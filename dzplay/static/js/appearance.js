@@ -2,10 +2,11 @@
 // (synced across devices) with a local copy that js/theme-boot.js applies before the first paint.
 import { api } from './api.js';
 import { h, sheet, toast } from './ui.js';
+import { t } from './i18n.js';
 
 const KEY = 'dz.appearance';
-const MODES = [['system', 'حسب الجهاز'], ['light', 'فاتح'], ['dark', 'داكن']];
-const FONTS = [['normal', 'عادي'], ['large', 'كبير']];
+const MODES = [['system', t('حسب الجهاز')], ['light', t('فاتح')], ['dark', t('داكن')]];
+const FONTS = [['normal', t('عادي')], ['large', t('كبير')]];
 
 export function applyAppearance(a) {
   if (!a) return;
@@ -32,9 +33,9 @@ export function appearanceSheet(me, onSaved) {
         b.addEventListener('click', () => { cur[field] = id; paint(); });
         return b;
       }));
-    const modeRow = segs(MODES, 'mode', 'الوضع');
-    const fontRow = segs(FONTS, 'font', 'حجم الخط');
-    const swatches = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': 'اللون' },
+    const modeRow = segs(MODES, 'mode', t('الوضع'));
+    const fontRow = segs(FONTS, 'font', t('حجم الخط'));
+    const swatches = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': t('اللون') },
       ...choices.map((c) => {
         const b = h('button', { type: 'button', class: 'swatch', role: 'radio', 'aria-label': c.label, title: c.label, 'data-id': c.id });
         b.style.background = `linear-gradient(135deg, ${c.swatch[0]}, ${c.swatch[1]})`;
@@ -50,7 +51,7 @@ export function appearanceSheet(me, onSaved) {
       }
       applyAppearance(cur); // live preview
     }
-    const save = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'حفظ');
+    const save = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('حفظ'));
     save.addEventListener('click', async () => {
       save.disabled = true;
       try {
@@ -59,16 +60,16 @@ export function appearanceSheet(me, onSaved) {
         saved = true;
         applyAppearance(cur);
         if (onSaved) onSaved(cur);
-        toast('حُفظ المظهر ✅');
+        toast(t('حُفظ المظهر ✅'));
         close();
       } catch (err) { toast(err.message, 'error'); save.disabled = false; }
     });
     panel.append(
-      h('h2', { text: 'المظهر' }),
-      h('p', { class: 'muted', text: 'يُحفظ في حسابك ويُطبَّق على كل أجهزتك.' }),
-      h('h3', { class: 'sheet__sub', text: 'الوضع' }), modeRow,
-      h('h3', { class: 'sheet__sub', text: 'اللون' }), swatches,
-      h('h3', { class: 'sheet__sub', text: 'حجم الخط' }), fontRow,
+      h('h2', { text: t('المظهر') }),
+      h('p', { class: 'muted', text: t('يُحفظ في حسابك ويُطبَّق على كل أجهزتك.') }),
+      h('h3', { class: 'sheet__sub', text: t('الوضع') }), modeRow,
+      h('h3', { class: 'sheet__sub', text: t('اللون') }), swatches,
+      h('h3', { class: 'sheet__sub', text: t('حجم الخط') }), fontRow,
       h('div', { class: 'actions' }, save));
     paint();
   }, () => { if (!saved) applyAppearance(before); }); // closed without saving: back to the saved look

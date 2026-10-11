@@ -40,11 +40,12 @@ from app.services import audit, mail, runtime_config
 from app.services.auth import ClientContext, _check_antibot, log_event, normalize_email, validate_new_password
 from app.services.mailer import MailError
 from app.services.rate_limit import Limit
+from app.i18n import N_
 
 log = logging.getLogger("dzplay.reset")
 
 GENERIC = "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك بعد مراجعة الطلب."
-BAD_CODE = "الرمز غير صحيح أو منتهي الصلاحية."
+BAD_CODE = N_("الرمز غير صحيح أو منتهي الصلاحية.")
 _ID_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 _CODE_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
 _DUMMY = hash_password("dzplay-dummy-reset-code")

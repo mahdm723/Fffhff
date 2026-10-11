@@ -87,8 +87,8 @@ def clean(raw: object, settings: Settings) -> str:
     name = _TASHKEEL.sub("", name).strip()
     name = _SPACES.sub(lambda m: m.group(0)[0], re.sub(r"\s+", " ", name))
     if not (settings.NAME_MIN_LENGTH <= len(name) <= settings.NAME_MAX_LENGTH):
-        raise AppError(400, "invalid_name_length",
-                       f"الاسم بين {settings.NAME_MIN_LENGTH} و{settings.NAME_MAX_LENGTH} حرفًا.")
+        raise AppError(400, "invalid_name_length", "الاسم بين {min} و{max} حرفًا.",
+                       params={"min": settings.NAME_MIN_LENGTH, "max": settings.NAME_MAX_LENGTH})
     if not _ALLOWED.match(name):
         raise AppError(400, "invalid_name_chars", "الاسم: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط.")
     if not re.search(r"[ء-يA-Za-z]", name):
@@ -126,8 +126,9 @@ def change_name(db: Session, settings: Settings, user: User, raw: object) -> dic
     nxt = _next_change(user, settings)
     if old is not None and nxt is not None and nxt > now:
         days = max(1, -(-int((nxt - now).total_seconds()) // 86400))  # whole days, rounded up
-        raise AppError(429, "name_cooldown", f"يمكنك تغيير الاسم مرة كل {settings.NAME_CHANGE_COOLDOWN_DAYS} يومًا. "
-                                             f"حاول بعد {days} يوم.", retry_after=int((nxt - now).total_seconds()))
+        raise AppError(429, "name_cooldown", "يمكنك تغيير الاسم مرة كل {every} يومًا. حاول بعد {days} يوم.",
+                       retry_after=int((nxt - now).total_seconds()),
+                       params={"every": settings.NAME_CHANGE_COOLDOWN_DAYS, "days": days})
     user.display_name = name
     user.name_norm = search_key(name)
     user.name_changed_at = now

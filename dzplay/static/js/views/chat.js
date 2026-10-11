@@ -8,12 +8,13 @@ import * as store from '../store.js';
 import {
   REPORT_REASONS, autoGrow, confirmSheet, formatDay, formatTime, h, idChip, nameLine, newClientId, personAvatar, sheet, toast,
 } from '../ui.js';
+import { t } from '../i18n.js';
 
 const STATUS = {
-  pending: ['clock', 'قيد الإرسال'],
-  sent: ['check', 'أُرسلت'],
-  delivered: ['checks', 'وصلت'],
-  read: ['checks', 'شوهدت'],
+  pending: ['clock', t('قيد الإرسال')],
+  sent: ['check', t('أُرسلت')],
+  delivered: ['checks', t('وصلت')],
+  read: ['checks', t('شوهدت')],
 };
 const GROUP_MS = 5 * 60 * 1000;
 const TYPING_SEND_EVERY = 3000;
@@ -28,7 +29,7 @@ function statusIcon(status) {
 
 function systemText(m) {
   const meta = m.meta || {};
-  if (meta.event === 'reveal') return m.mine ? 'كشفتَ هويتك.' : 'كشف الطرف الآخر هويته.';
+  if (meta.event === 'reveal') return m.mine ? t('كشفتَ هويتك.') : t('كشف الطرف الآخر هويته.');
   return m.content || '';
 }
 
@@ -50,10 +51,10 @@ export function renderChat(root, { conversationId, navigate }) {
   const headName = h('div', { class: 'chat__name' });
   const headSub = h('span', { class: 'chat__sub' });
   const header = h('header', { class: 'chat__head' },
-    h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'رجوع', onclick: () => navigate('#/messages') }, icon('back')),
-    h('button', { class: 'chat__who', type: 'button', 'aria-label': 'معلومات المحادثة', onclick: () => openMenu() },
+    h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': t('رجوع'), onclick: () => navigate('#/messages') }, icon('back')),
+    h('button', { class: 'chat__who', type: 'button', 'aria-label': t('معلومات المحادثة'), onclick: () => openMenu() },
       headAvatar, h('div', { class: 'chat__title' }, headName, headSub)),
-    h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': 'معلومات وخيارات', onclick: () => openMenu() }, icon('info')),
+    h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': t('معلومات وخيارات'), onclick: () => openMenu() }, icon('info')),
   );
 
   function drawHeader(conv) {
@@ -63,15 +64,15 @@ export function renderChat(root, { conversationId, navigate }) {
     headName.replaceChildren(nameLine(conv ? conv.peer : 'dzplay', card.gender, '', card.verified));
     let sub;
     if (!conv) sub = [];
-    else if (!anon && card.active) sub = [h('span', { class: 'online-dot' }), 'نشط الآن'];
-    else if (conv.kind === 'direct') sub = ['محادثة مباشرة'];
-    else sub = [icon('lock'), 'محادثة مجهولة قديمة · للقراءة فقط'];
+    else if (!anon && card.active) sub = [h('span', { class: 'online-dot' }), t('نشط الآن')];
+    else if (conv.kind === 'direct') sub = [t('محادثة مباشرة')];
+    else sub = [icon('lock'), t('محادثة مجهولة قديمة · للقراءة فقط')];
     headSub.replaceChildren(...sub);
   }
 
   // ---------------- composer (+ typing signal)
-  const textarea = h('textarea', { rows: '1', placeholder: 'اكتب رسالة…', 'aria-label': 'اكتب رسالة', dir: 'auto' });
-  const sendBtn = h('button', { class: 'send-btn', type: 'button', 'aria-label': 'إرسال', disabled: true }, icon('send'));
+  const textarea = h('textarea', { rows: '1', placeholder: t('اكتب رسالة…'), 'aria-label': t('اكتب رسالة'), dir: 'auto' });
+  const sendBtn = h('button', { class: 'send-btn', type: 'button', 'aria-label': t('إرسال'), disabled: true }, icon('send'));
   autoGrow(textarea);
   let typingSentAt = 0;
   let typingIdle = null;
@@ -94,7 +95,7 @@ export function renderChat(root, { conversationId, navigate }) {
   sendBtn.addEventListener('pointerdown', (e) => e.preventDefault()); // keep the keyboard open
   sendBtn.addEventListener('click', send);
   const requestHint = h('p', { class: 'chat__hint', hidden: true });
-  const imageBtn = h('button', { class: 'icon-btn icon-btn--plain chat__img-btn', type: 'button', 'aria-label': 'إرسال صورة', hidden: true }, icon('image'));
+  const imageBtn = h('button', { class: 'icon-btn icon-btn--plain chat__img-btn', type: 'button', 'aria-label': t('إرسال صورة'), hidden: true }, icon('image'));
   const uploadLine = h('p', { class: 'chat__upload', hidden: true });
   let chatImages = null; // upload config (null until loaded / unavailable)
   let sendingImage = false;
@@ -105,17 +106,17 @@ export function renderChat(root, { conversationId, navigate }) {
 
   function membersOnlySheet() { // V6 phase 6: sending pictures is a membership feature (receiving is free)
     sheet((panel, close) => panel.append(
-      h('h2', { text: 'الصور للأعضاء' }),
-      h('p', { text: `إرسال الصور في المحادثات ميزة للأعضاء. أي شخص يستطيع استقبالها، وتختفي بعد ${chatImages.chat.ttl_after_view} ثانية من فتحها.` }),
+      h('h2', { text: t('الصور للأعضاء') }),
+      h('p', { text: t('إرسال الصور في المحادثات ميزة للأعضاء. أي شخص يستطيع استقبالها، وتختفي بعد {n} ثانية من فتحها.', { n: chatImages.chat.ttl_after_view }) }),
       h('div', { class: 'actions' },
-        h('button', { class: 'btn btn--block btn--primary', type: 'button', onclick: () => { close(); navigate('#/membership'); } }, 'عضويتي'),
-        h('button', { class: 'btn btn--block btn--ghost', type: 'button', onclick: close }, 'إغلاق'))));
+        h('button', { class: 'btn btn--block btn--primary', type: 'button', onclick: () => { close(); navigate('#/membership'); } }, t('عضويتي')),
+        h('button', { class: 'btn btn--block btn--ghost', type: 'button', onclick: close }, t('إغلاق')))));
   }
 
   async function sendImage() {
     const conv = store.getConversation(conversationId);
     if (chatImages && !chatImages.chat.member) { membersOnlySheet(); return; }
-    if (!canSendImage(conv)) { toast('يمكنك إرسال الصور بعد أن يرد عليك الطرف الآخر.'); return; }
+    if (!canSendImage(conv)) { toast(t('يمكنك إرسال الصور بعد أن يرد عليك الطرف الآخر.')); return; }
     if (sendingImage || !chatImages) return;
     const file = await chooseFile('image/jpeg,image/png,image/webp,image/heic,image/heif');
     if (!file) return;
@@ -123,22 +124,22 @@ export function renderChat(root, { conversationId, navigate }) {
     imageBtn.disabled = true;
     const line = (t) => { uploadLine.hidden = !t; uploadLine.textContent = t || ''; };
     try {
-      line('جارٍ فحص الصورة…');
+      line(t('جارٍ فحص الصورة…'));
       const picked = await prepareImage(file, chatImages);
       if (picked.preview) URL.revokeObjectURL(picked.preview); // never kept on the phone
       await api.post('/api/uploads/precheck', { purpose: 'chat', conversation_id: conversationId });
       const up = await uploadBlob(picked.blob, {
         purpose: 'chat', conversationId,
-        onProgress: (f) => line(f < 1 ? `جارٍ رفع الصورة ${Math.round(f * 100)}%` : 'جارٍ الفحص على الخادم…'),
+        onProgress: (f) => line(f < 1 ? t('جارٍ رفع الصورة {pct}%', { pct: Math.round(f * 100) }) : t('جارٍ الفحص على الخادم…')),
       });
-      line('جارٍ الفحص على الخادم…');
+      line(t('جارٍ الفحص على الخادم…'));
       await waitReady(up.id);
       await api.post(`/api/conversations/${encodeURIComponent(conversationId)}/media`, { media_id: up.id, client_id: newClientId() });
       await store.loadConversation(conversationId);
       line('');
     } catch (err) {
       line('');
-      toast(err instanceof PickError ? err.message : (err.message || 'تعذّر إرسال الصورة.'), 'error', 4500);
+      toast(err instanceof PickError ? err.message : (err.message || t('تعذّر إرسال الصورة.')), 'error', 4500);
     }
     sendingImage = false;
     draw();
@@ -164,11 +165,11 @@ export function renderChat(root, { conversationId, navigate }) {
       if (!r.ok) throw new Error('gone');
       blobUrl = URL.createObjectURL(await r.blob());
     } catch {
-      toast('تعذّر تحميل الصورة. حاول مرة أخرى.', 'error');
+      toast(t('تعذّر تحميل الصورة. حاول مرة أخرى.'), 'error');
       return;
     }
     openViewer(blobUrl, {
-      alt: 'صورة مؤقتة', countdown: res.seconds_left, secure: res.secure,
+      alt: t('صورة مؤقتة'), countdown: res.seconds_left, secure: res.secure,
       onExpire: () => { m.media = { kind: 'image', state: 'expired', blur: null }; draw(); },
       onReport: () => reportSheet(m.id),
       onClose: () => URL.revokeObjectURL(blobUrl), // the picture leaves the phone's memory
@@ -180,14 +181,14 @@ export function renderChat(root, { conversationId, navigate }) {
     let state = media.state;
     if (state === 'open' && media.view_expires_at && secondsLeft(media) <= 0) state = 'expired';
     if (state === 'expired') {
-      return { node: h('span', { class: 'img-msg img-msg--gone' }, icon('timer'), h('span', { text: 'انتهت صلاحية الصورة' })), action: null };
+      return { node: h('span', { class: 'img-msg img-msg--gone' }, icon('timer'), h('span', { text: t('انتهت صلاحية الصورة') })), action: null };
     }
     const blur = media.blur ? h('img', { class: 'img-msg__blur', src: media.blur, alt: '' }) : null;
     const timer = state === 'open'
-      ? h('span', { class: 'img-msg__timer', dataset: { expires: media.view_expires_at } }, `${secondsLeft(media)} ث`) : null;
+      ? h('span', { class: 'img-msg__timer', dataset: { expires: media.view_expires_at } }, t('{n} ث', { n: secondsLeft(media) })) : null;
     let label;
-    if (m.mine) label = state === 'open' ? 'فُتحت · تختفي بعد' : 'صورة · لم تُفتح بعد';
-    else label = state === 'open' ? 'اضغط للعرض · تختفي بعد' : 'اضغط للعرض';
+    if (m.mine) label = state === 'open' ? t('فُتحت · تختفي بعد') : t('صورة · لم تُفتح بعد');
+    else label = state === 'open' ? t('اضغط للعرض · تختفي بعد') : t('اضغط للعرض');
     return {
       node: h('span', { class: `img-msg ${m.mine ? 'img-msg--mine' : ''}` }, blur,
         h('span', { class: 'img-msg__label' }, icon(m.mine ? 'image' : 'eye'), h('span', { text: label }), timer)),
@@ -199,7 +200,7 @@ export function renderChat(root, { conversationId, navigate }) {
     const content = textarea.value.trim();
     const max = store.state.config.max_message_length;
     if (!content) return;
-    if (content.length > max) { toast(`الرسالة أطول من ${max} حرف.`, 'error'); return; }
+    if (content.length > max) { toast(t('الرسالة أطول من {n} حرف.', { n: max }), 'error'); return; }
     stopTyping();
     store.sendReply(conversationId, content);
     textarea.value = '';
@@ -225,7 +226,7 @@ export function renderChat(root, { conversationId, navigate }) {
     const detail = h('div', { class: 'bubble__detail' },
       h('time', { datetime: m.created_at, text: formatTime(m.created_at) }),
       m.mine && STATUS[m.status] ? h('span', { text: ` · ${STATUS[m.status][1]}` }) : null,
-      !m.mine ? h('button', { class: 'link-btn', type: 'button', onclick: () => reportSheet(m.id) }, 'إبلاغ') : null,
+      !m.mine ? h('button', { class: 'link-btn', type: 'button', onclick: () => reportSheet(m.id) }, t('إبلاغ')) : null,
     );
     b.addEventListener('click', () => {
       if (img && img.action) { img.action(); return; }
@@ -239,9 +240,9 @@ export function renderChat(root, { conversationId, navigate }) {
     }
     if (m.status === 'failed') {
       col.append(h('div', { class: 'bubble__failed' },
-        h('span', { text: m.error || 'لم تُرسل' }),
-        h('button', { type: 'button', onclick: () => store.retryMessage(conversationId, m.client_id) }, 'إعادة المحاولة'),
-        h('button', { type: 'button', onclick: () => store.discardMessage(conversationId, m.client_id) }, 'حذف'),
+        h('span', { text: m.error || t('لم تُرسل') }),
+        h('button', { type: 'button', onclick: () => store.retryMessage(conversationId, m.client_id) }, t('إعادة المحاولة')),
+        h('button', { type: 'button', onclick: () => store.discardMessage(conversationId, m.client_id) }, t('حذف')),
       ));
     }
     if (!m.mine) {
@@ -252,7 +253,7 @@ export function renderChat(root, { conversationId, navigate }) {
     return row;
   }
 
-  const typingRow = h('div', { class: 'bubble-row theirs grp-first grp-last typing-row', 'aria-label': 'يكتب الآن' },
+  const typingRow = h('div', { class: 'bubble-row theirs grp-first grp-last typing-row', 'aria-label': t('يكتب الآن') },
     h('div', { class: 'bubble-face' }),
     h('div', { class: 'bubble-col' }, h('div', { class: 'bubble bubble--typing' }, h('i'), h('i'), h('i'))));
 
@@ -263,8 +264,8 @@ export function renderChat(root, { conversationId, navigate }) {
     drawHeader(conv);
     const direct = conv && conv.kind === 'direct';
     const nodes = [h('p', { class: 'notice' }, icon(direct ? 'info' : 'lock'), direct
-      ? 'محادثة مباشرة: يرى كل طرف اسم الآخر ومعرّفه فقط، دون بريد أو رقم. تُحذف الرسائل من الخادم تلقائيًا بعد مدة.'
-      : 'أُوقفت الرسائل المجهولة العشوائية. هذه محادثة قديمة للقراءة فقط وستُحذف قريبًا.')];
+      ? t('محادثة مباشرة: يرى كل طرف اسم الآخر ومعرّفه فقط، دون بريد أو رقم. تُحذف الرسائل من الخادم تلقائيًا بعد مدة.')
+      : t('أُوقفت الرسائل المجهولة العشوائية. هذه محادثة قديمة للقراءة فقط وستُحذف قريبًا.'))];
     let day = null;
     const lastMine = [...msgs].reverse().find((m) => m.mine && m.kind !== 'system');
     msgs.forEach((m, i) => {
@@ -286,21 +287,21 @@ export function renderChat(root, { conversationId, navigate }) {
   function drawFooter(conv) {
     if (conv && conv.read_only) {
       const when = conv.deleted_after ? formatDay(conv.deleted_after) : '';
-      footer.replaceChildren(h('div', { class: 'closed-bar', text: `محادثة مجهولة قديمة للقراءة فقط${when ? `، تُحذف في ${when}` : ''}.` }));
+      footer.replaceChildren(h('div', { class: 'closed-bar', text: when ? t('محادثة مجهولة قديمة للقراءة فقط، تُحذف في {when}.', { when }) : t('محادثة مجهولة قديمة للقراءة فقط.') }));
       return;
     }
     if (conv && conv.status !== 'active') {
-      footer.replaceChildren(h('div', { class: 'closed-bar', text: 'هذه المحادثة مغلقة ولم يعد بالإمكان الرد فيها.' }));
+      footer.replaceChildren(h('div', { class: 'closed-bar', text: t('هذه المحادثة مغلقة ولم يعد بالإمكان الرد فيها.') }));
       return;
     }
     if (store.isRequest(conv)) {
       footer.replaceChildren(h('div', { class: 'request-bar' },
-        h('p', { class: 'request-bar__title' }, nameLine(conv.peer, conv.peer_card && conv.peer_card.gender, '', !!(conv.peer_card && conv.peer_card.verified)), ' يريد مراسلتك'),
-        h('p', { class: 'request-bar__text', text: 'لن يعرف أنك قرأت رسائله حتى تقبل. إذا تجاهلت الطلب يختفي دون إشعاره.' }),
+        h('p', { class: 'request-bar__title' }, nameLine(conv.peer, conv.peer_card && conv.peer_card.gender, '', !!(conv.peer_card && conv.peer_card.verified)), t(' يريد مراسلتك')),
+        h('p', { class: 'request-bar__text', text: t('لن يعرف أنك قرأت رسائله حتى تقبل. إذا تجاهلت الطلب يختفي دون إشعاره.') }),
         h('div', { class: 'request-bar__actions' },
-          h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => answer('accept') }, 'قبول'),
-          h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => answer('ignore') }, 'تجاهل'),
-          h('button', { class: 'btn btn--danger btn--sm', type: 'button', onclick: () => blockFlow() }, 'حظر'),
+          h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => answer('accept') }, t('قبول')),
+          h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => answer('ignore') }, t('تجاهل')),
+          h('button', { class: 'btn btn--danger btn--sm', type: 'button', onclick: () => blockFlow() }, t('حظر')),
         )));
       return;
     }
@@ -308,21 +309,21 @@ export function renderChat(root, { conversationId, navigate }) {
     requestHint.hidden = !waiting;
     if (waiting) {
       const n = store.state.config.direct_before_reply;
-      requestHint.textContent = `أُرسل طلب مراسلة. ${n ? `يمكنك إرسال ${n} رسائل على الأكثر` : 'يمكنك إرسال رسائل قليلة'} حتى يرد.`;
+      requestHint.textContent = n ? t('أُرسل طلب مراسلة. يمكنك إرسال {n} رسائل على الأكثر حتى يرد.', { n }) : t('أُرسل طلب مراسلة. يمكنك إرسال رسائل قليلة حتى يرد.');
     }
     imageBtn.hidden = !chatImages;
     const member = Boolean(chatImages && chatImages.chat.member);
     imageBtn.disabled = sendingImage || (member && !canSendImage(conv));
     imageBtn.classList.toggle('chat__img-btn--locked', !member);
-    imageBtn.title = !member ? 'الصور للأعضاء' : canSendImage(conv) ? '' : 'تتاح الصور بعد أن يرد الطرف الآخر';
+    imageBtn.title = !member ? t('الصور للأعضاء') : canSendImage(conv) ? '' : t('تتاح الصور بعد أن يرد الطرف الآخر');
     if (!composer.isConnected) footer.replaceChildren(composer);
   }
 
   async function answer(action) {
     try {
       await store.answerRequest(conversationId, action);
-      if (action === 'ignore') { toast('تم تجاهل الطلب.'); navigate('#/messages'); }
-      else toast('قبلت الطلب. يمكنكما الآن التحدث.');
+      if (action === 'ignore') { toast(t('تم تجاهل الطلب.')); navigate('#/messages'); }
+      else toast(t('قبلت الطلب. يمكنكما الآن التحدث.'));
     } catch (err) { toast(err.message, 'error'); }
   }
 
@@ -339,14 +340,14 @@ export function renderChat(root, { conversationId, navigate }) {
         h('div', { class: 'peer-info' },
           personAvatar(conv.peer, { size: 'lg', anonymous: anon, active: !!card.active, url: card.avatar_url }),
           h('h2', {}, nameLine(conv.peer, card.gender, '', !!card.verified)),
-          card.public_id ? idChip(card.public_id) : h('p', { text: 'هوية هذا الشخص مخفية. يظهر باسم dzplay.' }),
+          card.public_id ? idChip(card.public_id) : h('p', { text: t('هوية هذا الشخص مخفية. يظهر باسم dzplay.') }),
         ),
         h('div', { class: 'actions' },
-          card.public_id ? act('user', 'عرض الملف', () => navigate(`#/id/${card.public_id}`)) : null,
-          act(conv.muted ? 'bell' : 'bellOff', conv.muted ? 'إلغاء كتم الإشعارات' : 'كتم الإشعارات', () => setMuted(!conv.muted)),
-          act('flag', 'إبلاغ', () => reportSheet(null)),
-          active ? act('block', 'حظر', blockFlow, 'btn--danger') : null,
-          act('trash', 'حذف المحادثة', deleteFlow),
+          card.public_id ? act('user', t('عرض الملف'), () => navigate(`#/id/${card.public_id}`)) : null,
+          act(conv.muted ? 'bell' : 'bellOff', conv.muted ? t('إلغاء كتم الإشعارات') : t('كتم الإشعارات'), () => setMuted(!conv.muted)),
+          act('flag', t('إبلاغ'), () => reportSheet(null)),
+          active ? act('block', t('حظر'), blockFlow, 'btn--danger') : null,
+          act('trash', t('حذف المحادثة'), deleteFlow),
         ),
       );
     });
@@ -356,30 +357,30 @@ export function renderChat(root, { conversationId, navigate }) {
     try {
       await api.post(`/api/conversations/${encodeURIComponent(conversationId)}/mute`, { muted });
       store.patchConversation(conversationId, { muted });
-      toast(muted ? 'لن تصلك إشعارات من هذه المحادثة.' : 'أُعيدت الإشعارات.');
+      toast(muted ? t('لن تصلك إشعارات من هذه المحادثة.') : t('أُعيدت الإشعارات.'));
     } catch (err) { toast(err.message, 'error'); }
   }
 
   async function blockFlow() {
     const ok = await confirmSheet({
-      title: 'حظر هذا الشخص؟',
-      text: 'لن يتمكن من مراسلتك أو العثور عليك بالبحث. ستُغلق هذه المحادثة.',
-      confirm: 'حظر', danger: true,
+      title: t('حظر هذا الشخص؟'),
+      text: t('لن يتمكن من مراسلتك أو العثور عليك بالبحث. ستُغلق هذه المحادثة.'),
+      confirm: t('حظر'), danger: true,
     });
     if (!ok) return;
     try {
       await api.post(`/api/conversations/${encodeURIComponent(conversationId)}/block`);
       store.removeConversationLocally(conversationId);
-      toast('تم الحظر.');
+      toast(t('تم الحظر.'));
       navigate('#/messages');
     } catch (err) { toast(err.message, 'error'); }
   }
 
   async function deleteFlow() {
     const ok = await confirmSheet({
-      title: 'حذف المحادثة؟',
-      text: 'ستختفي المحادثة من قائمتك. إذا كتب لك الطرف الآخر مجددًا ستعود للظهور.',
-      confirm: 'حذف', danger: true,
+      title: t('حذف المحادثة؟'),
+      text: t('ستختفي المحادثة من قائمتك. إذا كتب لك الطرف الآخر مجددًا ستعود للظهور.'),
+      confirm: t('حذف'), danger: true,
     });
     if (!ok) return;
     try {
@@ -391,11 +392,11 @@ export function renderChat(root, { conversationId, navigate }) {
 
   function reportSheet(messageId) {
     sheet((panel, close) => {
-      const details = h('textarea', { class: 'input', rows: '3', maxlength: '500', placeholder: 'تفاصيل إضافية (اختياري)' });
+      const details = h('textarea', { class: 'input', rows: '3', maxlength: '500', placeholder: t('تفاصيل إضافية (اختياري)') });
       const alsoBlock = h('input', { type: 'checkbox', checked: true });
       const choices = REPORT_REASONS.map(([value, label], i) =>
         h('label', { class: 'choice' }, h('input', { type: 'radio', name: 'reason', value, checked: i === 0 }), h('span', { text: label })));
-      const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, 'إرسال البلاغ');
+      const submit = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('إرسال البلاغ'));
       submit.addEventListener('click', async () => {
         const reason = panel.querySelector('input[name="reason"]:checked')?.value;
         submit.disabled = true;
@@ -409,23 +410,23 @@ export function renderChat(root, { conversationId, navigate }) {
             await api.post(`/api/conversations/${encodeURIComponent(conversationId)}/block`);
             store.removeConversationLocally(conversationId);
             close();
-            toast('شكرًا لك. تم إرسال البلاغ وحظر هذا الشخص.');
+            toast(t('شكرًا لك. تم إرسال البلاغ وحظر هذا الشخص.'));
             navigate('#/messages');
             return;
           }
           close();
-          toast('شكرًا لك. تم إرسال البلاغ وسيُراجع.');
+          toast(t('شكرًا لك. تم إرسال البلاغ وسيُراجع.'));
         } catch (err) {
           toast(err.message, 'error');
           submit.disabled = false;
         }
       });
       panel.append(
-        h('h2', { text: messageId ? 'الإبلاغ عن رسالة' : 'الإبلاغ عن محادثة' }),
-        h('p', { text: 'البلاغات سرية. نحتفظ فقط بنص الرسالة المُبلّغ عنها لمراجعتها.' }),
+        h('h2', { text: messageId ? t('الإبلاغ عن رسالة') : t('الإبلاغ عن محادثة') }),
+        h('p', { text: t('البلاغات سرية. نحتفظ فقط بنص الرسالة المُبلّغ عنها لمراجعتها.') }),
         ...choices,
         h('div', { class: 'field' }, details),
-        h('label', { class: 'choice' }, alsoBlock, h('span', { text: 'احظر هذا الشخص أيضًا' })),
+        h('label', { class: 'choice' }, alsoBlock, h('span', { text: t('احظر هذا الشخص أيضًا') })),
         h('div', { class: 'actions' }, submit),
       );
     });
@@ -440,7 +441,7 @@ export function renderChat(root, { conversationId, navigate }) {
   store.loadConversation(conversationId).catch((err) => {
     if (err.status === 404) {
       store.removeConversationLocally(conversationId);
-      toast('هذه المحادثة لم تعد متاحة.', 'error');
+      toast(t('هذه المحادثة لم تعد متاحة.'), 'error');
       navigate('#/messages');
     }
   });
@@ -462,7 +463,7 @@ export function renderChat(root, { conversationId, navigate }) {
     let ended = false;
     for (const el of body.querySelectorAll('[data-expires]')) {
       const left = Math.max(0, Math.ceil((Date.parse(el.dataset.expires) - Date.now()) / 1000));
-      el.textContent = `${left} ث`;
+      el.textContent = t('{n} ث', { n: left });
       if (left <= 0) ended = true;
     }
     if (ended) draw();
