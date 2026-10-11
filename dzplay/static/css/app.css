@@ -1052,3 +1052,11 @@ body::before {
 .swatch { width: 40px; height: 40px; border-radius: 50%; border: 3px solid transparent; box-shadow: 0 0 0 1px var(--line-strong); }
 .swatch[aria-checked="true"] { border-color: var(--bg); box-shadow: 0 0 0 2px var(--ink); }
 .policy-links { font-size: 13px; }
+
+/* V6 phase 13: «أكمل دفع العضوية» — the missing amount asked by the team */
+.mem-topup { position: relative; border-radius: var(--radius); padding: 14px; margin-bottom: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.mem-topup h3 { margin: 0; }
+.mem-topup p { margin: 0; }
+.mem-txids { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mem-txids li { font-size: 12px; color: var(--ink2); overflow-wrap: anywhere; font-family: ui-monospace, monospace; }

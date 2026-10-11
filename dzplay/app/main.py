@@ -205,7 +205,22 @@ async def _market_loop(state: AppState) -> None:
         await asyncio.sleep(max(10, state.settings.MARKET_REFRESH_SECONDS))
 
 
-def create_app(settings: Settings | None = None, telegram_transport=None) -> FastAPI:
+async def _chain_loop(state: AppState) -> None:
+    """V6 phase 13: check again the membership payments not found / not confirmed yet (claimed atomically per row,
+    so several instances never check one twice). It only records results: it never accepts or rejects."""
+    from app.services import payment_check
+
+    while True:
+        try:
+            if state.settings.CHAIN_CHECK_ENABLED:
+                for request_id in await run_in_threadpool(payment_check.due, state):
+                    await run_in_threadpool(payment_check.run, state, request_id)
+        except Exception:  # noqa: BLE001 - keep the loop alive
+            log.exception("payment check failed")
+        await asyncio.sleep(max(10, state.settings.CHAIN_TICK_SECONDS))
+
+
+def create_app(settings: Settings | None = None, telegram_transport=None, chain_transport=None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # httpx logs full request URLs at INFO — Telegram URLs contain the bot token. Never log them.
@@ -214,7 +229,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     from app.services import names
 
     names.configure(settings)
-    state = AppState.build(settings, telegram_transport)
+    state = AppState.build(settings, telegram_transport, chain_transport)
 
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -227,7 +242,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         engagement_task = asyncio.create_task(_engagement_loop(state)) if settings.ENGAGEMENT_TICK_SECONDS > 0 else None
         media_task = asyncio.create_task(_media_loop(state)) if settings.MEDIA_TICK_SECONDS > 0 else None
         market_task = asyncio.create_task(_market_loop(state)) if settings.MARKET_REFRESH_SECONDS > 0 else None
+        chain_task = asyncio.create_task(_chain_loop(state)) if settings.CHAIN_TICK_SECONDS > 0 else None
         yield
+        if chain_task:
+            chain_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await chain_task
         if market_task:
             market_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):

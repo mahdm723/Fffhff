@@ -4,7 +4,7 @@ import { contentBlock } from '../content.js';
 import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { copyText, formatDay, h, starMark, toast } from '../ui.js';
-import { t } from '../i18n.js';
+import { fmtMoney, t } from '../i18n.js';
 
 export function renderMembership(page, { navigate, onMe }) {
   const body = h('div', { class: 'membership' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': t('جارٍ التحميل') })));
@@ -38,6 +38,35 @@ export function renderMembership(page, { navigate, onMe }) {
       h('p', { class: 'pay__warn' }, icon('info'), t('أرسل {currency} على شبكة {network_label} فقط. الإرسال على شبكة أخرى يضيع المبلغ ولا يمكن استرجاعه.', { currency: p.currency, network_label: p.network_label })),
       p.note ? h('p', { class: 'muted', dir: 'auto', text: p.note }) : '',
       h('div', { class: 'field' }, h('label', { for: 'mem-txid', text: t('رقم العملية بعد الدفع') }), txid), err, send);
+  }
+
+  // V6 phase 13: the team asked for the missing amount — send it to the same address, then add its TXID here
+  function topupBox(req) {
+    const top = req.topup;
+    const box = h('section', { class: 'mem-topup glass' },
+      h('h3', { text: t('أكمل دفع العضوية') }),
+      h('p', { text: t('دفعتك أقل من سعر العضوية. المبلغ الناقص: {amount}.', { amount: fmtMoney(top.missing) }) }),
+      h('p', { class: 'pay__warn' }, icon('info'), t('أرسل الفارق على شبكة {network} فقط، إلى العنوان نفسه:', { network: top.network })),
+      h('div', { class: 'pay__wallet' }, h('code', { dir: 'ltr', text: top.wallet }),
+        h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => copyText(top.wallet, t('نُسخ العنوان.')) }, icon('copy'), t('نسخ'))),
+      h('ul', { class: 'mem-txids' }, ...top.txids.map((x) => h('li', { dir: 'ltr', text: x }))),
+      top.checking ? h('p', { class: 'muted', text: t('نتحقق من عمليتك على البلوكشين…') }) : '');
+    if (!top.can_add) {
+      box.append(h('p', { class: 'muted', text: t('وصلت إلى الحد الأقصى لعدد العمليات في الطلب. تواصل مع الدعم.') }));
+      return box;
+    }
+    const txid = h('input', { class: 'input', id: 'mem-topup-txid', dir: 'ltr', autocomplete: 'off', spellcheck: 'false', placeholder: 'TXID / Hash' });
+    const err = h('div', { class: 'form-error', role: 'alert' });
+    const add = h('button', { class: 'btn btn--primary btn--block', type: 'button' }, t('إضافة رقم عملية الفارق'));
+    add.addEventListener('click', async () => {
+      err.textContent = '';
+      if (!txid.value.trim()) { err.textContent = t('أدخل رقم العملية (TXID) بعد الدفع.'); return; }
+      add.disabled = true;
+      try { paint(await api.post(`/api/membership/requests/${req.id}/txids`, { txid: txid.value.trim() })); toast(t('أُضيف رقم العملية، وسنتحقق منه قريبًا.')); }
+      catch (e) { err.textContent = e.message; add.disabled = false; }
+    });
+    box.append(h('div', { class: 'field' }, h('label', { for: 'mem-topup-txid', text: t('رقم عملية الفارق') }), txid), err, add);
+    return box;
   }
 
   function refundBox(d) {
@@ -106,6 +135,7 @@ export function renderMembership(page, { navigate, onMe }) {
     body.replaceChildren(
       status,
       req && req.status === 'rejected' && !d.member ? h('p', { class: 'mem-note', text: t('رُفض طلبك السابق: {note}', { note: req.note || '' }) }) : '',
+      req && req.status === 'pending' && req.topup ? topupBox(req) : '',
       h('h3', { class: 'section-title', text: t('ميزات الأعضاء') }), features(d),
       d.member || (req && req.status === 'pending') ? '' : payBox(d),
       d.member ? refundBox(d) : '',

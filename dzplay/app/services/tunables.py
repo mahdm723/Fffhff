@@ -107,6 +107,15 @@ REGISTRY: list[Tunable] = [
     Tunable("MEMBERSHIP_REFUND_WINDOW_DAYS", "int", "membership", "مدة الاسترجاع بعد القبول (يوم)", 1, 90),
     Tunable("MEMBERSHIP_REFUND_FEE", "float", "membership", "رسوم الاسترجاع (USDT)", 0, 1000),
     Tunable("MEMBERSHIP_REQUESTS_PER_DAY", "int", "membership", "طلبات العضوية في اليوم لكل مستخدم", 1, 20),
+    # V6 phase 13: the automatic check of the payment on the chain (it only shows a result)
+    Tunable("CHAIN_CHECK_ENABLED", "bool", "membership", "الفحص الآلي للدفع على البلوكشين"),
+    Tunable("CHAIN_CONFIRMATIONS_TRC20", "int", "membership", "التأكيدات المطلوبة على TRON (TRC20)", 1, 200),
+    Tunable("CHAIN_CONFIRMATIONS_BEP20", "int", "membership", "التأكيدات المطلوبة على BSC (BEP20)", 1, 200),
+    Tunable("MEMBERSHIP_CHECK_INTERVAL_MIN", "int", "membership", "إعادة فحص العملية غير الموجودة كل (دقيقة)", 1, 60),
+    Tunable("MEMBERSHIP_CHECK_MAX_HOURS", "int", "membership", "مدة إعادة الفحص قبل «لم يُعثر عليها» (ساعة)", 1, 72),
+    Tunable("PAYMENT_AMOUNT_TOLERANCE", "float", "membership", "فرق مقبول في المبلغ (USDT، 0 = المبلغ بالضبط)", 0, 100),
+    Tunable("AUTO_NOTIFY_UNDERPAYMENT", "bool", "membership", "طلب الفارق من المستخدم آليًا عند نقص المبلغ"),
+    Tunable("MEMBERSHIP_MAX_TXIDS", "int", "membership", "أقصى عدد للعمليات في طلب واحد (الدفع + الفارق)", 1, 10),
     # V6 phase 5b: rewards
     Tunable("REFERRAL_ENABLED", "bool", "rewards", "مكافأة دعوة الأصدقاء"),
     Tunable("REFERRAL_REWARD", "float", "rewards", "مكافأة الدعوة (USDT، عند قبول عضوية المدعو)", 0, 10000),

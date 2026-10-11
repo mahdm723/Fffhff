@@ -7,7 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import Field
 
-from app.api.admin import SUPER_ADMIN, AdminContext
+from app.api.admin import SUPER_ADMIN, AdminContext, _record
 from app.api.deps import get_state
 from app.api.schemas import _Body
 from app.errors import not_found
@@ -44,6 +44,51 @@ def membership_decide(request_id: str, body: DecideBody, request: Request, ac: A
         result = membership.decide(db, st.settings, req, body.action, f"admin:{ac.actor}", body.note or "", effects)
     st.dispatch(effects)
     return result
+
+
+@router.post("/membership/requests/{request_id}/check")
+def membership_check(request_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """V6 phase 13: check the request's TXIDs on the chain again now (information only — nothing is decided)."""
+    from app.services import payment_check
+
+    st = get_state(request)
+    with st.database.session() as db:
+        membership.by_id(db, MembershipRequest, request_id)
+    payment_check.run(st, request_id, force=True)
+    with st.database.session() as db:
+        _record(db, ac, "membership_check", target_type="membership", target_id=request_id)
+        return membership.admin_view(db, membership.by_id(db, MembershipRequest, request_id))
+
+
+@router.post("/membership/requests/{request_id}/topup")
+def membership_topup(request_id: str, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """«طلب استكمال الفارق»: the user gets the exact missing amount (in-app + e-mail, in their language)."""
+    from app.services import payment_check
+
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        req = membership.by_id(db, MembershipRequest, request_id)
+        payment_check.request_topup(db, st.settings, req, f"admin:{ac.actor}", effects)
+        out = membership.admin_view(db, req)
+    st.dispatch(effects)
+    payment_check.update_owner(st, request_id)
+    return out
+
+
+@router.post("/membership/requests/{request_id}/ban")
+def membership_ban(request_id: str, body: DecideBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """The owner's «حظر»: the account is banned and the request rejected."""
+    from app.services import payment_check
+
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        req = membership.by_id(db, MembershipRequest, request_id)
+        payment_check.ban(db, st.settings, req, f"admin:{ac.actor}", effects, body.note or "")
+        out = membership.admin_view(db, req)
+    st.dispatch(effects)
+    return out
 
 
 @router.post("/membership/refunds/{refund_id}/decide")

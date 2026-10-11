@@ -1,5 +1,5 @@
 // Service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v32';
+const VERSION = 'dz-v33';
 const SHELL = [
   '/', '/css/app.css', '/css/accents.css', '/manifest.webmanifest', '/js/theme-boot.js', '/js/i18n.js', '/js/language.js', '/js/brand.js', '/js/content.js', '/js/appearance.js',
   '/js/app.js', '/js/api.js', '/js/ui.js', '/js/icons.js', '/js/store.js', '/js/notify.js',

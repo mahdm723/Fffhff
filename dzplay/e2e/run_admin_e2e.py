@@ -40,12 +40,13 @@ SEEDED: dict[str, str] = {}
 MOBILE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "is_mobile": True, "has_touch": True}
 
 
-def start_server(port: int) -> tuple[subprocess.Popen, str, str]:
+def start_server(port: int, **extra_env: str) -> tuple[subprocess.Popen, str, str]:
     tmp = tempfile.mkdtemp(prefix="dz-admin-e2e-")
     db_url = f"sqlite:///{tmp}/e2e.db"
     env = dict(os.environ, DATABASE_URL=db_url, SECRET_KEY=SECRET, ENV="development", CLEANUP_INTERVAL="0",
                LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10", ADMIN_PATH=ADMIN_PATH,
-               MARKET_REFRESH_SECONDS="0")
+               MARKET_REFRESH_SECONDS="0", CHAIN_CHECK_ENABLED="false")
+    env.update(extra_env)
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"], cwd=ROOT, env=env)
     base = f"http://127.0.0.1:{port}"

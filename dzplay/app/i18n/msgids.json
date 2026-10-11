@@ -243,7 +243,7 @@
  {
   "id": "أخرى",
   "where": [
-   "static/js/views/support.js:10",
+   "static/js/views/support.js:11",
    "app/services/support.py:30",
    "app/services/verification.py:38"
   ],
@@ -310,7 +310,8 @@
  {
   "id": "أدخل رقم العملية (TXID) بعد الدفع.",
   "where": [
-   "static/js/views/membership.js:28"
+   "static/js/views/membership.js:28",
+   "static/js/views/membership.js:63"
   ],
   "client": true,
   "plural": false
@@ -318,7 +319,7 @@
  {
   "id": "أدخل رقم عملية التحويل (TXID) الصحيح.",
   "where": [
-   "app/services/membership.py:277",
+   "app/services/membership.py:286",
    "app/services/withdrawals.py:119"
   ],
   "client": false,
@@ -384,7 +385,15 @@
  {
   "id": "أرسل الرمز إلى بريدي",
   "where": [
-   "static/js/views/membership.js:64"
+   "static/js/views/membership.js:93"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسل الفارق على شبكة {network} فقط، إلى العنوان نفسه:",
+  "where": [
+   "static/js/views/membership.js:49"
   ],
   "client": true,
   "plural": false
@@ -592,6 +601,14 @@
   "plural": false
  },
  {
+  "id": "أكمل دفع العضوية",
+  "where": [
+   "static/js/views/membership.js:47"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "أكّد أن عمرك 18 سنة أو أكثر من الإعدادات أولًا.",
   "where": [
    "app/services/messaging.py:681"
@@ -610,7 +627,7 @@
  {
   "id": "أمس",
   "where": [
-   "static/js/ui.js:219"
+   "static/js/ui.js:220"
   ],
   "client": true,
   "plural": false
@@ -627,7 +644,7 @@
  {
   "id": "أنت",
   "where": [
-   "static/js/views/support.js:101"
+   "static/js/views/support.js:102"
   ],
   "client": true,
   "plural": false
@@ -651,7 +668,7 @@
  {
   "id": "أنت غير متصل بالإنترنت. ستُرسل رسائلك عند عودة الاتصال.",
   "where": [
-   "static/js/app.js:99"
+   "static/js/app.js:100"
   ],
   "client": true,
   "plural": false
@@ -685,7 +702,7 @@
   "id": "أنثى",
   "where": [
    "static/js/onboarding.js:9",
-   "static/js/ui.js:60"
+   "static/js/ui.js:61"
   ],
   "client": true,
   "plural": false
@@ -741,7 +758,7 @@
  {
   "id": "أُرسل إليك {amount} USDT (استرجاع العضوية).",
   "where": [
-   "app/services/membership.py:298"
+   "app/services/membership.py:307"
   ],
   "client": false,
   "plural": false
@@ -750,7 +767,7 @@
   "id": "أُرسل الرمز إلى {sent_to}",
   "where": [
    "static/js/views/earnings.js:44",
-   "static/js/views/membership.js:69"
+   "static/js/views/membership.js:98"
   ],
   "client": true,
   "plural": false
@@ -774,7 +791,7 @@
  {
   "id": "أُرسل طلب الاسترجاع.",
   "where": [
-   "static/js/views/membership.js:78"
+   "static/js/views/membership.js:107"
   ],
   "client": true,
   "plural": false
@@ -830,7 +847,7 @@
  {
   "id": "أُرسلت تذكرتك رقم #{number}. سيصلك الرد هنا وعلى بريدك.",
   "where": [
-   "static/js/views/support.js:44"
+   "static/js/views/support.js:45"
   ],
   "client": true,
   "plural": false
@@ -847,6 +864,14 @@
   "id": "أُزيلت الصورة.",
   "where": [
    "static/js/views/profile.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُضيف رقم العملية، وسنتحقق منه قريبًا.",
+  "where": [
+   "static/js/views/membership.js:65"
   ],
   "client": true,
   "plural": false
@@ -896,8 +921,8 @@
  {
   "id": "إجراء غير صالح.",
   "where": [
-   "app/services/membership.py:184",
-   "app/services/membership.py:264",
+   "app/services/membership.py:190",
+   "app/services/membership.py:273",
    "app/services/verification.py:299",
    "app/services/withdrawals.py:109"
   ],
@@ -931,7 +956,7 @@
  {
   "id": "إرسال إلى الدعم",
   "where": [
-   "static/js/views/support.js:35"
+   "static/js/views/support.js:36"
   ],
   "client": true,
   "plural": false
@@ -964,7 +989,7 @@
  {
   "id": "إرسال الرد",
   "where": [
-   "static/js/views/support.js:89"
+   "static/js/views/support.js:90"
   ],
   "client": true,
   "plural": false
@@ -1071,6 +1096,14 @@
   "plural": false
  },
  {
+  "id": "إضافة رقم عملية الفارق",
+  "where": [
+   "static/js/views/membership.js:60"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "إضافة صورة",
   "where": [
    "static/js/views/home.js:105"
@@ -1089,7 +1122,7 @@
  {
   "id": "إعادة المحاولة",
   "where": [
-   "static/js/app.js:246",
+   "static/js/app.js:253",
    "static/js/views/chat.js:244",
    "static/js/views/home.js:285",
    "static/js/views/market.js:158",
@@ -1143,7 +1176,7 @@
  {
   "id": "إغلاق التذكرة (حُلّت المشكلة)",
   "where": [
-   "static/js/views/support.js:108"
+   "static/js/views/support.js:109"
   ],
   "client": true,
   "plural": false
@@ -1155,7 +1188,7 @@
    "static/js/ideas.js:248",
    "static/js/ideas.js:297",
    "static/js/people.js:31",
-   "static/js/ui.js:199",
+   "static/js/ui.js:200",
    "static/js/views/earnings.js:66",
    "static/js/views/profile.js:69",
    "static/js/views/profile.js:129",
@@ -1320,7 +1353,7 @@
  {
   "id": "اختر الشبكة من القائمة.",
   "where": [
-   "app/services/membership.py:221",
+   "app/services/membership.py:230",
    "app/services/verification.py:83",
    "app/services/withdrawals.py:68"
   ],
@@ -1423,7 +1456,7 @@
  {
   "id": "استرجاع العضوية غير متاح.",
   "where": [
-   "app/services/membership.py:240"
+   "app/services/membership.py:249"
   ],
   "client": false,
   "plural": false
@@ -1527,7 +1560,7 @@
  {
   "id": "اشرح المشكلة بالتفصيل. لا تكتب كلمة المرور أو أي بيانات بنكية.",
   "where": [
-   "static/js/views/support.js:33"
+   "static/js/views/support.js:34"
   ],
   "client": true,
   "plural": false
@@ -1599,7 +1632,7 @@
  {
   "id": "اقتراح",
   "where": [
-   "static/js/views/support.js:10",
+   "static/js/views/support.js:11",
    "app/services/support.py:30"
   ],
   "client": true,
@@ -1682,7 +1715,7 @@
  {
   "id": "اكتب ردك…",
   "where": [
-   "static/js/views/support.js:87"
+   "static/js/views/support.js:88"
   ],
   "client": true,
   "plural": false
@@ -1706,7 +1739,7 @@
  {
   "id": "اكتب سبب الرفض.",
   "where": [
-   "app/services/membership.py:292",
+   "app/services/membership.py:301",
    "app/services/withdrawals.py:125"
   ],
   "client": false,
@@ -1887,9 +1920,9 @@
  {
   "id": "الاسترجاع",
   "where": [
-   "static/js/views/membership.js:48",
-   "static/js/views/membership.js:52",
-   "static/js/views/membership.js:56"
+   "static/js/views/membership.js:77",
+   "static/js/views/membership.js:81",
+   "static/js/views/membership.js:85"
   ],
   "client": true,
   "plural": false
@@ -2009,7 +2042,7 @@
  {
   "id": "التفاصيل في ",
   "where": [
-   "static/js/views/membership.js:112"
+   "static/js/views/membership.js:142"
   ],
   "client": true,
   "plural": false
@@ -2025,7 +2058,7 @@
  {
   "id": "التنقل الرئيسي",
   "where": [
-   "static/js/app.js:100"
+   "static/js/app.js:101"
   ],
   "client": true,
   "plural": false
@@ -2033,7 +2066,7 @@
  {
   "id": "التوثيق",
   "where": [
-   "static/js/views/support.js:9",
+   "static/js/views/support.js:10",
    "app/services/support.py:29"
   ],
   "client": true,
@@ -2052,7 +2085,7 @@
  {
   "id": "الحساب",
   "where": [
-   "static/js/views/support.js:9",
+   "static/js/views/support.js:10",
    "app/services/support.py:29"
   ],
   "client": true,
@@ -2095,7 +2128,7 @@
   "id": "الدعم والمساعدة",
   "where": [
    "static/js/views/profile.js:280",
-   "static/js/views/support.js:65"
+   "static/js/views/support.js:66"
   ],
   "client": true,
   "plural": false
@@ -2103,7 +2136,7 @@
  {
   "id": "الدفع",
   "where": [
-   "static/js/views/support.js:9",
+   "static/js/views/support.js:10",
    "app/services/support.py:29"
   ],
   "client": true,
@@ -2121,7 +2154,7 @@
   "id": "الدفع غير متاح حاليًا. حاول لاحقًا.",
   "where": [
    "static/js/views/membership.js:22",
-   "app/services/membership.py:141"
+   "app/services/membership.py:143"
   ],
   "client": true,
   "plural": false
@@ -2129,7 +2162,7 @@
  {
   "id": "الرئيسية",
   "where": [
-   "static/js/app.js:35"
+   "static/js/app.js:36"
   ],
   "client": true,
   "plural": false
@@ -2137,7 +2170,7 @@
  {
   "id": "الرسائل",
   "where": [
-   "static/js/app.js:37",
+   "static/js/app.js:38",
    "static/js/views/messages.js:92"
   ],
   "client": true,
@@ -2220,7 +2253,7 @@
   "id": "الرمز من بريدك",
   "where": [
    "static/js/views/earnings.js:26",
-   "static/js/views/membership.js:63"
+   "static/js/views/membership.js:92"
   ],
   "client": true,
   "plural": false
@@ -2253,7 +2286,7 @@
   "id": "السحب",
   "where": [
    "app/services/cms.py:641",
-   "app/services/membership.py:423"
+   "app/services/membership.py:420"
   ],
   "client": false,
   "plural": false
@@ -2306,7 +2339,7 @@
   "id": "الشبكة",
   "where": [
    "static/js/views/earnings.js:60",
-   "static/js/views/membership.js:83"
+   "static/js/views/membership.js:112"
   ],
   "client": true,
   "plural": false
@@ -2390,7 +2423,7 @@
  {
   "id": "الطلب كبير جدًا.",
   "where": [
-   "app/main.py:271"
+   "app/main.py:291"
   ],
   "client": false,
   "plural": false
@@ -2422,7 +2455,7 @@
  {
   "id": "العضوية",
   "where": [
-   "app/services/membership.py:423"
+   "app/services/membership.py:420"
   ],
   "client": false,
   "plural": false
@@ -2430,7 +2463,7 @@
  {
   "id": "العضوية: {price} {currency} مرة واحدة",
   "where": [
-   "static/js/views/membership.js:103"
+   "static/js/views/membership.js:132"
   ],
   "client": true,
   "plural": false
@@ -2454,7 +2487,7 @@
  {
   "id": "العنوان لا يطابق شكل عناوين {network}.",
   "where": [
-   "app/services/membership.py:223",
+   "app/services/membership.py:232",
    "app/services/withdrawals.py:71"
   ],
   "client": false,
@@ -2530,6 +2563,14 @@
   "plural": false
  },
  {
+  "id": "المبلغ المدفوع ليس أقل من السعر.",
+  "where": [
+   "app/services/payment_check.py:321"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "المبلغ يجب أن يكون أكبر من الرسوم.",
   "where": [
    "app/services/withdrawals.py:80"
@@ -2590,7 +2631,7 @@
  {
   "id": "المستخدمون",
   "where": [
-   "static/js/app.js:36",
+   "static/js/app.js:37",
    "static/js/views/users.js:45"
   ],
   "client": true,
@@ -2715,7 +2756,7 @@
  {
   "id": "اليوم",
   "where": [
-   "static/js/ui.js:218"
+   "static/js/ui.js:219"
   ],
   "client": true,
   "plural": false
@@ -2739,7 +2780,7 @@
  {
   "id": "انتهت الجلسة. سجّل الدخول من جديد.",
   "where": [
-   "static/js/app.js:203"
+   "static/js/app.js:204"
   ],
   "client": true,
   "plural": false
@@ -2895,7 +2936,7 @@
  {
   "id": "بلاغ",
   "where": [
-   "static/js/views/support.js:10",
+   "static/js/views/support.js:11",
    "app/services/support.py:30"
   ],
   "client": true,
@@ -2968,7 +3009,7 @@
  {
   "id": "تأكيد طلب الاسترجاع",
   "where": [
-   "static/js/views/membership.js:66"
+   "static/js/views/membership.js:95"
   ],
   "client": true,
   "plural": false
@@ -3041,7 +3082,7 @@
  {
   "id": "تحرش أو مضايقة",
   "where": [
-   "static/js/ui.js:27"
+   "static/js/ui.js:28"
   ],
   "client": true,
   "plural": false
@@ -3105,7 +3146,7 @@
  {
   "id": "تذاكري",
   "where": [
-   "static/js/views/support.js:73"
+   "static/js/views/support.js:74"
   ],
   "client": true,
   "plural": false
@@ -3113,7 +3154,7 @@
  {
   "id": "تذكرة جديدة",
   "where": [
-   "static/js/views/support.js:67"
+   "static/js/views/support.js:68"
   ],
   "client": true,
   "plural": false
@@ -3121,7 +3162,7 @@
  {
   "id": "تذكرة دعم",
   "where": [
-   "static/js/views/support.js:123"
+   "static/js/views/support.js:124"
   ],
   "client": true,
   "plural": false
@@ -3238,7 +3279,7 @@
  {
   "id": "تعذّر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.",
   "where": [
-   "static/js/app.js:245"
+   "static/js/app.js:252"
   ],
   "client": true,
   "plural": false
@@ -3470,7 +3511,7 @@
  {
   "id": "تم إرجاع {amount} USDT.",
   "where": [
-   "static/js/views/membership.js:53"
+   "static/js/views/membership.js:82"
   ],
   "client": true,
   "plural": false
@@ -3537,8 +3578,10 @@
  {
   "id": "تم البت في هذا الطلب.",
   "where": [
-   "app/services/membership.py:190",
-   "app/services/membership.py:270",
+   "app/services/membership.py:196",
+   "app/services/membership.py:279",
+   "app/services/payment_check.py:319",
+   "app/services/payment_check.py:385",
    "app/services/verification.py:301",
    "app/services/withdrawals.py:114"
   ],
@@ -3613,7 +3656,7 @@
  {
   "id": "تم تفعيل عضويتك ✨",
   "where": [
-   "app/services/membership.py:209"
+   "app/services/membership.py:215"
   ],
   "client": false,
   "plural": false
@@ -3638,7 +3681,7 @@
  {
   "id": "تهديد",
   "where": [
-   "static/js/ui.js:28"
+   "static/js/ui.js:29"
   ],
   "client": true,
   "plural": false
@@ -3701,7 +3744,7 @@
    "static/js/ideas.js:255",
    "static/js/privacy.js:16",
    "static/js/views/profile.js:196",
-   "static/js/views/support.js:37"
+   "static/js/views/support.js:38"
   ],
   "client": true,
   "plural": false
@@ -3827,7 +3870,7 @@
  {
   "id": "حدث خطأ غير متوقع. حاول مرة أخرى.",
   "where": [
-   "app/main.py:316"
+   "app/main.py:336"
   ],
   "client": false,
   "plural": false
@@ -3937,8 +3980,8 @@
  {
   "id": "حساب موثّق",
   "where": [
-   "static/js/ui.js:88",
-   "static/js/ui.js:88"
+   "static/js/ui.js:89",
+   "static/js/ui.js:89"
   ],
   "client": true,
   "plural": false
@@ -3970,7 +4013,7 @@
  {
   "id": "حسابي",
   "where": [
-   "static/js/app.js:38",
+   "static/js/app.js:39",
    "static/js/views/profile.js:270"
   ],
   "client": true,
@@ -4138,6 +4181,14 @@
   "plural": false
  },
  {
+  "id": "دفعتك أقل من سعر العضوية. المبلغ الناقص: {amount}.",
+  "where": [
+   "static/js/views/membership.js:48"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "ذهبي",
   "where": [
    "app/services/appearance.py:38"
@@ -4165,7 +4216,7 @@
   "id": "رجل",
   "where": [
    "static/js/onboarding.js:9",
-   "static/js/ui.js:60"
+   "static/js/ui.js:61"
   ],
   "client": true,
   "plural": false
@@ -4181,7 +4232,7 @@
    "static/js/views/membership.js:13",
    "static/js/views/notifications.js:25",
    "static/js/views/post.js:12",
-   "static/js/views/support.js:15",
+   "static/js/views/support.js:16",
    "static/js/views/user.js:18"
   ],
   "client": true,
@@ -4199,7 +4250,7 @@
   "id": "رد جديد",
   "where": [
    "static/js/views/profile.js:26",
-   "static/js/views/support.js:60"
+   "static/js/views/support.js:61"
   ],
   "client": true,
   "plural": false
@@ -4207,7 +4258,7 @@
  {
   "id": "ردك",
   "where": [
-   "static/js/views/support.js:87"
+   "static/js/views/support.js:88"
   ],
   "client": true,
   "plural": false
@@ -4223,7 +4274,7 @@
  {
   "id": "ردّ فريق الدعم على تذكرتك. افتح حسابي ← الدعم.",
   "where": [
-   "static/js/app.js:223"
+   "static/js/app.js:224"
   ],
   "client": true,
   "plural": false
@@ -4231,7 +4282,7 @@
  {
   "id": "رسائل مزعجة (سبام)",
   "where": [
-   "static/js/ui.js:26"
+   "static/js/ui.js:27"
   ],
   "client": true,
   "plural": false
@@ -4255,7 +4306,7 @@
  {
   "id": "رسوم الاسترجاع",
   "where": [
-   "app/services/membership.py:286"
+   "app/services/membership.py:295"
   ],
   "client": false,
   "plural": false
@@ -4312,8 +4363,9 @@
  {
   "id": "رقم العملية هذا مستخدم في طلب آخر.",
   "where": [
-   "app/services/membership.py:145",
-   "app/services/membership.py:155",
+   "app/services/membership.py:147",
+   "app/services/membership.py:157",
+   "app/services/payment_check.py:369",
    "app/services/verification.py:271",
    "app/services/verification.py:255"
   ],
@@ -4323,7 +4375,7 @@
  {
   "id": "رقم العملية هذا مسجّل لاسترجاع آخر.",
   "where": [
-   "app/services/membership.py:279"
+   "app/services/membership.py:288"
   ],
   "client": false,
   "plural": false
@@ -4334,6 +4386,14 @@
    "app/services/withdrawals.py:121"
   ],
   "client": false,
+  "plural": false
+ },
+ {
+  "id": "رقم عملية الفارق",
+  "where": [
+   "static/js/views/membership.js:68"
+  ],
+  "client": true,
   "plural": false
  },
  {
@@ -4356,7 +4416,7 @@
   "id": "رمز التأكيد",
   "where": [
    "static/js/views/earnings.js:65",
-   "static/js/views/membership.js:86"
+   "static/js/views/membership.js:115"
   ],
   "client": true,
   "plural": false
@@ -4370,9 +4430,17 @@
   "plural": false
  },
  {
+  "id": "رُفض الطلب وحُظر الحساب.",
+  "where": [
+   "app/services/payment_check.py:389"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "رُفض طلب الاسترجاع: {note}",
   "where": [
-   "app/services/membership.py:299"
+   "app/services/membership.py:308"
   ],
   "client": false,
   "plural": false
@@ -4380,7 +4448,7 @@
  {
   "id": "رُفض طلب الاسترجاع: {reason}",
   "where": [
-   "static/js/views/membership.js:53"
+   "static/js/views/membership.js:82"
   ],
   "client": true,
   "plural": false
@@ -4404,7 +4472,7 @@
  {
   "id": "رُفض طلب العضوية: {note}",
   "where": [
-   "app/services/membership.py:210"
+   "app/services/membership.py:216"
   ],
   "client": false,
   "plural": false
@@ -4412,7 +4480,7 @@
  {
   "id": "رُفض طلبك السابق: {note}",
   "where": [
-   "static/js/views/membership.js:108"
+   "static/js/views/membership.js:137"
   ],
   "client": true,
   "plural": false
@@ -4428,7 +4496,7 @@
  {
   "id": "سبب آخر",
   "where": [
-   "static/js/ui.js:31"
+   "static/js/ui.js:32"
   ],
   "client": true,
   "plural": false
@@ -4579,7 +4647,7 @@
   "where": [
    "static/js/privacy.js:11",
    "static/js/views/auth.js:180",
-   "static/js/views/membership.js:112",
+   "static/js/views/membership.js:142",
    "app/api/download.py:115"
   ],
   "client": true,
@@ -4670,7 +4738,7 @@
  {
   "id": "طلب استرجاع العضوية",
   "where": [
-   "static/js/views/membership.js:55"
+   "static/js/views/membership.js:84"
   ],
   "client": true,
   "plural": false
@@ -4678,7 +4746,7 @@
  {
   "id": "طلب الاسترجاع",
   "where": [
-   "static/js/views/membership.js:81"
+   "static/js/views/membership.js:110"
   ],
   "client": true,
   "plural": false
@@ -4711,7 +4779,7 @@
   "id": "طلب غير صالح.",
   "where": [
    "app/api/uploads.py:77",
-   "app/main.py:306",
+   "app/main.py:326",
    "app/services/auth.py:110",
    "app/services/email_codes.py:43",
    "app/services/engagement.py:195",
@@ -4732,8 +4800,8 @@
  {
   "id": "طلب غير مسموح.",
   "where": [
-   "app/main.py:276",
-   "app/main.py:279"
+   "app/main.py:296",
+   "app/main.py:299"
   ],
   "client": false,
   "plural": false
@@ -4781,7 +4849,7 @@
  {
   "id": "طلبك قيد التنفيذ: {amount} USDT إلى عنوانك على {network}.",
   "where": [
-   "static/js/views/membership.js:49"
+   "static/js/views/membership.js:78"
   ],
   "client": true,
   "plural": false
@@ -4789,7 +4857,7 @@
  {
   "id": "طلبك: قيد المراجعة",
   "where": [
-   "static/js/views/membership.js:100"
+   "static/js/views/membership.js:129"
   ],
   "client": true,
   "plural": false
@@ -4875,7 +4943,7 @@
  {
   "id": "عضويتك مفعّلة",
   "where": [
-   "static/js/views/membership.js:97"
+   "static/js/views/membership.js:126"
   ],
   "client": true,
   "plural": false
@@ -4883,7 +4951,7 @@
  {
   "id": "عضويتك مفعّلة بالفعل.",
   "where": [
-   "app/services/membership.py:135"
+   "app/services/membership.py:137"
   ],
   "client": false,
   "plural": false
@@ -4958,7 +5026,7 @@
   "id": "عنوان المحفظة",
   "where": [
    "static/js/views/earnings.js:61",
-   "static/js/views/membership.js:84"
+   "static/js/views/membership.js:113"
   ],
   "client": true,
   "plural": false
@@ -4982,7 +5050,7 @@
  {
   "id": "عنوان قصير (اختياري)",
   "where": [
-   "static/js/views/support.js:31"
+   "static/js/views/support.js:32"
   ],
   "client": true,
   "plural": false
@@ -4991,7 +5059,7 @@
   "id": "عنوان محفظتك",
   "where": [
    "static/js/views/earnings.js:23",
-   "static/js/views/membership.js:61"
+   "static/js/views/membership.js:90"
   ],
   "client": true,
   "plural": false
@@ -5001,8 +5069,9 @@
   "where": [
    "app/api/i18n.py:22",
    "app/errors.py:23",
-   "app/main.py:267",
-   "app/main.py:353"
+   "app/main.py:287",
+   "app/main.py:373",
+   "app/services/payment_check.py:361"
   ],
   "client": false,
   "plural": false
@@ -5051,7 +5120,7 @@
  {
   "id": "فريق الدعم",
   "where": [
-   "static/js/views/support.js:101"
+   "static/js/views/support.js:102"
   ],
   "client": true,
   "plural": false
@@ -5226,8 +5295,8 @@
    "static/js/views/auth.js:173",
    "static/js/views/earnings.js:25",
    "static/js/views/earnings.js:64",
-   "static/js/views/membership.js:62",
-   "static/js/views/membership.js:85",
+   "static/js/views/membership.js:91",
+   "static/js/views/membership.js:114",
    "static/js/views/profile.js:238"
   ],
   "client": true,
@@ -5269,7 +5338,7 @@
   "id": "كلمة المرور غير صحيحة.",
   "where": [
    "app/services/account_deletion.py:33",
-   "app/services/membership.py:231"
+   "app/services/membership.py:240"
   ],
   "client": false,
   "plural": false
@@ -5353,7 +5422,7 @@
  {
   "id": "لا توجد تذاكر بعد.",
   "where": [
-   "static/js/views/support.js:52"
+   "static/js/views/support.js:53"
   ],
   "client": true,
   "plural": false
@@ -5479,6 +5548,14 @@
   "plural": false
  },
  {
+  "id": "لا يمكن إضافة عملية إلى هذا الطلب الآن.",
+  "where": [
+   "app/services/payment_check.py:363"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "لا يمكن إلغاء هذه الجولة.",
   "where": [
    "app/services/giveaway.py:231"
@@ -5513,7 +5590,7 @@
  {
   "id": "لا يمكن طلب الاسترجاع الآن (انتهت المدة أو لديك طلب مفتوح).",
   "where": [
-   "app/services/membership.py:242"
+   "app/services/membership.py:251"
   ],
   "client": false,
   "plural": false
@@ -5521,7 +5598,7 @@
  {
   "id": "لا يمكن طلب الاسترجاع الآن.",
   "where": [
-   "app/api/membership.py:52"
+   "app/api/membership.py:67"
   ],
   "client": false,
   "plural": false
@@ -5628,7 +5705,7 @@
  {
   "id": "لديك إشعار جديد 🔔",
   "where": [
-   "static/js/app.js:215"
+   "static/js/app.js:216"
   ],
   "client": true,
   "plural": false
@@ -5654,7 +5731,7 @@
  {
   "id": "لديك طلب قيد المراجعة بالفعل.",
   "where": [
-   "app/services/membership.py:138",
+   "app/services/membership.py:140",
    "app/services/verification.py:237"
   ],
   "client": false,
@@ -5954,7 +6031,7 @@
  {
   "id": "محتوى غير لائق",
   "where": [
-   "static/js/ui.js:29"
+   "static/js/ui.js:30"
   ],
   "client": true,
   "plural": false
@@ -5962,7 +6039,7 @@
  {
   "id": "محتوى يخص قاصرًا",
   "where": [
-   "static/js/ui.js:30"
+   "static/js/ui.js:31"
   ],
   "client": true,
   "plural": false
@@ -6039,7 +6116,7 @@
  {
   "id": "مشكلة تقنية",
   "where": [
-   "static/js/views/support.js:9",
+   "static/js/views/support.js:10",
    "app/services/support.py:29"
   ],
   "client": true,
@@ -6228,7 +6305,7 @@
  {
   "id": "منذ {date}",
   "where": [
-   "static/js/views/membership.js:97"
+   "static/js/views/membership.js:126"
   ],
   "client": true,
   "plural": false
@@ -6279,7 +6356,7 @@
  {
   "id": "ميزات إضافية داخل التطبيق. لا علاقة لها بالتداول ولا بأي عائد مالي.",
   "where": [
-   "static/js/views/membership.js:104"
+   "static/js/views/membership.js:133"
   ],
   "client": true,
   "plural": false
@@ -6287,7 +6364,7 @@
  {
   "id": "ميزات الأعضاء",
   "where": [
-   "static/js/views/membership.js:109"
+   "static/js/views/membership.js:139"
   ],
   "client": true,
   "plural": false
@@ -6309,10 +6386,19 @@
   "plural": false
  },
  {
+  "id": "نتحقق من عمليتك على البلوكشين…",
+  "where": [
+   "static/js/views/membership.js:53"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "نسخ",
   "where": [
    "static/js/views/earnings.js:134",
-   "static/js/views/membership.js:37"
+   "static/js/views/membership.js:37",
+   "static/js/views/membership.js:51"
   ],
   "client": true,
   "plural": false
@@ -6328,7 +6414,7 @@
  {
   "id": "نسخ المعرّف {publicId}",
   "where": [
-   "static/js/ui.js:103"
+   "static/js/ui.js:104"
   ],
   "client": true,
   "plural": false
@@ -6435,7 +6521,7 @@
  {
   "id": "نوع المشكلة",
   "where": [
-   "static/js/views/support.js:25"
+   "static/js/views/support.js:26"
   ],
   "client": true,
   "plural": false
@@ -6470,7 +6556,8 @@
   "id": "نُسخ العنوان.",
   "where": [
    "static/js/views/contact.js:19",
-   "static/js/views/membership.js:37"
+   "static/js/views/membership.js:37",
+   "static/js/views/membership.js:51"
   ],
   "client": true,
   "plural": false
@@ -6478,7 +6565,7 @@
  {
   "id": "نُسخ المعرّف.",
   "where": [
-   "static/js/ui.js:103"
+   "static/js/ui.js:104"
   ],
   "client": true,
   "plural": false
@@ -6494,7 +6581,7 @@
  {
   "id": "نُسخ.",
   "where": [
-   "static/js/ui.js:91"
+   "static/js/ui.js:92"
   ],
   "client": true,
   "plural": false
@@ -6608,7 +6695,7 @@
  {
   "id": "هذه التذكرة مغلقة. افتح تذكرة جديدة إذا احتجت.",
   "where": [
-   "static/js/views/support.js:105",
+   "static/js/views/support.js:106",
    "app/services/support.py:88"
   ],
   "client": true,
@@ -6675,6 +6762,15 @@
   "plural": false
  },
  {
+  "id": "وصلت إلى الحد الأقصى لعدد العمليات في الطلب. تواصل مع الدعم.",
+  "where": [
+   "static/js/views/membership.js:55",
+   "app/services/payment_check.py:365"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "وصلت إلى الحد الأقصى للتعليقات في الساعة.",
   "where": [
    "app/services/messaging.py:229"
@@ -6725,7 +6821,7 @@
  {
   "id": "وصلتك {n} رسائل جديدة",
   "where": [
-   "static/js/app.js:207"
+   "static/js/app.js:208"
   ],
   "client": true,
   "plural": true
@@ -6733,7 +6829,7 @@
  {
   "id": "وصلتك رسالة جديدة",
   "where": [
-   "static/js/app.js:207"
+   "static/js/app.js:208"
   ],
   "client": true,
   "plural": false
@@ -6815,7 +6911,7 @@
  {
   "id": "يرى فريق الدعم معرّفك العام فقط، ويرد عليك هنا وعلى بريدك المسجّل.",
   "where": [
-   "static/js/views/support.js:68"
+   "static/js/views/support.js:69"
   ],
   "client": true,
   "plural": false
@@ -6839,7 +6935,7 @@
  {
   "id": "يصلك {amount} USDT على الشبكة التي تختارها. تأكد من العنوان جيدًا.",
   "where": [
-   "static/js/views/membership.js:82"
+   "static/js/views/membership.js:111"
   ],
   "client": true,
   "plural": false
@@ -6929,7 +7025,7 @@
  {
   "id": "يمكنك طلب الاسترجاع حتى {date}: يُعاد {amount} USDT (بعد رسوم {fee}) وتتوقف ميزات العضوية.",
   "where": [
-   "static/js/views/membership.js:57"
+   "static/js/views/membership.js:86"
   ],
   "client": true,
   "plural": false
@@ -6940,6 +7036,14 @@
    "app/api/uploads.py:66",
    "app/services/media_items.py:257",
    "app/services/media_items.py:176"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "ينقص دفع العضوية {amount} USDT. أرسل الفارق على شبكة {network} إلى العنوان نفسه، ثم أضف رقم العملية في «عضويتي».",
+  "where": [
+   "app/services/payment_check.py:326"
   ],
   "client": false,
   "plural": false

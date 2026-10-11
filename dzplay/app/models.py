@@ -592,6 +592,37 @@ class MembershipRequest(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
     tg_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # V6 phase 13: the automatic check on the chain (information for the owner — it never decides)
+    check_status: Mapped[str | None] = mapped_column(String(16), nullable=True)  # match|under|over|mismatch|waiting|…
+    check_summary: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: reasons, per-TXID results
+    received_micro: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # official USDT received (10^-6)
+    diff_micro: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # received - price (negative = missing)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    underpay_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # the user was asked
+    underpay_notified_micro: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # … for this missing amount
+
+
+class MembershipTx(Base):
+    """V6 phase 13: one payment transaction of a membership request (the first one, then top-ups), with the result
+    of its automatic check on the chain. Waiting ones are checked again by the chain loop (next_check_at)."""
+
+    __tablename__ = "membership_txs"
+    __table_args__ = (Index("ux_membership_txs_txid", "txid", unique=True), Index("ix_membership_txs_due", "next_check_at"))
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    request_id: Mapped[str] = mapped_column(String(32), index=True)
+    txid: Mapped[str] = mapped_column(String(160))
+    network: Mapped[str] = mapped_column(String(16))
+    kind: Mapped[str] = mapped_column(String(10), default="primary")  # primary | topup
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # chain.OK / PENDING / NOT_FOUND / … / expired
+    amount_micro: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    confirmations: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tx_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    result: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON of chain.TxResult
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_check_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
 class MembershipRefund(Base):

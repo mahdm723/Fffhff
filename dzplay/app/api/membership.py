@@ -41,6 +41,21 @@ def submit(body: TxBody, request: Request) -> dict:
     return result
 
 
+@router.post("/membership/requests/{request_id}/txids", status_code=201)
+def add_topup(request_id: str, body: TxBody, request: Request) -> dict:
+    """V6 phase 13: the TXID of the missing amount, added to the same request (after the owner asked for it)."""
+    from app.services import payment_check
+
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = current_user(request, db)
+        payment_check.add_topup(db, st.settings, st.limiter, user, request_id, body.txid, effects)
+        result = membership.overview(db, st.settings, user)
+    st.dispatch(effects)
+    return result
+
+
 @router.post("/membership/refund/code")
 def refund_code(request: Request) -> dict:
     st = get_state(request)

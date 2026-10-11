@@ -66,6 +66,12 @@
     - القواعد في `brand/BRAND.md`: لا يُعكس الشعار أبدًا، والنقطة متوهجة إلا في أيقونة الإشعارات وAndroid 13 (مسطحتان).
     - في الواجهة: `logoMark()` / `logoLockup()` في `ui.js`. النبض بـ`.logo-mark--pulse`، ويتوقف مع `prefers-reduced-motion`.
   - اللوحة: `admin_static/admin-money.js` + `api/admin_money.py`.
+  - **فحص الدفع على البلوكشين (المرحلة 13):**
+    - `services/chain.py`: قراءة فقط. TronGrid لـTRC20، وJSON-RPC لـBEP20، وعقدا USDT الرسميان ثابتان.
+    - `services/payment_check.py`: لكل TXID حالة في `membership_txs`، ونتيجة الطلب في `membership_requests.check_*`.
+    - **يعرض النتيجة فقط ولا يغيّر `status` أبدًا.** القرار للمالك (قبول/رفض/حظر)، والاختبارات تفرض ذلك.
+    - الفحص المتكرر في `main._chain_loop` (حجز ذري لكل صف). الشبكة تُقرأ خارج أي معاملة.
+    - في الاختبارات: `chain_transport` (MockTransport)، و`CHAIN_CHECK_ENABLED=False` افتراضيًا، و`e2e/fake_chain.py`.
 - **اللغات (V6 المرحلة 12):** العربية (الأصل والاحتياط) والفرنسية والإنجليزية.
   - **النص العربي هو المفتاح:** `t('…')` في الواجهة (`static/js/i18n.js`)، و`tr('…')`/`N_('…')` في الخادم (`app/i18n/`). رسائل `AppError` تُكتب بالعربية وقيمها في `params` (`{name}`)، ولا تُدمج في النص.
   - الترجمات المرفقة في `app/i18n/fr.json` و`en.json` (وصيغ الجمع العربية في `ar.json`)، ونصوص نظام المحتوى في `app/i18n/content_fr.py` و`content_en.py`.

@@ -24,7 +24,7 @@ from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError, not_found
 from app.i18n import N_
-from app.models import MembershipRefund, MembershipRequest, User, VerificationRequest
+from app.models import MembershipRefund, MembershipRequest, User
 from app.services import audit, ledger, notify
 from app.services.messaging import Effects, iso
 
@@ -92,6 +92,7 @@ def refund_state(db: Session, settings: Settings, user: User) -> dict:
 
 def overview(db: Session, settings: Settings, user: User) -> dict:
     """«عضويتي». Features and status only — never any earning or return."""
+    from app.services import payment_check
     from app.services.verification import payment_settings, qr_svg
 
     pay = payment_settings(db)
@@ -108,7 +109,8 @@ def overview(db: Session, settings: Settings, user: User) -> dict:
                                               "status_label": i18n.tr(STATUS_AR.get(last.status, last.status)),
                                               "txid": last.txid, "note": i18n.tr(last.admin_note) if last.admin_note else None,
                                               "created_at": iso(last.created_at),
-                                              "amount": ledger.from_minor(last.amount_minor), "network": last.network},
+                                              "amount": ledger.from_minor(last.amount_minor), "network": last.network,
+                                              "topup": payment_check.user_view(db, last, settings)},
         "refund": refund_state(db, settings, user),
     }
 
@@ -120,9 +122,9 @@ def _clean_txid(network: str, txid: object) -> str:
 
 
 def _txid_taken(db: Session, txid: str) -> bool:
-    low = txid.lower()
-    return bool(db.scalar(select(MembershipRequest.id).where(func.lower(MembershipRequest.txid) == low))
-                or db.scalar(select(VerificationRequest.id).where(func.lower(VerificationRequest.txid) == low)))
+    from app.services.payment_check import txid_taken
+
+    return txid_taken(db, txid)  # V6 phase 13: top-ups included
 
 
 def submit(db: Session, settings: Settings, limiter, user: User, txid: object, effects: Effects) -> dict:
@@ -154,7 +156,11 @@ def submit(db: Session, settings: Settings, limiter, user: User, txid: object, e
     except IntegrityError:
         raise AppError(409, "txid_used", "رقم العملية هذا مستخدم في طلب آخر.") from None
     audit.record(db, f"user:{user.public_id}", "membership_request", target_type="membership", target_id=req.id)
-    effects.later(notify_admin, req.id)
+    # V6 phase 13: checked on the chain at once (background), then the owner's Telegram message shows the result
+    from app.services import payment_check
+
+    payment_check.add_tx(db, req, tx, "primary")
+    effects.later(payment_check.run, req.id)
     return overview(db, settings, user)
 
 
@@ -210,6 +216,9 @@ def decide(db: Session, settings: Settings, req: MembershipRequest, action: str,
                       else notify.msg(N_("رُفض طلب العضوية: {note}"), note=note, translate=("note",)))
         effects.signal(user.id, "account")
         effects.later(mail_user, user.id, "accepted" if action == "accept" else "rejected", note)
+    from app.services import payment_check
+
+    effects.later(payment_check.update_owner, req.id)  # the owner's Telegram message shows the decision
     db.flush()
     return admin_view(db, req)
 
@@ -327,12 +336,16 @@ def admin_view(db: Session, req: MembershipRequest) -> dict:
     pay = payment_settings(db)
     template = pay["explorer"] if pay["network"] == req.network else NETWORKS.get(req.network, {}).get("explorer", "")
     user = db.get(User, req.user_id) if req.user_id else None
+    from app.services import payment_check
+
     return {"id": req.id, "status": req.status, "status_label": STATUS_AR.get(req.status), "user_ref": req.user_id,
             "public_id": req.user_public_id, "name": user.display_name if user else None,
+            "user_status": user.status if user else None,
             "amount": ledger.from_minor(req.amount_minor), "currency": req.currency, "network": req.network,
             "wallet": req.wallet, "txid": req.txid, "explorer_url": explorer_link(template, req.txid),
             "note": req.admin_note, "created_at": iso(req.created_at), "decided_at": iso(req.decided_at),
-            "decided_by": req.decided_by, "member": is_member(user)}
+            "decided_by": req.decided_by, "member": is_member(user),
+            "check": payment_check.view(db, req)}  # V6 phase 13: the automatic check (information only)
 
 
 def refund_view(db: Session, r: MembershipRefund) -> dict:
@@ -367,26 +380,10 @@ def admin_list(db: Session, status: str = "") -> dict:
 
 
 def notify_admin(state, request_id: str) -> None:
-    bot = state.bot
-    if bot is None:
-        return
-    with state.database.session() as db:
-        req = db.get(MembershipRequest, request_id)
-        if req is None:
-            return
-        v = admin_view(db, req)
-    text = (f"💳 طلب عضوية — {v['public_id']}\nالمبلغ المطلوب: {v['amount']} {v['currency']} ({v['network']})\n"
-            f"TXID: {v['txid']}\n{v['explorer_url'] or ''}")
-    kb = {"inline_keyboard": [[{"text": "✅ قبول", "callback_data": f"ms:accept:{request_id}"},
-                               {"text": "❌ رفض", "callback_data": f"ms:reject:{request_id}"}]]}
-    try:
-        res = bot.tg.send_message(bot.admin_id, text, reply_markup=kb)
-        with state.database.session() as db:
-            req = db.get(MembershipRequest, request_id)
-            if req is not None and isinstance(res, dict):
-                req.tg_message_id = res.get("message_id")
-    except Exception as exc:  # noqa: BLE001
-        log.warning("membership notice not sent: %s", type(exc).__name__)
+    """The owner's Telegram message (V6 phase 13: with the result of the automatic check — payment_check)."""
+    from app.services import payment_check
+
+    payment_check.send_owner(state, request_id)
 
 
 def notify_admin_refund(state, refund_id: str) -> None:
@@ -433,13 +430,26 @@ def mail_user(state, user_id: str, what: str, note: str = "") -> None:
 
 
 def install(state) -> None:
-    """Telegram buttons ms:accept|reject:<request id> (admin chat only)."""
+    """Telegram buttons ms:<action>:<request id> (admin chat only). The owner decides: accept, reject, ban (with a
+    confirmation step); V6 phase 13 adds «طلب الفارق» (ask for the missing amount) and «إعادة الفحص»."""
+    from app.services import payment_check
     from app.services.media_moderation import mark_done
+
+    actions = ("accept", "reject", "ban", "banyes", "menu", "topup", "recheck")
 
     def on_callback(bot, cq: dict, payload: str) -> None:
         action, _, rid = payload.partition(":")
-        if action not in ("accept", "reject") or not re.fullmatch(r"[A-Za-z0-9_-]{8,32}", rid):
+        if action not in actions or not re.fullmatch(r"[A-Za-z0-9_-]{8,32}", rid):
             bot.tg.answer_callback(cq.get("id"), "غير معروف")
+            return
+        actor = f"telegram:{(cq.get('from') or {}).get('id')}"
+        if action in ("ban", "menu"):  # a ban is confirmed by a second tap
+            bot.tg.answer_callback(cq.get("id"), "اضغط «تأكيد الحظر» للمتابعة" if action == "ban" else "")
+            payment_check.update_owner(state, rid, confirm_ban=action == "ban")
+            return
+        if action == "recheck":
+            bot.tg.answer_callback(cq.get("id"), "جارٍ الفحص…")
+            state.pipeline.background(lambda st, r: payment_check.run(st, r, force=True), state, rid)
             return
         effects = Effects()
         try:
@@ -448,13 +458,23 @@ def install(state) -> None:
                 if req is None:
                     bot.tg.answer_callback(cq.get("id"), "غير موجود")
                     return
-                decide(db, state.settings, req, action, f"telegram:{(cq.get('from') or {}).get('id')}", "", effects)
+                if action == "topup":
+                    payment_check.request_topup(db, state.settings, req, actor, effects)
+                elif action == "banyes":
+                    payment_check.ban(db, state.settings, req, actor, effects)
+                else:
+                    decide(db, state.settings, req, action, actor, "", effects)
         except AppError as exc:
             bot.tg.answer_callback(cq.get("id"), exc.message)
             return
         state.dispatch(effects)
-        label = {"accept": "✅ قُبلت العضوية", "reject": "❌ رُفض الطلب"}[action]
+        if action == "topup":
+            bot.tg.answer_callback(cq.get("id"), "💬 طُلب الفارق من المستخدم")
+            payment_check.update_owner(state, rid)
+            return
+        label = {"accept": "✅ قُبلت العضوية", "reject": "❌ رُفض الطلب", "banyes": "⛔ حُظر الحساب ورُفض الطلب"}[action]
         bot.tg.answer_callback(cq.get("id"), label)
+        payment_check.update_owner(state, rid)
         msg = cq.get("message") or {}
         mark_done(state, (msg.get("chat") or {}).get("id"), msg.get("message_id"), label)
 

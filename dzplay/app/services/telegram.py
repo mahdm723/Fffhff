@@ -72,6 +72,11 @@ class TelegramClient:
     def answer_callback(self, callback_id: str, text: str = "") -> None:
         self.call("answerCallbackQuery", callback_query_id=callback_id, text=text[:190])
 
+    def edit_message_text(self, chat_id: str | int, message_id: int, text: str, *, reply_markup: dict | None = None) -> None:
+        """V6 phase 13: replace a message's text (and its buttons; None removes them)."""
+        self.call("editMessageText", chat_id=chat_id, message_id=message_id, text=text[:4000],
+                  reply_markup=reply_markup or {"inline_keyboard": []}, disable_web_page_preview=True)
+
     def edit_reply_markup(self, chat_id: str | int, message_id: int, reply_markup: dict | None = None) -> None:
         self.call("editMessageReplyMarkup", chat_id=chat_id, message_id=message_id,
                   reply_markup=reply_markup or {"inline_keyboard": []})

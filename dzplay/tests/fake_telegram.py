@@ -82,7 +82,7 @@ class FakeTelegram:
         if method == "setWebhook":
             self.webhook = body
             return self._ok(True)
-        if method in ("answerCallbackQuery", "editMessageReplyMarkup", "editMessageCaption"):
+        if method in ("answerCallbackQuery", "editMessageReplyMarkup", "editMessageCaption", "editMessageText"):
             self.edited.append({"method": method, **body})
             return self._ok(True)
         if method == "copyMessage":

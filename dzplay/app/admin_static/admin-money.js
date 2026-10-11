@@ -15,6 +15,35 @@ function txLine(r) {
     r.explorer_url ? h('a', { href: r.explorer_url, target: '_blank', rel: 'noopener noreferrer', text: 'فتح في المستكشف ↗' }) : '');
 }
 
+// V6 phase 13: the automatic check on the chain — information only: the decision stays yours (accept / reject / ban)
+function checkBox(r, reload) {
+  const c = r.check;
+  if (!c) return '';
+  const pending = r.status === 'pending';
+  const recheck = btn('🔄 إعادة الفحص', 'btn--ghost', async (e) => {
+    e.target.disabled = true;
+    if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/check`))) { toast('فُحص من جديد.'); reload(); }
+    e.target.disabled = false;
+  });
+  const topup = btn('💬 طلب استكمال الفارق', 'btn--ghost', async () => {
+    if (!(await confirmDanger('طلب الفارق؟', `يصل المستخدم إشعار وبريد بلغته: المبلغ الناقص ${c.diff} USDT، على الشبكة نفسها وإلى العنوان نفسه.`, 'إرسال'))) return;
+    if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/topup`))) { toast('طُلب الفارق من المستخدم.'); reload(); }
+  });
+  const ban = btn('⛔ حظر', 'btn--danger', async () => {
+    if (!(await confirmDanger('حظر الحساب ورفض الطلب؟', 'يُحظر الحساب وتُغلق جلساته، ويُرفض الطلب. يُسجَّل في سجل الإدارة.', 'حظر'))) return;
+    if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/ban`, { action: 'ban', note: null }))) { toast('حُظر الحساب ورُفض الطلب.'); reload(); }
+  });
+  return h('div', { class: `admin-check admin-check--${c.status || 'none'}` },
+    h('p', { class: 'admin-check__head' }, h('b', { text: c.text }),
+      c.checked_at ? h('span', { class: 'admin-meta', text: ` · آخر فحص ${when(c.checked_at)}` }) : ''),
+    ...c.txs.map((tx) => h('div', { class: 'admin-check__tx' },
+      h('span', { class: 'admin-meta', text: tx.kind === 'topup' ? 'الفارق' : 'الدفع' }), h('code', { dir: 'ltr', text: tx.txid }),
+      h('span', { text: `${tx.label}${tx.amount ? ` · ${tx.amount} USDT` : ''}${tx.confirmations ? ` · ${tx.confirmations} تأكيد` : ''}` }),
+      tx.explorer_url ? h('a', { href: tx.explorer_url, target: '_blank', rel: 'noopener noreferrer', text: 'المستكشف ↗' }) : '')),
+    c.underpay_notified_at ? h('p', { class: 'admin-meta', text: `💬 طُلب الفارق من المستخدم ${when(c.underpay_notified_at)}` }) : '',
+    pending ? h('div', { class: 'admin-actions' }, recheck, c.can_request_topup ? topup : '', r.user_status !== 'banned' ? ban : '') : '');
+}
+
 export function renderMembership(main) {
   const summary = h('p', { class: 'admin-meta' });
   const list = h('div', { class: 'admin-list' }, spinner());
@@ -31,6 +60,7 @@ export function renderMembership(main) {
         r.member ? chip('عضو', 'chip--team') : '', userRef(r.user_ref, 'الصفحة')),
       h('p', { class: 'admin-meta', text: when(r.created_at) }),
       txLine(r),
+      checkBox(r, load),
       r.note ? h('p', { class: 'admin-meta', text: `ملاحظة: ${r.note} (${r.decided_by || ''})` }) : '',
       r.status === 'pending' ? h('div', { class: 'admin-actions' }, note,
         btn('قبول', 'btn--primary', decide('accept')), btn('رفض', 'btn--danger', decide('reject'))) : '');
@@ -70,6 +100,7 @@ export function renderMembership(main) {
   main.replaceChildren(
     sectionHead('العضوية والدفع'),
     h('p', { class: 'admin-meta', text: 'العضوية ميزات داخل التطبيق فقط (النجمة، الأفكار مع صورة، صور المحادثة) ولا علاقة لها بأي عائد. السعر ومدة الاسترجاع ورسومه من «الإعدادات ← العضوية».' }),
+    h('p', { class: 'admin-meta', text: 'كل طلب يُفحص آليًا على البلوكشين (TRC20 / BEP20): المستلم، عقد USDT الرسمي، المبلغ، التأكيدات، التاريخ، وعدم تكرار رقم العملية. الفحص يعرض النتيجة فقط؛ القبول والرفض والحظر قرارك دائمًا.' }),
     summary,
     paymentSettingsBox(),
     h('h3', { text: 'طلبات العضوية' }),

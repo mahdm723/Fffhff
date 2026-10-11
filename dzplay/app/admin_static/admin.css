@@ -418,3 +418,13 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
   .i18n-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .i18n-where { grid-column: 1 / -1; }
 }
+
+/* V6 phase 13: the automatic payment check on a membership request */
+.admin-check { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); }
+.admin-check--match { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+.admin-check--under, .admin-check--over { border-color: color-mix(in srgb, var(--warn, #f5a524) 60%, var(--line)); }
+.admin-check--mismatch { border-color: color-mix(in srgb, var(--danger) 60%, var(--line)); }
+.admin-check__head { margin: 0; overflow-wrap: anywhere; }
+.admin-check__tx { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; min-width: 0; }
+.admin-check__tx code { overflow-wrap: anywhere; min-width: 0; font-size: 12px; }
+.admin-card .admin-meta code { overflow-wrap: anywhere; word-break: break-all; }

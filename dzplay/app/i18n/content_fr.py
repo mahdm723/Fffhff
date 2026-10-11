@@ -222,6 +222,10 @@ CONTENT: dict[str, tuple[str | None, str]] = {
         "{app} : adhésion",
         "Bonjour,\n\nNous n’avons pas pu accepter votre demande d’adhésion. Motif : {note}\n\nL’équipe {app}",
     ),
+    "email.membership_topup": (
+        "{app} : complétez le paiement de l’adhésion",
+        "Bonjour,\n\nNous avons bien reçu le paiement de votre adhésion, mais il est inférieur au prix. Montant manquant : {amount} USDT.\n\nEnvoyez-le uniquement sur le réseau {network}, à la même adresse :\n{wallet}\n\nOuvrez ensuite {app} → Mon compte → Mon adhésion et ajoutez l’identifiant de transaction (TXID) à la même demande. N’envoyez pas sur un autre réseau : le montant serait perdu.\n\nL’équipe {app}",
+    ),
     "email.notice": (
         "{app} : {topic}",
         "Bonjour,\n\n{message}\n\nL’équipe {app}",

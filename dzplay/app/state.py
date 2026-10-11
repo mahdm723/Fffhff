@@ -24,11 +24,13 @@ class AppState:
     telegram_secret: str = ""  # X-Telegram-Bot-Api-Secret-Token expected on the webhook
     telegram_source: str = "none"  # panel | env | none
     telegram_transport: object | None = None  # tests only (httpx.MockTransport)
+    chain_transport: object | None = None  # tests only: the TronGrid / BSC answers (httpx.MockTransport)
+    _chain: object | None = None
     fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (new-message alerts in the Android app)
     pipeline: object | None = None  # V5 MediaPipeline (user uploads -> worker -> Telegram storage)
 
     @classmethod
-    def build(cls, settings: Settings, telegram_transport=None) -> "AppState":
+    def build(cls, settings: Settings, telegram_transport=None, chain_transport=None) -> "AppState":
         database = Database(settings.DATABASE_URL)
         limiter = make_rate_limiter(settings.REDIS_URL)
         holder: dict = {}
@@ -43,7 +45,8 @@ class AppState:
 
         media = MediaStore(settings, database, telegram_factory)
         state = cls(settings=settings, database=database, limiter=limiter, hub=Hub(settings.REDIS_URL),
-                    push=PushNotifier(settings, database), media=media, telegram_transport=telegram_transport)
+                    push=PushNotifier(settings, database), media=media, telegram_transport=telegram_transport,
+                    chain_transport=chain_transport)
         holder["state"] = state
         from app.services import media_items
         from app.services.media_pipeline import MediaPipeline
@@ -67,6 +70,14 @@ class AppState:
             state.configure_telegram(settings.TELEGRAM_BOT_TOKEN, settings.TELEGRAM_ADMIN_CHAT_ID,
                                      settings.TELEGRAM_WEBHOOK_SECRET, "env")
         return state
+
+    def chain_reader(self):
+        """V6 phase 13: the blockchain reader (membership payments); it reads the live settings on every call."""
+        if self._chain is None:
+            from app.services.chain import ChainReader
+
+            self._chain = ChainReader(self.settings, transport=self.chain_transport)
+        return self._chain
 
     def configure_telegram(self, token: str | None, chat_id: str = "", secret: str = "", source: str = "none") -> None:
         """(Re)build the Telegram client + bot live; token None disables the bot.

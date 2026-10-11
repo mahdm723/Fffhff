@@ -222,6 +222,10 @@ CONTENT: dict[str, tuple[str | None, str]] = {
         "{app}: membership",
         "Hello,\n\nWe couldn't accept your membership request. Reason: {note}\n\nThe {app} team",
     ),
+    "email.membership_topup": (
+        "{app}: complete your membership payment",
+        "Hello,\n\nWe received your membership payment, but it is below the price. Missing amount: {amount} USDT.\n\nSend it on the {network} network only, to the same address:\n{wallet}\n\nThen open {app} → My account → My membership and add the transaction ID (TXID) to the same request. Don't send it on another network: the funds would be lost.\n\nThe {app} team",
+    ),
     "email.notice": (
         "{app}: {topic}",
         "Hello,\n\n{message}\n\nThe {app} team",

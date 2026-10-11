@@ -273,6 +273,21 @@ class Settings(BaseSettings):
     MEMBERSHIP_REFUND_FEE: float = 1.0  # kept from the refund (network fee)
     MEMBERSHIP_REQUESTS_PER_DAY: int = 3
 
+    # --- V6 phase 13: automatic check of the payment on the chain (shows a result; never accepts or rejects) ---
+    CHAIN_CHECK_ENABLED: bool = True
+    TRONGRID_URL: str = "https://api.trongrid.io"
+    TRONGRID_API_KEY: str = ""  # secret, optional (free key from trongrid.io: higher limits)
+    BSC_RPC_URL: str = "https://bsc-dataseed.bnbchain.org"  # a public BNB Smart Chain node (no key)
+    CHAIN_TIMEOUT: float = 10.0  # seconds per request to a node
+    CHAIN_TICK_SECONDS: int = 60  # how often the waiting checks are looked at (0 = off, tests)
+    CHAIN_CONFIRMATIONS_TRC20: int = 19
+    CHAIN_CONFIRMATIONS_BEP20: int = 15
+    MEMBERSHIP_CHECK_INTERVAL_MIN: int = 3  # a transaction not found yet is checked again every … minutes
+    MEMBERSHIP_CHECK_MAX_HOURS: int = 6  # … for this long, then shown as «not found»
+    PAYMENT_AMOUNT_TOLERANCE: float = 0.0  # USDT: a difference up to this is still a match
+    AUTO_NOTIFY_UNDERPAYMENT: bool = False  # ask the user for the missing amount without waiting for the owner
+    MEMBERSHIP_MAX_TXIDS: int = 3  # the first payment + top-ups in one request
+
     # --- V6 phase 5b: promotional rewards («أرباحي») — separate from membership, amounts in USDT -----
     REFERRAL_ENABLED: bool = True
     REFERRAL_REWARD: float = 5.0  # to the inviter when the invitee's membership is accepted

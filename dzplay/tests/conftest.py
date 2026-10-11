@@ -52,6 +52,8 @@ def make_settings(tmp_path, **overrides) -> Settings:
         UPLOAD_TMP_DIR=str(tmp_path / "upload-tmp"),
         MEDIA_TICK_SECONDS=0,  # tests run media_items.tick explicitly
         MARKET_REFRESH_SECONDS=0,  # no Bybit calls from tests (tests/test_market.py uses a fake transport)
+        CHAIN_CHECK_ENABLED=False,  # V6 phase 13: no TronGrid / BSC calls (tests/test_chain.py uses a fake transport)
+        CHAIN_TICK_SECONDS=0,  # tests run payment_check.due / run explicitly
     )
     base.update(overrides)
     return Settings(**base)
@@ -73,10 +75,10 @@ def _drop_legacy_tables(engine) -> None:
 class Harness:
     """Creates an app and per-user clients (each with its own cookie jar and IP)."""
 
-    def __init__(self, tmp_path, telegram_transport=None, **overrides):
+    def __init__(self, tmp_path, telegram_transport=None, chain_transport=None, **overrides):
         clock.reset()
         self.settings = make_settings(tmp_path, **overrides)
-        self.app = create_app(self.settings, telegram_transport=telegram_transport)
+        self.app = create_app(self.settings, telegram_transport=telegram_transport, chain_transport=chain_transport)
         state = self.app.state.dz
         _drop_legacy_tables(state.database.engine)
         Base.metadata.drop_all(state.database.engine)
