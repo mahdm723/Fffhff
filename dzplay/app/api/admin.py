@@ -802,3 +802,42 @@ def smtp_support_remove(body: StepUpBody, request: Request, ac: AdminContext = D
     return _smtp_remove(body, request, ac, "support")
 
 
+
+
+# ----------------------------------------------------------------- V6 phase 15: the admin signup code
+
+
+class SignupCodeBody(_Body):
+    signup_code: str | None = Field(default=None, max_length=200)  # a new code (12+ characters); empty = keep it
+    enabled: bool = False
+    expires_at: str | None = Field(default=None, max_length=40)  # ISO date (UTC), empty = no expiry
+    max_uses: int | None = Field(default=None, ge=0, le=10_000)  # empty / 0 = no limit
+    code: str = Field(max_length=12)  # the authenticator code (step-up)
+
+
+@router.get("/signup-code")
+def signup_code_get(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    from app.services import signup
+
+    with get_state(request).database.session() as db:
+        return signup.admin_code_status(db)
+
+
+@router.put("/signup-code")
+def signup_code_put(body: SignupCodeBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """Set / switch on or off the code that confirms a signup instead of the e-mail (step-up 2FA; audited, never the
+    code itself)."""
+    from app.services import signup
+
+    st = get_state(request)
+    with st.database.session() as db:
+        admin_auth.verify_step_up(db, st.settings, ac.client, ac.admin, body.code)
+        status = signup.admin_code_status(db)
+        result = signup.save_admin_code(db, ac.actor, code=body.signup_code, enabled=body.enabled,
+                                        expires_at=body.expires_at, max_uses=body.max_uses)
+        changes = [f"enabled={result['enabled']}", f"expires={result['expires_at'] or '—'}",
+                   f"max_uses={result['max_uses'] or '∞'}"]
+        if body.signup_code:
+            changes.append("new_code" if status["configured"] else "first_code")
+        _record(db, ac, "signup_code_update", target_type="setting", target_id="signup.admin_code", detail=", ".join(changes))
+        return result

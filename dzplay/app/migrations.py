@@ -53,6 +53,7 @@ def backfill(engine: Engine) -> dict:
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_conv_direct_key ON conversations (direct_key)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_name_norm ON users (name_norm)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_registered_device_id ON users (registered_device_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_email_canonical ON users (email_canonical)"))
         # V6 phase 5: ledger idempotency (one entry per source and kind) on databases created before it
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_ledger_source ON ledger_entries "
                           "(account, source_type, source_id, kind)"))
@@ -79,6 +80,15 @@ def backfill(engine: Engine) -> dict:
                 taken.add(pid)
                 conn.execute(text("UPDATE users SET public_id = :p WHERE id = :i"), {"p": pid, "i": uid})
             done["public_ids"] = len(missing)
+        # V6 phase 15: the canonical form of every e-mail (one mailbox = one account), for accounts made before it
+        from app.services.auth import canonical_email
+
+        rows = conn.execute(text("SELECT id, email FROM users WHERE email_canonical IS NULL AND email IS NOT NULL")).all()
+        for uid, email in rows:
+            conn.execute(text("UPDATE users SET email_canonical = :c WHERE id = :i"), {"c": canonical_email(email), "i": uid})
+        done["email_canonical"] = len(rows)
     if done["public_ids"]:
         log.info("backfill: public IDs for %d accounts", done["public_ids"])
+    if done["email_canonical"]:
+        log.info("backfill: canonical e-mail for %d accounts", done["email_canonical"])
     return done

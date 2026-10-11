@@ -47,6 +47,7 @@ export async function renderSystem(main) {
     botSection(),
     smtpSection('system'),
     smtpSection('support'),
+    signupCodeCard(),
     h('div', { class: 'admin-groups' },
       card('ذاكرة الوسائط المؤقتة', 'image',
         h('div', { class: 'admin-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct),
@@ -66,6 +67,63 @@ export async function renderSystem(main) {
           + 'docker compose exec app python -m app.admin_cli set-admin-password NAME\n'
           + 'docker compose exec app python -m app.admin_cli audit',
       }))));
+}
+
+// ------------------------------------------------------------------ V6 phase 15: the admin signup code
+
+function signupCodeCard() {
+  const box = h('div', {}, spinner());
+  const secret = h('input', { class: 'input', id: 'signup-admin-code', type: 'password', dir: 'ltr', autocomplete: 'new-password',
+    spellcheck: 'false', autocapitalize: 'off', maxlength: '128' });
+  const enabled = h('input', { type: 'checkbox', id: 'signup-code-enabled' });
+  const expires = h('input', { class: 'input', id: 'signup-code-expires', type: 'datetime-local', dir: 'ltr' });
+  const maxUses = h('input', { class: 'input', id: 'signup-code-uses', type: 'number', min: '0', max: '10000', inputmode: 'numeric', dir: 'ltr' });
+  const code = h('input', { class: 'input', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', dir: 'ltr', maxlength: '6' });
+  const save = h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, 'حفظ');
+  const pad = (n) => String(n).padStart(2, '0');
+  const local = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const paint = (s) => {
+    const state = !s.configured ? ['لم يُضبط رمز بعد', 'admin-warn'] : s.active ? ['مفعّل', 'admin-ok']
+      : s.expired ? ['منتهي الصلاحية', 'admin-warn'] : s.max_uses && s.uses >= s.max_uses ? ['استُنفد', 'admin-warn'] : ['موقوف', 'admin-warn'];
+    box.replaceChildren(rows([
+      ['الحالة', state[0], state[1]],
+      ['الاستعمالات', s.max_uses ? `${fmt(s.uses)} من ${fmt(s.max_uses)}` : `${fmt(s.uses)} (بلا حد)`],
+      ['ينتهي', s.expires_at ? when(s.expires_at) : 'بلا انتهاء'],
+      ['آخر تعيين للرمز', s.set_at ? `${when(s.set_at)} — ${s.set_by || ''}` : '—'],
+    ]));
+    enabled.checked = !!s.enabled;
+    expires.value = s.expires_at ? local(s.expires_at) : '';
+    maxUses.value = s.max_uses ? String(s.max_uses) : '';
+    secret.placeholder = s.configured ? 'اتركه فارغًا للإبقاء على الرمز الحالي' : `${s.min_length || 12} حرفًا على الأقل`;
+  };
+  const form = h('form', {
+    class: 'admin-form',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      const value = secret.value.trim();
+      if (value && value.length < 12) { toast('الرمز 12 حرفًا على الأقل.', 'error'); secret.focus(); return; }
+      if (!/^[0-9]{6}$/.test(code.value.trim())) { toast('اكتب رمز التحقق من تطبيق المصادقة (6 أرقام).', 'error'); code.focus(); return; }
+      save.disabled = true;
+      const s = await attempt(() => call('PUT', '/api/admin/signup-code', {
+        signup_code: value || null, enabled: enabled.checked, expires_at: expires.value ? new Date(expires.value).toISOString() : null,
+        max_uses: maxUses.value ? Math.trunc(Number(maxUses.value)) : null, code: code.value.trim(),
+      }));
+      save.disabled = false;
+      secret.value = '';
+      code.value = '';
+      if (s) { paint(s); toast('حُفظ ✅'); }
+    },
+  },
+  field('رمز جديد (اختياري)', secret),
+  h('label', { class: 'admin-check', for: 'signup-code-enabled' }, enabled, h('span', { text: 'تفعيل الرمز' })),
+  field('ينتهي في (اختياري)', expires),
+  field('أقصى عدد استعمالات (اختياري)', maxUses),
+  field('رمز التحقق من تطبيق المصادقة', code),
+  save);
+  attempt(() => call('GET', '/api/admin/signup-code')).then((s) => { if (s) paint(s); else box.replaceChildren(); });
+  return card('رمز إنشاء الحساب الإداري', 'lock',
+    h('p', { class: 'admin-meta', text: 'رمز تختاره أنت يُكتب في شاشة «أدخل الرمز المرسل إلى بريدك» بدل رمز البريد، فيُنشأ الحساب دون بريد. يُحفظ مشفّرًا (لا يمكن عرضه بعد الحفظ). كل استعمال يُسجَّل في سجل التدقيق ويصلك تنبيه Telegram فورًا، ويتوقف الرمز تلقائيًا عند آخر استعمال مسموح أو عند انتهائه. محاولاته الخاطئة محدودة لكل شبكة.' }),
+    box, form);
 }
 
 // ------------------------------------------------------------------ V6 phase 2: market (Bybit)

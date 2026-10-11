@@ -120,6 +120,7 @@ def users_search(db: Session, *, q: str = "", status: str = "", method: str = ""
         "id": u.id, "email": u.email, "method": "google" if u.google_sub and not u.password_hash else
         ("google+email" if u.google_sub else "email"),
         "display_name": u.display_name, "public_id": u.public_id, "gender": u.gender,
+        "verified_via": u.signup_verified_via,  # V6 phase 15: email | admin_code | google (None: before it / off)
         "status": u.status, "created_at": iso(u.created_at), "last_active_at": iso(u.last_active_at),
         "team": _team_label(u), "networks": [n[:12] for n in networks_of(db, u.id)][:5],
         "stats": {"posts": posts.get(u.id, 0), "messages_sent": u.messages_sent, "messages_received": u.messages_received,
@@ -164,6 +165,7 @@ def user_detail(db: Session, user_id: str) -> dict:
                  "method": "google" if u.google_sub and not u.password_hash else ("google+email" if u.google_sub else "email"),
                  "created_at": iso(u.created_at), "last_active_at": iso(u.last_active_at), "profile_ref": ref,
                  "display_name": u.display_name, "public_id": u.public_id, "gender": u.gender,
+                 "verified_via": u.signup_verified_via, "email_verified_at": iso(u.email_verified_at),
                  "age_confirmed_at": iso(u.age_confirmed_at), "privacy": privacy_view(u),
                  "sessions_active": sessions, "stats": {"messages_sent": u.messages_sent, "messages_received": u.messages_received,
                                                         "conversations": u.conversations_count}},

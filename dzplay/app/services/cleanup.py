@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app import clock
 from app.config import Settings
-from app.models import AdminAuditLog, AdminSession, AuthSession, AuthThrottle, ContentFlag, Conversation, Message, Report, SecurityEvent, UsedChallenge
+from app.models import AdminAuditLog, AdminSession, AuthSession, AuthThrottle, ContentFlag, Conversation, Message, Report, SecurityEvent, SignupPending, UsedChallenge
 
 log = logging.getLogger("dzplay.cleanup")
 
@@ -42,6 +42,7 @@ def run_cleanup(db: Session, settings: Settings, media=None) -> dict[str, int]:
     purge("conversations", delete(Conversation).where(Conversation.expires_at <= now))
     purge("sessions", delete(AuthSession).where(AuthSession.expires_at <= now))
     purge("challenges", delete(UsedChallenge).where(UsedChallenge.expires_at <= now))
+    purge("signup_pending", delete(SignupPending).where(SignupPending.expires_at <= now))  # V6 phase 15: never confirmed
     stale = now - timedelta(seconds=settings.LOGIN_FAILURE_WINDOW)
     purge("auth_throttle", delete(AuthThrottle).where(
         AuthThrottle.last_failure_at < stale,

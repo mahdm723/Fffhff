@@ -23,11 +23,14 @@ from app.api.schemas import (
     ResetCompleteBody,
     ResetRequestBody,
     ResetVerifyBody,
+    SignupResendBody,
+    SignupVerifyBody,
 )
 from app.errors import AppError, rate_limited
 from app.security.sessions import create_session, revoke_session
 from app.services import auth as auth_service
-from app.services import appearance, cms, password_reset
+from app.services import appearance, cms, password_reset, signup
+from app.services.messaging import Effects
 from app.services.ideas import own_profile
 from app.services.messaging import profile
 from app.services.rate_limit import Limit
@@ -60,6 +63,9 @@ def public_config(request: Request) -> dict:
         "password_reset_enabled": get_state(request).bot is not None,
         "reset_code_hours": max(1, s.RESET_CODE_TTL // 3600),
         "reset_max_attempts": s.RESET_MAX_CODE_ATTEMPTS,
+        # V6 phase 15: a code is e-mailed before the account is created
+        "email_verification": s.REGISTRATION_EMAIL_VERIFICATION,
+        "register_code_minutes": max(1, s.REGISTER_CODE_TTL // 60),
         "footer_text": footer,
         "welcome_text": welcome,
         "announcement": announcement,
@@ -100,6 +106,11 @@ def _after_signup(db, st, request: Request, response: Response, user, ctx) -> No
 def register(body: RegisterBody, request: Request, response: Response) -> dict:
     st = get_state(request)
     ctx = client_context(request)
+    if st.settings.REGISTRATION_EMAIL_VERIFICATION:  # V6 phase 15: the account waits for the code e-mailed now
+        response.status_code = 202
+        return signup.start(st, ctx, i18n.current(), email=body.email, password=body.password,
+                            password_confirm=body.password_confirm, antibot_payload=body.antibot, honeypot=body.website,
+                            gender=body.gender, age_confirmed=body.age_confirmed, display_name=body.display_name)
     with st.database.session() as db:
         user = auth_service.register(
             db, st.settings, ctx, email=body.email, password=body.password, password_confirm=body.password_confirm,
@@ -111,6 +122,28 @@ def register(body: RegisterBody, request: Request, response: Response) -> dict:
         result = profile(user)
     set_session_cookie(response, request, token)
     return result
+
+
+@router.post("/auth/register/verify", status_code=201)
+def register_verify(body: SignupVerifyBody, request: Request, response: Response) -> dict:
+    """V6 phase 15: the code from the e-mail creates the account and signs it in."""
+    st = get_state(request)
+    ctx = client_context(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = signup.verify(db, st, ctx, body.signup_token, body.code, effects)
+        _after_signup(db, st, request, response, user, ctx)
+        token = create_session(db, st.settings, user)
+        result = profile(user)
+    st.dispatch(effects)
+    set_session_cookie(response, request, token)
+    return result
+
+
+@router.post("/auth/register/resend")
+def register_resend(body: SignupResendBody, request: Request) -> dict:
+    st = get_state(request)
+    return signup.resend(st, client_context(request), body.signup_token)
 
 
 @router.post("/auth/login")

@@ -11,6 +11,8 @@ import { userMoneySection } from './admin-money.js';
 
 export const STATUS = { active: 'نشط', suspended: 'موقوف', banned: 'محظور' };
 const METHOD = { email: 'بريد', google: 'Google', 'google+email': 'بريد + Google' };
+// V6 phase 15: how the signup was confirmed
+const VERIFIED = { email: 'تأكيد بالبريد', admin_code: 'رمز إداري', google: 'تأكيد Google' };
 const filters = { q: '', status: '', method: '', flagged: false, has_posts: false };
 
 function select(options, value) {
@@ -68,7 +70,8 @@ function userCard(u) {
     h('span', { class: 'admin-name', dir: 'auto', text: u.display_name || 'dzplay' }),
     u.public_id ? h('code', { dir: 'ltr', text: u.public_id }) : null,
     chip(STATUS[u.status] || u.status, u.status !== 'active' ? 'chip--hot' : ''),
-    chip(METHOD[u.method] || u.method)),
+    chip(METHOD[u.method] || u.method),
+    u.verified_via ? chip(VERIFIED[u.verified_via] || u.verified_via, u.verified_via === 'admin_code' ? 'chip--warn' : '') : null),
   h('div', { class: 'admin-card__meta' },
     h('span', {}, 'التسجيل: ', when(u.created_at)),
     h('span', {}, 'آخر نشاط: ', when(u.last_active_at)),
@@ -113,7 +116,9 @@ export function openUser(id) {
             ...[['الاسم الظاهر', u.display_name || 'dzplay (افتراضي)'], ['المعرّف العام', u.public_id || '—'],
               ['الجنس', GENDER[u.gender] || 'غير محدد'], ['تأكيد 18+', u.age_confirmed_at ? when(u.age_confirmed_at) : 'لم يؤكد بعد'],
               ['الخصوصية', privacyText(u.privacy)],
-              ['المعرّف الداخلي', u.id], ['طريقة التسجيل', METHOD[u.method] || u.method], ['الحالة', STATUS[u.status] || u.status],
+              ['المعرّف الداخلي', u.id], ['طريقة التسجيل', METHOD[u.method] || u.method],
+              ['تأكيد التسجيل', VERIFIED[u.verified_via] || (u.email_verified_at ? 'بريد مؤكد' : 'دون تأكيد (قبل التحديث أو التأكيد موقوف)')],
+              ['الحالة', STATUS[u.status] || u.status],
               ['التسجيل', when(u.created_at)], ['آخر نشاط', when(u.last_active_at)], ['جلسات نشطة', fmt(u.sessions_active)],
               ['رسائل مرسلة / مستلمة', `${fmt(u.stats.messages_sent)} / ${fmt(u.stats.messages_received)}`],
               ['مرجع الملف العام', u.profile_ref || '—']]

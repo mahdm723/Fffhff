@@ -207,6 +207,10 @@ CONTENT: dict[str, tuple[str | None, str]] = {
         "l’équipe {app} ne vous le demandera jamais.\nSi vous n’êtes pas à l’origine de cette demande, ignorez ce message et "
         "changez votre mot de passe.\n\nL’équipe {app}",
     ),
+    "email.signup_code": (
+        "{app} : code de confirmation de votre compte {code}",
+        "Bonjour,\n\nCode de confirmation de la création de votre compte {app} :\n\n{code}\n\nSaisissez-le dans l’application pour terminer l’inscription. Il est valable {minutes} minutes. Ne le partagez avec personne : l’équipe {app} ne vous le demandera jamais.\nSi vous n’avez pas demandé à créer un compte, ignorez ce message : aucun compte ne sera créé.\n\nL’équipe {app}",
+    ),
     "email.reset": (
         "Code de récupération de votre compte {app}",
         "Code de récupération de votre compte {app} :\n\n    {code}\n\nSaisissez ce code dans l’application pour choisir un "

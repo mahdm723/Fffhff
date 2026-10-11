@@ -55,6 +55,7 @@ def make_settings(tmp_path, **overrides) -> Settings:
         CHAIN_CHECK_ENABLED=False,  # V6 phase 13: no TronGrid / BSC calls (tests/test_chain.py uses a fake transport)
         WEB_DESKTOP_ACCESS=True,  # V6 phase 14: the test clients are not phones (tests/test_access.py checks the gate)
         ATTESTATION_STATUS_URL="",  # no call to Google's revocation list
+        REGISTRATION_EMAIL_VERIFICATION=False,  # V6 phase 15: accounts at once (tests/test_signup_verify.py checks the code)
         CHAIN_TICK_SECONDS=0,  # tests run payment_check.due / run explicitly
     )
     base.update(overrides)

@@ -138,6 +138,18 @@ class Settings(BaseSettings):
     APP_TOKEN_HOURS: int = 12  # the app's access cookie (dz_app); the app renews it every few hours
     ATTESTATION_STATUS_URL: str = "https://android.googleapis.com/attestation/status"  # revoked keys ("" = skip)
 
+    # --- V6 phase 15: e-mail confirmation at signup ------------------------------------------------
+    # The account is created only after the 6-digit code sent to the e-mail is entered (panel settings).
+    REGISTRATION_EMAIL_VERIFICATION: bool = True
+    REGISTER_CODE_TTL: int = 900  # seconds a signup code is valid (15 minutes)
+    REGISTER_CODE_MAX_ATTEMPTS: int = 5  # wrong codes before the signup is cancelled
+    REGISTER_RESEND_SECONDS: int = 60  # wait between two sends of the code
+    REGISTER_MAX_SENDS: int = 5  # sends of one pending signup (first one included)
+    REGISTER_PER_EMAIL_PER_DAY: int = 5  # signups started for one mailbox (canonical address) per day
+    REGISTER_VERIFY_PER_IP_PER_HOUR: int = 30  # code checks from one network per hour
+    REGISTER_STARTS_PER_IP_PER_HOUR: int = 10  # signups started (and codes re-sent) from one network per hour
+    ADMIN_SIGNUP_CODE_TRIES_PER_IP: int = 5  # wrong admin signup codes from one network per day (strict)
+
     # --- admin panel (separate admin accounts + TOTP 2FA) ---------------------
     PUBLIC_URL: str = ""  # https://your-domain (set by the installer); used to register the Telegram webhook
     ADMIN_PATH: str = ""  # secret URL prefix of the panel, e.g. /panel-x7f3k9q2; empty disables the panel

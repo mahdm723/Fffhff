@@ -46,7 +46,7 @@ def start_server(port: int, **extra_env: str) -> tuple[subprocess.Popen, str, st
     env = dict(os.environ, DATABASE_URL=db_url, SECRET_KEY=SECRET, ENV="development", CLEANUP_INTERVAL="0",
                LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10", ADMIN_PATH=ADMIN_PATH,
                MARKET_REFRESH_SECONDS="0", CHAIN_CHECK_ENABLED="false", WEB_DESKTOP_ACCESS="true",
-               ATTESTATION_STATUS_URL="")
+               ATTESTATION_STATUS_URL="", REGISTRATION_EMAIL_VERIFICATION="false")
     env.update(extra_env)
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"], cwd=ROOT, env=env)

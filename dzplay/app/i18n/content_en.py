@@ -207,6 +207,10 @@ CONTENT: dict[str, tuple[str | None, str]] = {
         "team will never ask you for it.\nIf you didn't request it, ignore this message and change your password.\n\n"
         "The {app} team",
     ),
+    "email.signup_code": (
+        "{app}: your account confirmation code {code}",
+        "Hello,\n\nYour code to confirm your new {app} account:\n\n{code}\n\nEnter it in the app to finish signing up. It is valid for {minutes} minutes. Don’t share it with anyone: the {app} team will never ask you for it.\nIf you didn’t ask to create an account, ignore this message: no account will be created.\n\nThe {app} team",
+    ),
     "email.reset": (
         "Your {app} account recovery code",
         "Your {app} account recovery code:\n\n    {code}\n\nEnter this code in the app to choose a new password. It's valid for "

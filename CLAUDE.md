@@ -79,6 +79,12 @@
     - ربط الجهاز: `app_devices`، و`user_devices`، و`users.registered_device_id`، والحد `MAX_ACCOUNTS_PER_DEVICE`.
     - صمام الأمان `ANDROID_APP_GATE` من اللوحة. كل تحديث للتطبيق إلزامي (`version.json` → `min_version_code`).
     - في الاختبارات: `WEB_DESKTOP_ACCESS=True` (المتصفحات فيها حواسيب)، وسلاسل شهادات مصطنعة من جذر اختباري (`tests/test_access.py`).
+  - **تأكيد البريد عند التسجيل (المرحلة 15):**
+    - `services/signup.py`: مع `REGISTRATION_EMAIL_VERIFICATION` لا يُنشأ الحساب إلا بعد رمز من 6 أرقام يصل إلى البريد. قبله صف في `signup_pending` (بصمات فقط)، ثم `auth.create_user` (نفس مسار `auth.validate_registration`).
+    - بلا بريد نظام يعمل: 503 «التسجيل غير متاح مؤقتًا» وتنبيه Telegram.
+    - `users.email_canonical`: صندوق واحد = حساب واحد (Gmail بلا نقاط، وبلا `+tag`). `users.signup_verified_via`: `email` / `admin_code` / `google`.
+    - رمز إنشاء الحساب الإداري: في `app_settings` (`signup.admin_code`، argon2)، يُضبط من اللوحة بـ2FA، وكل استعمال في سجل التدقيق وTelegram.
+    - في الاختبارات: `REGISTRATION_EMAIL_VERIFICATION=False` افتراضيًا، و`tests/test_signup_verify.py` و`e2e/run_signup_e2e.py` يفعّلانه.
 - **اللغات (V6 المرحلة 12):** العربية (الأصل والاحتياط) والفرنسية والإنجليزية.
   - **النص العربي هو المفتاح:** `t('…')` في الواجهة (`static/js/i18n.js`)، و`tr('…')`/`N_('…')` في الخادم (`app/i18n/`). رسائل `AppError` تُكتب بالعربية وقيمها في `params` (`{name}`)، ولا تُدمج في النص.
   - الترجمات المرفقة في `app/i18n/fr.json` و`en.json` (وصيغ الجمع العربية في `ar.json`)، ونصوص نظام المحتوى في `app/i18n/content_fr.py` و`content_en.py`.

@@ -33,10 +33,10 @@ function checkBox(r, reload) {
     if (!(await confirmDanger('حظر الحساب ورفض الطلب؟', 'يُحظر الحساب وتُغلق جلساته، ويُرفض الطلب. يُسجَّل في سجل الإدارة.', 'حظر'))) return;
     if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/ban`, { action: 'ban', note: null }))) { toast('حُظر الحساب ورُفض الطلب.'); reload(); }
   });
-  return h('div', { class: `admin-check admin-check--${c.status || 'none'}` },
-    h('p', { class: 'admin-check__head' }, h('b', { text: c.text }),
+  return h('div', { class: `admin-paycheck admin-paycheck--${c.status || 'none'}` },
+    h('p', { class: 'admin-paycheck__head' }, h('b', { text: c.text }),
       c.checked_at ? h('span', { class: 'admin-meta', text: ` · آخر فحص ${when(c.checked_at)}` }) : ''),
-    ...c.txs.map((tx) => h('div', { class: 'admin-check__tx' },
+    ...c.txs.map((tx) => h('div', { class: 'admin-paycheck__tx' },
       h('span', { class: 'admin-meta', text: tx.kind === 'topup' ? 'الفارق' : 'الدفع' }), h('code', { dir: 'ltr', text: tx.txid }),
       h('span', { text: `${tx.label}${tx.amount ? ` · ${tx.amount} USDT` : ''}${tx.confirmations ? ` · ${tx.confirmations} تأكيد` : ''}` }),
       tx.explorer_url ? h('a', { href: tx.explorer_url, target: '_blank', rel: 'noopener noreferrer', text: 'المستكشف ↗' }) : '')),

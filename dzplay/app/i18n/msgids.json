@@ -2,8 +2,8 @@
  {
   "id": " (حاول بعد {n} دقيقة تقريبًا)",
   "where": [
-   "static/js/views/auth.js:53",
-   "static/js/views/auth.js:223"
+   "static/js/views/auth.js:132",
+   "static/js/views/auth.js:303"
   ],
   "client": true,
   "plural": true
@@ -232,7 +232,7 @@
   "where": [
    "static/js/onboarding.js:83",
    "static/js/people.js:30",
-   "static/js/views/auth.js:178"
+   "static/js/views/auth.js:257"
   ],
   "client": true,
   "plural": false
@@ -277,7 +277,15 @@
  {
   "id": "أدخل البريد الإلكتروني وكلمة المرور.",
   "where": [
-   "static/js/views/auth.js:193"
+   "static/js/views/auth.js:272"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل الرمز المرسل إلى بريدك",
+  "where": [
+   "static/js/views/auth.js:79"
   ],
   "client": true,
   "plural": false
@@ -285,7 +293,8 @@
  {
   "id": "أدخل الرمز.",
   "where": [
-   "static/js/views/auth.js:115"
+   "static/js/views/auth.js:88",
+   "static/js/views/auth.js:194"
   ],
   "client": true,
   "plural": false
@@ -310,7 +319,7 @@
  {
   "id": "أدخل بريدك الإلكتروني.",
   "where": [
-   "static/js/views/auth.js:94"
+   "static/js/views/auth.js:173"
   ],
   "client": true,
   "plural": false
@@ -318,7 +327,7 @@
  {
   "id": "أدخل بريدك. يراجع فريق {app} الطلب، ثم يصلك رمز على بريدك الإلكتروني.",
   "where": [
-   "static/js/views/auth.js:65"
+   "static/js/views/auth.js:144"
   ],
   "client": true,
   "plural": false
@@ -462,6 +471,22 @@
    "app/services/messaging.py:224"
   ],
   "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسلنا رمزًا جديدًا. الرمز السابق لم يعد صالحًا.",
+  "where": [
+   "static/js/views/auth.js:106"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسلنا رمزًا من 6 أرقام إلى {email}. الرمز صالح {minutes} دقيقة.",
+  "where": [
+   "static/js/views/auth.js:61"
+  ],
+  "client": true,
   "plural": false
  },
  {
@@ -742,7 +767,7 @@
  {
   "id": "أو",
   "where": [
-   "static/js/views/auth.js:275"
+   "static/js/views/auth.js:355"
   ],
   "client": true,
   "plural": false
@@ -786,6 +811,14 @@
    "static/js/views/membership.js:98"
   ],
   "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسل الرمز مرات كثيرة. أعد التسجيل لاحقًا.",
+  "where": [
+   "app/services/signup.py:183"
+  ],
+  "client": false,
   "plural": false
  },
  {
@@ -1039,7 +1072,7 @@
  {
   "id": "إرسال الطلب",
   "where": [
-   "static/js/views/auth.js:61"
+   "static/js/views/auth.js:140"
   ],
   "client": true,
   "plural": false
@@ -1080,7 +1113,7 @@
   "id": "إرشادات المجتمع",
   "where": [
    "static/js/privacy.js:12",
-   "static/js/views/auth.js:182",
+   "static/js/views/auth.js:261",
    "app/api/download.py:118"
   ],
   "client": true,
@@ -1128,9 +1161,25 @@
   "plural": false
  },
  {
+  "id": "إعادة إرسال الرمز",
+  "where": [
+   "static/js/views/auth.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "إعادة إرسال الطلب",
   "where": [
-   "static/js/views/auth.js:102"
+   "static/js/views/auth.js:181"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إعادة الإرسال بعد {seconds} ث",
+  "where": [
+   "static/js/views/auth.js:66"
   ],
   "client": true,
   "plural": false
@@ -1257,7 +1306,7 @@
  {
   "id": "إنشاء الحساب",
   "where": [
-   "static/js/views/auth.js:163"
+   "static/js/views/auth.js:242"
   ],
   "client": true,
   "plural": false
@@ -1431,8 +1480,8 @@
   "id": "اختر: رجل، أنثى، أو أفضّل عدم الذكر.",
   "where": [
    "static/js/onboarding.js:69",
-   "static/js/views/auth.js:201",
-   "app/services/auth.py:153",
+   "static/js/views/auth.js:280",
+   "app/services/auth.py:185",
    "app/services/names.py:147"
   ],
   "client": true,
@@ -1481,7 +1530,7 @@
  {
   "id": "استعادة الحساب",
   "where": [
-   "static/js/views/auth.js:64"
+   "static/js/views/auth.js:143"
   ],
   "client": true,
   "plural": false
@@ -1489,7 +1538,7 @@
  {
   "id": "استعادة الحساب غير مفعّلة حاليًا. تواصل مع الإدارة.",
   "where": [
-   "app/api/auth.py:134"
+   "app/api/auth.py:167"
   ],
   "client": false,
   "plural": false
@@ -1700,7 +1749,7 @@
   "where": [
    "static/js/onboarding.js:41",
    "static/js/onboarding.js:68",
-   "static/js/views/auth.js:199"
+   "static/js/views/auth.js:278"
   ],
   "client": true,
   "plural": false
@@ -1759,6 +1808,14 @@
    "static/js/views/chat.js:74"
   ],
   "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب رمزًا أولًا.",
+  "where": [
+   "app/services/signup.py:325"
+  ],
+  "client": false,
   "plural": false
  },
  {
@@ -1957,7 +2014,7 @@
   "where": [
    "static/js/onboarding.js:49",
    "static/js/onboarding.js:81",
-   "static/js/views/auth.js:175",
+   "static/js/views/auth.js:254",
    "static/js/views/profile.js:121"
   ],
   "client": true,
@@ -1999,8 +2056,8 @@
  {
   "id": "البريد الإلكتروني",
   "where": [
-   "static/js/views/auth.js:57",
-   "static/js/views/auth.js:172"
+   "static/js/views/auth.js:136",
+   "static/js/views/auth.js:251"
   ],
   "client": true,
   "plural": false
@@ -2037,6 +2094,14 @@
    "static/js/views/chat.js:426"
   ],
   "client": true,
+  "plural": false
+ },
+ {
+  "id": "التسجيل غير متاح مؤقتًا. حاول لاحقًا.",
+  "where": [
+   "app/services/signup.py:51"
+  ],
+  "client": false,
   "plural": false
  },
  {
@@ -2101,7 +2166,7 @@
   "id": "الجنس",
   "where": [
    "static/js/onboarding.js:12",
-   "static/js/views/auth.js:177",
+   "static/js/views/auth.js:256",
    "static/js/views/profile.js:127"
   ],
   "client": true,
@@ -2234,6 +2299,14 @@
   "plural": false
  },
  {
+  "id": "الرمز {min} حرفًا على الأقل.",
+  "where": [
+   "app/services/signup.py:320"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "الرمز الذي وصلك بالبريد",
   "where": [
    "static/js/views/giveaway.js:26"
@@ -2244,7 +2317,7 @@
  {
   "id": "الرمز الذي وصلك على البريد",
   "where": [
-   "static/js/views/auth.js:69"
+   "static/js/views/auth.js:148"
   ],
   "client": true,
   "plural": false
@@ -2252,7 +2325,7 @@
  {
   "id": "الرمز صالح {hours} ساعة ولمرة واحدة. بعد {attempts} محاولات خاطئة يُلغى ويلزمك طلب رمز جديد.",
   "where": [
-   "static/js/views/auth.js:76"
+   "static/js/views/auth.js:155"
   ],
   "client": true,
   "plural": false
@@ -2269,7 +2342,8 @@
   "id": "الرمز غير صحيح.",
   "where": [
    "app/services/email_codes.py:78",
-   "app/services/email_codes.py:87"
+   "app/services/email_codes.py:87",
+   "app/services/signup.py:228"
   ],
   "client": false,
   "plural": false
@@ -2530,7 +2604,7 @@
  {
   "id": "العودة لتسجيل الدخول",
   "where": [
-   "static/js/views/auth.js:48"
+   "static/js/views/auth.js:127"
   ],
   "client": true,
   "plural": false
@@ -2548,7 +2622,7 @@
   "where": [
    "static/js/language.js:16",
    "static/js/language.js:30",
-   "static/js/views/auth.js:267",
+   "static/js/views/auth.js:347",
    "static/js/views/profile.js:283"
   ],
   "client": true,
@@ -2795,9 +2869,17 @@
   "plural": false
  },
  {
+  "id": "انتظر قليلًا قبل إعادة إرسال الرمز.",
+  "where": [
+   "app/services/signup.py:181"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "انتظر قليلًا قبل المحاولة مرة أخرى.",
   "where": [
-   "app/services/auth.py:207"
+   "app/services/auth.py:257"
   ],
   "client": false,
   "plural": false
@@ -2831,6 +2913,23 @@
   "plural": false
  },
  {
+  "id": "انتهت صلاحية التسجيل. أعد إدخال بياناتك.",
+  "where": [
+   "app/services/signup.py:163",
+   "app/services/signup.py:178"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية الرمز. أعد إدخال بياناتك أو اطلب رمزًا جديدًا.",
+  "where": [
+   "app/services/signup.py:167"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "انتهت صلاحية الصورة",
   "where": [
    "static/js/views/chat.js:184"
@@ -2859,7 +2958,7 @@
  {
   "id": "انتهت صلاحية جلسة تسجيل الدخول. أعد المحاولة.",
   "where": [
-   "app/services/auth.py:314"
+   "app/services/auth.py:364"
   ],
   "client": false,
   "plural": false
@@ -2931,7 +3030,7 @@
  {
   "id": "بريد حساب Google غير مؤكد.",
   "where": [
-   "app/services/auth.py:316"
+   "app/services/auth.py:366"
   ],
   "client": false,
   "plural": false
@@ -2955,7 +3054,7 @@
  {
   "id": "بعد التغيير يُسجَّل خروجك من كل الأجهزة الأخرى.",
   "where": [
-   "static/js/views/auth.js:88"
+   "static/js/views/auth.js:167"
   ],
   "client": true,
   "plural": false
@@ -3044,8 +3143,16 @@
  {
   "id": "تأكيد كلمة المرور",
   "where": [
-   "static/js/views/auth.js:82",
-   "static/js/views/auth.js:174"
+   "static/js/views/auth.js:161",
+   "static/js/views/auth.js:253"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد وإنشاء الحساب",
+  "where": [
+   "static/js/views/auth.js:57"
   ],
   "client": true,
   "plural": false
@@ -3053,7 +3160,8 @@
  {
   "id": "تاريخ الانتهاء غير صالح.",
   "where": [
-   "app/services/giveaway.py:154"
+   "app/services/giveaway.py:154",
+   "app/services/signup.py:288"
   ],
   "client": false,
   "plural": false
@@ -3061,7 +3169,8 @@
  {
   "id": "تاريخ الانتهاء يجب أن يكون في المستقبل.",
   "where": [
-   "app/services/giveaway.py:156"
+   "app/services/giveaway.py:156",
+   "app/services/signup.py:328"
   ],
   "client": false,
   "plural": false
@@ -3133,7 +3242,7 @@
  {
   "id": "تحقق من الرمز",
   "where": [
-   "static/js/views/auth.js:73"
+   "static/js/views/auth.js:152"
   ],
   "client": true,
   "plural": false
@@ -3165,7 +3274,7 @@
  {
   "id": "تحميل تطبيق أندرويد",
   "where": [
-   "static/js/views/auth.js:281"
+   "static/js/views/auth.js:361"
   ],
   "client": true,
   "plural": false
@@ -3224,7 +3333,7 @@
  {
   "id": "تسجيل الدخول",
   "where": [
-   "static/js/views/auth.js:40"
+   "static/js/views/auth.js:41"
   ],
   "client": true,
   "plural": false
@@ -3232,7 +3341,7 @@
  {
   "id": "تسجيل الدخول عبر Google غير مفعّل.",
   "where": [
-   "app/services/auth.py:301"
+   "app/services/auth.py:351"
   ],
   "client": false,
   "plural": false
@@ -3306,7 +3415,7 @@
  {
   "id": "تعذّر إنشاء الحساب. حاول مرة أخرى.",
   "where": [
-   "app/services/auth.py:346"
+   "app/services/auth.py:397"
   ],
   "client": false,
   "plural": false
@@ -3322,8 +3431,9 @@
  {
   "id": "تعذّر الاتصال. حاول مرة أخرى.",
   "where": [
-   "static/js/views/auth.js:52",
-   "static/js/views/auth.js:220"
+   "static/js/views/auth.js:74",
+   "static/js/views/auth.js:131",
+   "static/js/views/auth.js:300"
   ],
   "client": true,
   "plural": false
@@ -3349,9 +3459,9 @@
  {
   "id": "تعذّر التحقق من حساب Google.",
   "where": [
-   "app/services/auth.py:303",
-   "app/services/auth.py:312",
-   "app/services/auth.py:309"
+   "app/services/auth.py:353",
+   "app/services/auth.py:362",
+   "app/services/auth.py:359"
   ],
   "client": false,
   "plural": false
@@ -3400,7 +3510,7 @@
  {
   "id": "تعذّر تحميل تسجيل الدخول عبر Google.",
   "where": [
-   "static/js/views/auth.js:260"
+   "static/js/views/auth.js:340"
   ],
   "client": true,
   "plural": false
@@ -3497,6 +3607,14 @@
   "plural": false
  },
  {
+  "id": "تغيير البريد أو البيانات",
+  "where": [
+   "static/js/views/auth.js:116"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "تغيير الصورة",
   "where": [
    "static/js/views/profile.js:64"
@@ -3515,7 +3633,7 @@
  {
   "id": "تغيير كلمة المرور والدخول",
   "where": [
-   "static/js/views/auth.js:85"
+   "static/js/views/auth.js:164"
   ],
   "client": true,
   "plural": false
@@ -3580,7 +3698,7 @@
  {
   "id": "تم إنشاء عدد كبير من الحسابات من هذه الشبكة. حاول لاحقًا.",
   "where": [
-   "app/services/auth.py:140"
+   "app/services/auth.py:161"
   ],
   "client": false,
   "plural": false
@@ -3596,8 +3714,8 @@
  {
   "id": "تم إيقاف هذا الحساب بسبب مخالفة شروط الاستخدام.",
   "where": [
-   "app/services/auth.py:281",
-   "app/services/auth.py:323"
+   "app/services/auth.py:331",
+   "app/services/auth.py:373"
   ],
   "client": false,
   "plural": false
@@ -3768,7 +3886,7 @@
   "id": "جارٍ التحقق…",
   "where": [
    "static/js/antibot.js:42",
-   "static/js/views/auth.js:208"
+   "static/js/views/auth.js:287"
   ],
   "client": true,
   "plural": false
@@ -4033,7 +4151,7 @@
  {
   "id": "حساب جديد",
   "where": [
-   "static/js/views/auth.js:40"
+   "static/js/views/auth.js:41"
   ],
   "client": true,
   "plural": false
@@ -4226,7 +4344,7 @@
  {
   "id": "دخول",
   "where": [
-   "static/js/views/auth.js:163"
+   "static/js/views/auth.js:242"
   ],
   "client": true,
   "plural": false
@@ -4484,6 +4602,7 @@
  {
   "id": "رمز التأكيد",
   "where": [
+   "static/js/views/auth.js:81",
    "static/js/views/earnings.js:65",
    "static/js/views/membership.js:115"
   ],
@@ -4663,8 +4782,8 @@
   "id": "سياسة الخصوصية",
   "where": [
    "static/js/privacy.js:11",
-   "static/js/views/auth.js:181",
-   "static/js/views/auth.js:279",
+   "static/js/views/auth.js:260",
+   "static/js/views/auth.js:359",
    "static/js/views/profile.js:287",
    "app/api/download.py:118"
   ],
@@ -4715,7 +4834,7 @@
   "id": "شروط الاستخدام",
   "where": [
    "static/js/privacy.js:11",
-   "static/js/views/auth.js:180",
+   "static/js/views/auth.js:259",
    "static/js/views/membership.js:142",
    "app/api/download.py:118"
   ],
@@ -4851,7 +4970,7 @@
    "app/api/app_access.py:58",
    "app/api/uploads.py:77",
    "app/main.py:335",
-   "app/services/auth.py:111",
+   "app/services/auth.py:132",
    "app/services/email_codes.py:43",
    "app/services/engagement.py:195",
    "app/services/ideas.py:240",
@@ -4863,7 +4982,10 @@
    "app/services/messaging.py:775",
    "app/services/messaging.py:647",
    "app/services/people.py:65",
-   "app/services/people.py:103"
+   "app/services/people.py:103",
+   "app/services/signup.py:322",
+   "app/services/signup.py:337",
+   "app/services/signup.py:335"
   ],
   "client": false,
   "plural": false
@@ -4931,6 +5053,14 @@
    "static/js/views/membership.js:129"
   ],
   "client": true,
+  "plural": false
+ },
+ {
+  "id": "طُلب التسجيل بهذا البريد مرات كثيرة اليوم. حاول لاحقًا.",
+  "where": [
+   "app/services/signup.py:131"
+  ],
+  "client": false,
   "plural": false
  },
  {
@@ -5208,7 +5338,7 @@
   "id": "فشل التحقق من أنك لست روبوتًا. أعد المحاولة.",
   "where": [
    "app/security/pow.py:66",
-   "app/services/auth.py:149"
+   "app/services/auth.py:181"
   ],
   "client": false,
   "plural": false
@@ -5371,7 +5501,7 @@
  {
   "id": "كلمة المرور",
   "where": [
-   "static/js/views/auth.js:173",
+   "static/js/views/auth.js:252",
    "static/js/views/earnings.js:25",
    "static/js/views/earnings.js:64",
    "static/js/views/membership.js:91",
@@ -5384,7 +5514,7 @@
  {
   "id": "كلمة المرور الجديدة",
   "where": [
-   "static/js/views/auth.js:81"
+   "static/js/views/auth.js:160"
   ],
   "client": true,
   "plural": false
@@ -5392,7 +5522,7 @@
  {
   "id": "كلمة المرور ضعيفة جدًا. اختر كلمة مرور أقوى.",
   "where": [
-   "app/services/auth.py:86"
+   "app/services/auth.py:107"
   ],
   "client": false,
   "plural": false
@@ -5400,7 +5530,7 @@
  {
   "id": "كلمة المرور طويلة جدًا.",
   "where": [
-   "app/services/auth.py:84"
+   "app/services/auth.py:105"
   ],
   "client": false,
   "plural": false
@@ -5408,7 +5538,7 @@
  {
   "id": "كلمة المرور غير صالحة.",
   "where": [
-   "app/services/auth.py:77"
+   "app/services/auth.py:98"
   ],
   "client": false,
   "plural": false
@@ -5425,9 +5555,9 @@
  {
   "id": "كلمة المرور يجب أن تكون {n} أحرف على الأقل.",
   "where": [
-   "static/js/views/auth.js:134",
-   "static/js/views/auth.js:196",
-   "app/services/auth.py:81"
+   "static/js/views/auth.js:213",
+   "static/js/views/auth.js:275",
+   "app/services/auth.py:102"
   ],
   "client": true,
   "plural": true
@@ -5435,7 +5565,7 @@
  {
   "id": "كلمة مرور جديدة",
   "where": [
-   "static/js/views/auth.js:87"
+   "static/js/views/auth.js:166"
   ],
   "client": true,
   "plural": false
@@ -5443,9 +5573,9 @@
  {
   "id": "كلمتا المرور غير متطابقتين.",
   "where": [
-   "static/js/views/auth.js:135",
-   "static/js/views/auth.js:194",
-   "app/services/auth.py:79"
+   "static/js/views/auth.js:214",
+   "static/js/views/auth.js:273",
+   "app/services/auth.py:100"
   ],
   "client": true,
   "plural": false
@@ -5597,7 +5727,7 @@
  {
   "id": "لا يرى الآخرون بريدك أبدًا: يظهر فقط الاسم الذي تختاره وصورتك إن أضفتها. ",
   "where": [
-   "static/js/views/auth.js:277"
+   "static/js/views/auth.js:357"
   ],
   "client": true,
   "plural": false
@@ -5913,6 +6043,14 @@
   "plural": false
  },
  {
+  "id": "لم يصلك؟ تحقق من مجلد الرسائل غير المرغوب فيها (Spam).",
+  "where": [
+   "static/js/views/auth.js:82"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "لم يكتمل الرفع.",
   "where": [
    "app/api/uploads.py:120"
@@ -5997,7 +6135,7 @@
  {
   "id": "مجتمع للمتداولين وأخبار العملات الرقمية والتحليلات.",
   "where": [
-   "static/js/views/auth.js:271"
+   "static/js/views/auth.js:351"
   ],
   "client": true,
   "plural": false
@@ -6111,6 +6249,14 @@
   "id": "محاولات كثيرة. حاول مرة أخرى بعد قليل.",
   "where": [
    "app/errors.py"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "محاولات كثيرة: أُلغي التسجيل. أعد إدخال بياناتك.",
+  "where": [
+   "app/services/signup.py:226"
   ],
   "client": false,
   "plural": false
@@ -6517,7 +6663,7 @@
  {
   "id": "نسيت كلمة السر؟",
   "where": [
-   "static/js/views/auth.js:169"
+   "static/js/views/auth.js:248"
   ],
   "client": true,
   "plural": false
@@ -6716,7 +6862,7 @@
  {
   "id": "هذا البريد مسجّل بكلمة مرور. سجّل الدخول بالبريد وكلمة المرور.",
   "where": [
-   "app/services/auth.py:333"
+   "app/services/auth.py:383"
   ],
   "client": false,
   "plural": false
@@ -6724,8 +6870,9 @@
  {
   "id": "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.",
   "where": [
-   "app/services/auth.py:167",
-   "app/services/auth.py:176"
+   "app/services/auth.py:196",
+   "app/services/auth.py:215",
+   "app/services/signup.py:232"
   ],
   "client": false,
   "plural": false
@@ -6957,7 +7104,7 @@
   "id": "يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام {app}.",
   "where": [
    "static/js/onboarding.js:70",
-   "static/js/views/auth.js:202",
+   "static/js/views/auth.js:281",
    "app/api/people.py:104"
   ],
   "client": true,
@@ -6974,7 +7121,7 @@
  {
   "id": "يجب تأكيد أن عمرك 18 سنة أو أكثر والموافقة على شروط الاستخدام.",
   "where": [
-   "app/services/auth.py:155"
+   "app/services/auth.py:187"
   ],
   "client": false,
   "plural": false
@@ -7054,7 +7201,7 @@
  {
   "id": "يطّلع فريق الإدارة على الحسابات والمحتوى للإشراف وحماية المستخدمين. ",
   "where": [
-   "static/js/views/auth.js:278"
+   "static/js/views/auth.js:358"
   ],
   "client": true,
   "plural": false
@@ -7070,7 +7217,7 @@
  {
   "id": "يظهر مع أفكارك ورسائلك بدل بريدك. يمكنك تغييره لاحقًا.",
   "where": [
-   "static/js/views/auth.js:176"
+   "static/js/views/auth.js:255"
   ],
   "client": true,
   "plural": false

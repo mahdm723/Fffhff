@@ -28,6 +28,16 @@ class RegisterBody(_Body):
     display_name: str | None = Field(default=None, max_length=200)  # V6: required (checked by names.clean)
 
 
+class SignupVerifyBody(_Body):
+    """V6 phase 15: the code from the e-mail (6 digits), or the owner's admin signup code."""
+    signup_token: str = Field(max_length=64)
+    code: str = Field(max_length=200)
+
+
+class SignupResendBody(_Body):
+    signup_token: str = Field(max_length=64)
+
+
 class LoginBody(_Body):
     email: str = Field(max_length=320)
     password: str = Field(max_length=512)

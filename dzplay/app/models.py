@@ -120,6 +120,9 @@ class User(Base):
     language: Mapped[str | None] = mapped_column(String(5), nullable=True)  # V6 phase 12: ar|fr|en (NULL = not chosen yet)
     # V6 phase 14: the attested phone the account was created on (MAX_ACCOUNTS_PER_DEVICE)
     registered_device_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    # V6 phase 15: one mailbox, one account (lowercase, no +tag, no dots for Gmail) and how the signup was confirmed
+    email_canonical: Mapped[str | None] = mapped_column(String(254), nullable=True, index=True)
+    signup_verified_via: Mapped[str | None] = mapped_column(String(12), nullable=True)  # email | admin_code | google
 
 
 class NameHistory(Base):
@@ -643,6 +646,30 @@ class AppDevice(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class SignupPending(Base):
+    """V6 phase 15: a signup waiting for its e-mail code. The account does not exist yet; this row is deleted when the
+    code is entered (the account is then created), cancelled, or expired (cleanup). Only hashes of the code and the
+    password are kept."""
+
+    __tablename__ = "signup_pending"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # sha256 of the token the app holds
+    email: Mapped[str] = mapped_column(String(254))
+    email_canonical: Mapped[str] = mapped_column(String(254), index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    display_name: Mapped[str] = mapped_column(String(64))
+    gender: Mapped[str] = mapped_column(String(12))
+    language: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    ip_hash: Mapped[str] = mapped_column(String(64))
+    device_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    code_hash: Mapped[str] = mapped_column(String(64))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    sends: Mapped[int] = mapped_column(Integer, default=1)
+    last_sent_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
 class UserDevice(Base):

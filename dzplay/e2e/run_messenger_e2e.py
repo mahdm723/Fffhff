@@ -53,7 +53,7 @@ def start_server(port: int) -> tuple[subprocess.Popen, str, str]:
     db = f"{tmp}/e2e.db"
     env = dict(os.environ, DATABASE_URL=f"sqlite:///{db}", SECRET_KEY="e2e-secret", ENV="development",
                CLEANUP_INTERVAL="60", LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10",
-               WEB_DESKTOP_ACCESS="true", ATTESTATION_STATUS_URL="")  # V6 phase 14: the test browser is a computer
+               WEB_DESKTOP_ACCESS="true", ATTESTATION_STATUS_URL="", REGISTRATION_EMAIL_VERIFICATION="false")  # V6 phase 14: the test browser is a computer
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"], cwd=ROOT, env=env)
     base = f"http://127.0.0.1:{port}"

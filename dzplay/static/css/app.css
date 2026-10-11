@@ -660,6 +660,9 @@ body::before {
 .reset__sent { position: relative; margin: 14px 0; padding: 12px 14px; border-radius: 14px; font-size: 14px; color: var(--ink-2); }
 .reset__step + .reset__step { margin-top: 6px; }
 .reset__back { display: block; margin: 18px auto 0; font-size: 14px; }
+/* V6 phase 15: the code e-mailed at signup */
+.signup-verify__code { font-size: 22px; letter-spacing: .25em; text-align: center; font-variant-numeric: tabular-nums; }
+.signup-verify__resend { margin-top: 10px; }
 
 /* =====================================================================
    V4: names, avatars, people, Messenger-style chats

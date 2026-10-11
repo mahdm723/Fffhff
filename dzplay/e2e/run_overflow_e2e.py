@@ -396,6 +396,22 @@ def public_pages(run: Run, browser, base: str, width: int) -> None:
     page.get_by_role("tab", name=T("حساب جديد")).click()
     check(page, f"{width} sign-up")
     run.shot(page, f"{width}-signup")
+    # V6 phase 15: the code screen after the form (this server creates accounts at once, so the API's «verify»
+    # answer is simulated here; run_signup_e2e.py does it for real)
+    page.route("**/api/auth/register", lambda route: route.fulfill(status=202, json={
+        "verify": True, "signup_token": "x" * 32, "sent_to": "a***@example-long-domain-name.com", "expires_in": 900,
+        "resend_in": 60, "code_length": 6}))
+    page.locator("#email").fill("someone@example.com")
+    page.locator("#display-name").fill(NAME_A)
+    page.locator("#password").fill("Str0ng-Pass!")
+    page.locator("#password_confirm").fill("Str0ng-Pass!")
+    page.locator(".gender-pick__opt").first.click()
+    page.locator("#age_confirmed").check()
+    page.locator("form").get_by_role("button", name=T("إنشاء الحساب")).click()
+    expect(page.locator(".signup-verify #signup-code")).to_be_visible()
+    check(page, f"{width} sign-up code")
+    run.shot(page, f"{width}-signup-code")
+    page.unroute("**/api/auth/register")
     for path in ("/policies/privacy", "/policies/terms", "/policies/membership_terms", "/download"):
         page.goto(base + path)
         page.wait_for_timeout(300)

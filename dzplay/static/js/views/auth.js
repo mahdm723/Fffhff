@@ -26,6 +26,7 @@ function loadGoogleScript() {
 
 export function renderAuth(root, { config, onAuthenticated }) {
   let mode = 'login';
+  let pending = null; // V6 phase 15: a signup waiting for the code e-mailed to it ({signup_token, sent_to, …})
   const antibotEnabled = !!config.antibot_enabled;
 
   const tabs = h('div', { class: 'segmented', role: 'tablist' });
@@ -38,8 +39,86 @@ export function renderAuth(root, { config, onAuthenticated }) {
 
   function draw() {
     tabs.replaceChildren(tabButton('login', t('تسجيل الدخول')), tabButton('register', t('حساب جديد')));
-    tabs.hidden = mode === 'reset';
-    formSlot.replaceChildren(mode === 'reset' ? buildReset() : buildForm());
+    tabs.hidden = mode === 'reset' || mode === 'verify';
+    googleSlot.hidden = mode === 'verify';
+    formSlot.replaceChildren(mode === 'reset' ? buildReset() : mode === 'verify' ? buildVerify() : buildForm());
+  }
+
+  // ------------------------------------------------------------ V6 phase 15: the code e-mailed at signup
+  function buildVerify() {
+    const wrap = h('div', { class: 'reset signup-verify' });
+    const codeIn = h('input', {
+      class: 'input signup-verify__code', id: 'signup-code', dir: 'ltr', type: 'text', inputmode: 'text', required: true,
+      autocomplete: 'one-time-code', autocapitalize: 'off', spellcheck: 'false', maxlength: '128',
+    });
+    const lead = h('p', { class: 'reset__lead' });
+    const status = h('div', { class: 'reset__sent glass', role: 'status', hidden: true });
+    const err = h('div', { class: 'form-error', role: 'alert' });
+    const send = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, t('تأكيد وإنشاء الحساب'));
+    const resendBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--block signup-verify__resend' });
+    let left = pending.resend_in || 60;
+    const paintLead = () => {
+      lead.textContent = t('أرسلنا رمزًا من 6 أرقام إلى {email}. الرمز صالح {minutes} دقيقة.', {
+        email: `\u2068${pending.sent_to}\u2069`, minutes: Math.max(1, Math.round((pending.expires_in || 900) / 60)) }); // isolated: LTR inside RTL
+    };
+    const paintResend = () => {
+      resendBtn.disabled = left > 0;
+      resendBtn.textContent = left > 0 ? t('إعادة الإرسال بعد {seconds} ث', { seconds: left }) : t('إعادة إرسال الرمز');
+    };
+    const timer = setInterval(() => {
+      if (!wrap.isConnected) { clearInterval(timer); return; }
+      if (left > 0) { left -= 1; paintResend(); }
+    }, 1000);
+    const restart = () => { clearInterval(timer); pending = null; mode = 'register'; draw(); };
+    const fail = (e) => {
+      err.textContent = e.message || t('تعذّر الاتصال. حاول مرة أخرى.');
+      if (e.code === 'signup_expired' || e.code === 'code_cancelled') setTimeout(() => { if (wrap.isConnected) restart(); }, 2500);
+    };
+
+    const form = h('form', { novalidate: true, class: 'reset__step' },
+      h('h2', { class: 'reset__title', text: t('أدخل الرمز المرسل إلى بريدك') }),
+      lead,
+      h('div', { class: 'field' }, h('label', { for: 'signup-code', text: t('رمز التأكيد') }), codeIn),
+      h('p', { class: 'reset__hint', text: t('لم يصلك؟ تحقق من مجلد الرسائل غير المرغوب فيها (Spam).') }),
+      err, send);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      const code = codeIn.value.trim();
+      if (!code) { err.textContent = t('أدخل الرمز.'); codeIn.focus(); return; }
+      send.disabled = true;
+      try {
+        const me = await api.post('/api/auth/register/verify', { signup_token: pending.signup_token, code });
+        clearInterval(timer);
+        onAuthenticated(me);
+      } catch (e2) {
+        fail(e2);
+        send.disabled = false;
+      }
+    });
+    resendBtn.addEventListener('click', async () => {
+      err.textContent = '';
+      resendBtn.disabled = true;
+      try {
+        pending = { ...pending, ...(await api.post('/api/auth/register/resend', { signup_token: pending.signup_token })) };
+        left = pending.resend_in || 60;
+        paintLead();
+        status.textContent = t('أرسلنا رمزًا جديدًا. الرمز السابق لم يعد صالحًا.');
+        status.hidden = false;
+        codeIn.value = '';
+        codeIn.focus();
+      } catch (e2) {
+        fail(e2);
+        if (e2.retryAfter) left = Math.ceil(e2.retryAfter);
+      }
+      paintResend();
+    });
+    const back = h('button', { type: 'button', class: 'link-btn reset__back', onclick: restart }, t('تغيير البريد أو البيانات'));
+    paintLead();
+    paintResend();
+    wrap.append(form, status, resendBtn, back);
+    requestAnimationFrame(() => codeIn.focus());
+    return wrap;
   }
 
   // ------------------------------------------------------------ forgot password (3 steps, same page)
@@ -215,6 +294,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
             ...body, password_confirm: confirm.value, website: honeypot.value || null, gender: genderValue, age_confirmed: adult.checked, display_name: nameValue,
           })
           : await api.post('/api/auth/login', body);
+        if (me && me.verify) { pending = me; mode = 'verify'; draw(); return; } // V6 phase 15: the code e-mailed now
         onAuthenticated(me);
       } catch (err) {
         error.textContent = err.message || t('تعذّر الاتصال. حاول مرة أخرى.');

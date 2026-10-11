@@ -72,6 +72,27 @@ def normalize_email(raw: object) -> str:
     return email
 
 
+_GMAIL = {"gmail.com", "googlemail.com"}
+
+
+def canonical_email(email: str) -> str:
+    """V6 phase 15: the mailbox behind an address — lowercase, without a «+tag», and for Gmail without dots
+    (john.doe+x@googlemail.com → johndoe@gmail.com). Used so one mailbox makes one account, and for per-mailbox
+    limits; people still sign in with the address they typed."""
+    local, _, domain = email.strip().lower().partition("@")
+    local = local.split("+", 1)[0] or local
+    if domain in _GMAIL:
+        domain = "gmail.com"
+        local = local.replace(".", "") or local
+    return f"{local}@{domain}"
+
+
+def email_in_use(db: Session, email: str) -> bool:
+    """This address, or another spelling of the same mailbox, already has an account."""
+    canon = canonical_email(email)
+    return db.scalar(select(User.id).where((User.email == email) | (User.email_canonical == canon)).limit(1)) is not None
+
+
 def validate_new_password(settings: Settings, password: object, confirm: object, email: str) -> str:
     if not isinstance(password, str) or not isinstance(confirm, str):
         raise AppError(400, "invalid_password", "كلمة المرور غير صالحة.")
@@ -140,9 +161,20 @@ def _check_registration_quota(db: Session, settings: Settings, ctx: ClientContex
         raise rate_limited(retry, "تم إنشاء عدد كبير من الحسابات من هذه الشبكة. حاول لاحقًا.")
 
 
-def register(db: Session, settings: Settings, ctx: ClientContext, *, email: object, password: object,
-             password_confirm: object, antibot_payload: dict | None, honeypot: str | None,
-             gender: object = None, age_confirmed: object = False, display_name: object = None) -> User:
+@dataclass
+class Registration:
+    """A signup form that passed every check (the account is not created yet)."""
+
+    email: str
+    password: str
+    gender: str
+    display_name: str
+
+
+def validate_registration(db: Session, settings: Settings, ctx: ClientContext, *, email: object, password: object,
+                          password_confirm: object, antibot_payload: dict | None, honeypot: str | None,
+                          gender: object = None, age_confirmed: object = False, display_name: object = None) -> Registration:
+    """Every rule of a new account (form, anti-bot, per-network and per-phone limits, address free)."""
     if honeypot:
         log_event(db, "honeypot", ctx)
         db.commit()
@@ -153,30 +185,48 @@ def register(db: Session, settings: Settings, ctx: ClientContext, *, email: obje
         raise AppError(400, "gender_required", "اختر: رجل، أنثى، أو أفضّل عدم الذكر.")
     if age_confirmed is not True:
         raise AppError(400, "age_required", "يجب تأكيد أن عمرك 18 سنة أو أكثر والموافقة على شروط الاستخدام.")
-    from app.services import names
+    from app.services import access, names
 
     name = names.require_name(display_name, settings)
     _check_registration_quota(db, settings, ctx)
-    from app.services import access
-
     access.check_signup_device(db, settings, ctx.device_id)  # V6 phase 14: accounts per attested phone
     _check_antibot(db, settings, ctx, "register", antibot_payload)
-
-    if db.scalar(select(User.id).where(User.email == email_n)):
+    if email_in_use(db, email_n):
         db.commit()  # keep the consumed challenge
         raise AppError(409, "email_taken", "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.")
+    return Registration(email_n, pw, gender, name)
+
+
+def create_user(db: Session, settings: Settings, ctx: ClientContext, *, email: str, password_hash: str, gender: str,
+                display_name: str, verified_via: str | None = None, language: str | None = None) -> User:
+    """The account itself (after validate_registration, or after the e-mail code of a pending signup)."""
+    from app.services import access, names
+
     now = clock.utcnow()
-    user = User(email=email_n, password_hash=hash_password(pw), registration_ip_hash=ctx.ip_hash,
-                privacy_ack_version=cms.ack_version(db), gender=gender, gender_asked_at=now, age_confirmed_at=now,
-                display_name=name, name_norm=names.search_key(name))
+    user = User(email=email, email_canonical=canonical_email(email), password_hash=password_hash,
+                registration_ip_hash=ctx.ip_hash, privacy_ack_version=cms.ack_version(db), gender=gender,
+                gender_asked_at=now, age_confirmed_at=now, display_name=display_name,
+                name_norm=names.search_key(display_name), signup_verified_via=verified_via, language=language,
+                email_verified_at=now if verified_via in ("email", "admin_code") else None)
     db.add(user)
     try:
         db.flush()
     except IntegrityError:
         raise AppError(409, "email_taken", "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.") from None
-    log_event(db, "register", ctx, user.id)
+    log_event(db, "register", ctx, user.id, verified_via)
     access.seen(db, user, ctx.device_id, signup=True)
     return user
+
+
+def register(db: Session, settings: Settings, ctx: ClientContext, *, email: object, password: object,
+             password_confirm: object, antibot_payload: dict | None, honeypot: str | None,
+             gender: object = None, age_confirmed: object = False, display_name: object = None) -> User:
+    """The account at once (REGISTRATION_EMAIL_VERIFICATION off; on: services/signup.py waits for the code)."""
+    reg = validate_registration(db, settings, ctx, email=email, password=password, password_confirm=password_confirm,
+                                antibot_payload=antibot_payload, honeypot=honeypot, gender=gender,
+                                age_confirmed=age_confirmed, display_name=display_name)
+    return create_user(db, settings, ctx, email=reg.email, password_hash=hash_password(reg.password), gender=reg.gender,
+                       display_name=reg.display_name)
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +377,7 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
         access.seen(db, user, ctx.device_id)
         return user
 
-    if db.scalar(select(User.id).where(User.email == email_n)):
+    if email_in_use(db, email_n):
         # Do not silently merge: the password account's e-mail was never verified,
         # so auto-linking could hand a pre-registered account to someone else.
         raise AppError(409, "email_registered_with_password",
@@ -337,8 +387,9 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
     from app.services import access
 
     access.check_signup_device(db, settings, ctx.device_id)
-    user = User(email=email_n, google_sub=sub, password_hash=None, registration_ip_hash=ctx.ip_hash,
-                privacy_ack_version=cms.ack_version(db), onboarding_required=True)
+    user = User(email=email_n, email_canonical=canonical_email(email_n), google_sub=sub, password_hash=None,
+                registration_ip_hash=ctx.ip_hash, privacy_ack_version=cms.ack_version(db), onboarding_required=True,
+                signup_verified_via="google", email_verified_at=clock.utcnow())  # Google confirmed the address
     db.add(user)
     try:
         db.flush()

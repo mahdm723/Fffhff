@@ -49,6 +49,7 @@ GROUPS = {
     "membership": "العضوية",
     "rewards": "المكافآت والسحب",
     "access": "الوصول للتطبيق",
+    "signup": "التسجيل وتأكيد البريد",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -121,6 +122,13 @@ REGISTRY: list[Tunable] = [
     Tunable("ANDROID_APP_GATE", "bool", "access", "أندرويد من التطبيق فقط (إيقافه يسمح لمتصفح أندرويد مؤقتًا)"),
     Tunable("WEB_DESKTOP_ACCESS", "bool", "access", "السماح باستخدام التطبيق من الكمبيوتر"),
     Tunable("MAX_ACCOUNTS_PER_DEVICE", "int", "access", "أقصى عدد حسابات تُنشأ من جهاز واحد", 1, 20),
+    # V6 phase 15: e-mail confirmation at signup
+    Tunable("REGISTRATION_EMAIL_VERIFICATION", "bool", "signup", "تأكيد البريد برمز قبل إنشاء الحساب"),
+    Tunable("REGISTER_CODE_TTL", "int", "signup", "صلاحية رمز التسجيل (ثوانٍ)", 120, 3600),
+    Tunable("REGISTER_CODE_MAX_ATTEMPTS", "int", "signup", "محاولات الرمز الخاطئة قبل إلغاء التسجيل", 1, 20),
+    Tunable("REGISTER_RESEND_SECONDS", "int", "signup", "الانتظار بين إرسالين للرمز (ثوانٍ)", 15, 3600),
+    Tunable("REGISTER_MAX_SENDS", "int", "signup", "أقصى عدد إرسالات للرمز في تسجيل واحد", 1, 20),
+    Tunable("REGISTER_PER_EMAIL_PER_DAY", "int", "signup", "أقصى عدد تسجيلات لبريد واحد في اليوم", 1, 50),
     # V6 phase 5b: rewards
     Tunable("REFERRAL_ENABLED", "bool", "rewards", "مكافأة دعوة الأصدقاء"),
     Tunable("REFERRAL_REWARD", "float", "rewards", "مكافأة الدعوة (USDT، عند قبول عضوية المدعو)", 0, 10000),
