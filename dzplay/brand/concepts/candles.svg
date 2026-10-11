@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT — Δ of candles">
+  <!-- Concept 3: a Δ built from five Japanese candlesticks standing on one thick base: their tops follow the
+       two sides of the triangle (low, higher, highest, higher, low). The red dot is the top of the middle
+       candle: the price point. Bodies 12 wide with 4 between them; short, thick wicks (6) on the side candles. -->
+  <g class="ink" fill="currentColor">
+    <rect x="8" y="80" width="84" height="9" rx="3"/>
+    <rect x="13" y="66" width="12" height="16" rx="2.5"/>
+    <rect x="16" y="58" width="6" height="10" rx="2"/>
+    <rect x="29" y="48" width="12" height="34" rx="2.5"/>
+    <rect x="32" y="40" width="6" height="10" rx="2"/>
+    <rect x="45" y="30" width="12" height="52" rx="2.5"/>
+    <rect x="61" y="48" width="12" height="34" rx="2.5"/>
+    <rect x="64" y="40" width="6" height="10" rx="2"/>
+    <rect x="77" y="66" width="12" height="16" rx="2.5"/>
+    <rect x="80" y="58" width="6" height="10" rx="2"/>
+  </g>
+  <circle class="dot" cx="51" cy="18" r="7.5" fill="#E5232D"/>
+</svg>

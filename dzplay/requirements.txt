@@ -1,0 +1,19 @@
+fastapi>=0.142,<1
+uvicorn[standard]>=0.54,<1
+SQLAlchemy>=2.1,<3
+psycopg[binary]>=3.3,<4
+pydantic-settings>=2.15,<3
+argon2-cffi>=25.1
+google-auth>=2.59,<3
+requests>=2.34,<3
+redis>=8.1,<9
+pywebpush>=2.5,<3
+qrcode>=8.0,<9
+httpx>=0.28,<1
+# V6 phase 14: Android Key Attestation (X.509 chains, ECDSA proofs)
+cryptography>=46,<52
+Pillow>=11.3,<13
+# V5: server-side NSFW check (ONNX, CPU only) and iPhone HEIC photos
+onnxruntime>=1.22,<2
+numpy>=2.0,<3
+pillow-heif>=1.0,<2

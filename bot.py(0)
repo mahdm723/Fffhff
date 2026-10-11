@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import string
 import time
@@ -7,13 +8,14 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 
 # ========================
-# توكنات البوتات
+# توكنات البوتات — تُقرأ من متغيرات البيئة فقط (لا تكتبها هنا أبدًا).
+# التوكنات القديمة كانت مكشوفة في المستودع العام: ألغِها من @BotFather وأنشئ جديدة.
 # ========================
 
-USER_BOT_TOKEN = "8108703711:AAHNHQhmTW6P0wk3HwFYsqTlTcMxSdsqRB0"
-MANAGER_BOT_TOKEN = "8527245679:AAF-hyO7jzhDxxAYEsdlhWkPw-UlwPWAl04"
-NEWS_BOT_TOKEN = "8588167836:AAGCBJSTGqKYWlFIm2U1qA46MKtDF6wC_jU"   
-MANAGER_CHAT_ID = "5907714557"
+USER_BOT_TOKEN = os.environ["USER_BOT_TOKEN"]
+MANAGER_BOT_TOKEN = os.environ["MANAGER_BOT_TOKEN"]
+NEWS_BOT_TOKEN = os.environ["NEWS_BOT_TOKEN"]
+MANAGER_CHAT_ID = os.environ["MANAGER_CHAT_ID"]
 
 DATABASE_FILE = "users.json"
 USER_STEPS = {}

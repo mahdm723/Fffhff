@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lang" translatable="false">en</string>
+    <string name="shareTitle">Share %1$s</string>
+    <string name="messageChannel">New messages</string>
+    <string name="newMessage">You have a new message on %1$s</string>
+    <string name="offline">Couldn’t connect. Check your internet connection, then try again.</string>
+    <string name="retry">Try again</string>
+</resources>

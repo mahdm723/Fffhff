@@ -1,0 +1,7349 @@
+[
+ {
+  "id": " (حاول بعد {n} دقيقة تقريبًا)",
+  "where": [
+   "static/js/views/auth.js:132",
+   "static/js/views/auth.js:303"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": " أو اكتب إلى {email}",
+  "where": [
+   "app/services/mail.py:91"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": " يريد مراسلتك",
+  "where": [
+   "static/js/views/chat.js:299"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "USDT على BNB Smart Chain (BEP20)",
+  "where": [
+   "app/services/membership.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "USDT على TRON (TRC20)",
+  "where": [
+   "app/services/membership.py:36"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{amount} إلى {network_label} (طُلب {date}).",
+  "where": [
+   "static/js/views/earnings.js:79"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{app} · نسخة تجريبية",
+  "where": [
+   "static/js/views/profile.js:295"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{app} الرسمي",
+  "where": [
+   "app/services/brand.py:42"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{app} للهواتف",
+  "where": [
+   "app/api/download.py:143"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{app} مصمم للهواتف. على أندرويد: حمّل التطبيق. على iPhone أو iPad: افتح الموقع في Safari. امسح الرمز أدناه بكاميرا هاتفك.",
+  "where": [
+   "app/api/download.py:144"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{base}: {price} دولار، {pct} خلال 24 ساعة",
+  "where": [
+   "static/js/views/market.js:80"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{base}، {n} رسائل جديدة",
+  "where": [
+   "static/js/views/messages.js:49"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "{day} · معلّق حتى {until}",
+  "where": [
+   "static/js/views/earnings.js:87"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{items} و{last}",
+  "where": [
+   "app/services/cms.py:67"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{min} أو أكثر",
+  "where": [
+   "static/js/views/earnings.js:24"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{name} ردّ على تعليقك",
+  "where": [
+   "static/js/views/notifications.js:12"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{name} علّق على فكرتك",
+  "where": [
+   "static/js/views/notifications.js:11"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{n} ث",
+  "where": [
+   "static/js/media-pick.js:233",
+   "static/js/views/chat.js:188",
+   "static/js/views/chat.js:466"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "{n} جديد",
+  "where": [
+   "static/js/ideas.js:70"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "{n} ساعة",
+  "where": [
+   "app/services/cms.py:59"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{n} يوم",
+  "where": [
+   "app/services/cms.py:58"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{winners} فائز · {entries} مشارك مؤكد · انتهت المشاركة",
+  "where": [
+   "static/js/views/giveaway.js:59"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "{winners} فائز · {entries} مشارك مؤكد · تنتهي {day} {time}",
+  "where": [
+   "static/js/views/giveaway.js:59"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "، أو على بريد الدعم الرسمي {email}",
+  "where": [
+   "app/services/cms.py:113"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "آخر 24 ساعة (سعر الإغلاق كل ساعة).",
+  "where": [
+   "static/js/views/market.js:67"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "آخر تحديث {ago}",
+  "where": [
+   "static/js/views/market.js:126",
+   "static/js/views/market.js:171"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "آخر تحديث: {date}",
+  "where": [
+   "app/api/policies.py:52"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "آخر تحديث: {updated}",
+  "where": [
+   "static/js/privacy.js:18"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أؤكد أن عمري 18 سنة أو أكثر وأوافق على شروط الاستخدام.",
+  "where": [
+   "static/js/onboarding.js:83",
+   "static/js/people.js:30",
+   "static/js/views/auth.js:257"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أبعاد الصورة كبيرة جدًا.",
+  "where": [
+   "static/js/media-pick.js:150",
+   "app/services/media_check.py:179",
+   "app/services/media_check.py:167",
+   "app/services/media_check.py:171"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أحدث إصدار",
+  "where": [
+   "app/api/download.py:54"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أخرى",
+  "where": [
+   "static/js/views/support.js:11",
+   "app/services/support.py:30",
+   "app/services/verification.py:38"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل {n} رموز (رمز لكل فائز) أو رمزًا واحدًا.",
+  "where": [
+   "app/services/giveaway.py:204"
+  ],
+  "client": false,
+  "plural": true
+ },
+ {
+  "id": "أدخل البريد الإلكتروني وكلمة المرور.",
+  "where": [
+   "static/js/views/auth.js:272"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل الرمز المرسل إلى بريدك",
+  "where": [
+   "static/js/views/auth.js:79"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل الرمز.",
+  "where": [
+   "static/js/views/auth.js:88",
+   "static/js/views/auth.js:194"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل المبلغ الذي أرسلته (رقم).",
+  "where": [
+   "app/services/verification.py:201",
+   "app/services/verification.py:199"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أدخل المبلغ.",
+  "where": [
+   "app/services/withdrawals.py:75"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أدخل بريدك الإلكتروني.",
+  "where": [
+   "static/js/views/auth.js:173"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل بريدك. يراجع فريق {app} الطلب، ثم يصلك رمز على بريدك الإلكتروني.",
+  "where": [
+   "static/js/views/auth.js:144"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل رقم العملية (TXID) بعد الدفع.",
+  "where": [
+   "static/js/views/membership.js:28",
+   "static/js/views/membership.js:63"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أدخل رقم عملية التحويل (TXID) الصحيح.",
+  "where": [
+   "app/services/membership.py:286",
+   "app/services/withdrawals.py:119"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أدخل رمزًا لكل فائز، أو رمزًا واحدًا للجميع.",
+  "where": [
+   "app/services/giveaway.py:202"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أدخل رموز الجوائز أولًا.",
+  "where": [
+   "app/services/giveaway.py:216"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أدنى سعر 24 س",
+  "where": [
+   "static/js/views/market.js:70"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرباحي",
+  "where": [
+   "static/js/views/earnings.js:16",
+   "static/js/views/profile.js:277"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسل {currency} عبر شبكة {network} فقط. الإرسال عبر شبكة أخرى أو بعملة أخرى يضيع ولا يمكن استرجاعه، والمسؤولية على المرسل.",
+  "where": [
+   "app/services/verification.py:178"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسل {currency} على شبكة {network_label} فقط. الإرسال على شبكة أخرى يضيع المبلغ ولا يمكن استرجاعه.",
+  "where": [
+   "static/js/views/membership.js:38"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسل الرمز",
+  "where": [
+   "static/js/views/earnings.js:27"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسل الرمز إلى بريدي",
+  "where": [
+   "static/js/views/membership.js:93"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسل الفارق على شبكة {network} فقط، إلى العنوان نفسه:",
+  "where": [
+   "static/js/views/membership.js:49"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسلت الحد الأقصى من الرسائل. انتظر حتى يقبل الطرف الآخر طلب المراسلة.",
+  "where": [
+   "app/services/messaging.py:362"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسلت بلاغات كثيرة. حاول لاحقًا.",
+  "where": [
+   "app/services/messaging.py:225"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسلت رسائل كثيرة إلى الدعم. حاول بعد قليل.",
+  "where": [
+   "app/services/messaging.py:233"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسلت صورًا كثيرة هذه الساعة. حاول لاحقًا.",
+  "where": [
+   "app/services/media_items.py:342",
+   "app/services/media_items.py:187"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسلت عدة رسائل متتالية. انتظر رد الطرف الآخر.",
+  "where": [
+   "app/services/media_items.py:340",
+   "app/services/messaging.py:337"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسلت هذا النص نفسه مؤخرًا. اكتب شيئًا مختلفًا.",
+  "where": [
+   "app/services/messaging.py:224"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أرسلنا رمزًا جديدًا. الرمز السابق لم يعد صالحًا.",
+  "where": [
+   "static/js/views/auth.js:106"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أرسلنا رمزًا من 6 أرقام إلى {email}. الرمز صالح {minutes} دقيقة.",
+  "where": [
+   "static/js/views/auth.js:61"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أزرق",
+  "where": [
+   "app/services/appearance.py:36"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أسئلة قليلة قبل البدء. يمكنك إخفاء الجنس باختيار \"أفضّل عدم الذكر\".",
+  "where": [
+   "static/js/onboarding.js:80"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أصبح لكل حساب اسم يختاره ومعرّف DZ. هل تريد إضافة جنسك؟ يظهر كأيقونة صغيرة بجانب اسمك، ولا يظهر إن اخترت \"أفضّل عدم الذكر\".",
+  "where": [
+   "static/js/onboarding.js:107"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أصبح لكل حساب في {app} اسم يظهر مع أفكارك وتعليقاتك ورسائلك. لا يظهر بريدك أبدًا.",
+  "where": [
+   "static/js/onboarding.js:48"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أصبحوا أعضاء",
+  "where": [
+   "static/js/views/earnings.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أعجب {n} أشخاص",
+  "where": [
+   "static/js/ideas.js:74"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "أعجب شخصًا واحدًا",
+  "where": [
+   "static/js/ideas.js:74"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أعجبتهم الفكرة",
+  "where": [
+   "static/js/ideas.js:274"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أعلى سعر 24 س",
+  "where": [
+   "static/js/views/market.js:69"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أفضّل عدم الذكر",
+  "where": [
+   "static/js/onboarding.js:9"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أفكار أخرى",
+  "where": [
+   "static/js/views/home.js:251"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أفكار من الآخرين",
+  "where": [
+   "static/js/views/home.js:298"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أفكار منشورة",
+  "where": [
+   "app/services/verification.py:147"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أفكاري",
+  "where": [
+   "static/js/views/profile.js:177"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أقل مبلغ للسحب {min} USDT.",
+  "where": [
+   "app/services/withdrawals.py:78"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أقل مبلغ مقبول هو {min}.",
+  "where": [
+   "app/services/verification.py:203"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أكبر تحرّك خلال 24 ساعة · ",
+  "where": [
+   "static/js/views/market.js:120"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أكمل إنشاء حسابك أولًا (الجنس وتأكيد العمر).",
+  "where": [
+   "app/services/messaging.py:191"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أكمل حسابك",
+  "where": [
+   "static/js/onboarding.js:79"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أكمل دفع العضوية",
+  "where": [
+   "static/js/views/membership.js:47"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أكّد أن عمرك 18 سنة أو أكثر من الإعدادات أولًا.",
+  "where": [
+   "app/services/messaging.py:681"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أكّد بريدك {email} لتكتمل مشاركتك.",
+  "where": [
+   "static/js/views/giveaway.js:62"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أمس",
+  "where": [
+   "static/js/ui.js:220"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أنا لست روبوتًا",
+  "where": [
+   "static/js/antibot.js:24",
+   "static/js/antibot.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أنت",
+  "where": [
+   "static/js/views/support.js:102"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أنت ترسل بسرعة كبيرة. انتظر قليلًا ثم حاول مجددًا.",
+  "where": [
+   "app/services/messaging.py:220"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أنت تعلّق بسرعة كبيرة. انتظر قليلًا.",
+  "where": [
+   "app/services/messaging.py:228"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أنت غير متصل بالإنترنت. ستُرسل رسائلك عند عودة الاتصال.",
+  "where": [
+   "static/js/app.js:100"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أنت مشارك بالفعل في هذه الجولة.",
+  "where": [
+   "app/services/giveaway.py:94",
+   "app/services/giveaway.py:107"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أنت مشارك ببريد {email}. حظًا موفقًا!",
+  "where": [
+   "static/js/views/giveaway.js:61"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أنت: {preview}",
+  "where": [
+   "static/js/views/messages.js:17"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أنثى",
+  "where": [
+   "static/js/onboarding.js:9",
+   "static/js/ui.js:61"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أندرويد",
+  "where": [
+   "app/api/download.py:111"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أندرويد {version} أو أحدث",
+  "where": [
+   "app/api/download.py:55"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أو",
+  "where": [
+   "static/js/views/auth.js:355"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أو بريد آخر",
+  "where": [
+   "static/js/views/giveaway.js:47"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أو راسلنا على بريد الدعم الرسمي:",
+  "where": [
+   "static/js/views/contact.js:25"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أول رسالة",
+  "where": [
+   "static/js/people.js:51"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسل إليك {amount} USDT (استرجاع العضوية).",
+  "where": [
+   "app/services/membership.py:307"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أُرسل الرمز إلى {sent_to}",
+  "where": [
+   "static/js/views/earnings.js:44",
+   "static/js/views/membership.js:98"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسل الرمز مرات كثيرة. أعد التسجيل لاحقًا.",
+  "where": [
+   "app/services/signup.py:183"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أُرسل رمز إلى {sent_to}",
+  "where": [
+   "static/js/views/giveaway.js:41"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسل سحبك: {amount} USDT على {network}.",
+  "where": [
+   "app/services/withdrawals.py:134"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أُرسل طلب الاسترجاع.",
+  "where": [
+   "static/js/views/membership.js:107"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسل طلب السحب. سيصلك إشعار عند التنفيذ.",
+  "where": [
+   "static/js/views/earnings.js:54"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسل طلب مراسلة. يمكنك إرسال {n} رسائل على الأكثر حتى يرد.",
+  "where": [
+   "static/js/views/chat.js:312"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "أُرسل طلب مراسلة. يمكنك إرسال رسائل قليلة حتى يرد.",
+  "where": [
+   "static/js/views/chat.js:312"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسل طلبك وسيُراجع قريبًا.",
+  "where": [
+   "static/js/views/membership.js:30"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسلت",
+  "where": [
+   "static/js/views/chat.js:15"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسلت الجوائز",
+  "where": [
+   "app/services/giveaway.py:33"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أُرسلت تذكرتك رقم #{number}. سيصلك الرد هنا وعلى بريدك.",
+  "where": [
+   "static/js/views/support.js:45"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُرسلت فكرتك، وستظهر بعد مراجعة الصورة.",
+  "where": [
+   "static/js/views/home.js:238"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُزيلت الصورة.",
+  "where": [
+   "static/js/views/profile.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُضيف رقم العملية، وسنتحقق منه قريبًا.",
+  "where": [
+   "static/js/views/membership.js:65"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُعيدت الإشعارات.",
+  "where": [
+   "static/js/views/chat.js:360"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "أُلغي",
+  "where": [
+   "app/services/rewards.py:40"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أُلغيت مكافأة دعوة لأن صديقك استرجع عضويته.",
+  "where": [
+   "app/services/rewards.py:124"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أُوقفت الرسائل المجهولة العشوائية. هذه محادثة قديمة للقراءة فقط وستُحذف قريبًا.",
+  "where": [
+   "static/js/views/chat.js:268"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إبلاغ",
+  "where": [
+   "static/js/media-pick.js:215",
+   "static/js/views/chat.js:229",
+   "static/js/views/chat.js:348"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إجراء غير صالح.",
+  "where": [
+   "app/services/membership.py:190",
+   "app/services/membership.py:273",
+   "app/services/verification.py:299",
+   "app/services/withdrawals.py:109"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إخفاء الإعلان",
+  "where": [
+   "static/js/views/home.js:35"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرجاع سحب مرفوض",
+  "where": [
+   "app/services/rewards.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إرسال",
+  "where": [
+   "static/js/views/chat.js:75"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال إلى الدعم",
+  "where": [
+   "static/js/views/support.js:36"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال البريد غير متاح حاليًا. حاول لاحقًا أو تواصل مع الدعم.",
+  "where": [
+   "app/services/email_codes.py:52"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إرسال البلاغ",
+  "where": [
+   "static/js/ideas.js:334",
+   "static/js/views/chat.js:399"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال التعليق",
+  "where": [
+   "static/js/ideas.js:109"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال الرد",
+  "where": [
+   "static/js/views/support.js:90"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال الصور في المحادثات متوقف حاليًا.",
+  "where": [
+   "app/api/uploads.py:69",
+   "app/services/media_items.py:328",
+   "app/services/media_items.py:183"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إرسال الصور في المحادثات ميزة للأعضاء. أي شخص يستطيع استقبالها، وتختفي بعد {n} ثانية من فتحها.",
+  "where": [
+   "static/js/views/chat.js:110"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "إرسال الصور في المحادثات ميزة للأعضاء. اطّلع على «عضويتي» من حسابك.",
+  "where": [
+   "app/services/media_items.py:73"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إرسال الطلب",
+  "where": [
+   "static/js/views/auth.js:140"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال رقم العملية",
+  "where": [
+   "static/js/views/membership.js:24"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال صور مؤقتة في المحادثات",
+  "where": [
+   "app/services/membership.py:34"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إرسال صورة",
+  "where": [
+   "static/js/views/chat.js:98"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرسال طلب المراسلة",
+  "where": [
+   "static/js/people.js:52"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إرشادات المجتمع",
+  "where": [
+   "static/js/privacy.js:12",
+   "static/js/views/auth.js:261",
+   "app/api/download.py:118"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إزالة الصورة",
+  "where": [
+   "static/js/views/home.js:157",
+   "static/js/views/profile.js:68"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إشعار جديد",
+  "where": [
+   "static/js/views/notifications.js:18"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إشعارات الرسائل الجديدة",
+  "where": [
+   "static/js/views/profile.js:275"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إضافة رقم عملية الفارق",
+  "where": [
+   "static/js/views/membership.js:60"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إضافة صورة",
+  "where": [
+   "static/js/views/home.js:105"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إعادة إرسال الرمز",
+  "where": [
+   "static/js/views/auth.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إعادة إرسال الطلب",
+  "where": [
+   "static/js/views/auth.js:181"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إعادة الإرسال بعد {seconds} ث",
+  "where": [
+   "static/js/views/auth.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إعادة المحاولة",
+  "where": [
+   "static/js/app.js:253",
+   "static/js/views/chat.js:244",
+   "static/js/views/home.js:285",
+   "static/js/views/market.js:158",
+   "static/js/views/users.js:36",
+   "app/api/download.py:154"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إعجاب",
+  "where": [
+   "static/js/ideas.js:63",
+   "static/js/views/profile.js:170",
+   "static/js/views/profile.js:301",
+   "static/js/views/user.js:25",
+   "static/js/views/user.js:56"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إعجابات على محتواك",
+  "where": [
+   "app/services/verification.py:148"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إعداد الأرشفة مفعّل حاليًا: تُحفظ نسخة من صور المحادثات بعد انتهائها في مستودع التخزين الخاص ولا يراها أي مستخدم.",
+  "where": [
+   "app/services/cms.py:91"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إغلاق",
+  "where": [
+   "static/js/ideas.js:212",
+   "static/js/ideas.js:275",
+   "static/js/media-pick.js:214",
+   "static/js/privacy.js:29",
+   "static/js/views/chat.js:113",
+   "static/js/views/market.js:73",
+   "static/js/views/profile.js:198"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إغلاق التذكرة (حُلّت المشكلة)",
+  "where": [
+   "static/js/views/support.js:109"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إلغاء",
+  "where": [
+   "static/js/ideas.js:122",
+   "static/js/ideas.js:248",
+   "static/js/ideas.js:297",
+   "static/js/people.js:31",
+   "static/js/ui.js:200",
+   "static/js/views/earnings.js:66",
+   "static/js/views/profile.js:69",
+   "static/js/views/profile.js:129",
+   "static/js/views/profile.js:257"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إلغاء الحظر",
+  "where": [
+   "static/js/views/profile.js:212"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إلغاء كتم الإشعارات",
+  "where": [
+   "static/js/views/chat.js:347"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "إلغاء مكافأة دعوة (استرجاع العضوية)",
+  "where": [
+   "app/services/rewards.py:36"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إن طلب التطبيق إذن الإشعارات فاسمح به لتصلك رسائلك الجديدة. لا يطلب كاميرا ولا ميكروفون.",
+  "where": [
+   "app/api/download.py:88"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إن ظهرت رسالة «لأمانك، لا يُسمح بتثبيت تطبيقات من هذا المصدر»: اضغط «الإعدادات» ثم فعّل «السماح من هذا المصدر» وارجع.",
+  "where": [
+   "app/api/download.py:86"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إنشاء الحساب",
+  "where": [
+   "static/js/views/auth.js:242"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ابحث بالاسم أو بالمعرّف. لا يظهر البريد أبدًا.",
+  "where": [
+   "static/js/people.js:126"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ابحث عن أشخاص",
+  "where": [
+   "static/js/people.js:125"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ابحث عن شخص",
+  "where": [
+   "static/js/views/messages.js:83"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ابحث عن شخص بالاسم أو المعرّف",
+  "where": [
+   "static/js/people.js:80"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ابحث عن شخص بمعرّفه DZ أو باسمه من «المستخدمون»، ثم اضغط «مراسلة».",
+  "where": [
+   "static/js/views/messages.js:82"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ابحث عن شخص لمراسلته",
+  "where": [
+   "static/js/views/messages.js:93"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ابحث في محادثاتك",
+  "where": [
+   "static/js/views/messages.js:33",
+   "static/js/views/messages.js:33"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "احظر هذا الشخص أيضًا",
+  "where": [
+   "static/js/views/chat.js:429"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اختر أحد الخيارات أو اضغط \"لاحقًا\".",
+  "where": [
+   "static/js/onboarding.js:97"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اختر اسمك",
+  "where": [
+   "static/js/onboarding.js:47"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اختر اسمًا يظهر للآخرين أولًا (حسابي ← تعديل الملف).",
+  "where": [
+   "app/services/messaging.py:193"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر اسمًا يظهر للآخرين لتتمكن من النشر والمراسلة.",
+  "where": [
+   "static/js/views/profile.js:82"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اختر اسمًا يظهر للآخرين.",
+  "where": [
+   "app/services/names.py:110"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر الشبكة من القائمة.",
+  "where": [
+   "app/services/membership.py:230",
+   "app/services/verification.py:83",
+   "app/services/withdrawals.py:68"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر تعليقات من المكتبة.",
+  "where": [
+   "app/services/engagement.py:239"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر سبب البلاغ.",
+  "where": [
+   "app/services/ideas.py:583",
+   "app/services/messaging.py:531",
+   "app/services/people.py:138"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر من 1 إلى {n} منشورًا.",
+  "where": [
+   "app/services/engagement.py:54"
+  ],
+  "client": false,
+  "plural": true
+ },
+ {
+  "id": "اختر نوع الحساب.",
+  "where": [
+   "app/services/verification.py:219"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر نوع المشكلة.",
+  "where": [
+   "app/services/support.py:69"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر نوع المكافأة.",
+  "where": [
+   "app/services/rewards.py:253"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اختر: رجل، أنثى، أو أفضّل عدم الذكر.",
+  "where": [
+   "static/js/onboarding.js:69",
+   "static/js/views/auth.js:280",
+   "app/services/auth.py:185",
+   "app/services/names.py:147"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اختيار صورة",
+  "where": [
+   "static/js/views/profile.js:64"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اختيار غير صالح.",
+  "where": [
+   "app/services/appearance.py:135"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "ادفع {price} {currency} مرة واحدة على شبكة {network_label}",
+  "where": [
+   "static/js/views/membership.js:34"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "استرجاع العضوية",
+  "where": [
+   "app/services/email_codes.py:23"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "استرجاع العضوية غير متاح.",
+  "where": [
+   "app/services/membership.py:249"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "استعادة الحساب",
+  "where": [
+   "static/js/views/auth.js:143"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "استعادة الحساب غير مفعّلة حاليًا. تواصل مع الإدارة.",
+  "where": [
+   "app/api/auth.py:167"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "استغرقت المعالجة وقتًا طويلًا. حاول لاحقًا.",
+  "where": [
+   "app/services/media_pipeline.py:140"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "استغرقت المعالجة وقتًا طويلًا. حاول مرة أخرى.",
+  "where": [
+   "static/js/media-pick.js:201"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "استقبال الرسائل المباشرة",
+  "where": [
+   "static/js/views/profile.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "استُرجعت عضوية المدعو",
+  "where": [
+   "app/services/rewards.py:122"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اسحب الفائزين أولًا.",
+  "where": [
+   "app/services/giveaway.py:199"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اسم أو معرّف مثل DZ-7K4P2M",
+  "where": [
+   "static/js/people.js:80"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اسم التصنيف غير صالح.",
+  "where": [
+   "app/services/engagement.py:121"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اسم غير صالح.",
+  "where": [
+   "app/services/names.py:81"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اسمك الظاهر",
+  "where": [
+   "static/js/views/profile.js:94"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اشتراك غير صالح.",
+  "where": [
+   "app/api/messages.py:150"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اشرح المشكلة بالتفصيل. لا تكتب كلمة المرور أو أي بيانات بنكية.",
+  "where": [
+   "static/js/views/support.js:34"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اضغط «تثبيت». قد يعرض Play Protect تنبيهًا لأن التطبيق ليس من المتجر: اختر «التثبيت على أي حال».",
+  "where": [
+   "app/api/download.py:87"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اضغط «تحميل» وانتظر انتهاء التحميل.",
+  "where": [
+   "app/api/download.py:85"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اضغط زر المشاركة {icon} ثم «إضافة إلى الشاشة الرئيسية».",
+  "where": [
+   "app/api/download.py:67"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اضغط للعرض",
+  "where": [
+   "static/js/views/chat.js:191"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اضغط للعرض · تختفي بعد",
+  "where": [
+   "static/js/views/chat.js:191"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "افتح {app} من الأيقونة الجديدة وسجّل الدخول.",
+  "where": [
+   "app/api/download.py:75"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "افتح {site} في Safari.",
+  "where": [
+   "app/api/download.py:66"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "افتح التطبيق للمتابعة.",
+  "where": [
+   "app/main.py:296"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "افتح الملف {file} من الإشعارات أو من «التنزيلات».",
+  "where": [
+   "app/api/download.py:64"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اقتراح",
+  "where": [
+   "static/js/views/support.js:11",
+   "app/services/support.py:30"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اقرأ المزيد",
+  "where": [
+   "static/js/ideas.js:49"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب «{text}» للتأكيد.",
+  "where": [
+   "app/services/account_deletion.py:35"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اكتب أول رسالة…",
+  "where": [
+   "static/js/people.js:51"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب أول فكرة",
+  "where": [
+   "static/js/views/home.js:263"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب اسمًا يظهر للآخرين.",
+  "where": [
+   "static/js/onboarding.js:41",
+   "static/js/onboarding.js:68",
+   "static/js/views/auth.js:278"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب السبب.",
+  "where": [
+   "app/services/rewards.py:257"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اكتب تعليقًا…",
+  "where": [
+   "static/js/ideas.js:108"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب حرفين على الأقل.",
+  "where": [
+   "static/js/people.js:103"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب حرفين على الأقل، أو الـID كاملًا (DZ-XXXXXX).",
+  "where": [
+   "app/services/people.py:80"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اكتب ردك…",
+  "where": [
+   "static/js/views/support.js:88"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب رسالة",
+  "where": [
+   "static/js/views/chat.js:74"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب رسالة…",
+  "where": [
+   "static/js/views/chat.js:74"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب رمزًا أولًا.",
+  "where": [
+   "app/services/signup.py:325"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اكتب سبب الرفض.",
+  "where": [
+   "app/services/membership.py:301",
+   "app/services/withdrawals.py:125"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اكتب سبب المكافأة (يراه المستفيدون).",
+  "where": [
+   "app/services/rewards.py:230"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اكتب عنوان الجولة.",
+  "where": [
+   "app/services/giveaway.py:150"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "اكتب فكرة تريد مشاركتها مع الآخرين…",
+  "where": [
+   "static/js/views/home.js:99"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اكتب: {word}",
+  "where": [
+   "static/js/views/profile.js:237"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الآن",
+  "where": [
+   "static/js/views/market.js:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الأسعار لم تُحدَّث منذ مدة ({ago}). قد لا تكون حالية.",
+  "where": [
+   "static/js/views/market.js:134"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الأشخاص الذين حظرتهم لا يمكنهم مراسلتك ولن يُختاروا لك.",
+  "where": [
+   "static/js/views/profile.js:197"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الأعلى خسارة",
+  "where": [
+   "static/js/views/market.js:104",
+   "static/js/views/market.js:143"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الأعلى ربحًا",
+  "where": [
+   "static/js/views/market.js:103",
+   "static/js/views/market.js:142"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الأفكار",
+  "where": [
+   "static/js/views/home.js:45",
+   "static/js/views/home.js:51"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإبلاغ عن التعليق",
+  "where": [
+   "static/js/ideas.js:223"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإبلاغ عن المنشور",
+  "where": [
+   "static/js/ideas.js:295"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإبلاغ عن تعليق",
+  "where": [
+   "static/js/ideas.js:346"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإبلاغ عن رسالة",
+  "where": [
+   "static/js/views/chat.js:425"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإبلاغ عن محادثة",
+  "where": [
+   "static/js/views/chat.js:425"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإبلاغ عن منشور",
+  "where": [
+   "static/js/ideas.js:346"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإجمالي",
+  "where": [
+   "static/js/views/earnings.js:76"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإشعارات",
+  "where": [
+   "static/js/views/home.js:292",
+   "static/js/views/notifications.js:26"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإشعارات غير مفعّلة.",
+  "where": [
+   "app/api/messages.py:148"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الإصدار {version_name} من تطبيق {app} متاح (لديك {mine}).",
+  "where": [
+   "static/js/native.js:61"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الإصدار {version}",
+  "where": [
+   "app/api/download.py:54"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الاسترجاع",
+  "where": [
+   "static/js/views/membership.js:77",
+   "static/js/views/membership.js:81",
+   "static/js/views/membership.js:85"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الاسم الظاهر",
+  "where": [
+   "static/js/onboarding.js:49",
+   "static/js/onboarding.js:81",
+   "static/js/views/auth.js:254",
+   "static/js/views/profile.js:121"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الاسم بين {min} و{max} حرفًا.",
+  "where": [
+   "app/services/names.py:90"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الاسم يجب أن يحتوي حروفًا.",
+  "where": [
+   "app/services/names.py:95"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الاسم يحتوي حروفًا مخفية غير مسموح بها.",
+  "where": [
+   "app/services/names.py:83",
+   "app/services/names.py:86"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الاسم: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط.",
+  "where": [
+   "app/services/names.py:93"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "البريد الإلكتروني",
+  "where": [
+   "static/js/views/auth.js:136",
+   "static/js/views/auth.js:251"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+  "where": [
+   "app/services/auth.py:41"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "البريد الإلكتروني غير صالح.",
+  "where": [
+   "app/services/auth.py:68",
+   "app/services/auth.py:71",
+   "app/services/password_reset.py:94"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "البلاغات سرية. نحتفظ فقط بالنص المُبلّغ عنه لمراجعته.",
+  "where": [
+   "static/js/ideas.js:347"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "البلاغات سرية. نحتفظ فقط بنص الرسالة المُبلّغ عنها لمراجعتها.",
+  "where": [
+   "static/js/views/chat.js:426"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "التسجيل غير متاح مؤقتًا. حاول لاحقًا.",
+  "where": [
+   "app/services/signup.py:51"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "التصنيف يحتوي تعليقات. انقلها أو احذفها أولًا.",
+  "where": [
+   "app/services/engagement.py:143"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "التعليقات",
+  "where": [
+   "static/js/ideas.js:72",
+   "static/js/ideas.js:211"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "التعليقات: {n}",
+  "where": [
+   "static/js/ideas.js:72"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "التفاصيل في ",
+  "where": [
+   "static/js/views/membership.js:142"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "التفاصيل في سياسة الخصوصية",
+  "where": [
+   "static/js/views/profile.js:255"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "التنقل الرئيسي",
+  "where": [
+   "static/js/app.js:101"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "التوثيق",
+  "where": [
+   "static/js/views/support.js:10",
+   "app/services/support.py:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الجنس",
+  "where": [
+   "static/js/onboarding.js:12",
+   "static/js/views/auth.js:256",
+   "static/js/views/profile.js:127"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الحساب",
+  "where": [
+   "static/js/views/support.js:10",
+   "app/services/support.py:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الخادم مشغول بمعالجة ملفات أخرى. حاول بعد دقيقة.",
+  "where": [
+   "app/api/uploads.py:92"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الخصم أكبر من الرصيد المتاح.",
+  "where": [
+   "app/services/rewards.py:260"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الخصوصية في {app}",
+  "where": [
+   "static/js/privacy.js:26"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الخصوصية والتواصل",
+  "where": [
+   "static/js/views/profile.js:157",
+   "static/js/views/profile.js:284"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الدعم والمساعدة",
+  "where": [
+   "static/js/views/profile.js:280",
+   "static/js/views/support.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الدفع",
+  "where": [
+   "static/js/views/support.js:10",
+   "app/services/support.py:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الدفع غير متاح حاليًا.",
+  "where": [
+   "app/services/verification.py:242"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الدفع غير متاح حاليًا. حاول لاحقًا.",
+  "where": [
+   "static/js/views/membership.js:22",
+   "app/services/membership.py:143"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرئيسية",
+  "where": [
+   "static/js/app.js:36"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرسائل",
+  "where": [
+   "static/js/app.js:38",
+   "static/js/views/messages.js:92"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرسائل المباشرة متاحة للبالغين فقط.",
+  "where": [
+   "static/js/people.js:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرسالة أطول من {n} حرف.",
+  "where": [
+   "static/js/views/chat.js:203"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "الرسالة أطول من الحد المسموح ({n} حرف).",
+  "where": [
+   "app/services/content.py:49"
+  ],
+  "client": false,
+  "plural": true
+ },
+ {
+  "id": "الرسالة يجب أن تكون نصًا.",
+  "where": [
+   "app/services/content.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الرمز {min} حرفًا على الأقل.",
+  "where": [
+   "app/services/signup.py:320"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الرمز الذي وصلك بالبريد",
+  "where": [
+   "static/js/views/giveaway.js:26"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرمز الذي وصلك على البريد",
+  "where": [
+   "static/js/views/auth.js:148"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرمز صالح {hours} ساعة ولمرة واحدة. بعد {attempts} محاولات خاطئة يُلغى ويلزمك طلب رمز جديد.",
+  "where": [
+   "static/js/views/auth.js:155"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرمز غير صحيح أو منتهي الصلاحية.",
+  "where": [
+   "app/services/password_reset.py:48"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الرمز غير صحيح.",
+  "where": [
+   "app/services/email_codes.py:78",
+   "app/services/email_codes.py:87",
+   "app/services/signup.py:228"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الرمز من بريدك",
+  "where": [
+   "static/js/views/earnings.js:26",
+   "static/js/views/membership.js:92"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الرمز منتهي أو غير موجود. اطلب رمزًا جديدًا.",
+  "where": [
+   "app/services/email_codes.py:76"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الزوج",
+  "where": [
+   "static/js/views/market.js:72"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "السجل",
+  "where": [
+   "static/js/views/earnings.js:83"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "السحب",
+  "where": [
+   "app/services/cms.py:641",
+   "app/services/membership.py:420"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "السحب متوقف حاليًا",
+  "where": [
+   "static/js/views/earnings.js:81"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "السحب متوقف حاليًا.",
+  "where": [
+   "app/api/rewards.py:46",
+   "app/services/withdrawals.py:64"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "السوق",
+  "where": [
+   "static/js/views/home.js:44",
+   "static/js/views/home.js:51",
+   "static/js/views/market.js:120"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "السوق متوقف حاليًا",
+  "where": [
+   "static/js/views/market.js:129"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "السياسات والشروط",
+  "where": [
+   "static/js/views/profile.js:288",
+   "app/api/policies.py:98"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الشبكة",
+  "where": [
+   "static/js/views/earnings.js:60",
+   "static/js/views/membership.js:112"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الصفحة الرئيسية",
+  "where": [
+   "static/js/views/home.js:52"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الصور للأعضاء",
+  "where": [
+   "static/js/views/chat.js:109",
+   "static/js/views/chat.js:318",
+   "static/js/views/home.js:119"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الصورة التالية بعد {hh}:{mm}:{ss}",
+  "where": [
+   "static/js/views/home.js:138"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الصورة الشخصية",
+  "where": [
+   "static/js/views/profile.js:60"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الصورة المختارة",
+  "where": [
+   "static/js/views/home.js:156"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الصورة صغيرة جدًا.",
+  "where": [
+   "static/js/media-pick.js:149",
+   "app/services/media_check.py:169"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الصورة غير صالحة أو تالفة.",
+  "where": [
+   "app/services/media_check.py:162"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الصورة غير صالحة أو كبيرة جدًا.",
+  "where": [
+   "app/services/media.py:61"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الصورة كبيرة جدًا (الحد {image_max_mb} MB).",
+  "where": [
+   "static/js/media-pick.js:137",
+   "static/js/media-pick.js:162"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الطلب كبير جدًا.",
+  "where": [
+   "app/main.py:300"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الظرف الأحمر",
+  "where": [
+   "static/js/views/giveaway.js:13"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الظرف الأحمر 🧧",
+  "where": [
+   "static/js/views/profile.js:279"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الظهور في البحث بالاسم",
+  "where": [
+   "static/js/views/profile.js:137"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "العضوية",
+  "where": [
+   "app/services/membership.py:420"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "العضوية: {price} {currency} مرة واحدة",
+  "where": [
+   "static/js/views/membership.js:132"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "العملة غير صالحة (مثال: USDT).",
+  "where": [
+   "app/services/verification.py:81"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "العنوان طويل جدًا.",
+  "where": [
+   "app/services/cms.py:521"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "العنوان لا يطابق شكل عناوين {network}.",
+  "where": [
+   "app/services/membership.py:232",
+   "app/services/withdrawals.py:71"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "العودة إلى {app}",
+  "where": [
+   "app/api/download.py:118",
+   "app/api/policies.py:75"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "العودة لتسجيل الدخول",
+  "where": [
+   "static/js/views/auth.js:127"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الفائزون",
+  "where": [
+   "static/js/views/giveaway.js:67"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اللغة",
+  "where": [
+   "static/js/language.js:16",
+   "static/js/language.js:30",
+   "static/js/views/auth.js:347",
+   "static/js/views/profile.js:283"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اللون",
+  "where": [
+   "static/js/appearance.js:38",
+   "static/js/appearance.js:71"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المبلغ (USDT)",
+  "where": [
+   "static/js/views/earnings.js:62"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المبلغ {amount} · الرسوم {fee} · يصلك {net}",
+  "where": [
+   "static/js/views/earnings.js:35"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المبلغ أكبر من رصيدك المتاح.",
+  "where": [
+   "app/services/withdrawals.py:90"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "المبلغ المدفوع ليس أقل من السعر.",
+  "where": [
+   "app/services/payment_check.py:321"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "المبلغ يجب أن يكون أكبر من الرسوم.",
+  "where": [
+   "app/services/withdrawals.py:80"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "المتاح",
+  "where": [
+   "static/js/views/earnings.js:76"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المتاح {amount} · الرسوم {fee} تُخصم من المبلغ",
+  "where": [
+   "static/js/views/earnings.js:38"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المتصفح لا يدعم الإشعارات.",
+  "where": [
+   "static/js/notify.js:43"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المحادثات",
+  "where": [
+   "static/js/views/messages.js:72"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المحظورون",
+  "where": [
+   "static/js/views/profile.js:197",
+   "static/js/views/profile.js:286"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المزيد",
+  "where": [
+   "static/js/ideas.js:256",
+   "app/api/policies.py:50"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المستخدمون",
+  "where": [
+   "static/js/app.js:37",
+   "static/js/views/users.js:45"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المشاركة مجانية ولا تتطلب عضوية. السحب عشوائي ويُسجَّل للتدقيق. لن نطلب منك رمز الجائزة أبدًا.",
+  "where": [
+   "static/js/views/giveaway.js:68"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "المظهر",
+  "where": [
+   "static/js/appearance.js:68",
+   "static/js/views/profile.js:282"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الملاحظة طويلة جدًا.",
+  "where": [
+   "app/services/verification.py:89"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الملف أكبر من الحجم المعلن.",
+  "where": [
+   "app/api/uploads.py:109"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الملف أكبر من الحد المسموح ({mb} MB).",
+  "where": [
+   "app/services/media_items.py:165"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الملف فارغ.",
+  "where": [
+   "app/services/media_items.py:163"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الملف ليس صورة صالحة.",
+  "where": [
+   "app/services/media_check.py:241"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الملف ما زال قيد المعالجة. انتظر لحظة.",
+  "where": [
+   "app/services/media_items.py:229"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الملف مرفوض.",
+  "where": [
+   "static/js/media-pick.js:197",
+   "app/services/media_items.py:231",
+   "app/services/media_pipeline.py:161"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "النجمة الزرقاء بجانب اسمك",
+  "where": [
+   "app/services/membership.py:34"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "النص طويل جدًا.",
+  "where": [
+   "app/services/cms.py:534"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "النص غير صالح.",
+  "where": [
+   "app/services/cms.py:531"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الوصف يحتوي كلمات غير مسموحة. عدّله ثم أعد المحاولة.",
+  "where": [
+   "app/services/media_items.py:61"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الوضع",
+  "where": [
+   "static/js/appearance.js:36",
+   "static/js/appearance.js:70"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "اليوم",
+  "where": [
+   "static/js/ui.js:219"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "امسح الرمز بكاميرا هاتفك لفتح هذه الصفحة:",
+  "where": [
+   "app/api/download.py:81"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتظر قليلًا قبل إعادة إرسال الرمز.",
+  "where": [
+   "app/services/signup.py:181"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتظر قليلًا قبل المحاولة مرة أخرى.",
+  "where": [
+   "app/services/auth.py:257"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت الجلسة. سجّل الدخول من جديد.",
+  "where": [
+   "static/js/app.js:204"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "انتهت المشاركة في هذه الجولة.",
+  "where": [
+   "static/js/views/giveaway.js:64",
+   "app/services/giveaway.py:90",
+   "app/services/giveaway.py:118"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية التحقق. أعد المحاولة.",
+  "where": [
+   "app/security/pow.py:92",
+   "app/services/access.py:86",
+   "app/services/access.py:88"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية التسجيل. أعد إدخال بياناتك.",
+  "where": [
+   "app/services/signup.py:163",
+   "app/services/signup.py:178"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية الرمز. أعد إدخال بياناتك أو اطلب رمزًا جديدًا.",
+  "where": [
+   "app/services/signup.py:167"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية الصورة",
+  "where": [
+   "static/js/views/chat.js:184"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية الصورة.",
+  "where": [
+   "app/services/media_items.py:394"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية الطلب. اطلب رمزًا جديدًا.",
+  "where": [
+   "app/services/password_reset.py:260",
+   "app/services/password_reset.py:264",
+   "app/services/password_reset.py:267"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت صلاحية جلسة تسجيل الدخول. أعد المحاولة.",
+  "where": [
+   "app/services/auth.py:364"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت مهلة الرفع، أعد المحاولة.",
+  "where": [
+   "app/services/media_check.py:249"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انتهت مهلة المعالجة.",
+  "where": [
+   "app/services/media_items.py:551"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "انضم إلى {app}: مجتمع للمتداولين لمشاركة الأخبار والتحليلات والأفكار.",
+  "where": [
+   "static/js/views/earnings.js:119"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "بانتظار قبول طلب المراسلة",
+  "where": [
+   "static/js/views/messages.js:15"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "بانتظار مراجعة الصورة — لا يراها غيرك الآن",
+  "where": [
+   "static/js/ideas.js:310"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "بحث",
+  "where": [
+   "static/js/people.js:82"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "بدون مخالفات",
+  "where": [
+   "app/services/verification.py:150"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "بريد آخر (اختياري)",
+  "where": [
+   "static/js/views/giveaway.js:31"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "بريد حساب Google غير مؤكد.",
+  "where": [
+   "app/services/auth.py:366"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "بريد غير صالح.",
+  "where": [
+   "app/services/email_codes.py:46"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "بصمة الملف SHA-256 (للتحقق)",
+  "where": [
+   "app/api/download.py:59"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "بعد التغيير يُسجَّل خروجك من كل الأجهزة الأخرى.",
+  "where": [
+   "static/js/views/auth.js:167"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "بلاغ",
+  "where": [
+   "static/js/views/support.js:11",
+   "app/services/support.py:30"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "بنفسجي",
+  "where": [
+   "app/services/appearance.py:35"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تأكد من الشبكة والعنوان: التحويل إلى عنوان خاطئ لا يمكن استرجاعه.",
+  "where": [
+   "static/js/views/earnings.js:59"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد",
+  "where": [
+   "static/js/people.js:16"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد البريد",
+  "where": [
+   "static/js/views/giveaway.js:18"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد البريد للظرف الأحمر",
+  "where": [
+   "app/services/email_codes.py:23"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تأكيد السحب",
+  "where": [
+   "static/js/views/earnings.js:30"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد العمر",
+  "where": [
+   "static/js/people.js:28"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد العمر (18+)",
+  "where": [
+   "static/js/views/profile.js:298"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد طلب الاسترجاع",
+  "where": [
+   "static/js/views/membership.js:95"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد كلمة المرور",
+  "where": [
+   "static/js/views/auth.js:161",
+   "static/js/views/auth.js:253"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تأكيد وإنشاء الحساب",
+  "where": [
+   "static/js/views/auth.js:57"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تاريخ الانتهاء غير صالح.",
+  "where": [
+   "app/services/giveaway.py:154",
+   "app/services/signup.py:288"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تاريخ الانتهاء يجب أن يكون في المستقبل.",
+  "where": [
+   "app/services/giveaway.py:156",
+   "app/services/signup.py:328"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تتاح الصور بعد أن يرد الطرف الآخر",
+  "where": [
+   "static/js/views/chat.js:318"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تجاهل",
+  "where": [
+   "static/js/views/chat.js:303"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحديث إلزامي",
+  "where": [
+   "static/js/native.js:60"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحديث الأسعار",
+  "where": [
+   "static/js/views/market.js:115"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحديث في سياسة الخصوصية",
+  "where": [
+   "static/js/privacy.js:46"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحديث متوفر",
+  "where": [
+   "static/js/native.js:60"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحرش أو مضايقة",
+  "where": [
+   "static/js/ui.js:28"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحقق سريع يتم على جهازك",
+  "where": [
+   "static/js/antibot.js:25"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحقق من الرمز",
+  "where": [
+   "static/js/views/auth.js:152"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحميل {app}",
+  "where": [
+   "app/api/download.py:62"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تحميل التحديث",
+  "where": [
+   "static/js/native.js:65"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحميل التطبيق",
+  "where": [
+   "app/api/policies.py:75"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تحميل تطبيق أندرويد",
+  "where": [
+   "static/js/views/auth.js:361"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تحميل تطبيق أندرويد (APK)",
+  "where": [
+   "app/api/download.py:57"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تذاكري",
+  "where": [
+   "static/js/views/support.js:74"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تذكرة جديدة",
+  "where": [
+   "static/js/views/support.js:68"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تذكرة دعم",
+  "where": [
+   "static/js/views/support.js:124"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تسجيل الخروج",
+  "where": [
+   "static/js/onboarding.js:53",
+   "static/js/onboarding.js:86",
+   "static/js/views/profile.js:262",
+   "static/js/views/profile.js:291"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تسجيل الخروج؟",
+  "where": [
+   "static/js/views/profile.js:262"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تسجيل الدخول",
+  "where": [
+   "static/js/views/auth.js:41"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تسجيل الدخول عبر Google غير مفعّل.",
+  "where": [
+   "app/services/auth.py:351"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تصحيح",
+  "where": [
+   "app/services/rewards.py:37"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تصحيح في رصيدك: {amount} USDT — {note}",
+  "where": [
+   "app/services/rewards.py:266"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تصنيف غير صالح.",
+  "where": [
+   "app/services/engagement.py:168",
+   "app/services/engagement.py:193"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تطبيق أندرويد غير متاح حاليًا. يمكنك استخدام الموقع مباشرة.",
+  "where": [
+   "app/api/download.py:61"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تظهر بجانب اسمك للجميع. تُفحص قبل النشر، ويمكن الإبلاغ عنها.",
+  "where": [
+   "static/js/views/profile.js:61"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعديل الملف",
+  "where": [
+   "static/js/views/profile.js:83",
+   "static/js/views/profile.js:119"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر إرسال البريد الآن. حاول بعد قليل.",
+  "where": [
+   "app/services/email_codes.py:67"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر إرسال الصورة.",
+  "where": [
+   "static/js/views/chat.js:142"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر إنشاء الحساب. حاول مرة أخرى.",
+  "where": [
+   "app/services/auth.py:397"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة.",
+  "where": [
+   "static/js/app.js:252"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر الاتصال. حاول مرة أخرى.",
+  "where": [
+   "static/js/views/auth.js:74",
+   "static/js/views/auth.js:131",
+   "static/js/views/auth.js:300"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر التحقق من التطبيق",
+  "where": [
+   "app/api/download.py:140"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر التحقق من التطبيق على هذا الجهاز.",
+  "where": [
+   "app/api/app_access.py:90",
+   "app/api/app_access.py:108",
+   "app/api/app_access.py:110"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر التحقق من حساب Google.",
+  "where": [
+   "app/services/auth.py:353",
+   "app/services/auth.py:362",
+   "app/services/auth.py:359"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر التحميل. افتح الرابط أدناه.",
+  "where": [
+   "static/js/privacy.js:19"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر تجهيز الصورة.",
+  "where": [
+   "static/js/media-pick.js:161",
+   "static/js/views/home.js:178"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر تحديث الصورة.",
+  "where": [
+   "static/js/views/profile.js:53"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر تحميل الصورة. حاول مرة أخرى.",
+  "where": [
+   "static/js/views/chat.js:168"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر تحميل الملف الآن. حاول بعد قليل.",
+  "where": [
+   "app/api/media.py:44"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر تحميل تسجيل الدخول عبر Google.",
+  "where": [
+   "static/js/views/auth.js:340"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر تغيير الإشعارات.",
+  "where": [
+   "static/js/views/profile.js:191"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر حفظ الملف الآن. حاول بعد قليل.",
+  "where": [
+   "app/services/media_pipeline.py:197",
+   "app/services/media_pipeline.py:193"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر رفع الملف.",
+  "where": [
+   "static/js/media-pick.js:183"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّر فتح الصورة. جرّب صورة أخرى.",
+  "where": [
+   "static/js/media-pick.js:145"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعذّرت معالجة الملف.",
+  "where": [
+   "app/services/media_check.py:253",
+   "app/services/media_pipeline.py:145",
+   "app/services/media_pipeline.py:144"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّرت معالجة الملف. حاول مرة أخرى.",
+  "where": [
+   "app/services/media_pipeline.py:114"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعليق",
+  "where": [
+   "static/js/ideas.js:69"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعليق خاص قديم",
+  "where": [
+   "static/js/ideas.js:140"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعليقات ({n})",
+  "where": [
+   "static/js/ideas.js:69"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "تعليقات أقدم…",
+  "where": [
+   "static/js/ideas.js:106"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تعليقك",
+  "where": [
+   "static/js/ideas.js:108"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تغيير البريد أو البيانات",
+  "where": [
+   "static/js/views/auth.js:116"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تغيير الصورة",
+  "where": [
+   "static/js/views/profile.js:64"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تغيير الصورة الشخصية",
+  "where": [
+   "static/js/views/profile.js:74"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تغيير كلمة المرور والدخول",
+  "where": [
+   "static/js/views/auth.js:164"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تفاصيل إضافية (اختياري)",
+  "where": [
+   "static/js/ideas.js:331",
+   "static/js/views/chat.js:395"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تفاصيل البلاغ غير صالحة.",
+  "where": [
+   "app/services/messaging.py:524"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تفاعل غير صالح.",
+  "where": [
+   "app/services/ideas.py:328"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تفاعلات كثيرة بسرعة. انتظر قليلًا.",
+  "where": [
+   "app/services/messaging.py:230"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم",
+  "where": [
+   "static/js/views/profile.js:158"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تم إرجاع {amount} USDT.",
+  "where": [
+   "static/js/views/membership.js:82"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تم إلغاء الحظر.",
+  "where": [
+   "static/js/views/profile.js:210"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تم إنشاء عدد كبير من الحسابات من هذه الشبكة. حاول لاحقًا.",
+  "where": [
+   "app/services/auth.py:161"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم إيقاف محاولات تسجيل الدخول مؤقتًا بسبب كثرة المحاولات الخاطئة.",
+  "where": [
+   "app/services/auth.py:42"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم إيقاف هذا الحساب بسبب مخالفة شروط الاستخدام.",
+  "where": [
+   "app/services/auth.py:331",
+   "app/services/auth.py:373"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم إيقاف هذا الحساب.",
+  "where": [
+   "app/services/ideas.py:333",
+   "app/services/messaging.py:189",
+   "app/services/support.py:67"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم الإرجاع",
+  "where": [
+   "app/services/membership.py:42"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم الإرسال",
+  "where": [
+   "app/services/withdrawals.py:28"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم البت في هذا الطلب.",
+  "where": [
+   "app/services/membership.py:196",
+   "app/services/membership.py:279",
+   "app/services/payment_check.py:319",
+   "app/services/payment_check.py:385",
+   "app/services/verification.py:301",
+   "app/services/withdrawals.py:114"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم البت في هذه الدعوة.",
+  "where": [
+   "app/services/rewards.py:133"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم التحقق",
+  "where": [
+   "static/js/antibot.js:48"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تم الحظر.",
+  "where": [
+   "static/js/ideas.js:230",
+   "static/js/views/chat.js:374"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تم الرد",
+  "where": [
+   "app/services/support.py:32"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم السحب",
+  "where": [
+   "app/services/giveaway.py:33"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم السحب في هذه الجولة.",
+  "where": [
+   "app/services/giveaway.py:177"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تم تجاهل الطلب.",
+  "where": [
+   "static/js/views/chat.js:325"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تم تحديث صورتك.",
+  "where": [
+   "static/js/views/profile.js:51"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تم تفعيل عضويتك ✨",
+  "where": [
+   "app/services/membership.py:215"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تمت الموافقة على طلب التوثيق. تظهر الآن النجمة الزرقاء بجانب اسمك.",
+  "where": [
+   "app/services/verification.py:384"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تمت مشاركتك 🧧",
+  "where": [
+   "static/js/views/giveaway.js:23",
+   "static/js/views/giveaway.js:40"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تهديد",
+  "where": [
+   "static/js/ui.js:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تواصل معنا",
+  "where": [
+   "static/js/views/contact.js:13",
+   "static/js/views/profile.js:281"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "تُجلب الأسعار خلال لحظات، حاول بعد قليل.",
+  "where": [
+   "static/js/views/market.js:137"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ البحث…",
+  "where": [
+   "static/js/people.js:106"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ التحقق…",
+  "where": [
+   "static/js/antibot.js:42",
+   "static/js/views/auth.js:287"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ التحميل",
+  "where": [
+   "static/js/views/contact.js:9",
+   "static/js/views/earnings.js:12",
+   "static/js/views/earnings.js:108",
+   "static/js/views/giveaway.js:9",
+   "static/js/views/home.js:270",
+   "static/js/views/market.js:108",
+   "static/js/views/membership.js:10",
+   "static/js/views/notifications.js:22",
+   "static/js/views/post.js:9",
+   "static/js/views/users.js:28"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ التحميل…",
+  "where": [
+   "static/js/ideas.js:105",
+   "static/js/ideas.js:255",
+   "static/js/privacy.js:16",
+   "static/js/views/profile.js:196",
+   "static/js/views/support.js:38"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ الرفع 0%",
+  "where": [
+   "static/js/views/home.js:221"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ الرفع {pct}%",
+  "where": [
+   "static/js/views/home.js:223"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ الفحص على الخادم…",
+  "where": [
+   "static/js/views/chat.js:133",
+   "static/js/views/chat.js:135",
+   "static/js/views/home.js:223",
+   "static/js/views/home.js:225"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ رفع الصورة {pct}%",
+  "where": [
+   "static/js/views/chat.js:133"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ رفع الصورة وفحصها…",
+  "where": [
+   "static/js/views/profile.js:44"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جارٍ فحص الصورة…",
+  "where": [
+   "static/js/views/chat.js:127",
+   "static/js/views/home.js:170",
+   "static/js/views/home.js:171"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جديد",
+  "where": [
+   "static/js/views/notifications.js:36"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جديد في {app}",
+  "where": [
+   "static/js/onboarding.js:106"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جرّب {app}: مجتمع للمتداولين، أفكار وتحليلات وأخبار العملات الرقمية، وتراسل دون أن ينكشف بريدك. حمّل التطبيق من هنا:",
+  "where": [
+   "static/js/views/profile.js:222"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "جمري",
+  "where": [
+   "app/services/appearance.py:33"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حالة غير صالحة.",
+  "where": [
+   "app/services/support.py:177"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حاول مرة أخرى.",
+  "where": [
+   "app/services/rewards.py:58"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حجم التداول 24 س",
+  "where": [
+   "static/js/views/market.js:71"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حجم الخط",
+  "where": [
+   "static/js/appearance.js:37",
+   "static/js/appearance.js:72"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حدث خطأ غير متوقع. حاول مرة أخرى.",
+  "where": [
+   "app/main.py:345"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حدث خطأ. حاول مرة أخرى.",
+  "where": [
+   "static/js/api.js:56"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حدّث التطبيق",
+  "where": [
+   "app/api/download.py:137"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حدّثنا سياسات {app}. اقرأها، ويمكنك فتح الشروط والإرشادات من الروابط:",
+  "where": [
+   "static/js/privacy.js:47"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف",
+  "where": [
+   "static/js/ideas.js:236",
+   "static/js/ideas.js:285",
+   "static/js/views/chat.js:245",
+   "static/js/views/chat.js:383"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف التعليق",
+  "where": [
+   "static/js/ideas.js:245"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف التعليق؟",
+  "where": [
+   "static/js/ideas.js:236"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف المحادثة",
+  "where": [
+   "static/js/views/chat.js:350"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف المحادثة؟",
+  "where": [
+   "static/js/views/chat.js:381"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف المنشور",
+  "where": [
+   "static/js/ideas.js:294"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف حسابي",
+  "where": [
+   "static/js/views/profile.js:237",
+   "static/js/views/profile.js:252",
+   "static/js/views/profile.js:292",
+   "app/services/account_deletion.py:21"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف حسابي نهائيًا",
+  "where": [
+   "static/js/views/profile.js:240"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حذف هذه الفكرة؟",
+  "where": [
+   "static/js/ideas.js:285"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حساب جديد",
+  "where": [
+   "static/js/views/auth.js:41"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حساب موثّق",
+  "where": [
+   "static/js/ui.js:89",
+   "static/js/ui.js:89"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حسابك موثّق بالفعل.",
+  "where": [
+   "app/services/verification.py:234"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حسابك موقوف مؤقتًا للمراجعة بسبب بلاغات. لا يمكنك إرسال رسائل حاليًا.",
+  "where": [
+   "app/services/messaging.py:187"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حسابك موقوف مؤقتًا للمراجعة. لا يمكنك إرسال رسائل حاليًا.",
+  "where": [
+   "static/js/views/profile.js:180"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حسابي",
+  "where": [
+   "static/js/app.js:39",
+   "static/js/views/profile.js:270"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حسب الجهاز",
+  "where": [
+   "static/js/appearance.js:8"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حظر",
+  "where": [
+   "static/js/ideas.js:228",
+   "static/js/views/chat.js:304",
+   "static/js/views/chat.js:349",
+   "static/js/views/chat.js:368"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حظر صاحب التعليق",
+  "where": [
+   "static/js/ideas.js:231"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حظر صاحب التعليق؟",
+  "where": [
+   "static/js/ideas.js:228"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حظر هذا الشخص؟",
+  "where": [
+   "static/js/views/chat.js:366"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حفظ",
+  "where": [
+   "static/js/appearance.js:54",
+   "static/js/onboarding.js:94",
+   "static/js/views/profile.js:97"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حفظ الاسم",
+  "where": [
+   "static/js/onboarding.js:37"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حمّل التطبيق",
+  "where": [
+   "app/api/download.py:134"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حمّل تطبيق {app} لأندرويد أو أضفه إلى شاشة iPhone الرئيسية.",
+  "where": [
+   "app/api/download.py:63"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "حُذف حسابك. شكرًا لأنك كنت معنا.",
+  "where": [
+   "static/js/views/profile.js:247"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حُذفت الفكرة.",
+  "where": [
+   "static/js/ideas.js:292"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حُظر {date}",
+  "where": [
+   "static/js/views/profile.js:208"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حُفظ المظهر ✅",
+  "where": [
+   "static/js/appearance.js:63"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "حُفظ ملفك.",
+  "where": [
+   "static/js/views/profile.js:107"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "خيارات التعليق",
+  "where": [
+   "static/js/ideas.js:141",
+   "static/js/ideas.js:247"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "خيارات المنشور",
+  "where": [
+   "static/js/ideas.js:41",
+   "static/js/ideas.js:296"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "داكن",
+  "where": [
+   "static/js/appearance.js:8"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "دخول",
+  "where": [
+   "static/js/views/auth.js:242"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "دعوة الأصدقاء",
+  "where": [
+   "static/js/views/earnings.js:82",
+   "static/js/views/earnings.js:112",
+   "static/js/views/profile.js:278"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "دعوة صديق أصبح عضوًا",
+  "where": [
+   "app/services/rewards.py:94"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "دفعتك أقل من سعر العضوية. المبلغ الناقص: {amount}.",
+  "where": [
+   "static/js/views/membership.js:48"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ذهبي",
+  "where": [
+   "app/services/appearance.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رابط المستكشف يجب أن يبدأ بـ https:// ويحتوي {txid}.",
+  "where": [
+   "app/services/verification.py:87"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رابط غير صالح أو منتهي.",
+  "where": [
+   "app/api/media.py:32"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رجل",
+  "where": [
+   "static/js/onboarding.js:9",
+   "static/js/ui.js:61"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رجوع",
+  "where": [
+   "static/js/views/chat.js:54",
+   "static/js/views/contact.js:12",
+   "static/js/views/earnings.js:15",
+   "static/js/views/earnings.js:111",
+   "static/js/views/giveaway.js:12",
+   "static/js/views/membership.js:13",
+   "static/js/views/notifications.js:25",
+   "static/js/views/post.js:12",
+   "static/js/views/support.js:16",
+   "static/js/views/user.js:18"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رد",
+  "where": [
+   "static/js/ideas.js:139"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رد جديد",
+  "where": [
+   "static/js/views/profile.js:26",
+   "static/js/views/support.js:61"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ردك",
+  "where": [
+   "static/js/views/support.js:88"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ردّ على {name}",
+  "where": [
+   "static/js/ideas.js:121"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ردّ فريق الدعم على تذكرتك. افتح حسابي ← الدعم.",
+  "where": [
+   "static/js/app.js:224"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رسائل مزعجة (سبام)",
+  "where": [
+   "static/js/ui.js:27"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رسائلك الخاصة: أرسلت {sent} · استقبلت {received} · {n} محادثة",
+  "where": [
+   "static/js/views/profile.js:175"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "رسمي",
+  "where": [
+   "static/js/ideas.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رسوم الاسترجاع",
+  "where": [
+   "app/services/membership.py:295"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رصيدك المتاح أقل من حد السحب ({min} USDT).",
+  "where": [
+   "app/api/rewards.py:48"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رفع الصور غير متاح الآن. حاول لاحقًا.",
+  "where": [
+   "static/js/views/profile.js:39"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رفع الصور غير متاح حاليًا.",
+  "where": [
+   "app/services/media_pipeline.py:56",
+   "app/services/media_pipeline.py:187"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رفعت ملفات كثيرة خلال ساعة. حاول لاحقًا.",
+  "where": [
+   "app/services/messaging.py:231"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رقم العملية (TXID) لا يطابق شكل شبكة {network}.",
+  "where": [
+   "app/services/verification.py:211"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رقم العملية بعد الدفع",
+  "where": [
+   "static/js/views/membership.js:40"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رقم العملية هذا مستخدم في طلب آخر.",
+  "where": [
+   "app/services/membership.py:147",
+   "app/services/membership.py:157",
+   "app/services/payment_check.py:369",
+   "app/services/verification.py:271",
+   "app/services/verification.py:255"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رقم العملية هذا مسجّل لاسترجاع آخر.",
+  "where": [
+   "app/services/membership.py:288"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رقم العملية هذا مسجّل لسحب آخر.",
+  "where": [
+   "app/services/withdrawals.py:121"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رقم عملية الفارق",
+  "where": [
+   "static/js/views/membership.js:68"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رمز QR لصفحة التحميل",
+  "where": [
+   "app/api/download.py:36"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رمز QR لعنوان المحفظة",
+  "where": [
+   "static/js/views/membership.js:35"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رمز التأكيد",
+  "where": [
+   "static/js/views/auth.js:81",
+   "static/js/views/earnings.js:65",
+   "static/js/views/membership.js:115"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رمز غير صالح.",
+  "where": [
+   "app/api/messages.py:186"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رُفض الطلب وحُظر الحساب.",
+  "where": [
+   "app/services/payment_check.py:389"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رُفض طلب الاسترجاع: {note}",
+  "where": [
+   "app/services/membership.py:308"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رُفض طلب الاسترجاع: {reason}",
+  "where": [
+   "static/js/views/membership.js:82"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "رُفض طلب التوثيق. السبب: {note}",
+  "where": [
+   "app/services/verification.py:385"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رُفض طلب السحب وأُعيد المبلغ إلى رصيدك. السبب: {note}",
+  "where": [
+   "app/services/withdrawals.py:136"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رُفض طلب العضوية: {note}",
+  "where": [
+   "app/services/membership.py:216"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "رُفض طلبك السابق: {note}",
+  "where": [
+   "static/js/views/membership.js:137"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سؤال",
+  "where": [
+   "app/services/cms.py:642"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "سبب آخر",
+  "where": [
+   "static/js/ui.js:32"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ستختفي المحادثة من قائمتك. إذا كتب لك الطرف الآخر مجددًا ستعود للظهور.",
+  "where": [
+   "static/js/views/chat.js:382"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ستصلك هنا التعليقات على أفكارك والردود على تعليقاتك.",
+  "where": [
+   "static/js/views/notifications.js:44"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ستصله رسالتك كطلب مراسلة. لا تستطيع إرسال أكثر من بضع رسائل حتى يقبل أو يرد.",
+  "where": [
+   "static/js/people.js:69"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ستظهر هنا الجولة القادمة. تابع الإشعارات.",
+  "where": [
+   "static/js/views/giveaway.js:54"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ستُمسح نسخة المحادثات المحفوظة على هذا الجهاز.",
+  "where": [
+   "static/js/views/profile.js:262"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سجّل",
+  "where": [
+   "app/services/rewards.py:39"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "سجّلوا",
+  "where": [
+   "static/js/views/earnings.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سحب",
+  "where": [
+   "app/services/rewards.py:37"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "سحب (الحد الأدنى {min} USDT)",
+  "where": [
+   "static/js/views/earnings.js:81"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سحب الأرباح",
+  "where": [
+   "app/services/cms.py:640",
+   "app/services/email_codes.py:23"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "سحب المكافآت",
+  "where": [
+   "static/js/views/earnings.js:58"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سياسة الخصوصية",
+  "where": [
+   "static/js/privacy.js:11",
+   "static/js/views/auth.js:260",
+   "static/js/views/auth.js:359",
+   "static/js/views/profile.js:287",
+   "app/api/download.py:118"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سيعود قريبًا.",
+  "where": [
+   "static/js/views/market.js:130"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سيُحذف المنشور وكل تفاعلاته وتعليقاته نهائيًا.",
+  "where": [
+   "static/js/ideas.js:285"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "سيُحذف نهائيًا ولا يمكن التراجع: حسابك واسمك ومعرّفك، وأفكارك وصورها وتعليقاتها، وتعليقاتك وتفاعلاتك، ومحادثاتك ورسائلك، وتذاكر الدعم، وطلبات التوثيق. وتُحذف صورك من مستودع التخزين.",
+  "where": [
+   "static/js/views/profile.js:253"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "شارك فكرة",
+  "where": [
+   "static/js/views/home.js:187"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "شاهدت كل الأفكار الحالية. اضغط ↻ لترتيب جديد.",
+  "where": [
+   "static/js/views/home.js:283"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "شروط الاستخدام",
+  "where": [
+   "static/js/privacy.js:11",
+   "static/js/views/auth.js:259",
+   "static/js/views/membership.js:142",
+   "app/api/download.py:118"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "شكرًا لك. تم إرسال البلاغ وحظر هذا الشخص.",
+  "where": [
+   "static/js/views/chat.js:413"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "شكرًا لك. تم إرسال البلاغ وسيُراجع.",
+  "where": [
+   "static/js/ideas.js:342",
+   "static/js/views/chat.js:418"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "شكرًا. تم التأكيد.",
+  "where": [
+   "static/js/views/profile.js:299"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "شوهدت",
+  "where": [
+   "static/js/views/chat.js:17"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "صانع محتوى",
+  "where": [
+   "app/services/verification.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "صفحة",
+  "where": [
+   "app/services/verification.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "صورة",
+  "where": [
+   "static/js/media-pick.js:209"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "صورة · لم تُفتح بعد",
+  "where": [
+   "static/js/views/chat.js:190"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "صورة مؤقتة",
+  "where": [
+   "static/js/views/chat.js:172"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "صورة مرفقة بالفكرة",
+  "where": [
+   "static/js/ideas.js:305",
+   "static/js/ideas.js:308"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طلب استرجاع العضوية",
+  "where": [
+   "static/js/views/membership.js:84"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طلب الاسترجاع",
+  "where": [
+   "static/js/views/membership.js:110"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طلب التوثيق",
+  "where": [
+   "app/services/verification.py:389"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "طلب التوثيق يحتاج تصحيحًا: {note}\nادخل إلى التطبيق ← حسابي ← التوثيق لتعديله.",
+  "where": [
+   "app/services/verification.py:386"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "طلب سحب قيد التنفيذ",
+  "where": [
+   "static/js/views/earnings.js:78"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طلب غير صالح.",
+  "where": [
+   "app/api/app_access.py:60",
+   "app/api/app_access.py:58",
+   "app/api/uploads.py:77",
+   "app/main.py:335",
+   "app/services/auth.py:132",
+   "app/services/email_codes.py:43",
+   "app/services/engagement.py:195",
+   "app/services/ideas.py:240",
+   "app/services/media_items.py:157",
+   "app/services/media_items.py:161",
+   "app/services/messaging.py:251",
+   "app/services/messaging.py:71",
+   "app/services/messaging.py:651",
+   "app/services/messaging.py:775",
+   "app/services/messaging.py:647",
+   "app/services/people.py:65",
+   "app/services/people.py:103",
+   "app/services/signup.py:322",
+   "app/services/signup.py:337",
+   "app/services/signup.py:335"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "طلب غير مسموح.",
+  "where": [
+   "app/main.py:305",
+   "app/main.py:308"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "طلبات استعادة كثيرة من هذه الشبكة. حاول لاحقًا.",
+  "where": [
+   "app/services/password_reset.py:99"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "طلبات الرسائل",
+  "where": [
+   "static/js/views/messages.js:72"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طلبات السحب",
+  "where": [
+   "static/js/views/earnings.js:90"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طلبات النجمة الزرقاء متوقفة: ستصبح النجمة جزءًا من العضوية قريبًا.",
+  "where": [
+   "app/services/verification.py:232"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "طلبت رموزًا كثيرة. انتظر قليلًا.",
+  "where": [
+   "app/services/email_codes.py:49"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "طلبك قيد التنفيذ: {amount} USDT إلى عنوانك على {network}.",
+  "where": [
+   "static/js/views/membership.js:78"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طلبك: قيد المراجعة",
+  "where": [
+   "static/js/views/membership.js:129"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "طُلب التسجيل بهذا البريد مرات كثيرة اليوم. حاول لاحقًا.",
+  "where": [
+   "app/services/signup.py:131"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "ظرف الأسبوع",
+  "where": [
+   "app/services/cms.py:642"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عادي",
+  "where": [
+   "static/js/appearance.js:9"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عدد الفائزين بين 1 و1000.",
+  "where": [
+   "app/services/giveaway.py:159"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عدد غير صالح.",
+  "where": [
+   "app/services/engagement.py:245"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عدم إعجاب",
+  "where": [
+   "static/js/ideas.js:64",
+   "static/js/views/profile.js:171",
+   "static/js/views/profile.js:301",
+   "static/js/views/user.js:25",
+   "static/js/views/user.js:56"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عرض الصورة بملء الشاشة",
+  "where": [
+   "static/js/ideas.js:307"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عرض المزيد",
+  "where": [
+   "static/js/ideas.js:367",
+   "static/js/people.js:84"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عرض الملف",
+  "where": [
+   "static/js/people.js:96",
+   "static/js/views/chat.js:346"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عرض ملف {name}",
+  "where": [
+   "static/js/ideas.js:33"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عضويتك مفعّلة",
+  "where": [
+   "static/js/views/membership.js:126"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عضويتك مفعّلة بالفعل.",
+  "where": [
+   "app/services/membership.py:137"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عضويتي",
+  "where": [
+   "static/js/views/chat.js:112",
+   "static/js/views/membership.js:14",
+   "static/js/views/profile.js:276"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "على أندرويد يعمل {app} من التطبيق فقط. حمّله من الزر أدناه وثبّته، ثم افتحه وسجّل الدخول بحسابك نفسه.",
+  "where": [
+   "app/api/download.py:135"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "على جهاز آخر؟",
+  "where": [
+   "app/api/download.py:80"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عمر الحساب (يوم)",
+  "where": [
+   "app/services/verification.py:149"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عمليات بحث كثيرة. انتظر قليلًا.",
+  "where": [
+   "app/services/people.py:60"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عن التطبيق",
+  "where": [
+   "static/js/views/profile.js:289"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عند الإيقاف يبقى بالإمكان إيجادك بمعرّفك DZ فقط.",
+  "where": [
+   "static/js/views/profile.js:137"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عندما يراسلك شخص لأول مرة عبر معرّفك أو اسمك تظهر رسالته هنا، ولا يعرف أنك قرأتها حتى تقبل.",
+  "where": [
+   "static/js/views/messages.js:78"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عندما يصبح صديقك عضوًا تحصل على {reward} USDT في «أرباحي»، معلّقة {n} يومًا ثم تصبح متاحة. مستوى واحد فقط، ولا مكافأة على دعوة نفسك.",
+  "where": [
+   "static/js/views/earnings.js:131"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "عنوان المحفظة",
+  "where": [
+   "static/js/views/earnings.js:61",
+   "static/js/views/membership.js:113"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عنوان المحفظة غير صالح.",
+  "where": [
+   "app/services/verification.py:85"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عنوان غير صالح.",
+  "where": [
+   "app/services/cms.py:518"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "عنوان قصير (اختياري)",
+  "where": [
+   "static/js/views/support.js:32"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "عنوان محفظتك",
+  "where": [
+   "static/js/views/earnings.js:23",
+   "static/js/views/membership.js:90"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "غير موجود.",
+  "where": [
+   "app/api/i18n.py:22",
+   "app/errors.py:23",
+   "app/main.py:289",
+   "app/main.py:383",
+   "app/services/payment_check.py:361"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "فاتح",
+  "where": [
+   "static/js/appearance.js:8"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فتح المحادثة",
+  "where": [
+   "static/js/views/user.js:44"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فتح تذكرة دعم",
+  "where": [
+   "static/js/views/contact.js:23"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فتحت تذاكر كثيرة اليوم. أضف ردك إلى تذكرة مفتوحة أو عُد غدًا.",
+  "where": [
+   "app/services/messaging.py:232"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "فريق {app}",
+  "where": [
+   "static/js/ideas.js:136",
+   "app/services/brand.py:36"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فريق الدعم",
+  "where": [
+   "static/js/views/support.js:102"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فشل التحقق من أنك لست روبوتًا. أعد المحاولة.",
+  "where": [
+   "app/security/pow.py:66",
+   "app/services/auth.py:181"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "فشل التحقق، اضغط للمحاولة مجددًا",
+  "where": [
+   "static/js/antibot.js:51"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فكرة",
+  "where": [
+   "static/js/views/post.js:13"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فكرتك",
+  "where": [
+   "static/js/views/home.js:99"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فهمت",
+  "where": [
+   "static/js/privacy.js:50"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "فُتحت · تختفي بعد",
+  "where": [
+   "static/js/views/chat.js:190"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "قبلت الطلب. يمكنكما الآن التحدث.",
+  "where": [
+   "static/js/views/chat.js:326"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "قبول",
+  "where": [
+   "static/js/views/chat.js:302"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "قرمزي",
+  "where": [
+   "app/services/appearance.py:39"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "قيد الإرسال",
+  "where": [
+   "static/js/views/chat.js:14"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "قيد التنفيذ",
+  "where": [
+   "app/services/membership.py:42",
+   "app/services/withdrawals.py:28"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "قيد المراجعة",
+  "where": [
+   "app/services/membership.py:41",
+   "app/services/rewards.py:39",
+   "app/services/verification.py:39"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "قيمة غير صالحة.",
+  "where": [
+   "app/services/rewards.py:184"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "كاتب",
+  "where": [
+   "app/services/verification.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "كبير",
+  "where": [
+   "static/js/appearance.js:9"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كتم الإشعارات",
+  "where": [
+   "static/js/views/chat.js:347"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كشف الطرف الآخر هويته.",
+  "where": [
+   "static/js/views/chat.js:32"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كشفتَ هويتك.",
+  "where": [
+   "static/js/views/chat.js:32"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كل السياسات",
+  "where": [
+   "static/js/privacy.js:12"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كل المستخدمين",
+  "where": [
+   "static/js/views/users.js:11"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كلمة المرور",
+  "where": [
+   "static/js/views/auth.js:252",
+   "static/js/views/earnings.js:25",
+   "static/js/views/earnings.js:64",
+   "static/js/views/membership.js:91",
+   "static/js/views/membership.js:114",
+   "static/js/views/profile.js:238"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كلمة المرور الجديدة",
+  "where": [
+   "static/js/views/auth.js:160"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كلمة المرور ضعيفة جدًا. اختر كلمة مرور أقوى.",
+  "where": [
+   "app/services/auth.py:107"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "كلمة المرور طويلة جدًا.",
+  "where": [
+   "app/services/auth.py:105"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "كلمة المرور غير صالحة.",
+  "where": [
+   "app/services/auth.py:98"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "كلمة المرور غير صحيحة.",
+  "where": [
+   "app/services/account_deletion.py:33",
+   "app/services/membership.py:240"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "كلمة المرور يجب أن تكون {n} أحرف على الأقل.",
+  "where": [
+   "static/js/views/auth.js:213",
+   "static/js/views/auth.js:275",
+   "app/services/auth.py:102"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "كلمة مرور جديدة",
+  "where": [
+   "static/js/views/auth.js:166"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كلمتا المرور غير متطابقتين.",
+  "where": [
+   "static/js/views/auth.js:214",
+   "static/js/views/auth.js:273",
+   "app/services/auth.py:100"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كن أول من يشارك فكرة مع الجميع.",
+  "where": [
+   "static/js/views/home.js:262"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "كُشفت الهوية",
+  "where": [
+   "static/js/views/messages.js:11"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا إشعارات بعد",
+  "where": [
+   "static/js/views/notifications.js:43"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا إعجابات بعد.",
+  "where": [
+   "static/js/ideas.js:269"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد أفكار بعد",
+  "where": [
+   "static/js/views/home.js:261"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد بيانات بعد",
+  "where": [
+   "static/js/views/market.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد تذاكر بعد.",
+  "where": [
+   "static/js/views/support.js:53"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد تعليقات بعد. كن أول من يعلّق.",
+  "where": [
+   "static/js/ideas.js:175"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد جولة حاليًا",
+  "where": [
+   "static/js/views/giveaway.js:53"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد طلبات رسائل",
+  "where": [
+   "static/js/views/messages.js:78"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد محادثات بعد",
+  "where": [
+   "static/js/views/messages.js:81"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد محادثة تطابق بحثك.",
+  "where": [
+   "static/js/views/messages.js:80"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا توجد منشورات.",
+  "where": [
+   "static/js/views/user.js:59"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا تُسترجع قيمة العضوية بعد تفعيلها.",
+  "where": [
+   "app/services/cms.py:106"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا حركات بعد. ادعُ أصدقاءك أو شارك في المسابقات.",
+  "where": [
+   "static/js/views/earnings.js:89"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا نؤرشف صور المحادثات: بعد انتهائها تُحذف نهائيًا (إلا إذا أُبلغ عنها).",
+  "where": [
+   "app/services/cms.py:90"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا نتائج",
+  "where": [
+   "static/js/views/messages.js:80"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا نتائج. الأشخاص باسم dzplay يُعثر عليهم بالمعرّف فقط.",
+  "where": [
+   "static/js/people.js:113"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يرى الآخرون بريدك أبدًا: يظهر فقط الاسم الذي تختاره وصورتك إن أضفتها. ",
+  "where": [
+   "static/js/views/auth.js:357"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يستقبل رسائل مباشرة",
+  "where": [
+   "static/js/views/user.js:48"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن أن تكون الصفحة فارغة. لاستعادة النص الأصلي استعمل «النص الافتراضي».",
+  "where": [
+   "app/services/cms.py:536"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن إرسال رسالة فارغة.",
+  "where": [
+   "app/services/content.py:47"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن إضافة عملية إلى هذا الطلب الآن.",
+  "where": [
+   "app/services/payment_check.py:363"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن إلغاء هذه الجولة.",
+  "where": [
+   "app/services/giveaway.py:231"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن الإرسال الآن.",
+  "where": [
+   "app/services/giveaway.py:213"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن تعديل هذا الطلب الآن.",
+  "where": [
+   "app/services/verification.py:265"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن حذف هذا الحساب.",
+  "where": [
+   "app/services/account_deletion.py:30"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن طلب الاسترجاع الآن (انتهت المدة أو لديك طلب مفتوح).",
+  "where": [
+   "app/services/membership.py:251"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن طلب الاسترجاع الآن.",
+  "where": [
+   "app/api/membership.py:67"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن متابعة استخدام التطبيق قبل التحديث. يبقى حسابك وبياناتك كما هي.",
+  "where": [
+   "static/js/native.js:62"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يمكن نشر هذه الصورة: تبدو مخالفة لإرشادات المجتمع.",
+  "where": [
+   "static/js/media-pick.js:158",
+   "app/services/media_check.py:193"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يمكنك الإبلاغ عن رسالتك.",
+  "where": [
+   "app/services/messaging.py:540"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكنك الإبلاغ عن منشورك.",
+  "where": [
+   "app/services/ideas.py:555"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكنك التعليق على هذا المنشور.",
+  "where": [
+   "app/services/ideas.py:404"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكنك التفاعل مع منشورك.",
+  "where": [
+   "app/services/ideas.py:331"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يمكنك الرد على هذا التعليق.",
+  "where": [
+   "app/services/ideas.py:411"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يوجد اتصال بالإنترنت.",
+  "where": [
+   "static/js/api.js:49",
+   "static/js/media-pick.js:185"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يوجد حساب متاح بهذا المعرّف.",
+  "where": [
+   "static/js/people.js:113"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يوجد مستخدمون آخرون بعد. ادعُ أصدقاءك.",
+  "where": [
+   "static/js/views/users.js:34"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لا يُسمح بإرسال أكواد HTML. أرسل نصًا عاديًا فقط.",
+  "where": [
+   "app/services/content.py:51"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يُسمح بإرسال الروابط في الرسائل.",
+  "where": [
+   "app/services/content.py:53"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لاحقًا",
+  "where": [
+   "static/js/native.js:66",
+   "static/js/onboarding.js:109"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لديك إشعار جديد 🔔",
+  "where": [
+   "static/js/app.js:216"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لديك رسالة جديدة على {app}",
+  "where": [
+   "static/js/notify.js:8",
+   "app/services/fcm.py:31",
+   "app/services/push.py:26"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لديك طلب سحب قيد التنفيذ.",
+  "where": [
+   "app/services/withdrawals.py:83"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لديك طلب قيد المراجعة بالفعل.",
+  "where": [
+   "app/services/membership.py:140",
+   "app/services/verification.py:237"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لغة غير مدعومة.",
+  "where": [
+   "app/api/i18n.py:38"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لغة غير معروفة.",
+  "where": [
+   "app/services/cms.py:510"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لم تحظر أحدًا.",
+  "where": [
+   "static/js/views/profile.js:202"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لم تكتمل شروط التوثيق بعد.",
+  "where": [
+   "app/services/verification.py:239"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لم تنته مدة المشاركة بعد.",
+  "where": [
+   "app/services/giveaway.py:179"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لم تنشر أي فكرة بعد. شارك أول فكرة من الصفحة الرئيسية.",
+  "where": [
+   "static/js/views/profile.js:178"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لم تُختر صورة.",
+  "where": [
+   "static/js/media-pick.js:133"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لم تُرسل",
+  "where": [
+   "static/js/views/chat.js:243"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لم نتمكن من التحقق من هذا التطبيق على جهازك. تأكد من اتصالك بالإنترنت وأعد المحاولة. إن تكرر ذلك فحمّل التطبيق من جديد من هذه الصفحة.",
+  "where": [
+   "app/api/download.py:141"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لم نتمكن من تأكيد الدفع. تحقق من رقم العملية والمبلغ والشبكة.",
+  "where": [
+   "app/services/membership.py:32"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لم يتم السماح بالإشعارات من المتصفح.",
+  "where": [
+   "static/js/views/profile.js:190"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لم يصلك؟ تحقق من مجلد الرسائل غير المرغوب فيها (Spam).",
+  "where": [
+   "static/js/views/auth.js:82"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لم يكتمل الرفع.",
+  "where": [
+   "app/api/uploads.py:120"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لم يكتمل رفع الملف. أعد المحاولة.",
+  "where": [
+   "app/api/uploads.py:112",
+   "app/api/uploads.py:124"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لن تصلك إشعارات من هذه المحادثة.",
+  "where": [
+   "static/js/views/chat.js:360"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لن يتمكن من مراسلتك أو العثور عليك بالبحث. ستُغلق هذه المحادثة.",
+  "where": [
+   "static/js/views/chat.js:367"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لن يستطيع التعليق على أفكارك أو مراسلتك.",
+  "where": [
+   "static/js/ideas.js:228"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "لن يعرف أنك قرأت رسائله حتى تقبل. إذا تجاهلت الطلب يختفي دون إشعاره.",
+  "where": [
+   "static/js/views/chat.js:300"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مبلغ غير صالح.",
+  "where": [
+   "app/services/rewards.py:197",
+   "app/services/rewards.py:195"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "متابعة",
+  "where": [
+   "static/js/onboarding.js:63"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مثال",
+  "where": [
+   "app/services/cms.py:641"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مثال: Yacine أو أمينة",
+  "where": [
+   "static/js/onboarding.js:30"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مجتمع للمتداولين وأخبار العملات الرقمية والتحليلات.",
+  "where": [
+   "static/js/views/auth.js:351"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار.",
+  "where": [
+   "static/manifest.webmanifest"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك.",
+  "where": [
+   "app/main.py:85"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مجتمع للمتداولين: أخبار العملات الرقمية والتحليلات والأفكار، وبياناتك محمية.",
+  "where": [
+   "app/api/download.py:107"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مجهول قديم",
+  "where": [
+   "static/js/views/messages.js:56"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مباشرة",
+  "where": [
+   "static/js/views/chat.js:68"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مباشرة: يرى كل طرف اسم الآخر ومعرّفه فقط، دون بريد أو رقم. تُحذف الرسائل من الخادم تلقائيًا بعد مدة.",
+  "where": [
+   "static/js/views/chat.js:267"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مجهولة قديمة",
+  "where": [
+   "static/js/views/messages.js:48"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مجهولة قديمة · للقراءة فقط",
+  "where": [
+   "static/js/views/chat.js:69"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مجهولة قديمة للقراءة فقط",
+  "where": [
+   "static/js/views/messages.js:56"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مجهولة قديمة للقراءة فقط.",
+  "where": [
+   "static/js/views/chat.js:290"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مجهولة قديمة للقراءة فقط، تُحذف في {when}.",
+  "where": [
+   "static/js/views/chat.js:290"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محادثة مع {peer}",
+  "where": [
+   "static/js/views/messages.js:48"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محاولات كثيرة. حاول لاحقًا.",
+  "where": [
+   "app/services/messaging.py:234",
+   "app/services/password_reset.py:227"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "محاولات كثيرة. حاول مرة أخرى بعد قليل.",
+  "where": [
+   "app/errors.py"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "محاولات كثيرة: أُلغي التسجيل. أعد إدخال بياناتك.",
+  "where": [
+   "app/services/signup.py:226"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "محاولات كثيرة: أُلغي الرمز. اطلب رمزًا جديدًا.",
+  "where": [
+   "app/services/email_codes.py:85"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "محتوى غير لائق",
+  "where": [
+   "static/js/ui.js:30"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "محتوى يخص قاصرًا",
+  "where": [
+   "static/js/ui.js:31"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مخفية مؤقتًا للمراجعة بعد بلاغات",
+  "where": [
+   "static/js/ideas.js:311"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مدة غير صالحة.",
+  "where": [
+   "app/services/engagement.py:62"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مراسلة",
+  "where": [
+   "static/js/people.js:95",
+   "static/js/views/user.js:44"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مرحبًا ",
+  "where": [
+   "static/js/onboarding.js:43"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مرفوض",
+  "where": [
+   "app/services/membership.py:41",
+   "app/services/membership.py:42",
+   "app/services/rewards.py:39",
+   "app/services/verification.py:39",
+   "app/services/withdrawals.py:28"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مسابقة",
+  "where": [
+   "app/services/rewards.py:36"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مشاركة الرابط",
+  "where": [
+   "static/js/views/earnings.js:135"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مشاركة تطبيق {app}",
+  "where": [
+   "static/js/views/profile.js:290"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مشكلة تقنية",
+  "where": [
+   "static/js/views/support.js:10",
+   "app/services/support.py:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مصدر التعليقات غير صالح.",
+  "where": [
+   "app/services/engagement.py:250"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "معالجة الصور متوقفة مؤقتًا. حاول بعد قليل.",
+  "where": [
+   "app/services/media_pipeline.py:58"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "معلومات المحادثة",
+  "where": [
+   "static/js/views/chat.js:55"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "معلومات وخيارات",
+  "where": [
+   "static/js/views/chat.js:57"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "معلّق",
+  "where": [
+   "static/js/views/earnings.js:76"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مغلقة",
+  "where": [
+   "static/js/views/messages.js:62",
+   "app/services/support.py:32"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مفتوحة",
+  "where": [
+   "app/services/giveaway.py:33",
+   "app/services/support.py:32"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مقبول",
+  "where": [
+   "app/services/membership.py:41",
+   "app/services/verification.py:39"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مكافآت (USDT)",
+  "where": [
+   "static/js/views/earnings.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مكافآت ترويجية مستقلة تمامًا عن العضوية، ولا علاقة لها بالتداول.",
+  "where": [
+   "app/services/rewards.py:156"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مكافأة الدعوة متوقفة حاليًا. يمكنك مشاركة الرابط مع ذلك.",
+  "where": [
+   "static/js/views/earnings.js:132"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مكافأة جماعية",
+  "where": [
+   "app/services/rewards.py:37"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مكافأة دعوة",
+  "where": [
+   "app/services/rewards.py:36"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مكافأة دعوة: {amount} USDT (معلّقة {n} يومًا)",
+  "where": [
+   "app/services/rewards.py:97"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مكافأة نشاط",
+  "where": [
+   "app/services/rewards.py:37"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مكافأة: {amount} USDT — {note}",
+  "where": [
+   "app/services/rewards.py:266",
+   "app/services/rewards.py:242"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "مكتومة",
+  "where": [
+   "static/js/views/messages.js:57"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ملغاة",
+  "where": [
+   "app/services/giveaway.py:33"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "ملف عام",
+  "where": [
+   "static/js/views/user.js:19"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "من 3 إلى 20 حرفًا: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط.",
+  "where": [
+   "static/js/onboarding.js:50"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "من {min} إلى {max} حرفًا: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط. يمكن تغييره مرة كل {n} يومًا.",
+  "where": [
+   "static/js/views/profile.js:125"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "من يعرف اسمك أو معرّفك يستطيع إرسال طلب مراسلة.",
+  "where": [
+   "static/js/views/profile.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "منذ {date}",
+  "where": [
+   "static/js/views/membership.js:126"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "منذ {hh} س",
+  "where": [
+   "static/js/views/market.js:33"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "منذ {m} د",
+  "where": [
+   "static/js/views/market.js:31"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "منذ {n} يوم",
+  "where": [
+   "static/js/views/market.js:33"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "منشورات",
+  "where": [
+   "static/js/views/profile.js:169",
+   "static/js/views/profile.js:301",
+   "static/js/views/user.js:25",
+   "static/js/views/user.js:56"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "منشوراته",
+  "where": [
+   "static/js/views/user.js:58"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ميزات إضافية داخل التطبيق. لا علاقة لها بالتداول ولا بأي عائد مالي.",
+  "where": [
+   "static/js/views/membership.js:133"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "ميزات الأعضاء",
+  "where": [
+   "static/js/views/membership.js:139"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "مُكافأ",
+  "where": [
+   "app/services/rewards.py:39"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نتائج كثيرة: اكتب بحثًا أدق.",
+  "where": [
+   "app/services/people.py:69"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نتحقق من عمليتك على البلوكشين…",
+  "where": [
+   "static/js/views/membership.js:53"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نسخ",
+  "where": [
+   "static/js/views/earnings.js:134",
+   "static/js/views/membership.js:37",
+   "static/js/views/membership.js:51"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نسخ العنوان",
+  "where": [
+   "static/js/views/contact.js:27"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نسخ المعرّف {publicId}",
+  "where": [
+   "static/js/ui.js:104"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نسيت كلمة السر؟",
+  "where": [
+   "static/js/views/auth.js:248"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نشر",
+  "where": [
+   "static/js/views/home.js:103",
+   "static/js/views/home.js:245"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نشر الأفكار مع صورة",
+  "where": [
+   "app/services/membership.py:34"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نشر الصور مع الأفكار متوقف حاليًا.",
+  "where": [
+   "app/api/uploads.py:62",
+   "app/services/media_items.py:253",
+   "app/services/media_items.py:172"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نشر الصور مع الأفكار ميزة للأعضاء. اطّلع على «عضويتي» من حسابك.",
+  "where": [
+   "app/services/media_items.py:65"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نشرت عدة أفكار مؤخرًا. خذ استراحة قصيرة ثم شارك من جديد.",
+  "where": [
+   "app/services/messaging.py:226"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نشط الآن",
+  "where": [
+   "static/js/views/chat.js:67"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نشطون مؤخرًا",
+  "where": [
+   "static/js/views/users.js:47"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نص مثال.",
+  "where": [
+   "app/services/cms.py:641"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نعناعي",
+  "where": [
+   "app/services/appearance.py:37"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نوع الصورة غير مسموح.",
+  "where": [
+   "static/js/media-pick.js:136"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نوع المحادثات",
+  "where": [
+   "static/js/views/messages.js:31"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نوع المشكلة",
+  "where": [
+   "static/js/views/support.js:26"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نوع الملف غير مسموح.",
+  "where": [
+   "app/services/media_check.py:241"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نوع المنشور غير صالح.",
+  "where": [
+   "app/services/engagement.py:42",
+   "app/services/engagement.py:51"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "نُسخ الرابط.",
+  "where": [
+   "static/js/views/earnings.js:124",
+   "static/js/views/earnings.js:134"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نُسخ العنوان.",
+  "where": [
+   "static/js/views/contact.js:19",
+   "static/js/views/membership.js:37",
+   "static/js/views/membership.js:51"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نُسخ المعرّف.",
+  "where": [
+   "static/js/ui.js:104"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نُسخ رابط التطبيق. أرسله لأصدقائك.",
+  "where": [
+   "static/js/views/profile.js:227"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نُسخ.",
+  "where": [
+   "static/js/ui.js:92"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "نُشرت فكرتك ✨",
+  "where": [
+   "static/js/views/home.js:238"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذا الاسم غير مسموح به.",
+  "where": [
+   "app/services/names.py:103"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذا الاسم محجوز. اختر اسمًا آخر.",
+  "where": [
+   "app/services/names.py:100"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذا البريد مستعمل في مشاركة أخرى.",
+  "where": [
+   "app/services/giveaway.py:98"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذا البريد مسجّل بكلمة مرور. سجّل الدخول بالبريد وكلمة المرور.",
+  "where": [
+   "app/services/auth.py:383"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.",
+  "where": [
+   "app/services/auth.py:196",
+   "app/services/auth.py:215",
+   "app/services/signup.py:232"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذا التصنيف فارغ.",
+  "where": [
+   "app/services/engagement.py:248"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذا التصنيف موجود.",
+  "where": [
+   "app/services/engagement.py:125"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذا الحساب غير متاح.",
+  "where": [
+   "static/js/people.js:43"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذا الشخص لا يستقبل رسائل مباشرة.",
+  "where": [
+   "static/js/people.js:47",
+   "app/services/messaging.py:741"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذا الملف غير متاح",
+  "where": [
+   "static/js/views/user.js:29"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذا الملف ليس صورة مدعومة (JPEG أو PNG أو WebP أو HEIC).",
+  "where": [
+   "static/js/media-pick.js:135"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذا الملف مستخدم بالفعل.",
+  "where": [
+   "app/services/media_items.py:233"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هذه التذكرة مغلقة. افتح تذكرة جديدة إذا احتجت.",
+  "where": [
+   "static/js/views/support.js:106",
+   "app/services/support.py:88"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذه الفكرة لم تعد متاحة",
+  "where": [
+   "static/js/views/post.js:22"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذه المحادثة لم تعد متاحة.",
+  "where": [
+   "static/js/views/chat.js:444",
+   "app/services/media_items.py:146",
+   "app/services/media_items.py:389",
+   "app/services/messaging.py:334",
+   "app/services/messaging.py:736"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذه المحادثة مغلقة ولم يعد بالإمكان الرد فيها.",
+  "where": [
+   "static/js/views/chat.js:294"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذه محادثة مجهولة قديمة للقراءة فقط.",
+  "where": [
+   "app/services/messaging.py:354"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "هوية هذا الشخص مخفية. يظهر باسم dzplay.",
+  "where": [
+   "static/js/views/chat.js:343"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "وردي",
+  "where": [
+   "app/services/appearance.py:34"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصل هذا الجهاز إلى الحد الأقصى من الحسابات.",
+  "where": [
+   "app/services/access.py:223"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصلت",
+  "where": [
+   "static/js/views/chat.js:16"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "وصلت إلى الحد الأقصى لعدد العمليات في الطلب. تواصل مع الدعم.",
+  "where": [
+   "static/js/views/membership.js:55",
+   "app/services/payment_check.py:365"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "وصلت إلى الحد الأقصى للتعليقات في الساعة.",
+  "where": [
+   "app/services/messaging.py:229"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصلت إلى الحد الأقصى للرسائل في الساعة. حاول لاحقًا.",
+  "where": [
+   "app/services/messaging.py:221"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصلت إلى الحد الأقصى للمحادثات الجديدة اليوم. عُد غدًا.",
+  "where": [
+   "app/services/messaging.py:223"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصلت إلى الحد الأقصى للمحادثات الجديدة في الساعة. حاول لاحقًا.",
+  "where": [
+   "app/services/messaging.py:222"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصلت إلى الحد الأقصى للمنشورات اليوم. عُد غدًا.",
+  "where": [
+   "app/services/messaging.py:227"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصلت إلى حد طلبات السحب اليوم.",
+  "where": [
+   "app/services/withdrawals.py:88"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصلتك {n} رسائل جديدة",
+  "where": [
+   "static/js/app.js:208"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "وصلتك رسالة جديدة",
+  "where": [
+   "static/js/app.js:208"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يبقى فقط ما أُبلغ عنه كدليل لمدة محدودة، والبلاغات التي قدّمها آخرون، وسطر في سجل الإدارة بأن حسابًا حُذف.",
+  "where": [
+   "static/js/views/profile.js:254"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يتوفر إصدار جديد من {app} وهو إلزامي. حمّله وثبّته فوق التطبيق الحالي: يبقى حسابك وبياناتك كما هي.",
+  "where": [
+   "app/api/download.py:138"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام {app}.",
+  "where": [
+   "static/js/onboarding.js:70",
+   "static/js/views/auth.js:281",
+   "app/api/people.py:104"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يجب التأكيد للمتابعة.",
+  "where": [
+   "app/api/people.py:84"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يجب تأكيد أن عمرك 18 سنة أو أكثر والموافقة على شروط الاستخدام.",
+  "where": [
+   "app/services/auth.py:187"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يحتاج {app} إلى تفعيل JavaScript.",
+  "where": [
+   "app/main.py:82"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يحتاج تصحيحًا",
+  "where": [
+   "app/services/verification.py:39"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يختفي عند الجميع.",
+  "where": [
+   "static/js/ideas.js:236"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يرجى إكمال التحقق من أنك لست روبوتًا.",
+  "where": [
+   "app/security/pow.py:72"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يرجى تسجيل الدخول.",
+  "where": [
+   "app/api/deps.py:37"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يرى فريق الدعم معرّفك العام فقط، ويرد عليك هنا وعلى بريدك المسجّل.",
+  "where": [
+   "static/js/views/support.js:69"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يصل رمز الجائزة إلى بريدك إن ربحت. الافتراضي بريد حسابك ({email})، ونؤكده برمز مرة واحدة.",
+  "where": [
+   "static/js/views/giveaway.js:46"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يصل رمز الجائزة إلى بريدك إن ربحت. الافتراضي بريد حسابك ({email})، وهو مؤكد.",
+  "where": [
+   "static/js/views/giveaway.js:46"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يصلك {amount} USDT على الشبكة التي تختارها. تأكد من العنوان جيدًا.",
+  "where": [
+   "static/js/views/membership.js:111"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يطّلع فريق الإدارة على الحسابات والمحتوى للإشراف وحماية المستخدمين. ",
+  "where": [
+   "static/js/views/auth.js:358"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يظهر اسمك وصورتك في الأفكار والتعليقات والمحادثات.",
+  "where": [
+   "static/js/views/profile.js:81"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يظهر مع أفكارك ورسائلك بدل بريدك. يمكنك تغييره لاحقًا.",
+  "where": [
+   "static/js/views/auth.js:255"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يقرؤها الجميع، ويظهر معها اسمك الذي اخترته.",
+  "where": [
+   "static/js/views/home.js:188"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يكتب الآن",
+  "where": [
+   "static/js/views/chat.js:256"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يمكن طلب استرجاعها خلال {n} أيام من تفعيلها، ويُعاد المبلغ ناقص رسوم {fee} USDT، وتتوقف الميزات عند الإرجاع.",
+  "where": [
+   "app/services/cms.py:103"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يمكنك إرسال الصور بعد أن يرد عليك الطرف الآخر.",
+  "where": [
+   "static/js/views/chat.js:119",
+   "app/services/media_items.py:148"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يمكنك تغيير الاسم مجددًا يوم {date}.",
+  "where": [
+   "static/js/views/profile.js:124"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يمكنك تغيير الاسم مرة كل {every} يومًا. حاول بعد {days} يوم.",
+  "where": [
+   "app/services/names.py:129"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يمكنك تغيير صورتك {n} مرات في اليوم. حاول لاحقًا.",
+  "where": [
+   "static/js/views/profile.js:40",
+   "app/services/media_items.py:103"
+  ],
+  "client": true,
+  "plural": true
+ },
+ {
+  "id": "يمكنك طلب الاسترجاع حتى {date}: يُعاد {amount} USDT (بعد رسوم {fee}) وتتوقف ميزات العضوية.",
+  "where": [
+   "static/js/views/membership.js:86"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "يمكنك نشر صورة واحدة كل 24 ساعة.",
+  "where": [
+   "app/api/uploads.py:66",
+   "app/services/media_items.py:257",
+   "app/services/media_items.py:176"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "ينقص دفع العضوية {amount} USDT. أرسل الفارق على شبكة {network} إلى العنوان نفسه، ثم أضف رقم العملية في «عضويتي».",
+  "where": [
+   "app/services/payment_check.py:326"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "يُحفظ في حسابك ويُطبَّق على كل أجهزتك.",
+  "where": [
+   "static/js/appearance.js:69"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "🎉 ربحت! أُرسل رمز الجائزة إلى بريدك.",
+  "where": [
+   "static/js/views/giveaway.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "📷 صورة",
+  "where": [
+   "app/services/messaging.py:172"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "🧧 ربحت في «{title}»! تحقق من بريدك.",
+  "where": [
+   "app/services/giveaway.py:223"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "🧧 شارك الآن",
+  "where": [
+   "static/js/views/giveaway.js:33"
+  ],
+  "client": true,
+  "plural": false
+ }
+]

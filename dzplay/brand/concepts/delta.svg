@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT — Δ">
+  <!-- Concept 1: Δ (delta: change, price movement; sounds like DALTA) with the red dot at its centre.
+       An outlined triangle (never solid) with round joins; the dot sits on the incentre. -->
+  <path class="ink" d="M50 17.1 L88 82.9 L12 82.9 Z" fill="none" stroke="currentColor" stroke-width="14" stroke-linejoin="round"/>
+  <circle class="dot" cx="50" cy="60.96" r="9" fill="#E5232D"/>
+</svg>

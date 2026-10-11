@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT — D.">
+  <!-- Concept 2: a heavy geometric D followed by the red dot, like the dot of DALTA.BIT (D.).
+       Stem, top / bottom bars and bowl are all 16–17 units thick; the dot sits on the baseline. -->
+  <path class="ink" fill="currentColor" fill-rule="evenodd"
+        d="M6 16 H38 A34 34 0 0 1 38 84 H6 Z M23 32 V68 H38 A18 18 0 0 0 38 32 Z"/>
+  <circle class="dot" cx="86" cy="76" r="8" fill="#E5232D"/>
+</svg>

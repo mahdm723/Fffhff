@@ -1,0 +1,29 @@
+# Automatic HTTPS (Let's Encrypt) in front of DZPLAY.
+{
+	servers {
+		# Slow-client protection (slowloris) without cutting long uploads, calls or WebSockets:
+		# only the request headers have a deadline; idle keep-alive connections are closed after 2 minutes.
+		timeouts {
+			read_header 15s
+			idle 2m
+		}
+	}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	# API bodies are tiny JSON documents; only file uploads (V5) may be larger (exact caps in the app).
+	@upload path /api/uploads
+	request_body @upload {
+		max_size 210MB
+	}
+	@small not path /api/uploads
+	request_body @small {
+		max_size 64KB
+	}
+	# Caddy is the only proxy: overwrite any client-supplied X-Forwarded-For.
+	reverse_proxy app:8000 {
+		header_up X-Forwarded-For {remote_host}
+	}
+	# No access log: DZPLAY does not keep request logs with IP addresses.
+}
