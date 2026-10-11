@@ -19,9 +19,12 @@ from app.models import PushSubscription
 
 log = logging.getLogger("dzplay.push")
 
-def push_payload(settings: Settings) -> dict:
-    """The only content a push carries: the app's name and a generic line (no sender, no text)."""
-    return {"title": settings.APP_NAME, "body": f"لديك رسالة جديدة على {settings.APP_NAME}", "url": "/#/messages"}
+def push_payload(settings: Settings, lang: str | None = None) -> dict:
+    """The only content a push carries: the app's name and a generic line (no sender, no text), in the user's language."""
+    from app.i18n import tr
+
+    return {"title": settings.APP_NAME, "body": tr("لديك رسالة جديدة على {app}", lang, app=settings.APP_NAME),
+            "url": "/#/messages"}
 
 
 def push_endpoint_allowed(settings: Settings, endpoint: str) -> bool:
@@ -57,6 +60,11 @@ class PushNotifier:
 
         with self.database.session() as db:
             subs = db.execute(select(PushSubscription).where(PushSubscription.user_id == user_id)).scalars().all()
+            if subs and payload is None:
+                from app.i18n import user_lang
+                from app.models import User
+
+                payload = push_payload(self.settings, user_lang(db.get(User, user_id)))
             dead: list[int] = []
             for sub in subs:
                 if not push_endpoint_allowed(self.settings, sub.endpoint):  # saved before the SSRF guard existed

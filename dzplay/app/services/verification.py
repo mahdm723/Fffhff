@@ -24,9 +24,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError, not_found
+from app.i18n import N_
 from app.models import AppSetting, MediaItem, Post, Report, User, VerificationRequest
 from app.services import audit
 from app.services.content import clean_message
@@ -34,8 +35,8 @@ from app.services.messaging import Effects, iso
 
 log = logging.getLogger("dzplay.verification")
 
-ACCOUNT_TYPES = {"writer": "كاتب", "creator": "صانع محتوى", "page": "صفحة", "other": "أخرى"}
-STATUS_AR = {"pending": "قيد المراجعة", "accepted": "مقبول", "rejected": "مرفوض", "needs_fix": "يحتاج تصحيحًا"}
+ACCOUNT_TYPES = {"writer": N_("كاتب"), "creator": N_("صانع محتوى"), "page": N_("صفحة"), "other": N_("أخرى")}
+STATUS_AR = {"pending": N_("قيد المراجعة"), "accepted": N_("مقبول"), "rejected": N_("مرفوض"), "needs_fix": N_("يحتاج تصحيحًا")}
 
 # Networks the admin can choose. `tx` validates a transaction id; `explorer` is the default link template.
 NETWORKS: dict[str, dict] = {
@@ -143,10 +144,10 @@ def conditions(db: Session, settings: Settings, user: User) -> dict:
     age_days = max(0, (clock.utcnow() - user.created_at).days)
     bad = violations(db, user)
     items = [
-        {"key": "posts", "label": "أفكار منشورة", "value": int(posts), "target": settings.VERIFY_MIN_POSTS},
-        {"key": "likes", "label": "إعجابات على محتواك", "value": int(likes), "target": settings.VERIFY_MIN_LIKES},
-        {"key": "age", "label": "عمر الحساب (يوم)", "value": int(age_days), "target": settings.VERIFY_MIN_ACCOUNT_AGE_DAYS},
-        {"key": "clean", "label": "بدون مخالفات", "value": 0 if bad else 1, "target": 1},
+        {"key": "posts", "label": i18n.tr("أفكار منشورة"), "value": int(posts), "target": settings.VERIFY_MIN_POSTS},
+        {"key": "likes", "label": i18n.tr("إعجابات على محتواك"), "value": int(likes), "target": settings.VERIFY_MIN_LIKES},
+        {"key": "age", "label": i18n.tr("عمر الحساب (يوم)"), "value": int(age_days), "target": settings.VERIFY_MIN_ACCOUNT_AGE_DAYS},
+        {"key": "clean", "label": i18n.tr("بدون مخالفات"), "value": 0 if bad else 1, "target": 1},
     ]
     for it in items:
         it["met"] = it["value"] >= it["target"]
@@ -159,10 +160,10 @@ def conditions(db: Session, settings: Settings, user: User) -> dict:
 
 
 def _request_view(r: VerificationRequest) -> dict:
-    return {"id": r.id, "status": r.status, "status_label": STATUS_AR.get(r.status, r.status),
+    return {"id": r.id, "status": r.status, "status_label": i18n.tr(STATUS_AR.get(r.status, r.status)),
             "account_type": r.account_type, "description": r.description, "reason": r.reason,
             "amount": r.amount, "currency": r.currency, "network": r.network, "txid": r.txid,
-            "admin_note": r.admin_note if r.status in ("rejected", "needs_fix") else None,
+            "admin_note": i18n.tr(r.admin_note) if r.status in ("rejected", "needs_fix") and r.admin_note else None,
             "created_at": iso(r.created_at), "updated_at": iso(r.updated_at)}
 
 
@@ -174,8 +175,9 @@ def latest(db: Session, user_id: str) -> VerificationRequest | None:
 def overview(db: Session, settings: Settings, user: User) -> dict:
     pay = payment_settings(db)
     last = latest(db, user.id)
-    warning = (f"أرسل {pay['currency']} عبر شبكة {pay['network_label']} فقط. الإرسال عبر شبكة أخرى أو بعملة أخرى "
-               "يضيع ولا يمكن استرجاعه، والمسؤولية على المرسل.") if pay["available"] else None
+    warning = i18n.tr("أرسل {currency} عبر شبكة {network} فقط. الإرسال عبر شبكة أخرى أو بعملة أخرى "
+                      "يضيع ولا يمكن استرجاعه، والمسؤولية على المرسل.",
+                      currency=pay["currency"], network=pay["network_label"]) if pay["available"] else None
     return {
         "enabled": settings.VERIFY_ENABLED,
         "verified": user.verified_at is not None,
@@ -378,11 +380,13 @@ def notify_user(state, request_id: str) -> None:
         if req is None or user is None or not user.email:
             return
         status, note = req.status, req.admin_note
-        text = {"accepted": "تمت الموافقة على طلب التوثيق. تظهر الآن النجمة الزرقاء بجانب اسمك.",
-                "rejected": f"رُفض طلب التوثيق. السبب: {note or '—'}",
-                "needs_fix": f"طلب التوثيق يحتاج تصحيحًا: {note or '—'}\nادخل إلى التطبيق ← حسابي ← التوثيق لتعديله."}.get(status)
+        lang = i18n.user_lang(user)
+        msgid = {"accepted": N_("تمت الموافقة على طلب التوثيق. تظهر الآن النجمة الزرقاء بجانب اسمك."),
+                 "rejected": N_("رُفض طلب التوثيق. السبب: {note}"),
+                 "needs_fix": N_("طلب التوثيق يحتاج تصحيحًا: {note}\nادخل إلى التطبيق ← حسابي ← التوثيق لتعديله.")}.get(status)
+        text = i18n.tr(msgid, lang, note=note or "—") if msgid else None
         out = mail.prepare(db, state.settings, "system", user.email, "email.notice",
-                           {"topic": "طلب التوثيق", "message": text}) if text else None
+                           {"topic": i18n.tr(N_("طلب التوثيق"), lang), "message": text}, lang=lang) if text else None
     if out is None:
         return
     try:

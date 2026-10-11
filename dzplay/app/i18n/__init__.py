@@ -145,3 +145,35 @@ def tr(msgid: str, lang: str | None = None, **params) -> str:
     lang = normalize(lang) or current()
     n = params.get("n", params.get("count"))
     return fill(resolve(msgid, lang, n), params)
+
+
+def user_lang(user) -> str:
+    """The language of a user (mails, notifications and pushes sent to them): the one saved on the account, else
+    the current request's (Arabic in background work, which does not inherit a request's context)."""
+    return normalize(getattr(user, "language", None)) or current()
+
+
+def number(value, lang: str | None = None) -> str:
+    """A plain amount or count in the language's format: 12.5 → «12.5» (ar, en) / «12,5» (fr); 1000 stays 1000."""
+    text = f"{value:g}" if isinstance(value, float) else str(value)
+    lang = normalize(lang) or current()
+    return text.replace(".", ",") if lang == "fr" and text.replace(".", "", 1).lstrip("-").isdigit() else text
+
+
+def tr_params(msgid: str, lang: str | None, params: dict | None) -> str:
+    """tr() of a stored message: the values under "_t" are themselves msgids (translated too), numbers formatted."""
+    params = dict(params or {})
+    lang = normalize(lang) or current()
+    n = params.get("n", params.get("count"))
+    for name in params.pop("_t", None) or ():
+        if name in params:
+            params[name] = tr(str(params[name]), lang)
+    for name, value in list(params.items()):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            params[name] = number(value, lang)
+        elif isinstance(value, str) and name in _MONEY_KEYS:
+            params[name] = number(value, lang)
+    return fill(resolve(msgid, lang, n), params) if msgid else msgid
+
+
+_MONEY_KEYS = {"amount", "fee", "net", "price", "reward", "min", "diff", "received"}

@@ -88,22 +88,31 @@ def fill(text: str, values: dict[str, object], allowed: tuple[str, ...]) -> str:
     return _VAR.sub(lambda m: str(values[m.group(1)]) if m.group(1) in names and m.group(1) in values else m.group(0), text)
 
 
-def source(db: Session | None, key: str) -> tuple[str, str]:
-    """(subject, body) of a template: the edited text from the content system if any (phase 8), else the default."""
+def source(db: Session | None, key: str, lang: str = "ar") -> tuple[str, str]:
+    """(subject, body) of a template in lang: the text edited in the content system if any, else the default
+    (V6 phase 12: the French/English defaults ship in app/i18n/content_<lang>.py; the Arabic is the last resort)."""
+    from app import i18n
+    from app.i18n import content as content_i18n
+
+    lang = i18n.normalize(lang) or i18n.DEFAULT
     _title, subject, body, _vars = TEMPLATES[key]
     if db is not None:
-        try:
-            from app.services import cms
-        except ImportError:  # before phase 8
-            return subject, body
-        edited = cms.email_template(db, key)
+        from app.services import cms
+
+        edited = cms.email_template(db, key, lang)
         if edited is not None:
             return edited
+    if lang != i18n.DEFAULT:
+        shipped = content_i18n.default(key, lang)
+        if shipped is not None:
+            return (shipped[0] or subject), shipped[1]
+        return source(db, key, i18n.DEFAULT)
     return subject, body
 
 
-def render(db: Session | None, settings: Settings, key: str, values: dict[str, object] | None = None) -> tuple[str, str]:
+def render(db: Session | None, settings: Settings, key: str, values: dict[str, object] | None = None,
+           lang: str = "ar") -> tuple[str, str]:
     allowed = TEMPLATES[key][3]
     vals = {"app": settings.APP_NAME, **(values or {})}
-    subject, body = source(db, key)
+    subject, body = source(db, key, lang)
     return fill(subject, vals, allowed).replace("\n", " ")[:200], fill(body, vals, allowed)

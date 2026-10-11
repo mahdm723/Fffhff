@@ -29,7 +29,7 @@ from datetime import timedelta
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError
 from app.models import PasswordReset, SecurityEvent, User
@@ -175,7 +175,8 @@ def set_code_and_send(database, settings: Settings, short_id: str, code: str | N
         audit.record(db, "telegram", "reset_code_set", target_type="reset", target_id=sid)
         hours = max(1, settings.RESET_CODE_TTL // 3600)
         # V6 phase 7: system mailbox, editable text (email.reset); None = no mailbox set up → manual mode
-        out = mail.prepare(db, settings, "system", email, "email.reset", {"code": code, "hours": hours}, highlight=code)
+        out = mail.prepare(db, settings, "system", email, "email.reset", {"code": code, "hours": hours}, highlight=code,
+                           lang=i18n.user_lang(user))
     if out is None:
         # Manual mode (no e-mail server configured): the admin sends the code to the user themselves.
         with database.session() as db:

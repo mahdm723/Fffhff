@@ -21,9 +21,10 @@ from datetime import timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError, not_found
+from app.i18n import N_
 from app.models import LedgerEntry, Post, Referral, RewardBatch, User
 from app.services import audit, ledger, notify
 from app.services.messaging import Effects, iso
@@ -32,10 +33,11 @@ CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 CODE_RE = re.compile(r"^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$")
 REF_COOKIE = "dz_ref"
 REVIEW_FLAGS = {"same_network", "burst"}  # these send the reward to the admin instead of paying it
-KIND_AR = {"referral": "مكافأة دعوة", "referral_rev": "إلغاء مكافأة دعوة (استرجاع العضوية)", "contest": "مسابقة",
-           "group": "مكافأة جماعية", "activity": "مكافأة نشاط", "correction": "تصحيح", "withdraw": "سحب",
-           "withdraw_rev": "إرجاع سحب مرفوض"}
-REF_STATUS_AR = {"joined": "سجّل", "review": "قيد المراجعة", "rewarded": "مُكافأ", "rejected": "مرفوض", "reversed": "أُلغي"}
+KIND_AR = {"referral": N_("مكافأة دعوة"), "referral_rev": N_("إلغاء مكافأة دعوة (استرجاع العضوية)"), "contest": N_("مسابقة"),
+           "group": N_("مكافأة جماعية"), "activity": N_("مكافأة نشاط"), "correction": N_("تصحيح"), "withdraw": N_("سحب"),
+           "withdraw_rev": N_("إرجاع سحب مرفوض")}
+REF_STATUS_AR = {"joined": N_("سجّل"), "review": N_("قيد المراجعة"), "rewarded": N_("مُكافأ"), "rejected": N_("مرفوض"),
+                 "reversed": N_("أُلغي")}
 
 
 def device_hash(settings: Settings, user_agent: str | None, language: str | None) -> str:
@@ -89,10 +91,11 @@ def _reward_referral(db: Session, settings: Settings, ref: Referral, actor: str,
     ledger.lock_user(db, ref.referrer_id)
     ledger.post(db, user_id=ref.referrer_id, account="rewards", kind="referral", amount_minor=amount,
                 source_type="referral", source_id=ref.id, actor=actor,
-                available_at=clock.utcnow() + timedelta(days=settings.REFERRAL_HOLD_DAYS), note="دعوة صديق أصبح عضوًا")
+                available_at=clock.utcnow() + timedelta(days=settings.REFERRAL_HOLD_DAYS), note=N_("دعوة صديق أصبح عضوًا"))
     ref.status, ref.rewarded_at = "rewarded", clock.utcnow()
     notify.create(db, ref.referrer_id, "referral_reward", effects,
-                  data={"text": f"مكافأة دعوة: {ledger.from_minor(amount)} USDT (معلّقة {settings.REFERRAL_HOLD_DAYS} يومًا)"})
+                  data=notify.msg(N_("مكافأة دعوة: {amount} USDT (معلّقة {n} يومًا)"), amount=ledger.from_minor(amount),
+                                  n=settings.REFERRAL_HOLD_DAYS))
 
 
 def on_membership_accepted(db: Session, settings: Settings, user: User, req, effects: Effects) -> None:
@@ -116,9 +119,9 @@ def on_membership_refunded(db: Session, settings: Settings, user: User, refund, 
         if paid > 0:
             ledger.lock_user(db, ref.referrer_id)
             ledger.post(db, user_id=ref.referrer_id, account="rewards", kind="referral_rev", amount_minor=-int(paid),
-                        source_type="referral", source_id=ref.id, actor="system:refund", note="استُرجعت عضوية المدعو")
+                        source_type="referral", source_id=ref.id, actor="system:refund", note=N_("استُرجعت عضوية المدعو"))
             notify.create(db, ref.referrer_id, "referral_reversed", effects,
-                          data={"text": "أُلغيت مكافأة دعوة لأن صديقك استرجع عضويته."})
+                          data=notify.msg(N_("أُلغيت مكافأة دعوة لأن صديقك استرجع عضويته.")))
     ref.status = "reversed"
 
 
@@ -146,10 +149,11 @@ def overview(db: Session, settings: Settings, user: User) -> dict:
     from app.services import withdrawals
 
     bal = ledger.balances(db, user.id, "rewards")
-    entries = [{**e, "label": KIND_AR.get(e["kind"], e["kind"])} for e in ledger.entries(db, user.id, "rewards")]
+    entries = [{**e, "label": i18n.tr(KIND_AR.get(e["kind"], e["kind"])), **({"note": i18n.tr(e["note"])} if e.get("note") else {})}
+               for e in ledger.entries(db, user.id, "rewards")]
     return {"balances": {k: ledger.from_minor(v) for k, v in bal.items()}, "currency": ledger.CURRENCY,
             "entries": entries, "withdraw": withdrawals.settings_view(db, settings, user),
-            "note": "مكافآت ترويجية مستقلة تمامًا عن العضوية، ولا علاقة لها بالتداول."}
+            "note": i18n.tr("مكافآت ترويجية مستقلة تمامًا عن العضوية، ولا علاقة لها بالتداول.")}
 
 
 def referrals_view(db: Session, settings: Settings, user: User) -> dict:
@@ -234,7 +238,8 @@ def group_run(db: Session, body: dict, actor: str, effects: Effects) -> dict:
             _entry, new = ledger.post(db, user_id=uid, account="rewards", kind="group", amount_minor=amount,
                                       source_type="group", source_id=f"{batch.id}:{uid}", actor=actor, note=note)
             if new:
-                notify.create(db, uid, "reward", effects, data={"text": f"مكافأة: {ledger.from_minor(amount)} USDT — {note}"})
+                notify.create(db, uid, "reward", effects,
+                              data=notify.msg(N_("مكافأة: {amount} USDT — {note}"), amount=ledger.from_minor(amount), note=note))
         db.flush()
     batch.status, batch.count, batch.total_minor, batch.done_at = "done", len(ids), amount * len(ids), clock.utcnow()
     audit.record(db, actor, "reward_group", target_type="reward_batch", target_id=batch.id,
@@ -258,7 +263,8 @@ def individual(db: Session, user: User, body: dict, actor: str, effects: Effects
     audit.record(db, actor, f"reward_{kind}", target_type="user", target_id=user.public_id,
                  detail=f"{ledger.from_minor(amount)} USDT", reason=reason)
     notify.create(db, user.id, "reward", effects,
-                  data={"text": f"{'مكافأة' if amount > 0 else 'تصحيح في رصيدك'}: {ledger.from_minor(amount)} USDT — {reason}"})
+                  data=notify.msg(N_("مكافأة: {amount} USDT — {note}") if amount > 0 else N_("تصحيح في رصيدك: {amount} USDT — {note}"),
+                                  amount=ledger.from_minor(amount), note=reason))
     return {"id": entry.id, "balances": {k: ledger.from_minor(v) for k, v in ledger.balances(db, user.id, "rewards").items()}}
 
 

@@ -133,7 +133,7 @@ def scan_py(path: Path, found: dict) -> None:
             continue
         name = node.func.id if isinstance(node.func, ast.Name) else node.func.attr if isinstance(node.func, ast.Attribute) else ""
         arg = None
-        if name in ("tr", "N_") and node.args:
+        if name in ("tr", "N_", "tr_params") and node.args:
             arg = node.args[0]
         elif name in ("AppError", "_error") and len(node.args) >= 3:
             arg = node.args[2]
@@ -144,8 +144,9 @@ def scan_py(path: Path, found: dict) -> None:
                 arg = kw.value
         text = _const(arg) if arg is not None else None
         if text and ARABIC.search(text):
-            plural = any(kw.arg == "n" or (kw.arg == "params" and isinstance(kw.value, ast.Dict)
-                                           and any(_const(k) == "n" for k in kw.value.keys)) for kw in node.keywords)
+            dicts = [kw.value for kw in node.keywords if kw.arg == "params"] + [a for a in node.args[1:] if isinstance(a, ast.Dict)]
+            plural = any(kw.arg == "n" for kw in node.keywords) or any(
+                isinstance(d, ast.Dict) and any(_const(k) == "n" for k in d.keys) for d in dicts)
             _add(found, text, f"{rel}:{node.lineno}", client=False, plural=plural)
 
 
@@ -165,6 +166,10 @@ def collect() -> list[dict]:
     # the fixed server answers (errors.py helpers, main.py handlers)
     for text in ("غير موجود.", "محاولات كثيرة. حاول مرة أخرى بعد قليل."):
         found.setdefault(text, {"id": text, "where": ["app/errors.py"], "client": False, "plural": False})
+    # the web app manifest's description (served translated by main.manifest)
+    desc = json.loads((ROOT / "static" / "manifest.webmanifest").read_text(encoding="utf-8")).get("description")
+    if desc:
+        _add(found, desc, "static/manifest.webmanifest", client=False, plural=False)
     return sorted(found.values(), key=lambda e: e["id"])
 
 

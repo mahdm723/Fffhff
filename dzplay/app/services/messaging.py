@@ -25,9 +25,10 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, not_found, rate_limited
+from app.i18n import N_
 from app.models import Block, Conversation, Message, Report, User
 from app.services import legacy_v6, names
 from app.services.auth import log_event
@@ -168,7 +169,7 @@ def serialize_conversation(c: Conversation, viewer_id: str, last: Message | None
         "read_only": not c.is_direct,  # V6: old anonymous chats
         "deleted_after": iso(anon_deleted_after) if not c.is_direct else None,
         "last_message": (
-            {"preview": "📷 صورة" if last.kind == "image" else preview(last.content), "mine": last.sender_id == viewer_id,
+            {"preview": i18n.tr("📷 صورة") if last.kind == "image" else preview(last.content), "mine": last.sender_id == viewer_id,
              "created_at": iso(last.created_at), "kind": last.kind if last.kind in ("system", "image") else "text"}
             if last
             else None
@@ -216,21 +217,21 @@ def _check_limits(limiter, limits: list[Limit]) -> None:
     if decision.allowed:
         return
     messages = {
-        "msg_min": "أنت ترسل بسرعة كبيرة. انتظر قليلًا ثم حاول مجددًا.",
-        "msg_hour": "وصلت إلى الحد الأقصى للرسائل في الساعة. حاول لاحقًا.",
-        "newconv_hour": "وصلت إلى الحد الأقصى للمحادثات الجديدة في الساعة. حاول لاحقًا.",
-        "newconv_day": "وصلت إلى الحد الأقصى للمحادثات الجديدة اليوم. عُد غدًا.",
-        "dup": "أرسلت هذا النص نفسه مؤخرًا. اكتب شيئًا مختلفًا.",
-        "report": "أرسلت بلاغات كثيرة. حاول لاحقًا.",
-        "post_hour": "نشرت عدة أفكار مؤخرًا. خذ استراحة قصيرة ثم شارك من جديد.",
-        "post_day": "وصلت إلى الحد الأقصى للمنشورات اليوم. عُد غدًا.",
-        "comment_min": "أنت تعلّق بسرعة كبيرة. انتظر قليلًا.",
-        "comment_hour": "وصلت إلى الحد الأقصى للتعليقات في الساعة.",
-        "react": "تفاعلات كثيرة بسرعة. انتظر قليلًا.",
-        "upload_hour": "رفعت ملفات كثيرة خلال ساعة. حاول لاحقًا.",
-        "support_day": "فتحت تذاكر كثيرة اليوم. أضف ردك إلى تذكرة مفتوحة أو عُد غدًا.",
-        "support_hour": "أرسلت رسائل كثيرة إلى الدعم. حاول بعد قليل.",
-        "verify": "محاولات كثيرة. حاول لاحقًا.",
+        "msg_min": N_("أنت ترسل بسرعة كبيرة. انتظر قليلًا ثم حاول مجددًا."),
+        "msg_hour": N_("وصلت إلى الحد الأقصى للرسائل في الساعة. حاول لاحقًا."),
+        "newconv_hour": N_("وصلت إلى الحد الأقصى للمحادثات الجديدة في الساعة. حاول لاحقًا."),
+        "newconv_day": N_("وصلت إلى الحد الأقصى للمحادثات الجديدة اليوم. عُد غدًا."),
+        "dup": N_("أرسلت هذا النص نفسه مؤخرًا. اكتب شيئًا مختلفًا."),
+        "report": N_("أرسلت بلاغات كثيرة. حاول لاحقًا."),
+        "post_hour": N_("نشرت عدة أفكار مؤخرًا. خذ استراحة قصيرة ثم شارك من جديد."),
+        "post_day": N_("وصلت إلى الحد الأقصى للمنشورات اليوم. عُد غدًا."),
+        "comment_min": N_("أنت تعلّق بسرعة كبيرة. انتظر قليلًا."),
+        "comment_hour": N_("وصلت إلى الحد الأقصى للتعليقات في الساعة."),
+        "react": N_("تفاعلات كثيرة بسرعة. انتظر قليلًا."),
+        "upload_hour": N_("رفعت ملفات كثيرة خلال ساعة. حاول لاحقًا."),
+        "support_day": N_("فتحت تذاكر كثيرة اليوم. أضف ردك إلى تذكرة مفتوحة أو عُد غدًا."),
+        "support_hour": N_("أرسلت رسائل كثيرة إلى الدعم. حاول بعد قليل."),
+        "verify": N_("محاولات كثيرة. حاول لاحقًا."),
     }
     kind = (decision.key or "").split(":", 1)[0]
     raise rate_limited(decision.retry_after, messages.get(kind, "محاولات كثيرة. حاول لاحقًا."))

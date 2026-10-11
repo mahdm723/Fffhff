@@ -19,9 +19,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError, not_found
+from app.i18n import N_
 from app.models import GiveawayEntry, GiveawayRound, GiveawayWinner, User
 from app.security.crypto import seal, unseal
 from app.services import audit, email_codes, notify
@@ -29,7 +30,7 @@ from app.services.messaging import Effects, iso
 
 log = logging.getLogger("dzplay.giveaway")
 _PURPOSE = "giveaway"
-STATUS_AR = {"open": "مفتوحة", "drawn": "تم السحب", "sent": "أُرسلت الجوائز", "cancelled": "ملغاة"}
+STATUS_AR = {"open": N_("مفتوحة"), "drawn": N_("تم السحب"), "sent": N_("أُرسلت الجوائز"), "cancelled": N_("ملغاة")}
 
 
 def _round(db: Session, round_id: object) -> GiveawayRound:
@@ -218,7 +219,8 @@ def send(db: Session, settings: Settings, r: GiveawayRound, actor: str, effects:
         if entry is None:
             continue
         effects.later(mail_code, w.id)
-        notify.create(db, entry.user_id, "giveaway_won", effects, data={"text": f"🧧 ربحت في «{r.title}»! تحقق من بريدك."})
+        notify.create(db, entry.user_id, "giveaway_won", effects,
+                      data=notify.msg(N_("🧧 ربحت في «{title}»! تحقق من بريدك."), title=r.title))
     r.status, r.sent_at = "sent", clock.utcnow()
     audit.record(db, actor, "giveaway_send", target_type="giveaway", target_id=r.id, detail=f"{len(winners)} e-mails")
     return admin_view(db, r, settings)
@@ -242,8 +244,9 @@ def mail_code(state, winner_id: int) -> None:
         if w is None or entry is None or r is None or not w.code_sealed:
             return
         code = unseal(state.settings.SECRET_KEY, _PURPOSE, w.code_sealed)
+        user = db.get(User, entry.user_id)
         out = mail.prepare(db, state.settings, "system", entry.email, "email.giveaway", {"title": r.title, "code": code},
-                           highlight=code) if code else None
+                           highlight=code, lang=i18n.user_lang(user)) if code else None
     if out is None:
         log.warning("giveaway code not mailed (mail off or code unreadable)")
         return
@@ -261,7 +264,7 @@ def admin_view(db: Session, r: GiveawayRound, settings: Settings | None = None, 
     counts = dict(db.execute(select(GiveawayEntry.email_verified_at.is_not(None), func.count()).where(
         GiveawayEntry.round_id == r.id).group_by(GiveawayEntry.email_verified_at.is_not(None))).all())
     out = {"id": r.id, "title": r.title, "description": r.description, "winners_count": r.winners_count,
-           "ends_at": iso(r.ends_at), "status": r.status, "status_label": STATUS_AR.get(r.status),
+           "ends_at": iso(r.ends_at), "status": r.status, "status_label": i18n.tr(STATUS_AR.get(r.status, r.status)),
            "show_winners": bool(r.show_winners), "entries": sum(counts.values()), "confirmed": counts.get(True, 0),
            "draw_log": json.loads(r.draw_log) if r.draw_log else None, "created_at": iso(r.created_at)}
     if details:

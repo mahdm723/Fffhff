@@ -20,24 +20,26 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError, not_found
+from app.i18n import N_
 from app.models import MembershipRefund, MembershipRequest, User, VerificationRequest
 from app.services import audit, ledger, notify
 from app.services.messaging import Effects, iso
 
 log = logging.getLogger("dzplay.membership")
+DEFAULT_REJECT = N_("لم نتمكن من تأكيد الدفع. تحقق من رقم العملية والمبلغ والشبكة.")
 
-FEATURES = ["النجمة الزرقاء بجانب اسمك", "نشر الأفكار مع صورة", "إرسال صور مؤقتة في المحادثات"]
+FEATURES = [N_("النجمة الزرقاء بجانب اسمك"), N_("نشر الأفكار مع صورة"), N_("إرسال صور مؤقتة في المحادثات")]
 REFUND_NETWORKS = {
-    "TRC20": {"label": "USDT على TRON (TRC20)", "address": r"^T[1-9A-HJ-NP-Za-km-z]{33}$",
+    "TRC20": {"label": N_("USDT على TRON (TRC20)"), "address": r"^T[1-9A-HJ-NP-Za-km-z]{33}$",
               "tx": r"^[0-9a-fA-F]{64}$", "explorer": "https://tronscan.org/#/transaction/{txid}"},
-    "BEP20": {"label": "USDT على BNB Smart Chain (BEP20)", "address": r"^0x[0-9a-fA-F]{40}$",
+    "BEP20": {"label": N_("USDT على BNB Smart Chain (BEP20)"), "address": r"^0x[0-9a-fA-F]{40}$",
               "tx": r"^0x[0-9a-fA-F]{64}$", "explorer": "https://bscscan.com/tx/{txid}"},
 }
-STATUS_AR = {"pending": "قيد المراجعة", "accepted": "مقبول", "rejected": "مرفوض"}
-REFUND_AR = {"requested": "قيد التنفيذ", "done": "تم الإرجاع", "rejected": "مرفوض"}
+STATUS_AR = {"pending": N_("قيد المراجعة"), "accepted": N_("مقبول"), "rejected": N_("مرفوض")}
+REFUND_AR = {"requested": N_("قيد التنفيذ"), "done": N_("تم الإرجاع"), "rejected": N_("مرفوض")}
 
 
 def is_member(user: User | None) -> bool:
@@ -80,8 +82,9 @@ def refund_state(db: Session, settings: Settings, user: User) -> dict:
     return {"enabled": settings.MEMBERSHIP_REFUNDABLE, "window_days": settings.MEMBERSHIP_REFUND_WINDOW_DAYS,
             "fee": ledger.from_minor(_fee_minor(settings)), "amount": ledger.from_minor(max(0, paid - fee)),
             "deadline": iso(deadline), "eligible": eligible,
-            "networks": {k: v["label"] for k, v in REFUND_NETWORKS.items()},
-            "request": None if last is None else {"id": last.id, "status": last.status, "status_label": REFUND_AR.get(last.status),
+            "networks": {k: i18n.tr(v["label"]) for k, v in REFUND_NETWORKS.items()},
+            "request": None if last is None else {"id": last.id, "status": last.status,
+                                                  "status_label": i18n.tr(REFUND_AR.get(last.status, last.status)),
                                                   "amount": ledger.from_minor(last.amount_minor), "network": last.network,
                                                   "reason": last.reason, "created_at": iso(last.created_at),
                                                   "decided_at": iso(last.decided_at)}}
@@ -99,10 +102,12 @@ def overview(db: Session, settings: Settings, user: User) -> dict:
                    "wallet": pay["wallet"], "note": pay["note"], "qr": qr_svg(pay["wallet"])}
     return {
         "price": ledger.from_minor(_price_minor(settings)), "currency": pay["currency"] or ledger.CURRENCY,
-        "features": FEATURES, "member": is_member(user), "member_since": iso(user.member_since),
+        "features": [i18n.tr(f) for f in FEATURES], "member": is_member(user), "member_since": iso(user.member_since),
         "ended_at": iso(user.member_ended_at), "payment": payment,
-        "request": None if last is None else {"id": last.id, "status": last.status, "status_label": STATUS_AR.get(last.status),
-                                              "txid": last.txid, "note": last.admin_note, "created_at": iso(last.created_at),
+        "request": None if last is None else {"id": last.id, "status": last.status,
+                                              "status_label": i18n.tr(STATUS_AR.get(last.status, last.status)),
+                                              "txid": last.txid, "note": i18n.tr(last.admin_note) if last.admin_note else None,
+                                              "created_at": iso(last.created_at),
                                               "amount": ledger.from_minor(last.amount_minor), "network": last.network},
         "refund": refund_state(db, settings, user),
     }
@@ -186,7 +191,7 @@ def decide(db: Session, settings: Settings, req: MembershipRequest, action: str,
     now = clock.utcnow()
     note = (note or "").strip()[:500]
     if action == "reject" and not note:
-        note = "لم نتمكن من تأكيد الدفع. تحقق من رقم العملية والمبلغ والشبكة."
+        note = DEFAULT_REJECT
     req.status = "accepted" if action == "accept" else "rejected"
     req.admin_note, req.decided_at, req.decided_by = note or None, now, actor[:80]
     if action == "accept" and user is not None:
@@ -201,7 +206,8 @@ def decide(db: Session, settings: Settings, req: MembershipRequest, action: str,
                  detail=f"{ledger.from_minor(req.amount_minor)} {req.currency} {req.network}", reason=note or None)
     if user is not None:
         notify.create(db, user.id, f"membership_{'accepted' if action == 'accept' else 'rejected'}", effects,
-                      data={"text": "تم تفعيل عضويتك ✨" if action == "accept" else f"رُفض طلب العضوية: {note}"})
+                      data=notify.msg(N_("تم تفعيل عضويتك ✨")) if action == "accept"
+                      else notify.msg(N_("رُفض طلب العضوية: {note}"), note=note, translate=("note",)))
         effects.signal(user.id, "account")
         effects.later(mail_user, user.id, "accepted" if action == "accept" else "rejected", note)
     db.flush()
@@ -214,7 +220,7 @@ def _clean_address(network: str, address: object) -> str:
     if rule is None:
         raise AppError(400, "invalid_network", "اختر الشبكة من القائمة.")
     if not re.match(rule["address"], a):
-        raise AppError(400, "invalid_address", "العنوان لا يطابق شكل عناوين {network}.", params={"network": rule["label"]})
+        raise AppError(400, "invalid_address", "العنوان لا يطابق شكل عناوين {network}.", params={"network": i18n.tr(rule["label"])})
     return a
 
 
@@ -277,7 +283,7 @@ def decide_refund(db: Session, settings: Settings, refund: MembershipRefund, act
                         source_type="mem_refund", source_id=refund.id, actor=actor, note=f"{refund.network} {tx[:16]}")
             if refund.fee_minor:
                 ledger.post(db, user_id=user.id, account="membership", kind="mem_fee", amount_minor=-refund.fee_minor,
-                            source_type="mem_refund", source_id=refund.id, actor=actor, note="رسوم الاسترجاع")
+                            source_type="mem_refund", source_id=refund.id, actor=actor, note=N_("رسوم الاسترجاع"))
             end(db, user, actor, effects, reason="refund")
             for hook in ON_REFUND:
                 hook(db, settings, user, refund, effects)
@@ -289,11 +295,11 @@ def decide_refund(db: Session, settings: Settings, refund: MembershipRefund, act
     audit.record(db, actor, f"membership_refund_{action}", target_type="membership_refund", target_id=refund.id,
                  detail=f"{ledger.from_minor(refund.amount_minor)} {refund.network}", reason=note or None)
     if user is not None:
-        text = (f"أُرسل إليك {ledger.from_minor(refund.amount_minor)} USDT (استرجاع العضوية)." if action == "done"
-                else f"رُفض طلب الاسترجاع: {note}")
-        notify.create(db, user.id, f"refund_{action}", effects, data={"text": text})
+        data = (notify.msg(N_("أُرسل إليك {amount} USDT (استرجاع العضوية)."), amount=ledger.from_minor(refund.amount_minor))
+                if action == "done" else notify.msg(N_("رُفض طلب الاسترجاع: {note}"), note=note))
+        notify.create(db, user.id, f"refund_{action}", effects, data=data)
         effects.signal(user.id, "account")
-        effects.later(mail_user, user.id, f"refund_{action}", text)
+        effects.later(mail_user, user.id, f"refund_{action}", data)
     db.flush()
     return refund_view(db, refund)
 
@@ -408,14 +414,16 @@ def mail_user(state, user_id: str, what: str, note: str = "") -> None:
         user = db.get(User, user_id)
         if user is None or not user.email:
             return
+        lang = i18n.user_lang(user)
         if what == "accepted":
             key, values = "email.membership_accepted", {}
         elif what == "rejected":
-            key, values = "email.membership_rejected", {"note": note or "—"}
+            key, values = "email.membership_rejected", {"note": i18n.tr(note, lang) if note else "—"}
         else:
-            topic = "السحب" if what.startswith("withdraw") else "العضوية"
-            key, values = "email.notice", {"topic": topic, "message": note}
-        out = mail.prepare(db, state.settings, "system", user.email, key, values)
+            topic = N_("السحب") if what.startswith("withdraw") else N_("العضوية")
+            message = notify.text_of(note, lang) if isinstance(note, dict) else (note or "")
+            key, values = "email.notice", {"topic": i18n.tr(topic, lang), "message": message}
+        out = mail.prepare(db, state.settings, "system", user.email, key, values, lang=lang)
     if out is None:
         return
     try:

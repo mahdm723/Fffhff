@@ -15,21 +15,22 @@ from datetime import timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError, not_found
+from app.i18n import N_
 from app.models import User, WithdrawalRequest
 from app.services import audit, ledger, notify
 from app.services.membership import REFUND_NETWORKS, check_password
 from app.services.messaging import Effects, iso
 
 log = logging.getLogger("dzplay.withdrawals")
-STATUS_AR = {"pending": "قيد التنفيذ", "done": "تم الإرسال", "rejected": "مرفوض"}
+STATUS_AR = {"pending": N_("قيد التنفيذ"), "done": N_("تم الإرسال"), "rejected": N_("مرفوض")}
 
 
 def networks(settings: Settings) -> dict:
     wanted = [n.strip().upper() for n in settings.WITHDRAW_NETWORKS.split(",") if n.strip()]
-    return {k: REFUND_NETWORKS[k]["label"] for k in wanted if k in REFUND_NETWORKS}
+    return {k: i18n.tr(REFUND_NETWORKS[k]["label"]) for k in wanted if k in REFUND_NETWORKS}
 
 
 def _pending(db: Session, user_id: str) -> WithdrawalRequest | None:
@@ -39,8 +40,8 @@ def _pending(db: Session, user_id: str) -> WithdrawalRequest | None:
 
 def view(r: WithdrawalRequest) -> dict:
     rule = REFUND_NETWORKS.get(r.network, {})
-    return {"id": r.id, "status": r.status, "status_label": STATUS_AR.get(r.status), "network": r.network,
-            "network_label": rule.get("label", r.network), "address": r.address, "amount": ledger.from_minor(r.amount_minor),
+    return {"id": r.id, "status": r.status, "status_label": i18n.tr(STATUS_AR.get(r.status, r.status)), "network": r.network,
+            "network_label": i18n.tr(rule.get("label", r.network)), "address": r.address, "amount": ledger.from_minor(r.amount_minor),
             "fee": ledger.from_minor(r.fee_minor), "net": ledger.from_minor(r.amount_minor - r.fee_minor),
             "txid": r.txid, "reason": r.reason, "created_at": iso(r.created_at), "decided_at": iso(r.decided_at)}
 
@@ -130,13 +131,14 @@ def decide(db: Session, w: WithdrawalRequest, action: str, actor: str, *, txid: 
     audit.record(db, actor, f"withdraw_{action}", target_type="withdrawal", target_id=w.id,
                  detail=f"{ledger.from_minor(w.amount_minor)} USDT {w.network}", reason=note or None)
     if w.user_id:
-        text = (f"أُرسل سحبك: {ledger.from_minor(w.amount_minor - w.fee_minor)} USDT على {w.network}." if action == "done"
-                else f"رُفض طلب السحب وأُعيد المبلغ إلى رصيدك. السبب: {note}")
-        notify.create(db, w.user_id, f"withdraw_{action}", effects, data={"text": text})
+        data = (notify.msg(N_("أُرسل سحبك: {amount} USDT على {network}."), amount=ledger.from_minor(w.amount_minor - w.fee_minor),
+                           network=w.network) if action == "done"
+                else notify.msg(N_("رُفض طلب السحب وأُعيد المبلغ إلى رصيدك. السبب: {note}"), note=note))
+        notify.create(db, w.user_id, f"withdraw_{action}", effects, data=data)
         effects.signal(w.user_id, "account")
         from app.services.membership import mail_user
 
-        effects.later(mail_user, w.user_id, f"withdraw_{action}", text)
+        effects.later(mail_user, w.user_id, f"withdraw_{action}", data)
     db.flush()
     return admin_view(db, w)
 

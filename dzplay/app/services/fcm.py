@@ -21,8 +21,15 @@ log = logging.getLogger("dzplay.fcm")
 SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 
 
-def chat_message(token: str) -> dict:
-    return {"message": {"token": token, "data": {"type": "message"},
+def chat_message(token: str, lang: str = "ar", app_name: str = "") -> dict:
+    """Data only (no sender, no text of the message). V6 phase 12: the generic line in the user's language — the app
+    (3.2.0+) shows it; older versions use their own strings."""
+    from app.i18n import tr
+
+    data = {"type": "message", "lang": lang}
+    if app_name:
+        data.update(title=app_name, body=tr("لديك رسالة جديدة على {app}", lang, app=app_name))
+    return {"message": {"token": token, "data": data,
                         "android": {"priority": "HIGH", "ttl": "86400s", "collapse_key": "dz-message"}}}
 
 
@@ -56,11 +63,15 @@ class FcmNotifier:
                 tokens = list(db.execute(select(FcmToken.token).where(FcmToken.user_id == user_id)).scalars())
                 if not tokens:
                     return
+                from app.i18n import user_lang
+                from app.models import User
+
+                lang = user_lang(db.get(User, user_id))
                 url = f"https://fcm.googleapis.com/v1/projects/{self.project_id}/messages:send"
                 headers = {"Authorization": f"Bearer {self._token()}", "Content-Type": "application/json"}
                 dead = []
                 for t in tokens:
-                    r = requests.post(url, headers=headers, json=build(t), timeout=10)
+                    r = requests.post(url, headers=headers, json=build(t, lang, self.settings.APP_NAME), timeout=10)
                     if r.status_code == 404 or "UNREGISTERED" in r.text:  # app uninstalled / token rotated
                         dead.append(t)
                     elif r.status_code >= 300:

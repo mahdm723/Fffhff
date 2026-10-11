@@ -9,6 +9,10 @@ Defaults live in the code (below); an edited text is a ContentBlock row, each sa
 use {{variables}} filled from the running settings (TTLs, prices, limits…), so they keep matching what the app
 really does; only the names in values() are replaced. No personal information about the owner, anywhere.
 Reads go straight to the database (a few small rows by primary key): always current on every instance.
+
+V6 phase 12 — three languages. The Arabic text (ContentBlock, else the default above) is the original. French and
+English: an edit from the panel (ContentTranslation), else the translation shipped in app/i18n/content_<lang>.py,
+else the Arabic text (shown as «missing» in the panel). Re-consent («major change») follows the Arabic version.
 """
 
 from __future__ import annotations
@@ -20,10 +24,11 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, not_found
-from app.models import AppSetting, ContentBlock, ContentRevision
+from app.i18n import N_, content as content_i18n
+from app.models import AppSetting, ContentBlock, ContentRevision, ContentTranslation
 from app.services import markdown
 
 DEFAULT_UPDATED = "2026-10-10"
@@ -40,16 +45,33 @@ class Spec:
     default: object  # str, or callable(settings) -> str
     ack: bool = False  # a «major change» asks every user to accept it again
     note: str = ""
+    setting: str = ""  # a default read from this setting: translated only while the setting keeps its default value
 
 
-def _days(seconds: int) -> str:
+def _lang(lang: str | None) -> str:
+    return i18n.normalize(lang) or i18n.current()
+
+
+def _days(seconds: int, lang: str | None = None) -> str:
     d = seconds / 86400
-    return f"{d:g} يوم" if d >= 1 else f"{max(1, seconds // 3600)} ساعة"
+    if d >= 1:
+        return i18n.tr_params(N_("{n} يوم"), lang, {"n": d})
+    return i18n.tr_params(N_("{n} ساعة"), lang, {"n": max(1, seconds // 3600)})
 
 
-def values(db: Session | None, settings: Settings) -> dict[str, str]:
-    """The {{variables}} available in pages and texts (all plain text)."""
+def _join(items: list[str], lang: str) -> str:
+    """«A وB» / «A et B» / «A and B»."""
+    if len(items) < 2:
+        return items[0] if items else "—"
+    sep = "، " if lang == "ar" else ", "
+    return i18n.tr(N_("{items} و{last}"), lang, items=sep.join(items[:-1]), last=items[-1])
+
+
+def values(db: Session | None, settings: Settings, lang: str | None = None) -> dict[str, str]:
+    """The {{variables}} available in pages and texts (all plain text), in the language of the text."""
     s = settings
+    lang = _lang(lang)
+    tr = i18n.tr
     support = ""
     if db is not None:
         from app.services import mail
@@ -58,36 +80,37 @@ def values(db: Session | None, settings: Settings) -> dict[str, str]:
     nets = [n.strip() for n in str(s.WITHDRAW_NETWORKS).split(",") if n.strip()]
     return {
         "app": s.APP_NAME,
-        "message_ttl": _days(s.MESSAGE_TTL),
-        "message_ttl_read": _days(s.MESSAGE_TTL_AFTER_READ),
-        "conversation_idle": _days(s.CONVERSATION_IDLE_TTL),
+        "message_ttl": _days(s.MESSAGE_TTL, lang),
+        "message_ttl_read": _days(s.MESSAGE_TTL_AFTER_READ, lang),
+        "conversation_idle": _days(s.CONVERSATION_IDLE_TTL, lang),
         "legacy_anon_days": str(s.LEGACY_ANON_RETENTION_DAYS),
         "chat_ttl": str(s.CHAT_IMAGE_TTL_AFTER_VIEW),
-        "chat_unopened": _days(s.CHAT_IMAGE_UNOPENED_TTL),
+        "chat_unopened": _days(s.CHAT_IMAGE_UNOPENED_TTL, lang),
         "chat_grace_min": str(max(1, s.CHAT_IMAGE_REPORT_GRACE // 60)),
-        "chat_archive": ("لا نؤرشف صور المحادثات: بعد انتهائها تُحذف نهائيًا (إلا إذا أُبلغ عنها)." if not s.CHAT_IMAGE_ARCHIVE else
-                         "إعداد الأرشفة مفعّل حاليًا: تُحفظ نسخة من صور المحادثات بعد انتهائها في مستودع التخزين الخاص ولا يراها أي مستخدم."),
+        "chat_archive": tr(N_("لا نؤرشف صور المحادثات: بعد انتهائها تُحذف نهائيًا (إلا إذا أُبلغ عنها).") if not s.CHAT_IMAGE_ARCHIVE else
+                           N_("إعداد الأرشفة مفعّل حاليًا: تُحفظ نسخة من صور المحادثات بعد انتهائها في مستودع التخزين الخاص ولا يراها أي مستخدم."), lang),
         "evidence_days": str(s.MEDIA_EVIDENCE_RETENTION_DAYS),
-        "report_retention": _days(s.REPORT_RETENTION),
-        "security_retention": _days(s.SECURITY_EVENT_RETENTION),
-        "audit_retention": _days(s.AUDIT_LOG_RETENTION),
-        "cache_ttl": _days(s.MEDIA_CACHE_TTL),
+        "report_retention": _days(s.REPORT_RETENTION, lang),
+        "security_retention": _days(s.SECURITY_EVENT_RETENTION, lang),
+        "audit_retention": _days(s.AUDIT_LOG_RETENTION, lang),
+        "cache_ttl": _days(s.MEDIA_CACHE_TTL, lang),
         "idea_image_limit": str(s.IDEA_IMAGE_LIMIT_PER_24H),
         "avatar_per_day": str(s.AVATAR_CHANGES_PER_DAY),
         "report_threshold": str(s.REPORT_AUTO_HIDE_THRESHOLD or "—"),
-        "membership_price": f"{s.MEMBERSHIP_PRICE:g}",
+        "membership_price": i18n.number(float(s.MEMBERSHIP_PRICE), lang),
         "refund_days": str(s.MEMBERSHIP_REFUND_WINDOW_DAYS),
-        "refund_fee": f"{s.MEMBERSHIP_REFUND_FEE:g}",
-        "refund_policy": (f"يمكن طلب استرجاعها خلال {s.MEMBERSHIP_REFUND_WINDOW_DAYS} أيام من تفعيلها، ويُعاد المبلغ ناقص رسوم "
-                          f"{s.MEMBERSHIP_REFUND_FEE:g} USDT، وتتوقف الميزات عند الإرجاع." if s.MEMBERSHIP_REFUNDABLE
-                          else "لا تُسترجع قيمة العضوية بعد تفعيلها."),
-        "referral_reward": f"{s.REFERRAL_REWARD:g}",
+        "refund_fee": i18n.number(float(s.MEMBERSHIP_REFUND_FEE), lang),
+        "refund_policy": (i18n.tr_params(N_("يمكن طلب استرجاعها خلال {n} أيام من تفعيلها، ويُعاد المبلغ ناقص رسوم "
+                                            "{fee} USDT، وتتوقف الميزات عند الإرجاع."),
+                                         lang, {"n": s.MEMBERSHIP_REFUND_WINDOW_DAYS, "fee": float(s.MEMBERSHIP_REFUND_FEE)})
+                          if s.MEMBERSHIP_REFUNDABLE else tr(N_("لا تُسترجع قيمة العضوية بعد تفعيلها."), lang)),
+        "referral_reward": i18n.number(float(s.REFERRAL_REWARD), lang),
         "referral_hold_days": str(s.REFERRAL_HOLD_DAYS),
-        "withdraw_min": f"{s.WITHDRAW_MIN:g}",
-        "withdraw_fee": f"{s.WITHDRAW_FEE:g}",
-        "withdraw_networks": " و".join(nets) or "—",
+        "withdraw_min": i18n.number(float(s.WITHDRAW_MIN), lang),
+        "withdraw_fee": i18n.number(float(s.WITHDRAW_FEE), lang),
+        "withdraw_networks": _join(nets, lang),
         "support_email": support or "—",
-        "support_line": f"، أو على بريد الدعم الرسمي {support}" if support else "",
+        "support_line": tr(N_("، أو على بريد الدعم الرسمي {email}"), lang, email=support) if support else "",
     }
 
 
@@ -298,11 +321,13 @@ def _pages() -> list[Spec]:
 
 def _texts() -> list[Spec]:
     return [
-        Spec("market_disclaimer", "تنبيه السوق", "text", lambda s: s.MARKET_DISCLAIMER, note="يظهر أسفل قائمة السوق."),
+        Spec("market_disclaimer", "تنبيه السوق", "text", lambda s: s.MARKET_DISCLAIMER, note="يظهر أسفل قائمة السوق.",
+             setting="MARKET_DISCLAIMER"),
         Spec("membership_intro", "مقدمة «عضويتي»", "text", MEMBERSHIP_INTRO, note="أعلى صفحة العضوية."),
         Spec("welcome", "رسالة الترحيب", "text", WELCOME, note="تحت الشعار في صفحة الدخول والتسجيل."),
         Spec("announcement", "إعلان", "text", "", note="شريط أعلى الرئيسية. اتركه فارغًا لإخفائه."),
-        Spec("profile_footer", "تذييل «حسابي»", "text", lambda s: s.FOOTER_TEXT, note="سطر أسفل صفحة حسابي (فارغ = لا شيء)."),
+        Spec("profile_footer", "تذييل «حسابي»", "text", lambda s: s.FOOTER_TEXT, note="سطر أسفل صفحة حسابي (فارغ = لا شيء).",
+             setting="FOOTER_TEXT"),
     ]
 
 
@@ -341,15 +366,52 @@ def block(db: Session, key: str) -> ContentBlock | None:
     return db.get(ContentBlock, key)
 
 
-def current(db: Session, settings: Settings, key: str) -> dict:
-    """The text as stored (edited) or the default, before variables are filled."""
-    sp = spec(key)
-    b = block(db, key)
-    return {"key": key, "kind": sp.kind, "name": sp.title, "note": sp.note, "edited": b is not None,
-            "title": (b.title if b is not None and b.title else _default_title(sp)),
+def translation(db: Session, key: str, lang: str) -> ContentTranslation | None:
+    return db.get(ContentTranslation, (key, lang)) if lang != i18n.DEFAULT else None
+
+
+def _shipped(sp: Spec, settings: Settings, lang: str) -> tuple[str | None, str] | None:
+    """The translation shipped in the code (title, body), or None. A text read from a setting the admin changed has
+    no shipped translation (it would not say what the admin wrote)."""
+    found = content_i18n.default(sp.key, lang)
+    if found is None:
+        return None
+    if sp.setting:
+        field = Settings.model_fields.get(sp.setting)
+        if field is None or getattr(settings, sp.setting) != field.default:
+            return None
+    return found
+
+
+def _arabic(db: Session, settings: Settings, sp: Spec) -> dict:
+    b = block(db, sp.key)
+    return {"edited": b is not None, "title": (b.title if b is not None and b.title else _default_title(sp)),
             "body": b.body_md if b is not None else _default(sp, settings),
-            "default_title": _default_title(sp), "default_body": _default(sp, settings),
             "updated_at": b.updated_at if b is not None else None, "major_version": b.major_version if b is not None else 1}
+
+
+def current(db: Session, settings: Settings, key: str, lang: str | None = None) -> dict:
+    """The text as stored (edited) or the default, before variables are filled, in lang (default: the request's).
+    "missing": no French/English text exists yet, so the Arabic one is returned."""
+    sp = spec(key)
+    lang = _lang(lang)
+    ar = _arabic(db, settings, sp)
+    out = {"key": key, "kind": sp.kind, "name": sp.title, "note": sp.note, "lang": lang, "missing": False, **ar,
+           "default_title": _default_title(sp), "default_body": _default(sp, settings)}
+    if lang == i18n.DEFAULT:
+        return out
+    shipped = _shipped(sp, settings, lang)
+    if shipped is not None:
+        out["default_title"] = shipped[0] or out["default_title"]
+        out["default_body"] = shipped[1]
+    row = translation(db, key, lang)
+    if row is not None:
+        out.update(edited=True, title=row.title or out["default_title"], body=row.body_md, updated_at=row.updated_at)
+    elif shipped is not None:
+        out.update(edited=False, title=out["default_title"], body=shipped[1])
+    else:
+        out["missing"] = bool(ar["body"])  # nothing in this language: the Arabic text is shown
+    return out
 
 
 def updated_label(cur: dict) -> str:
@@ -357,36 +419,63 @@ def updated_label(cur: dict) -> str:
     return when.date().isoformat() if isinstance(when, datetime) else DEFAULT_UPDATED
 
 
-def page_html(db: Session, settings: Settings, key: str) -> str:
-    cur = current(db, settings, key)
-    return markdown.render(fill(cur["body"], values(db, settings)))
+def _text_lang(cur: dict) -> str:
+    """The language the text is really written in (the Arabic when the translation is missing)."""
+    return i18n.DEFAULT if cur["missing"] else cur["lang"]
 
 
-def text(db: Session, settings: Settings, key: str) -> str:
+def page_html(db: Session, settings: Settings, key: str, lang: str | None = None, cur: dict | None = None) -> str:
+    cur = cur or current(db, settings, key, lang)
+    return markdown.render(fill(cur["body"], values(db, settings, _text_lang(cur))))
+
+
+def text(db: Session, settings: Settings, key: str, lang: str | None = None) -> str:
     """A short text as plain text (variables filled, Markdown marks removed)."""
-    return markdown.plain(fill(current(db, settings, key)["body"], values(db, settings))).strip()
+    cur = current(db, settings, key, lang)
+    return markdown.plain(fill(cur["body"], values(db, settings, _text_lang(cur)))).strip()
 
 
-def public(db: Session, settings: Settings, key: str) -> dict:
+def public(db: Session, settings: Settings, key: str, lang: str | None = None) -> dict:
     sp = spec(key)
     if sp.kind == "email":
         raise not_found()  # e-mail texts are for the panel only
-    cur = current(db, settings, key)
-    return {"key": key, "title": cur["title"], "html": page_html(db, settings, key), "text": text(db, settings, key),
-            "updated": updated_label(cur), "version": cur["major_version"]}
+    cur = current(db, settings, key, lang)
+    vals = values(db, settings, _text_lang(cur))
+    return {"key": key, "title": cur["title"], "html": markdown.render(fill(cur["body"], vals)),
+            "text": markdown.plain(fill(cur["body"], vals)).strip(), "updated": updated_label(cur),
+            "version": cur["major_version"], "lang": _text_lang(cur), "dir": i18n.direction(_text_lang(cur))}
 
 
-def principle(settings: Settings) -> str:
-    return fill(PRINCIPLE, {"app": settings.APP_NAME})
+def page_titles(lang: str | None = None) -> dict[str, str]:
+    """{key: title} of the policy pages in lang (the shipped translation; the edited title is read per page)."""
+    lang = _lang(lang)
+    out = {}
+    for k, sp in registry().items():
+        if sp.kind == "page":
+            shipped = content_i18n.default(k, lang) if lang != i18n.DEFAULT else None
+            out[k] = (shipped[0] if shipped and shipped[0] else sp.title)
+    return out
 
 
-def email_template(db: Session, key: str) -> tuple[str, str] | None:
-    """An edited e-mail text (subject, body), or None to use the default (services/mail_templates.py)."""
+def principle(settings: Settings, lang: str | None = None) -> str:
+    lang = _lang(lang)
+    shipped = content_i18n.principle(lang) if lang != i18n.DEFAULT else None
+    return fill(shipped or PRINCIPLE, {"app": settings.APP_NAME})
+
+
+def email_template(db: Session, key: str, lang: str = "ar") -> tuple[str, str] | None:
+    """An edited e-mail text (subject, body) in lang, or None to use the default (services/mail_templates.py)."""
+    from app.services.mail_templates import TEMPLATES
+
+    if lang != i18n.DEFAULT:
+        row = translation(db, key, lang)
+        if row is None:
+            return None
+        shipped = content_i18n.default(key, lang)
+        return (row.title or (shipped[0] if shipped else None) or TEMPLATES[key][1]), row.body_md
     b = block(db, key)
     if b is None:
         return None
-    from app.services.mail_templates import TEMPLATES
-
     return (b.title or TEMPLATES[key][1]), b.body_md
 
 
@@ -413,6 +502,15 @@ def _bump_ack(db: Session) -> int:
 
 # ------------------------------------------------------------------ editing (panel)
 
+def _edit_lang(lang: object) -> str:
+    if lang is None:
+        return i18n.DEFAULT
+    code = i18n.normalize(lang) if isinstance(lang, str) else None
+    if code is None or code != str(lang).strip().lower():
+        raise AppError(400, "invalid_lang", "لغة غير معروفة.")
+    return code
+
+
 def _clean_title(title: object, sp: Spec) -> str | None:
     if title is None or sp.kind == "text":
         return None
@@ -425,8 +523,10 @@ def _clean_title(title: object, sp: Spec) -> str | None:
 
 
 def save(db: Session, settings: Settings, key: str, *, body: object, title: object = None, note: object = None,
-         major: bool = False, actor: str) -> dict:
+         major: bool = False, actor: str, lang: object = None) -> dict:
+    """Save a text in a language (Arabic by default). A «major change» (re-consent) is for the Arabic original."""
     sp = spec(key)
+    lang = _edit_lang(lang)
     if not isinstance(body, str):
         raise AppError(400, "invalid_body", "النص غير صالح.")
     text_ = markdown.clean(body).strip()
@@ -437,6 +537,17 @@ def save(db: Session, settings: Settings, key: str, *, body: object, title: obje
     title_ = _clean_title(title, sp)
     note_ = markdown.clean(note).replace("\n", " ").strip()[:200] if isinstance(note, str) else None
     now = clock.utcnow()
+    if lang != i18n.DEFAULT:
+        row = translation(db, key, lang)
+        if row is None:
+            db.add(ContentTranslation(key=key, lang=lang, title=title_, body_md=text_, updated_at=now, updated_by=actor))
+        else:
+            row.title, row.body_md, row.updated_at, row.updated_by = title_, text_, now, actor
+        b = block(db, key)
+        db.add(ContentRevision(key=key, title=title_, body_md=text_, major_version=b.major_version if b else 1,
+                               created_at=now, created_by=actor, note=note_, lang=lang))
+        db.flush()
+        return {"ack_version": None}
     b = block(db, key)
     if b is None:
         b = ContentBlock(key=key, body_md=text_, title=title_, major_version=1, updated_at=now, updated_by=actor)
@@ -452,54 +563,84 @@ def save(db: Session, settings: Settings, key: str, *, body: object, title: obje
     return {"ack_version": ack}
 
 
-def revisions(db: Session, key: str, limit: int = 30) -> list[dict]:
+def _rev_lang(lang: str):
+    return ContentRevision.lang.is_(None) if lang == i18n.DEFAULT else ContentRevision.lang == lang
+
+
+def revisions(db: Session, key: str, limit: int = 30, lang: object = None) -> list[dict]:
     spec(key)
-    rows = db.execute(select(ContentRevision).where(ContentRevision.key == key)
+    lang = _edit_lang(lang)
+    rows = db.execute(select(ContentRevision).where(ContentRevision.key == key, _rev_lang(lang))
                       .order_by(ContentRevision.id.desc()).limit(limit)).scalars()
     return [{"id": r.id, "created_at": r.created_at, "created_by": r.created_by, "note": r.note,
-             "major_version": r.major_version, "length": len(r.body_md or "")} for r in rows]
+             "major_version": r.major_version, "length": len(r.body_md or ""), "lang": r.lang or i18n.DEFAULT} for r in rows]
 
 
-def restore(db: Session, settings: Settings, key: str, revision_id: object, actor: str) -> None:
+def restore(db: Session, settings: Settings, key: str, revision_id: object, actor: str) -> str:
+    """Restore a revision (in its own language). Returns that language."""
     spec(key)
     if not isinstance(revision_id, int):
         raise not_found()
     r = db.get(ContentRevision, revision_id)
     if r is None or r.key != key:
         raise not_found()
-    save(db, settings, key, body=r.body_md, title=r.title, note=f"استرجاع النسخة #{r.id}", actor=actor)
+    lang = r.lang or i18n.DEFAULT
+    save(db, settings, key, body=r.body_md, title=r.title, note=f"استرجاع النسخة #{r.id}", actor=actor, lang=lang)
+    return lang
 
 
-def reset(db: Session, key: str, actor: str) -> None:
-    """Back to the default text (the history is kept)."""
+def reset(db: Session, key: str, actor: str, lang: object = None) -> None:
+    """Back to the default text of that language (the history is kept)."""
     sp = spec(key)
+    lang = _edit_lang(lang)
     b = block(db, key)
-    if b is not None:
+    if lang != i18n.DEFAULT:
+        row = translation(db, key, lang)
+        if row is not None:
+            db.delete(row)
+    elif b is not None:
         db.delete(b)
     db.add(ContentRevision(key=sp.key, title=None, body_md="", major_version=b.major_version if b else 1,
-                           created_at=clock.utcnow(), created_by=actor, note="رجوع إلى النص الافتراضي"))
+                           created_at=clock.utcnow(), created_by=actor, note="رجوع إلى النص الافتراضي",
+                           lang=None if lang == i18n.DEFAULT else lang))
     db.flush()
 
 
-def listing(db: Session) -> list[dict]:
+def listing(db: Session, settings: Settings) -> list[dict]:
+    """Every key with, per language, «edited» / «default» / «missing» (no text in that language: Arabic shown)."""
     edited = {b.key: b for b in db.execute(select(ContentBlock)).scalars()}
+    trans: dict[tuple[str, str], ContentTranslation] = {(r.key, r.lang): r for r in db.execute(select(ContentTranslation)).scalars()}
     out = []
     for sp in registry().values():
         b = edited.get(sp.key)
+        langs = {i18n.DEFAULT: "edited" if b is not None else "default"}
+        for lang in i18n.LANGS:
+            if lang == i18n.DEFAULT:
+                continue
+            if (sp.key, lang) in trans:
+                langs[lang] = "edited"
+            elif _shipped(sp, settings, lang) is not None:
+                langs[lang] = "default"
+            else:
+                langs[lang] = "missing" if (b.body_md if b is not None else _default(sp, settings)) else "default"
         out.append({"key": sp.key, "name": sp.title, "kind": sp.kind, "ack": sp.ack, "note": sp.note, "edited": b is not None,
-                    "updated_at": b.updated_at if b is not None else None, "updated_by": b.updated_by if b is not None else None})
+                    "updated_at": b.updated_at if b is not None else None, "updated_by": b.updated_by if b is not None else None,
+                    "langs": langs})
     return out
 
 
-def preview(db: Session, settings: Settings, key: str, body: object) -> dict:
+def preview(db: Session, settings: Settings, key: str, body: object, lang: object = None) -> dict:
     sp = spec(key)
+    lang = _edit_lang(lang)
     src = markdown.clean(body) if isinstance(body, str) else ""
     if sp.kind == "email":
         from app.services.mail_templates import TEMPLATES, fill as efill
 
-        sample = {"app": settings.APP_NAME, "code": "123456", "minutes": "30", "hours": "1", "purpose": "السحب",
-                  "note": "مثال", "topic": "السحب", "message": "نص مثال.", "title": "ظرف الأسبوع", "ticket": "1001",
-                  "subject": "سؤال", "kind": "تذكرة جديدة", "category": "أخرى", "public_id": "DZ-ABC123",
+        tr = i18n.tr
+        sample = {"app": settings.APP_NAME, "code": "123456", "minutes": "30", "hours": "1", "purpose": tr(N_("سحب الأرباح"), lang),
+                  "note": tr(N_("مثال"), lang), "topic": tr(N_("السحب"), lang), "message": tr(N_("نص مثال."), lang),
+                  "title": tr(N_("ظرف الأسبوع"), lang), "ticket": "1001", "subject": tr(N_("سؤال"), lang),
+                  "kind": "تذكرة جديدة", "category": "أخرى", "public_id": "DZ-ABC123",
                   "mailbox": "بريد النظام", "support_line": ""}
         return {"text": efill(src, sample, TEMPLATES[key][3])}
-    return {"html": markdown.render(fill(src, values(db, settings)))}
+    return {"html": markdown.render(fill(src, values(db, settings, lang)))}

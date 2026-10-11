@@ -15,6 +15,8 @@ import json
 import sys
 from pathlib import Path
 
+from app.i18n import N_
+
 INK = "#1a0d08"
 WHITE = "#ffffff"
 MIN_TEXT = 4.5
@@ -28,13 +30,13 @@ MIN_GRAPHIC = 3.0
 
 # name: (label, dark (stop 1, stop 2), light (stop 1, stop 2)). The first one is the default (the DALTA.BIT identity).
 ACCENTS: dict[str, tuple[str, tuple[str, str], tuple[str, str]]] = {
-    "ember": ("جمري", ("#ff8a5c", "#ff5f8a"), ("#ec6a3c", "#e5466f")),
-    "rose": ("وردي", ("#ff7eb6", "#c77dff"), ("#cc2f7c", "#a23ad6")),
-    "violet": ("بنفسجي", ("#a99cff", "#7b6cff"), ("#6b5cff", "#5a3fd6")),
-    "ocean": ("أزرق", ("#5cc8ff", "#4f7dff"), ("#1a6dd0", "#2a56d6")),
-    "mint": ("نعناعي", ("#43e0b0", "#2bc0d6"), ("#0e9f73", "#0f8a9c")),
-    "sun": ("ذهبي", ("#ffd166", "#ff9f43"), ("#d99a00", "#e0661f")),
-    "crimson": ("قرمزي", ("#ff6b6b", "#ff3d71"), ("#d93a3a", "#c2185b")),
+    "ember": (N_("جمري"), ("#ff8a5c", "#ff5f8a"), ("#ec6a3c", "#e5466f")),
+    "rose": (N_("وردي"), ("#ff7eb6", "#c77dff"), ("#cc2f7c", "#a23ad6")),
+    "violet": (N_("بنفسجي"), ("#a99cff", "#7b6cff"), ("#6b5cff", "#5a3fd6")),
+    "ocean": (N_("أزرق"), ("#5cc8ff", "#4f7dff"), ("#1a6dd0", "#2a56d6")),
+    "mint": (N_("نعناعي"), ("#43e0b0", "#2bc0d6"), ("#0e9f73", "#0f8a9c")),
+    "sun": (N_("ذهبي"), ("#ffd166", "#ff9f43"), ("#d99a00", "#e0661f")),
+    "crimson": (N_("قرمزي"), ("#ff6b6b", "#ff3d71"), ("#d93a3a", "#c2185b")),
 }
 DEFAULT_ACCENT = "ember"
 MODES = ("system", "light", "dark")
@@ -105,7 +107,9 @@ def palette() -> dict[str, dict[str, dict[str, str]]]:
 
 def choices() -> list[dict]:
     """For the «المظهر» sheet: name, label and the two dark-mode stops (the swatch)."""
-    return [{"id": n, "label": v[0], "swatch": list(v[1]), "swatch_light": list(v[2])} for n, v in ACCENTS.items()]
+    from app.i18n import tr
+
+    return [{"id": n, "label": tr(v[0]), "swatch": list(v[1]), "swatch_light": list(v[2])} for n, v in ACCENTS.items()]
 
 
 # ------------------------------------------------------------------ a user's choice

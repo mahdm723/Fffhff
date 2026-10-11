@@ -19,7 +19,9 @@ from email.utils import parseaddr
 
 from sqlalchemy.orm import Session
 
+from app import i18n
 from app.config import Settings
+from app.i18n import N_
 from app.services import brand, mail_templates, mailer, runtime_config
 from app.services.mailer import MailError
 
@@ -57,8 +59,8 @@ def support_address(db: Session, settings: Settings) -> str:
     return settings.SUPPORT_INBOX_EMAIL.strip()
 
 
-def _html(app_name: str, text: str, highlight: str | None) -> str:
-    """A simple RTL HTML version of the text (everything escaped; the code, if any, shown large)."""
+def _html(app_name: str, text: str, highlight: str | None, lang: str = "ar") -> str:
+    """A simple HTML version of the text in its direction (everything escaped; the code, if any, shown large)."""
     body = html.escape(text)
     if highlight:
         code = html.escape(highlight)
@@ -66,30 +68,33 @@ def _html(app_name: str, text: str, highlight: str | None) -> str:
                                   'direction:ltr;background:#f5f2ec;border-radius:12px;padding:10px 18px">' + code + "</span>", 1)
     body = body.replace("\n", "<br>")
     name = html.escape(app_name)
-    return (f'<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>{name}</title></head>'
+    side = "right" if i18n.direction(lang) == "rtl" else "left"
+    return (f'<!doctype html><html lang="{lang}" dir="{i18n.direction(lang)}"><head><meta charset="utf-8"><title>{name}</title></head>'
             '<body style="margin:0;background:#f5f2ec;font-family:Tahoma,Arial,sans-serif;color:#1a1c2a">'
             '<div style="max-width:480px;margin:24px auto;background:#fff;border-radius:18px;padding:28px 24px;'
-            f'font-size:15px;line-height:1.8"><div style="font-size:20px;font-weight:bold;direction:ltr;text-align:right">'
+            f'font-size:15px;line-height:1.8"><div style="font-size:20px;font-weight:bold;direction:ltr;text-align:{side}">'
             f'{brand.email_name_html(app_name)}</div>'
             f'<div style="padding-top:16px">{body}</div></div></body></html>')
 
 
 def prepare(db: Session, settings: Settings, profile: str, to: str, key: str, values: dict | None = None, *,
-            reply_to: str | None = None, highlight: str | None = None) -> Outgoing | None:
-    """The message ready to send, or None when this mailbox is not set up (nothing to send it with)."""
+            reply_to: str | None = None, highlight: str | None = None, lang: str | None = None) -> Outgoing | None:
+    """The message ready to send, or None when this mailbox is not set up (nothing to send it with).
+    lang: the recipient's language (i18n.user_lang(user)); the support inbox's own mail stays in Arabic."""
     eff = runtime_config.effective_settings(db, settings, profile)
     if not eff.smtp_enabled:
         return None
-    subject, body = mail_templates.render(db, settings, key, values)
+    lang = i18n.normalize(lang) or i18n.DEFAULT
+    subject, body = mail_templates.render(db, settings, key, values, lang)
     support = support_address(db, settings)
     if profile == "system":
-        _s, footer = mail_templates.render(db, settings, "email.footer",
-                                           {"support_line": f" أو اكتب إلى {support}" if support else ""})
+        line = i18n.tr(N_(" أو اكتب إلى {email}"), lang, email=support) if support else ""
+        _s, footer = mail_templates.render(db, settings, "email.footer", {"support_line": line}, lang)
         body = f"{body}\n\n—\n{footer}"
     if reply_to is None and support:
         reply_to = support
     return Outgoing(profile, eff, to, subject, body, reply_to,
-                    _html(settings.APP_NAME, body, highlight) if highlight else None)
+                    _html(settings.APP_NAME, body, highlight, lang) if highlight else None)
 
 
 def deliver(out: Outgoing) -> None:

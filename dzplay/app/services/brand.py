@@ -30,12 +30,16 @@ def app_name() -> str:
     return s.APP_NAME if s is not None else Settings.model_fields["APP_NAME"].default
 
 
-def team_name() -> str:
-    return f"فريق {app_name()}"
+def team_name(lang: str | None = None) -> str:
+    from app.i18n import tr
+
+    return tr("فريق {app}", lang, app=app_name())
 
 
-def official_name() -> str:
-    return f"{app_name()} الرسمي"
+def official_name(lang: str | None = None) -> str:
+    from app.i18n import tr
+
+    return tr("{app} الرسمي", lang, app=app_name())
 
 
 def wordmark_html(name: str) -> str:
@@ -55,7 +59,10 @@ def logo_svg(size: int = 96, cls: str = "logo-mark logo-mark--pulse") -> str:
     return re.sub(r"<svg[^>]*>", tag, text, count=1).strip()
 
 
-def og_tags(settings: Settings, base: str, title: str, description: str) -> str:
+OG_LOCALES = {"ar": "ar_AR", "fr": "fr_FR", "en": "en_GB"}
+
+
+def og_tags(settings: Settings, base: str, title: str, description: str, lang: str = "ar") -> str:
     """Link previews (Telegram, WhatsApp, X…): the og-image made by brand/build.py, at an absolute URL."""
     e = html.escape
     image = f"{base.rstrip('/')}/icons/og-image.png"
@@ -67,7 +74,7 @@ def og_tags(settings: Settings, base: str, title: str, description: str) -> str:
         f'<meta property="og:image" content="{e(image)}">',
         '<meta property="og:image:width" content="1200">',
         '<meta property="og:image:height" content="630">',
-        '<meta property="og:locale" content="ar_AR">',
+        f'<meta property="og:locale" content="{OG_LOCALES.get(lang, "ar_AR")}">',
         '<meta name="twitter:card" content="summary_large_image">',
         f'<meta name="twitter:image" content="{e(image)}">',
     ))

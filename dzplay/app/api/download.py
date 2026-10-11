@@ -9,7 +9,9 @@ import re
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from app import i18n
 from app.api.deps import get_state
+from app.api.policies import lang_switch, respond
 from app.services import app_release, brand
 
 router = APIRouter(tags=["download"])
@@ -21,7 +23,7 @@ def app_version() -> dict:
     return {"available": data is not None, **(data or {})}
 
 
-def _qr_svg(text: str) -> str:
+def _qr_svg(text: str, lang: str) -> str:
     import qrcode
     import qrcode.image.svg
 
@@ -30,75 +32,93 @@ def _qr_svg(text: str) -> str:
     q.add_data(text)
     q.make(fit=True)
     svg = q.make_image().to_string(encoding="unicode")
-    return svg.replace("<svg ", '<svg role="img" aria-label="رمز QR لصفحة التحميل" ', 1)
+    label = html.escape(i18n.tr("رمز QR لصفحة التحميل", lang))
+    return svg.replace("<svg ", f'<svg role="img" aria-label="{label}" ', 1)
 
 
-@router.get("/download", include_in_schema=False)
-def download_page(request: Request) -> HTMLResponse:
+def page(request: Request, lang: str, *, notice: str = "", show_ios: bool = True, show_qr: bool = True) -> str:
+    """The download page in lang. `notice`: an escaped HTML paragraph shown first (the access pages of phase 14)."""
     st = get_state(request)
+    tr = i18n.tr
     base = (st.settings.PUBLIC_URL or str(request.base_url)).rstrip("/")
     page_url = f"{base}/download"
     rel = app_release.info()
     e = html.escape
-    name = e(st.settings.APP_NAME)
-    apk_name = e((re.sub(r"[^A-Za-z0-9._-]", "", st.settings.APP_NAME) or "app") + ".apk")
+    app_name = st.settings.APP_NAME
+    name = e(app_name)
+    apk_name = e((re.sub(r"[^A-Za-z0-9._-]", "", app_name) or "app") + ".apk")
     if rel:
-        ver = f"الإصدار {e(rel['version_name'])}" if rel["version_name"] else "أحدث إصدار"
+        ver = e(tr("الإصدار {version}", lang, version=rel["version_name"])) if rel["version_name"] else e(tr("أحدث إصدار", lang))
+        android = e(tr("أندرويد {version} أو أحدث", lang, version=str(rel["min_android"])))
         app_block = f"""
-      <a class="dl-btn" href="{e(rel['url'])}" download="{apk_name}">تحميل تطبيق أندرويد (APK)</a>
-      <p class="dl-meta">{ver} · {rel['size_mb']} MB · أندرويد {e(str(rel['min_android']))} أو أحدث</p>
-      <details class="dl-hash"><summary>بصمة الملف SHA-256 (للتحقق)</summary><code dir="ltr">{e(rel['sha256'])}</code></details>"""
+      <a class="dl-btn" href="{e(rel['url'])}" download="{apk_name}">{e(tr("تحميل تطبيق أندرويد (APK)", lang))}</a>
+      <p class="dl-meta">{ver} · {e(i18n.number(rel['size_mb'], lang))} MB · {android}</p>
+      <details class="dl-hash"><summary>{e(tr("بصمة الملف SHA-256 (للتحقق)", lang))}</summary><code dir="ltr">{e(rel['sha256'])}</code></details>"""
     else:
-        app_block = '<p class="dl-meta">تطبيق أندرويد غير متاح حاليًا. يمكنك استخدام الموقع مباشرة.</p>'
-    body = f"""<!doctype html>
-<html lang="ar" dir="rtl">
+        app_block = f'<p class="dl-meta">{e(tr("تطبيق أندرويد غير متاح حاليًا. يمكنك استخدام الموقع مباشرة.", lang))}</p>'
+    title = tr("تحميل {app}", lang, app=app_name)
+    description = tr("حمّل تطبيق {app} لأندرويد أو أضفه إلى شاشة iPhone الرئيسية.", lang, app=app_name)
+    file_step = e(tr("افتح الملف {file} من الإشعارات أو من «التنزيلات».", lang, file="\x00")).replace(
+        "\x00", f'<b dir="ltr">{apk_name}</b>')
+    site_step = e(tr("افتح {site} في Safari.", lang, site="\x00")).replace("\x00", f'<b dir="ltr">{e(base)}</b>')
+    share_step = e(tr("اضغط زر المشاركة {icon} ثم «إضافة إلى الشاشة الرئيسية».", lang, icon="\x00")).replace(
+        "\x00", '<span aria-hidden="true">⬆️</span>')
+    ios = f"""
+    <section class="dl-card">
+      <h2>iPhone · iPad</h2>
+      <ol class="dl-steps">
+        <li>{site_step}</li>
+        <li>{share_step}</li>
+        <li>{e(tr("افتح {app} من الأيقونة الجديدة وسجّل الدخول.", lang, app=app_name))}</li>
+      </ol>
+    </section>""" if show_ios else ""
+    qr = f"""
+    <section class="dl-card dl-qr">
+      <h2>{e(tr("على جهاز آخر؟", lang))}</h2>
+      <p>{e(tr("امسح الرمز بكاميرا هاتفك لفتح هذه الصفحة:", lang))}</p>
+      <div class="dl-qr__code">{_qr_svg(page_url, lang)}</div>
+      <p class="dl-url" dir="ltr">{e(page_url)}</p>
+    </section>""" if show_qr else ""
+    steps = (tr("اضغط «تحميل» وانتظر انتهاء التحميل.", lang), None,
+             tr("إن ظهرت رسالة «لأمانك، لا يُسمح بتثبيت تطبيقات من هذا المصدر»: اضغط «الإعدادات» ثم فعّل «السماح من هذا المصدر» وارجع.", lang),
+             tr("اضغط «تثبيت». قد يعرض Play Protect تنبيهًا لأن التطبيق ليس من المتجر: اختر «التثبيت على أي حال».", lang),
+             tr("إن طلب التطبيق إذن الإشعارات فاسمح به لتصلك رسائلك الجديدة. لا يطلب كاميرا ولا ميكروفون.", lang))
+    items = "\n        ".join(f"<li>{file_step if s is None else e(s)}</li>" for s in steps)
+    return f"""<!doctype html>
+<html lang="{lang}" dir="{i18n.direction(lang)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>تحميل {name}</title>
-  <meta name="description" content="حمّل تطبيق {name} لأندرويد أو أضفه إلى شاشة iPhone الرئيسية.">
+  <title>{e(title)}</title>
+  <meta name="description" content="{e(description)}">
   <meta name="referrer" content="no-referrer">
   {brand.HEAD_ICONS}
-  {brand.og_tags(st.settings, base, f"تحميل {st.settings.APP_NAME}", f"حمّل تطبيق {st.settings.APP_NAME} لأندرويد أو أضفه إلى شاشة iPhone الرئيسية.")}
+  {brand.og_tags(st.settings, base, title, description, lang)}
   <link rel="stylesheet" href="/css/download.css">
 </head>
 <body>
   <main class="dl">
     <header class="dl-head">
       <img class="dl-icon" src="/icons/icon-192.png" width="88" height="88" alt="">
-      <h1 class="dl-name" dir="ltr" aria-label="{name}">{brand.wordmark_html(st.settings.APP_NAME)}</h1>
-      <p class="dl-tag">مجتمع للمتداولين: أخبار العملات الرقمية والتحليلات والأفكار، وبياناتك محمية.</p>
+      <h1 class="dl-name" dir="ltr" aria-label="{name}">{brand.wordmark_html(app_name)}</h1>
+      <p class="dl-tag">{e(tr("مجتمع للمتداولين: أخبار العملات الرقمية والتحليلات والأفكار، وبياناتك محمية.", lang))}</p>
     </header>
-
+{notice}
     <section class="dl-card">
-      <h2>أندرويد</h2>{app_block}
+      <h2>{e(tr("أندرويد", lang))}</h2>{app_block}
       <ol class="dl-steps">
-        <li>اضغط «تحميل» وانتظر انتهاء التحميل.</li>
-        <li>افتح الملف <b dir="ltr">{apk_name}</b> من الإشعارات أو من «التنزيلات».</li>
-        <li>إن ظهرت رسالة «لأمانك، لا يُسمح بتثبيت تطبيقات من هذا المصدر»: اضغط «الإعدادات» ثم فعّل «السماح من هذا المصدر» وارجع.</li>
-        <li>اضغط «تثبيت». قد يعرض Play Protect تنبيهًا لأن التطبيق ليس من المتجر: اختر «التثبيت على أي حال».</li>
-        <li>إن طلب التطبيق إذن الإشعارات فاسمح به لتصلك رسائلك الجديدة. لا يطلب كاميرا ولا ميكروفون.</li>
+        {items}
       </ol>
     </section>
+{ios}{qr}
 
-    <section class="dl-card">
-      <h2>iPhone</h2>
-      <ol class="dl-steps">
-        <li>افتح <b dir="ltr">{e(base)}</b> في Safari.</li>
-        <li>اضغط زر المشاركة <span aria-hidden="true">⬆️</span> ثم «إضافة إلى الشاشة الرئيسية».</li>
-        <li>افتح {name} من الأيقونة الجديدة وسجّل الدخول.</li>
-      </ol>
-    </section>
-
-    <section class="dl-card dl-qr">
-      <h2>على جهاز آخر؟</h2>
-      <p>امسح الرمز بكاميرا هاتفك لفتح هذه الصفحة:</p>
-      <div class="dl-qr__code">{_qr_svg(page_url)}</div>
-      <p class="dl-url" dir="ltr">{e(page_url)}</p>
-    </section>
-
-    <p class="dl-foot"><a href="/">العودة إلى {name}</a> · <a href="/policies/privacy">سياسة الخصوصية</a> · <a href="/policies/terms">شروط الاستخدام</a> · <a href="/policies/guidelines">إرشادات المجتمع</a></p>
+    <p class="dl-foot"><a href="/">{e(tr("العودة إلى {app}", lang, app=app_name))}</a> · <a href="/policies/privacy">{e(tr("سياسة الخصوصية", lang))}</a> · <a href="/policies/terms">{e(tr("شروط الاستخدام", lang))}</a> · <a href="/policies/guidelines">{e(tr("إرشادات المجتمع", lang))}</a></p>
+    <p class="dl-foot dl-langs">{lang_switch("/download", lang)}</p>
   </main>
 </body>
 </html>"""
-    return HTMLResponse(body, headers={"Cache-Control": "no-cache"})
+
+
+@router.get("/download", include_in_schema=False)
+def download_page(request: Request) -> HTMLResponse:
+    return respond(request, page(request, i18n.current()))

@@ -14,9 +14,10 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import DAY, HOUR, Settings
 from app.errors import AppError, not_found
+from app.i18n import N_
 from app.models import SupportMessage, SupportTicket, User
 from app.services.content import clean_message, preview
 from app.services.messaging import Effects, _check_limits, iso
@@ -25,10 +26,10 @@ from app.services.rate_limit import Limit
 log = logging.getLogger("dzplay.support")
 
 CATEGORIES = {
-    "technical": "مشكلة تقنية", "account": "الحساب", "verification": "التوثيق", "payment": "الدفع",
-    "report": "بلاغ", "suggestion": "اقتراح", "other": "أخرى",
+    "technical": N_("مشكلة تقنية"), "account": N_("الحساب"), "verification": N_("التوثيق"), "payment": N_("الدفع"),
+    "report": N_("بلاغ"), "suggestion": N_("اقتراح"), "other": N_("أخرى"),
 }
-STATUS_AR = {"open": "مفتوحة", "answered": "تم الرد", "closed": "مغلقة"}
+STATUS_AR = {"open": N_("مفتوحة"), "answered": N_("تم الرد"), "closed": N_("مغلقة")}
 NUMBER_BASE = 1000  # shown number = id + 1000 (#1001, #1002…)
 
 
@@ -37,8 +38,8 @@ def number(t: SupportTicket) -> int:
 
 
 def _ticket_view(t: SupportTicket, last: SupportMessage | None = None) -> dict:
-    return {"id": t.id, "number": number(t), "category": t.category, "category_label": CATEGORIES.get(t.category, t.category),
-            "subject": t.subject, "status": t.status, "status_label": STATUS_AR.get(t.status, t.status),
+    return {"id": t.id, "number": number(t), "category": t.category, "category_label": i18n.tr(CATEGORIES.get(t.category, t.category)),
+            "subject": i18n.tr(t.subject), "status": t.status, "status_label": i18n.tr(STATUS_AR.get(t.status, t.status)),
             "unread": bool(t.user_unread), "created_at": iso(t.created_at), "updated_at": iso(t.updated_at),
             "last": preview(last.body, 100) if last else None}
 
@@ -105,7 +106,7 @@ def close(db: Session, user: User, ticket_id: object) -> dict:
 def list_mine(db: Session, user: User) -> dict:
     tickets = db.execute(select(SupportTicket).where(SupportTicket.user_id == user.id)
                          .order_by(SupportTicket.updated_at.desc()).limit(100)).scalars().all()
-    return {"tickets": [_ticket_view(t) for t in tickets], "categories": CATEGORIES}
+    return {"tickets": [_ticket_view(t) for t in tickets], "categories": {k: i18n.tr(v) for k, v in CATEGORIES.items()}}
 
 
 def get_mine(db: Session, user: User, ticket_id: object) -> dict:
@@ -220,7 +221,7 @@ def notify_user_reply(state, ticket_id: int) -> None:
         if t is None or u is None or not u.email or u.is_system or u.is_official:
             return
         out = mail.prepare(db, state.settings, "support", u.email, "email.ticket_reply",
-                           {"ticket": number(t), "subject": t.subject})
+                           {"ticket": number(t), "subject": i18n.tr(t.subject, i18n.user_lang(u))}, lang=i18n.user_lang(u))
     if out is None:
         return
     try:

@@ -24,6 +24,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import i18n
+from app.i18n import N_
 from app.api import account as account_api
 from app.api import admin as admin_api
 from app.api import admin_money as admin_money_api
@@ -69,14 +70,17 @@ def brand(page: str, settings: Settings, base: str = "") -> str:
     from app.services import brand as brand_svc
 
     name = settings.APP_NAME
+    lang = i18n.current()  # V6 phase 12: the first guess; js/theme-boot.js applies the app's saved choice at once
     page = page.replace("{{HEAD_ICONS}}", brand_svc.HEAD_ICONS)
     if "{{OG}}" in page:
-        page = page.replace("{{OG}}", brand_svc.og_tags(settings, base, name, OG_DESCRIPTION))
+        page = page.replace("{{OG}}", brand_svc.og_tags(settings, base, name, i18n.tr(OG_DESCRIPTION, lang), lang))
     return (page.replace("{{APP_NAME}}", html.escape(name)).replace("{{WORDMARK}}", brand_svc.wordmark_html(name))
-            .replace("{{LOGO}}", brand_svc.logo_svg()))
+            .replace("{{LOGO}}", brand_svc.logo_svg()).replace("{{LANG}}", lang).replace("{{DIR}}", i18n.direction(lang))
+            .replace("{{DESCRIPTION}}", html.escape(i18n.tr(OG_DESCRIPTION, lang)))
+            .replace("{{NOSCRIPT}}", html.escape(i18n.tr("يحتاج {app} إلى تفعيل JavaScript.", lang, app=name))))
 
 
-OG_DESCRIPTION = "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك."
+OG_DESCRIPTION = N_("مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك.")
 
 
 def request_language(request: Request) -> str:
@@ -254,8 +258,9 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
         path = request.url.path
-        i18n.set_current(request_language(request))
         in_admin = bool(admin_prefix) and (path == admin_prefix or path.startswith(admin_prefix + "/"))
+        # the panel (its pages and its API) stays in Arabic whatever language the app on the same browser uses
+        i18n.set_current(i18n.DEFAULT if in_admin or path.startswith("/api/admin") else request_language(request))
         if in_admin and not admin_auth.ip_allowed(settings, client_ip(request, settings)):
             return _error(404, "not_found", "غير موجود.")  # outside the allowlist the panel does not exist
         is_api = path.startswith("/api/") or (in_admin and path.startswith(admin_prefix + "/api/"))
@@ -367,8 +372,10 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
         def manifest() -> Response:
             data = json.loads((STATIC_DIR / "manifest.webmanifest").read_text(encoding="utf-8"))
             data["name"] = data["short_name"] = settings.APP_NAME
+            lang = i18n.current()  # V6 phase 12: the description in the visitor's language
+            data.update(lang=lang, dir=i18n.direction(lang), description=i18n.tr(data.get("description", ""), lang))
             return Response(json.dumps(data, ensure_ascii=False), media_type="application/manifest+json",
-                            headers={"Cache-Control": "no-cache"})
+                            headers={"Cache-Control": "no-cache", "Vary": "Cookie, Accept-Language"})
 
         if settings.admin_enabled:
             @app.get(admin_prefix, include_in_schema=False)

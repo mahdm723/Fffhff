@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from app import clock
 from app.config import Settings
 from app.models import MediaCacheEntry, MediaItem
+from app.i18n import N_
 
 log = logging.getLogger("dzplay.media")
 
@@ -57,7 +58,7 @@ def prepare_image(settings: Settings, src: Path, out: Path) -> dict:
             clean.save(out, "WEBP", quality=settings.IMAGE_QUALITY, method=4)
             return {"width": clean.width, "height": clean.height}
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
-        raise MediaError("الصورة غير صالحة أو كبيرة جدًا.") from None
+        raise MediaError(N_("الصورة غير صالحة أو كبيرة جدًا.")) from None
 
 
 class MediaStore:

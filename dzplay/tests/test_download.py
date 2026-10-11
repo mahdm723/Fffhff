@@ -45,7 +45,10 @@ def test_fcm_token_register_validate_reassign_remove(hx):
 
 def test_push_payloads_carry_no_identity():
     m = fcm.chat_message(TOKEN)["message"]
-    assert m["data"] == {"type": "message"} and "notification" not in m
+    assert m["data"] == {"type": "message", "lang": "ar"} and "notification" not in m
+    # V6 phase 12: the generic line in the user's language — still no sender, no name, no message text
+    m = fcm.chat_message(TOKEN, "fr", "DALTA.BIT")["message"]
+    assert set(m["data"]) == {"type", "lang", "title", "body"} and m["data"]["title"] == "DALTA.BIT" and "notification" not in m
     assert not hasattr(fcm, "call_message")  # V6: calls were removed
     from app.services import push
 

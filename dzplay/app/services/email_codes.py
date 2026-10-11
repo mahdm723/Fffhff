@@ -14,12 +14,13 @@ from datetime import timedelta
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.config import Settings
 from app.errors import AppError, rate_limited
+from app.i18n import N_
 from app.models import EmailCode, User
 
-PURPOSES = {"refund": "استرجاع العضوية", "withdraw": "سحب الأرباح", "giveaway": "تأكيد البريد للظرف الأحمر"}
+PURPOSES = {"refund": N_("استرجاع العضوية"), "withdraw": N_("سحب الأرباح"), "giveaway": N_("تأكيد البريد للظرف الأحمر")}
 MAX_ATTEMPTS = 5
 
 
@@ -58,8 +59,9 @@ def send(db: Session, settings: Settings, limiter, user: User, purpose: str, ema
     db.flush()
     minutes = max(1, settings.EMAIL_CODE_TTL // 60)
     try:  # V6 phase 7: system mailbox, editable text (email.code)
-        mail.send(db, settings, "system", to, "email.code", {"purpose": PURPOSES[purpose], "code": code, "minutes": minutes},
-                  highlight=code)
+        lang = i18n.user_lang(user)
+        mail.send(db, settings, "system", to, "email.code",
+                  {"purpose": i18n.tr(PURPOSES[purpose], lang), "code": code, "minutes": minutes}, highlight=code, lang=lang)
     except Exception:  # noqa: BLE001 - MailError and anything else: no code without the e-mail
         db.rollback()
         raise AppError(503, "mail_failed", "تعذّر إرسال البريد الآن. حاول بعد قليل.") from None

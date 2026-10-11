@@ -35,7 +35,7 @@ class RestoreBody(_Body):
 def content_list(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     st = get_state(request)
     with st.database.session() as db:
-        return {"items": cms.listing(db), "ack_version": cms.ack_version(db)}
+        return {"items": cms.listing(db, st.settings), "ack_version": cms.ack_version(db)}
 
 
 @router.get("/content/{key}")

@@ -9,13 +9,31 @@ from datetime import timedelta
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app import clock
+from app import clock, i18n
 from app.models import Comment, Notification, User
 from app.services import brand
 from app.services.content import preview
 
 KEEP_DAYS = 90
 PAGE = 50
+
+
+def msg(msgid: str, *, translate: tuple[str, ...] = (), **params) -> dict:
+    """V6 phase 12: the data of a notification shown in the reader's language: an Arabic msgid (marked with N_) and
+    its {params}; the params named in `translate` are msgids too. Numbers are formatted when shown."""
+    data: dict = {"msg": msgid, "params": params}
+    if translate:
+        data["params"]["_t"] = list(translate)
+    return data
+
+
+def text_of(data: dict | None, lang: str | None = None) -> str | None:
+    """The text of a notification in lang (older rows hold an Arabic "text": translated when it is a known text)."""
+    if not data:
+        return None
+    if data.get("msg"):
+        return i18n.tr_params(data["msg"], lang, data.get("params"))
+    return i18n.tr(data["text"], lang) if data.get("text") else None
 
 
 def create(db: Session, user_id: str | None, kind: str, effects, *, actor_id: str | None = None,
@@ -53,10 +71,18 @@ def listing(db: Session, user: User) -> dict:
                                              "public_id": None if team else a.public_id,
                                              "avatar_url": None if team else avatar_url(a)},
             "preview": preview(c.content, 120) if c is not None and c.deleted_at is None else None,
-            "data": json.loads(n.data) if n.data else None,
+            "data": _shown(n.data),
             "created_at": n.created_at.isoformat(timespec="milliseconds") + "Z", "read": n.read_at is not None,
         })
     return {"notifications": out, "unread": unread(db, user.id)}
+
+
+def _shown(raw: str | None) -> dict | None:
+    if not raw:
+        return None
+    data = json.loads(raw)
+    text = text_of(data)
+    return {**{k: v for k, v in data.items() if k not in ("msg", "params")}, **({"text": text} if text else {})}
 
 
 def mark_read(db: Session, user: User) -> dict:

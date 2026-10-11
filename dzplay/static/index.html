@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="ar" dir="rtl" data-app="{{APP_NAME}}">
+<html lang="{{LANG}}" dir="{{DIR}}" data-app="{{APP_NAME}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>{{APP_NAME}}</title>
-  <meta name="description" content="مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك.">
+  <meta name="description" content="{{DESCRIPTION}}">
   <meta name="theme-color" content="#0c0e18" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)">
   <meta name="color-scheme" content="dark light">
@@ -25,6 +25,6 @@
     </div>
   </div>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
-  <noscript><p class="noscript">يحتاج {{APP_NAME}} إلى تفعيل JavaScript.</p></noscript>
+  <noscript><p class="noscript">{{NOSCRIPT}}</p></noscript>
 </body>
 </html>
