@@ -19,7 +19,7 @@ function previewText(c) {
 
 function normalize(s) {
   return (s || '').toLocaleLowerCase('ar').replace(/[\u064B-\u0652\u0640]/g, '')
-    .replace(/[أإآ]/g, t('ا')).replace(/ة/g, t('ه')).replace(/ى/g, t('ي'));
+    .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
 }
 
 export function renderMessages(page, { navigate }) {

@@ -1213,14 +1213,6 @@
   "plural": false
  },
  {
-  "id": "ا",
-  "where": [
-   "static/js/views/messages.js:22"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "ابحث بالاسم أو بالمعرّف. لا يظهر البريد أبدًا.",
   "where": [
    "static/js/people.js:126"
@@ -2554,7 +2546,7 @@
   "plural": false
  },
  {
-  "id": "المتاح {amount} · الرسوم {amount2} تُخصم من المبلغ",
+  "id": "المتاح {amount} · الرسوم {fee} تُخصم من المبلغ",
   "where": [
    "static/js/views/earnings.js:38"
   ],
@@ -6516,14 +6508,6 @@
   "plural": false
  },
  {
-  "id": "ه",
-  "where": [
-   "static/js/views/messages.js:22"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "هذا الاسم غير مسموح به.",
   "where": [
    "app/services/names.py:103"
@@ -6750,14 +6734,6 @@
   "id": "وصلتك رسالة جديدة",
   "where": [
    "static/js/app.js:207"
-  ],
-  "client": true,
-  "plural": false
- },
- {
-  "id": "ي",
-  "where": [
-   "static/js/views/messages.js:22"
   ],
   "client": true,
   "plural": false

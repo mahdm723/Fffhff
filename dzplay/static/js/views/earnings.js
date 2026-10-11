@@ -35,7 +35,7 @@ export function renderEarnings(page, { navigate }) {
           ? tNodes('المبلغ {amount} · الرسوم {fee} · يصلك {net}', {
             amount: h('b', { dir: 'ltr', text: money(a.toFixed(2)) }), fee: h('b', { dir: 'ltr', text: money(w.fee) }),
             net: h('b', { dir: 'ltr', text: money(Math.max(0, a - fee).toFixed(2)) }) })
-          : [t('المتاح {amount} · الرسوم {amount2} تُخصم من المبلغ', { amount: money(d.balances.available), amount2: money(w.fee) })]));
+          : [t('المتاح {amount} · الرسوم {fee} تُخصم من المبلغ', { amount: money(d.balances.available), fee: money(w.fee) })]));
       };
       amount.addEventListener('input', paintSummary);
       paintSummary();
