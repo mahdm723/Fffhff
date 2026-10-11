@@ -87,6 +87,8 @@ function section(title, count, ...children) {
 
 const GENDER = { male: 'رجل', female: 'أنثى', unspecified: 'أفضّل عدم الذكر' };
 
+const LEVEL = { tee: 'TEE (عتاد آمن)', strongbox: 'StrongBox (شريحة آمنة)' };
+
 function privacyText(p) {
   if (!p) return '—';
   return [p.accept_direct === 'everyone' ? 'يستقبل المباشرة' : 'لا يستقبل المباشرة',
@@ -130,6 +132,13 @@ export function openUser(id) {
             }))),
         await userV5Section(u.id, paint),
         await userMoneySection(u.id, paint),
+        section('الأجهزة (تطبيق أندرويد)', (d.devices || []).length,
+          h('p', { class: 'admin-meta', text: 'هواتف أثبت فيها التطبيق نفسه (Key Attestation). على iPhone لا يوجد ربط بالجهاز.' }),
+          ...(d.devices || []).map((v) => h('div', { class: 'admin-line admin-line--col' },
+            h('span', {}, chip(LEVEL[v.security_level] || v.security_level), v.registered_here ? chip('أُنشئ منه الحساب', 'chip--warn') : null,
+              chip(`${fmt(v.accounts)} حساب على هذا الجهاز`, v.accounts > 1 ? 'chip--hot' : ''),
+              h('code', { dir: 'ltr', text: shortRef(v.id) })),
+            h('span', { class: 'admin-meta', text: `الإصدار ${v.version_code || '—'} · أول ظهور ${when(v.first_seen)} · آخر ظهور ${when(v.last_seen)}` })))),
         section('سجل الأسماء (للإدارة فقط)', d.name_history.length, ...d.name_history.map((n) => h('div', { class: 'admin-line' },
           h('bdi', { text: n.old || 'dzplay' }), h('span', { text: '←' }), h('bdi', { text: n.new || 'dzplay' }),
           h('span', { class: 'admin-meta', text: when(n.at) })))),

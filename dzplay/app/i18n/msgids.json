@@ -65,6 +65,22 @@
   "plural": false
  },
  {
+  "id": "{app} للهواتف",
+  "where": [
+   "app/api/download.py:143"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "{app} مصمم للهواتف. على أندرويد: حمّل التطبيق. على iPhone أو iPad: افتح الموقع في Safari. امسح الرمز أدناه بكاميرا هاتفك.",
+  "where": [
+   "app/api/download.py:144"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "{base}: {price} دولار، {pct} خلال 24 ساعة",
   "where": [
    "static/js/views/market.js:80"
@@ -235,7 +251,7 @@
  {
   "id": "أحدث إصدار",
   "where": [
-   "app/api/download.py:51"
+   "app/api/download.py:54"
   ],
   "client": false,
   "plural": false
@@ -710,7 +726,7 @@
  {
   "id": "أندرويد",
   "where": [
-   "app/api/download.py:108"
+   "app/api/download.py:111"
   ],
   "client": false,
   "plural": false
@@ -718,7 +734,7 @@
  {
   "id": "أندرويد {version} أو أحدث",
   "where": [
-   "app/api/download.py:52"
+   "app/api/download.py:55"
   ],
   "client": false,
   "plural": false
@@ -1065,7 +1081,7 @@
   "where": [
    "static/js/privacy.js:12",
    "static/js/views/auth.js:182",
-   "app/api/download.py:115"
+   "app/api/download.py:118"
   ],
   "client": true,
   "plural": false
@@ -1126,7 +1142,8 @@
    "static/js/views/chat.js:244",
    "static/js/views/home.js:285",
    "static/js/views/market.js:158",
-   "static/js/views/users.js:36"
+   "static/js/views/users.js:36",
+   "app/api/download.py:154"
   ],
   "client": true,
   "plural": false
@@ -1224,7 +1241,7 @@
  {
   "id": "إن طلب التطبيق إذن الإشعارات فاسمح به لتصلك رسائلك الجديدة. لا يطلب كاميرا ولا ميكروفون.",
   "where": [
-   "app/api/download.py:85"
+   "app/api/download.py:88"
   ],
   "client": false,
   "plural": false
@@ -1232,7 +1249,7 @@
  {
   "id": "إن ظهرت رسالة «لأمانك، لا يُسمح بتثبيت تطبيقات من هذا المصدر»: اضغط «الإعدادات» ثم فعّل «السماح من هذا المصدر» وارجع.",
   "where": [
-   "app/api/download.py:83"
+   "app/api/download.py:86"
   ],
   "client": false,
   "plural": false
@@ -1415,7 +1432,7 @@
   "where": [
    "static/js/onboarding.js:69",
    "static/js/views/auth.js:201",
-   "app/services/auth.py:152",
+   "app/services/auth.py:153",
    "app/services/names.py:147"
   ],
   "client": true,
@@ -1568,7 +1585,7 @@
  {
   "id": "اضغط «تثبيت». قد يعرض Play Protect تنبيهًا لأن التطبيق ليس من المتجر: اختر «التثبيت على أي حال».",
   "where": [
-   "app/api/download.py:84"
+   "app/api/download.py:87"
   ],
   "client": false,
   "plural": false
@@ -1576,7 +1593,7 @@
  {
   "id": "اضغط «تحميل» وانتظر انتهاء التحميل.",
   "where": [
-   "app/api/download.py:82"
+   "app/api/download.py:85"
   ],
   "client": false,
   "plural": false
@@ -1584,7 +1601,7 @@
  {
   "id": "اضغط زر المشاركة {icon} ثم «إضافة إلى الشاشة الرئيسية».",
   "where": [
-   "app/api/download.py:64"
+   "app/api/download.py:67"
   ],
   "client": false,
   "plural": false
@@ -1608,7 +1625,7 @@
  {
   "id": "افتح {app} من الأيقونة الجديدة وسجّل الدخول.",
   "where": [
-   "app/api/download.py:72"
+   "app/api/download.py:75"
   ],
   "client": false,
   "plural": false
@@ -1616,7 +1633,15 @@
  {
   "id": "افتح {site} في Safari.",
   "where": [
-   "app/api/download.py:63"
+   "app/api/download.py:66"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "افتح التطبيق للمتابعة.",
+  "where": [
+   "app/main.py:296"
   ],
   "client": false,
   "plural": false
@@ -1624,7 +1649,7 @@
  {
   "id": "افتح الملف {file} من الإشعارات أو من «التنزيلات».",
   "where": [
-   "app/api/download.py:61"
+   "app/api/download.py:64"
   ],
   "client": false,
   "plural": false
@@ -1904,7 +1929,7 @@
  {
   "id": "الإصدار {version_name} من تطبيق {app} متاح (لديك {mine}).",
   "where": [
-   "static/js/native.js:52"
+   "static/js/native.js:61"
   ],
   "client": true,
   "plural": false
@@ -1912,7 +1937,7 @@
  {
   "id": "الإصدار {version}",
   "where": [
-   "app/api/download.py:51"
+   "app/api/download.py:54"
   ],
   "client": false,
   "plural": false
@@ -1991,8 +2016,8 @@
  {
   "id": "البريد الإلكتروني غير صالح.",
   "where": [
-   "app/services/auth.py:67",
-   "app/services/auth.py:70",
+   "app/services/auth.py:68",
+   "app/services/auth.py:71",
    "app/services/password_reset.py:94"
   ],
   "client": false,
@@ -2423,7 +2448,7 @@
  {
   "id": "الطلب كبير جدًا.",
   "where": [
-   "app/main.py:291"
+   "app/main.py:300"
   ],
   "client": false,
   "plural": false
@@ -2496,7 +2521,7 @@
  {
   "id": "العودة إلى {app}",
   "where": [
-   "app/api/download.py:115",
+   "app/api/download.py:118",
    "app/api/policies.py:75"
   ],
   "client": false,
@@ -2764,7 +2789,7 @@
  {
   "id": "امسح الرمز بكاميرا هاتفك لفتح هذه الصفحة:",
   "where": [
-   "app/api/download.py:78"
+   "app/api/download.py:81"
   ],
   "client": false,
   "plural": false
@@ -2772,7 +2797,7 @@
  {
   "id": "انتظر قليلًا قبل المحاولة مرة أخرى.",
   "where": [
-   "app/services/auth.py:202"
+   "app/services/auth.py:207"
   ],
   "client": false,
   "plural": false
@@ -2798,7 +2823,9 @@
  {
   "id": "انتهت صلاحية التحقق. أعد المحاولة.",
   "where": [
-   "app/security/pow.py:92"
+   "app/security/pow.py:92",
+   "app/services/access.py:86",
+   "app/services/access.py:88"
   ],
   "client": false,
   "plural": false
@@ -2832,7 +2859,7 @@
  {
   "id": "انتهت صلاحية جلسة تسجيل الدخول. أعد المحاولة.",
   "where": [
-   "app/services/auth.py:306"
+   "app/services/auth.py:314"
   ],
   "client": false,
   "plural": false
@@ -2904,7 +2931,7 @@
  {
   "id": "بريد حساب Google غير مؤكد.",
   "where": [
-   "app/services/auth.py:308"
+   "app/services/auth.py:316"
   ],
   "client": false,
   "plural": false
@@ -2920,7 +2947,7 @@
  {
   "id": "بصمة الملف SHA-256 (للتحقق)",
   "where": [
-   "app/api/download.py:56"
+   "app/api/download.py:59"
   ],
   "client": false,
   "plural": false
@@ -3056,6 +3083,14 @@
   "plural": false
  },
  {
+  "id": "تحديث إلزامي",
+  "where": [
+   "static/js/native.js:60"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "تحديث الأسعار",
   "where": [
    "static/js/views/market.js:115"
@@ -3074,7 +3109,7 @@
  {
   "id": "تحديث متوفر",
   "where": [
-   "static/js/native.js:51"
+   "static/js/native.js:60"
   ],
   "client": true,
   "plural": false
@@ -3106,7 +3141,7 @@
  {
   "id": "تحميل {app}",
   "where": [
-   "app/api/download.py:59"
+   "app/api/download.py:62"
   ],
   "client": false,
   "plural": false
@@ -3114,7 +3149,7 @@
  {
   "id": "تحميل التحديث",
   "where": [
-   "static/js/native.js:55"
+   "static/js/native.js:65"
   ],
   "client": true,
   "plural": false
@@ -3138,7 +3173,7 @@
  {
   "id": "تحميل تطبيق أندرويد (APK)",
   "where": [
-   "app/api/download.py:54"
+   "app/api/download.py:57"
   ],
   "client": false,
   "plural": false
@@ -3197,7 +3232,7 @@
  {
   "id": "تسجيل الدخول عبر Google غير مفعّل.",
   "where": [
-   "app/services/auth.py:293"
+   "app/services/auth.py:301"
   ],
   "client": false,
   "plural": false
@@ -3230,7 +3265,7 @@
  {
   "id": "تطبيق أندرويد غير متاح حاليًا. يمكنك استخدام الموقع مباشرة.",
   "where": [
-   "app/api/download.py:58"
+   "app/api/download.py:61"
   ],
   "client": false,
   "plural": false
@@ -3271,7 +3306,7 @@
  {
   "id": "تعذّر إنشاء الحساب. حاول مرة أخرى.",
   "where": [
-   "app/services/auth.py:332"
+   "app/services/auth.py:346"
   ],
   "client": false,
   "plural": false
@@ -3294,11 +3329,29 @@
   "plural": false
  },
  {
+  "id": "تعذّر التحقق من التطبيق",
+  "where": [
+   "app/api/download.py:140"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "تعذّر التحقق من التطبيق على هذا الجهاز.",
+  "where": [
+   "app/api/app_access.py:90",
+   "app/api/app_access.py:108",
+   "app/api/app_access.py:110"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "تعذّر التحقق من حساب Google.",
   "where": [
-   "app/services/auth.py:295",
-   "app/services/auth.py:304",
-   "app/services/auth.py:301"
+   "app/services/auth.py:303",
+   "app/services/auth.py:312",
+   "app/services/auth.py:309"
   ],
   "client": false,
   "plural": false
@@ -3527,7 +3580,7 @@
  {
   "id": "تم إنشاء عدد كبير من الحسابات من هذه الشبكة. حاول لاحقًا.",
   "where": [
-   "app/services/auth.py:139"
+   "app/services/auth.py:140"
   ],
   "client": false,
   "plural": false
@@ -3543,8 +3596,8 @@
  {
   "id": "تم إيقاف هذا الحساب بسبب مخالفة شروط الاستخدام.",
   "where": [
-   "app/services/auth.py:276",
-   "app/services/auth.py:315"
+   "app/services/auth.py:281",
+   "app/services/auth.py:323"
   ],
   "client": false,
   "plural": false
@@ -3870,7 +3923,7 @@
  {
   "id": "حدث خطأ غير متوقع. حاول مرة أخرى.",
   "where": [
-   "app/main.py:336"
+   "app/main.py:345"
   ],
   "client": false,
   "plural": false
@@ -3878,9 +3931,17 @@
  {
   "id": "حدث خطأ. حاول مرة أخرى.",
   "where": [
-   "static/js/api.js:55"
+   "static/js/api.js:56"
   ],
   "client": true,
+  "plural": false
+ },
+ {
+  "id": "حدّث التطبيق",
+  "where": [
+   "app/api/download.py:137"
+  ],
+  "client": false,
   "plural": false
  },
  {
@@ -4081,9 +4142,17 @@
   "plural": false
  },
  {
+  "id": "حمّل التطبيق",
+  "where": [
+   "app/api/download.py:134"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "حمّل تطبيق {app} لأندرويد أو أضفه إلى شاشة iPhone الرئيسية.",
   "where": [
-   "app/api/download.py:60"
+   "app/api/download.py:63"
   ],
   "client": false,
   "plural": false
@@ -4399,7 +4468,7 @@
  {
   "id": "رمز QR لصفحة التحميل",
   "where": [
-   "app/api/download.py:35"
+   "app/api/download.py:36"
   ],
   "client": false,
   "plural": false
@@ -4597,7 +4666,7 @@
    "static/js/views/auth.js:181",
    "static/js/views/auth.js:279",
    "static/js/views/profile.js:287",
-   "app/api/download.py:115"
+   "app/api/download.py:118"
   ],
   "client": true,
   "plural": false
@@ -4648,7 +4717,7 @@
    "static/js/privacy.js:11",
    "static/js/views/auth.js:180",
    "static/js/views/membership.js:142",
-   "app/api/download.py:115"
+   "app/api/download.py:118"
   ],
   "client": true,
   "plural": false
@@ -4778,9 +4847,11 @@
  {
   "id": "طلب غير صالح.",
   "where": [
+   "app/api/app_access.py:60",
+   "app/api/app_access.py:58",
    "app/api/uploads.py:77",
-   "app/main.py:326",
-   "app/services/auth.py:110",
+   "app/main.py:335",
+   "app/services/auth.py:111",
    "app/services/email_codes.py:43",
    "app/services/engagement.py:195",
    "app/services/ideas.py:240",
@@ -4800,8 +4871,8 @@
  {
   "id": "طلب غير مسموح.",
   "where": [
-   "app/main.py:296",
-   "app/main.py:299"
+   "app/main.py:305",
+   "app/main.py:308"
   ],
   "client": false,
   "plural": false
@@ -4967,9 +5038,17 @@
   "plural": false
  },
  {
+  "id": "على أندرويد يعمل {app} من التطبيق فقط. حمّله من الزر أدناه وثبّته، ثم افتحه وسجّل الدخول بحسابك نفسه.",
+  "where": [
+   "app/api/download.py:135"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "على جهاز آخر؟",
   "where": [
-   "app/api/download.py:77"
+   "app/api/download.py:80"
   ],
   "client": false,
   "plural": false
@@ -5069,8 +5148,8 @@
   "where": [
    "app/api/i18n.py:22",
    "app/errors.py:23",
-   "app/main.py:287",
-   "app/main.py:373",
+   "app/main.py:289",
+   "app/main.py:383",
    "app/services/payment_check.py:361"
   ],
   "client": false,
@@ -5129,7 +5208,7 @@
   "id": "فشل التحقق من أنك لست روبوتًا. أعد المحاولة.",
   "where": [
    "app/security/pow.py:66",
-   "app/services/auth.py:148"
+   "app/services/auth.py:149"
   ],
   "client": false,
   "plural": false
@@ -5313,7 +5392,7 @@
  {
   "id": "كلمة المرور ضعيفة جدًا. اختر كلمة مرور أقوى.",
   "where": [
-   "app/services/auth.py:85"
+   "app/services/auth.py:86"
   ],
   "client": false,
   "plural": false
@@ -5321,7 +5400,7 @@
  {
   "id": "كلمة المرور طويلة جدًا.",
   "where": [
-   "app/services/auth.py:83"
+   "app/services/auth.py:84"
   ],
   "client": false,
   "plural": false
@@ -5329,7 +5408,7 @@
  {
   "id": "كلمة المرور غير صالحة.",
   "where": [
-   "app/services/auth.py:76"
+   "app/services/auth.py:77"
   ],
   "client": false,
   "plural": false
@@ -5348,7 +5427,7 @@
   "where": [
    "static/js/views/auth.js:134",
    "static/js/views/auth.js:196",
-   "app/services/auth.py:80"
+   "app/services/auth.py:81"
   ],
   "client": true,
   "plural": true
@@ -5366,7 +5445,7 @@
   "where": [
    "static/js/views/auth.js:135",
    "static/js/views/auth.js:194",
-   "app/services/auth.py:78"
+   "app/services/auth.py:79"
   ],
   "client": true,
   "plural": false
@@ -5604,6 +5683,14 @@
   "plural": false
  },
  {
+  "id": "لا يمكن متابعة استخدام التطبيق قبل التحديث. يبقى حسابك وبياناتك كما هي.",
+  "where": [
+   "static/js/native.js:62"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "لا يمكن نشر هذه الصورة: تبدو مخالفة لإرشادات المجتمع.",
   "where": [
    "static/js/media-pick.js:158",
@@ -5696,7 +5783,7 @@
  {
   "id": "لاحقًا",
   "where": [
-   "static/js/native.js:56",
+   "static/js/native.js:66",
    "static/js/onboarding.js:109"
   ],
   "client": true,
@@ -5799,6 +5886,14 @@
    "static/js/views/chat.js:243"
   ],
   "client": true,
+  "plural": false
+ },
+ {
+  "id": "لم نتمكن من التحقق من هذا التطبيق على جهازك. تأكد من اتصالك بالإنترنت وأعد المحاولة. إن تكرر ذلك فحمّل التطبيق من جديد من هذه الصفحة.",
+  "where": [
+   "app/api/download.py:141"
+  ],
+  "client": false,
   "plural": false
  },
  {
@@ -5918,7 +6013,7 @@
  {
   "id": "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك.",
   "where": [
-   "app/main.py:84"
+   "app/main.py:85"
   ],
   "client": false,
   "plural": false
@@ -5926,7 +6021,7 @@
  {
   "id": "مجتمع للمتداولين: أخبار العملات الرقمية والتحليلات والأفكار، وبياناتك محمية.",
   "where": [
-   "app/api/download.py:104"
+   "app/api/download.py:107"
   ],
   "client": false,
   "plural": false
@@ -6621,7 +6716,7 @@
  {
   "id": "هذا البريد مسجّل بكلمة مرور. سجّل الدخول بالبريد وكلمة المرور.",
   "where": [
-   "app/services/auth.py:322"
+   "app/services/auth.py:333"
   ],
   "client": false,
   "plural": false
@@ -6629,8 +6724,8 @@
  {
   "id": "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.",
   "where": [
-   "app/services/auth.py:163",
-   "app/services/auth.py:172"
+   "app/services/auth.py:167",
+   "app/services/auth.py:176"
   ],
   "client": false,
   "plural": false
@@ -6754,6 +6849,14 @@
   "plural": false
  },
  {
+  "id": "وصل هذا الجهاز إلى الحد الأقصى من الحسابات.",
+  "where": [
+   "app/services/access.py:223"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "وصلت",
   "where": [
    "static/js/views/chat.js:16"
@@ -6843,6 +6946,14 @@
   "plural": false
  },
  {
+  "id": "يتوفر إصدار جديد من {app} وهو إلزامي. حمّله وثبّته فوق التطبيق الحالي: يبقى حسابك وبياناتك كما هي.",
+  "where": [
+   "app/api/download.py:138"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام {app}.",
   "where": [
    "static/js/onboarding.js:70",
@@ -6863,7 +6974,7 @@
  {
   "id": "يجب تأكيد أن عمرك 18 سنة أو أكثر والموافقة على شروط الاستخدام.",
   "where": [
-   "app/services/auth.py:154"
+   "app/services/auth.py:155"
   ],
   "client": false,
   "plural": false
@@ -6871,7 +6982,7 @@
  {
   "id": "يحتاج {app} إلى تفعيل JavaScript.",
   "where": [
-   "app/main.py:81"
+   "app/main.py:82"
   ],
   "client": false,
   "plural": false
@@ -6903,7 +7014,7 @@
  {
   "id": "يرجى تسجيل الدخول.",
   "where": [
-   "app/api/deps.py:32"
+   "app/api/deps.py:37"
   ],
   "client": false,
   "plural": false

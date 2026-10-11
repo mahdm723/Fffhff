@@ -45,7 +45,8 @@ def start_server(port: int, **extra_env: str) -> tuple[subprocess.Popen, str, st
     db_url = f"sqlite:///{tmp}/e2e.db"
     env = dict(os.environ, DATABASE_URL=db_url, SECRET_KEY=SECRET, ENV="development", CLEANUP_INTERVAL="0",
                LOG_LEVEL="WARNING", REDIS_URL="", GOOGLE_CLIENT_ID="", MAX_ACCOUNTS_PER_IP="10", ADMIN_PATH=ADMIN_PATH,
-               MARKET_REFRESH_SECONDS="0", CHAIN_CHECK_ENABLED="false")
+               MARKET_REFRESH_SECONDS="0", CHAIN_CHECK_ENABLED="false", WEB_DESKTOP_ACCESS="true",
+               ATTESTATION_STATUS_URL="")
     env.update(extra_env)
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port),
                              "--no-access-log", "--timeout-graceful-shutdown", "2"], cwd=ROOT, env=env)
@@ -60,8 +61,13 @@ def start_server(port: int, **extra_env: str) -> tuple[subprocess.Popen, str, st
     raise RuntimeError("server did not start")
 
 
+IPHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+             "Version/18.0 Mobile/15E148 Safari/604.1")
+
+
 def api_client(base: str) -> httpx.Client:
-    return httpx.Client(base_url=base, headers={"X-DZ-Requested": "1"}, timeout=20)
+    # V6 phase 14: the seeding scripts act as an iPhone (a computer may be kept out by WEB_DESKTOP_ACCESS)
+    return httpx.Client(base_url=base, headers={"X-DZ-Requested": "1", "User-Agent": IPHONE_UA}, timeout=20)
 
 
 def challenge(c: httpx.Client, purpose: str) -> dict:

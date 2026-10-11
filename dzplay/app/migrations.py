@@ -52,6 +52,7 @@ def backfill(engine: Engine) -> dict:
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_public_id ON users (public_id)"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_conv_direct_key ON conversations (direct_key)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_name_norm ON users (name_norm)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_registered_device_id ON users (registered_device_id)"))
         # V6 phase 5: ledger idempotency (one entry per source and kind) on databases created before it
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_ledger_source ON ledger_entries "
                           "(account, source_type, source_id, kind)"))

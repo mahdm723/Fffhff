@@ -16,8 +16,13 @@ def get_state(request: Request) -> AppState:
 
 
 def client_context(request: Request) -> ClientContext:
+    from app.services import access
+
     st = get_state(request)
-    return make_context(st.settings, client_ip(request, st.settings))
+    ctx = make_context(st.settings, client_ip(request, st.settings))
+    token = access.read_token(st.settings, request.cookies.get(access.APP_COOKIE))
+    ctx.device_id = token.device_id if token else None  # V6 phase 14: the attested phone
+    return ctx
 
 
 def session_token(request: Request) -> str | None:

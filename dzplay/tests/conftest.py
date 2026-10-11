@@ -53,6 +53,8 @@ def make_settings(tmp_path, **overrides) -> Settings:
         MEDIA_TICK_SECONDS=0,  # tests run media_items.tick explicitly
         MARKET_REFRESH_SECONDS=0,  # no Bybit calls from tests (tests/test_market.py uses a fake transport)
         CHAIN_CHECK_ENABLED=False,  # V6 phase 13: no TronGrid / BSC calls (tests/test_chain.py uses a fake transport)
+        WEB_DESKTOP_ACCESS=True,  # V6 phase 14: the test clients are not phones (tests/test_access.py checks the gate)
+        ATTESTATION_STATUS_URL="",  # no call to Google's revocation list
         CHAIN_TICK_SECONDS=0,  # tests run payment_check.due / run explicitly
     )
     base.update(overrides)

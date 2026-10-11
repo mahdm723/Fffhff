@@ -12,6 +12,8 @@ import android.os.Build;
 /**
  * The new-message notification (Firebase builds only). It never shows who wrote or what:
  * only "لديك رسالة جديدة على <appName>" — the app shows the rest after it opens.
+ * V6 phase 14 (3.2.0): the server sends that line in the account's language (title / body); without them (an older
+ * server) the phone's language is used (values-fr, values-en).
  * V6 (3.0.0): calls were removed, so the old "المكالمات الواردة" channel is deleted on upgrade.
  */
 final class Notifications {
@@ -35,6 +37,10 @@ final class Notifications {
     }
 
     static void showMessage(Context c) {
+        showMessage(c, null, null);
+    }
+
+    static void showMessage(Context c, String title, String body) {
         channels(c);
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         if (nm == null) {
@@ -46,11 +52,20 @@ final class Notifications {
         PendingIntent tap = PendingIntent.getActivity(c, 5, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, MESSAGE_CHANNEL) : new Notification.Builder(c);
         b.setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(c.getString(R.string.appName))
-                .setContentText(c.getString(R.string.newMessage, c.getString(R.string.appName)))
+                .setContentTitle(clean(title, c.getString(R.string.appName)))
+                .setContentText(clean(body, c.getString(R.string.newMessage, c.getString(R.string.appName))))
                 .setAutoCancel(true)
                 .setContentIntent(tap);
         nm.notify(MESSAGE_ID, b.build());
+    }
+
+    /** A short plain line from the server, else the app's own text. */
+    private static String clean(String text, String fallback) {
+        if (text == null) {
+            return fallback;
+        }
+        String t = text.trim();
+        return t.isEmpty() || t.length() > 120 ? fallback : t;
     }
 
     static void cancelMessage(Context c) {

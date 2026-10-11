@@ -1,6 +1,7 @@
 """V6 phase 10: the Android app — named from gradle.properties (same as APP_NAME), no calls, so no camera,
 microphone, audio routing or full-screen notification; the package id and the published APK stay in step.
-Phase 11c (3.1.0): the new logo — adaptive icon with a monochrome layer, a round icon, the logo on the splash."""
+Phase 11c (3.1.0): the new logo — adaptive icon with a monochrome layer, a round icon, the logo on the splash.
+Phase 14 (3.2.0): the app proves itself with Android Key Attestation (Android 7.0+), texts in three languages."""
 
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ def _props() -> dict[str, str]:
 def test_name_and_version_come_from_gradle_properties():
     p = _props()
     assert p["appName"] == Settings.model_fields["APP_NAME"].default == "DALTA.BIT"
-    assert int(p["appVersionCode"]) >= 7 and p["appVersionName"] == "3.1.0"
+    assert int(p["appVersionCode"]) >= 8 and p["appVersionName"] == "3.2.0"
     gradle = (ANDROID / "app" / "build.gradle").read_text()
     assert "resValue 'string', 'appName', appName" in gradle
     assert "applicationId 'io.dzplay.app'" in gradle  # never changes: updates install over the old app
@@ -68,3 +69,32 @@ def test_the_new_logo_is_the_launcher_round_and_splash_icon():
     assert '<item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>' in v31
     assert (res / "drawable-nodpi" / "splash.png").exists() and not (res / "drawable" / "splash.png").exists()
     assert "@drawable/splash" in (res / "drawable" / "launch_background.xml").read_text()
+
+
+def test_the_app_proves_itself_with_key_attestation():
+    """V6 phase 14 (3.2.0): a hardware key bound to the server's challenge, its chain sent once, later launches sign;
+    the access token becomes the WebView's dz_app cookie; «إعادة المحاولة» / an expired cookie ask for a new proof."""
+    gradle = (ANDROID / "app" / "build.gradle").read_text()
+    assert re.search(r"minSdk 24\b", gradle)  # setAttestationChallenge: Android 7.0
+    attest = (ANDROID / "app" / "src" / "main" / "java" / "io" / "dzplay" / "app" / "AppAttest.java").read_text()
+    for needle in ('"AndroidKeyStore"', "setAttestationChallenge(", "getCertificateChain(", '"/api/app/challenge"',
+                   '"/api/app/attest"', '"/api/app/proof"', '"SHA256withECDSA"', '"dz_app=" + token', "HttpOnly",
+                   '"X-DZ-Requested", "1"'):
+        assert needle in attest, needle
+    for word in ("getImei", "getDeviceId", "Secure.ANDROID_ID", "READ_PHONE_STATE", "AccountManager", "getLine1Number"):
+        assert word not in attest, word  # nothing personal leaves the phone
+    main = (ANDROID / "app" / "src" / "main" / "java" / "io" / "dzplay" / "app" / "MainActivity.java").read_text()
+    assert "public void refreshAccess()" in main and "AppAttest.refresh(" in main
+    js = (ROOT / "static" / "js" / "gate.js").read_text() + (ROOT / "static" / "js" / "api.js").read_text()
+    assert js.count("refreshAccess") >= 4  # the access page's retry button and api.js on app_required
+
+
+def test_android_texts_in_three_languages():
+    res = ANDROID / "app" / "src" / "main" / "res"
+    names = {lang: set(re.findall(r'<string name="(\w+)"', (res / folder / "strings.xml").read_text()))
+             for lang, folder in (("ar", "values"), ("fr", "values-fr"), ("en", "values-en"))}
+    assert names["ar"] == names["fr"] == names["en"] >= {"lang", "offline", "retry", "newMessage", "shareTitle"}
+    assert '>fr<' in (res / "values-fr" / "strings.xml").read_text()
+    notifications = (ANDROID / "app" / "src" / "main" / "java" / "io" / "dzplay" / "app" / "Notifications.java").read_text()
+    service = (ANDROID / "app" / "src" / "fcm" / "java" / "io" / "dzplay" / "app" / "MessagingService.java").read_text()
+    assert 'getData().get("title")' in service and 'getData().get("body")' in service and "clean(title" in notifications

@@ -40,6 +40,8 @@ import android.widget.FrameLayout;
  * - V6 (3.0.0): no calls any more, so no camera, microphone, audio routing or full-screen
  *   notification; any camera / microphone request from a page is refused.
  * - With Firebase (optional build), a new-message notification arrives while the app is closed.
+ * - V6 phase 14 (3.2.0): the app proves itself to the server with Android Key Attestation (AppAttest); Android
+ *   browsers only see the download page. Android 7.0 or newer (minSdk 24).
  */
 public class MainActivity extends Activity {
 
@@ -143,8 +145,12 @@ public class MainActivity extends Activity {
         // The APK on /download (app update) is handed to the system downloader / browser.
         web.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> openOutside(Uri.parse(url)));
 
+        // V6 phase 14: the server lets in only an app that proved itself (AppAttest → the dz_app cookie)
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
+        } else if (AppAttest.due(this)) {
+            String start = startUrl(getIntent());
+            AppAttest.refresh(this, ok -> web.loadUrl(start)); // failed: the server shows «تعذّر التحقق» + retry
         } else {
             web.loadUrl(startUrl(getIntent()));
         }
@@ -165,6 +171,9 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         Notifications.cancelMessage(this); // the app is open: the conversation shows the rest
+        if (web != null && web.getUrl() != null && AppAttest.due(this)) {
+            AppAttest.refresh(this, ok -> { }); // renewed before it expires (an expired one: the page asks, see below)
+        }
     }
 
     @Override
@@ -307,14 +316,15 @@ public class MainActivity extends Activity {
     }
 
     private void showOffline() {
-        String page = "<!doctype html><html lang='ar' dir='rtl'><head><meta charset='utf-8'>"
+        String lang = getString(R.string.lang); // the texts below: ar (default), fr or en, as the phone's language
+        String page = "<!doctype html><html lang='" + lang + "' dir='" + ("ar".equals(lang) ? "rtl" : "ltr") + "'><head><meta charset='utf-8'>"
             + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             + "<style>body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;"
             + "justify-content:center;gap:14px;background:#0c0e18;color:#eef0f8;font-family:sans-serif;text-align:center;padding:24px}"
             + "b{font-size:30px}a{background:linear-gradient(135deg,#ff8a5c,#ff5f8a);color:#fff;padding:12px 26px;"
             + "border-radius:16px;text-decoration:none;font-weight:bold}p{color:#b4b9cc}</style></head><body>"
-            + "<b>" + getString(R.string.appName) + "</b><p>تعذّر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.</p>"
-            + "<a href='" + HOME + "'>إعادة المحاولة</a></body></html>";
+            + "<b>" + getString(R.string.appName) + "</b><p>" + getString(R.string.offline) + "</p>"
+            + "<a href='" + HOME + "'>" + getString(R.string.retry) + "</a></body></html>";
         onOwnPage = false;
         web.loadDataWithBaseURL(null, page, "text/html", "utf-8", null);
     }
@@ -351,6 +361,16 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public int versionCode() {
             return BuildConfig.VERSION_CODE;
+        }
+
+        /** V6 phase 14: the server asked for the app's proof (access page «إعادة المحاولة», or an expired cookie
+         *  mid-session): prove it again, then reload the page. */
+        @JavascriptInterface
+        public void refreshAccess() {
+            if (!onOwnPage) {
+                return;
+            }
+            runOnUiThread(() -> AppAttest.refresh(MainActivity.this, ok -> web.reload()));
         }
 
         @JavascriptInterface

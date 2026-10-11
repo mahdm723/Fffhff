@@ -1,5 +1,9 @@
-"""V5 phase H: inside the Android app (user agent "DZPLAYApp/x.y.z"), an older version is told once that
-the new APK is on /download, with the release notes; the current version is not bothered.
+"""V5 phase H: inside the Android app (user agent "DZPLAYApp/x.y.z"), an older version is told that the new APK is
+on /download, with the release notes; the current version is not bothered.
+
+V6 phase 14: every update is mandatory (version.json min_version_code = the published version): the sheet cannot be
+closed and comes back on every launch. The server's own refusal of old apps (the «حدّث التطبيق» page) is in
+run_access_e2e.py; this runs with the safety valve off (ANDROID_APP_GATE=false) so the in-app sheet is what shows.
 
     python e2e/run_update_e2e.py [--shots DIR]
 """
@@ -32,7 +36,7 @@ def main() -> int:
     meta = json.loads((ROOT / "static" / "download" / "version.json").read_text(encoding="utf-8"))
     latest = meta["version_name"]
     tmp = tempfile.mkdtemp(prefix="dz-update-e2e-")
-    proc, base = start_server(args.port, {"DATABASE_URL": f"sqlite:///{tmp}/update.db"})
+    proc, base = start_server(args.port, {"DATABASE_URL": f"sqlite:///{tmp}/update.db", "ANDROID_APP_GATE": "false"})
     run = Run(base, Path(args.shots))
     chromium = os.environ.get("PW_CHROMIUM", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
     try:
@@ -44,22 +48,26 @@ def main() -> int:
                                        color_scheme="dark").new_page()
             run.watch(page, "old")
             register(run, page, f"update{int(time.time())}@example.com")
-            sheet = page.locator(".sheet", has_text="تحديث متوفر")
+            sheet = page.locator(".sheet", has_text="تحديث إلزامي")
             expect(sheet).to_be_visible(timeout=10000)
             expect(sheet).to_contain_text(f"الإصدار {latest}")
             expect(sheet).to_contain_text("(لديك 2.0.0)")
+            expect(sheet).to_contain_text("لا يمكن متابعة استخدام التطبيق قبل التحديث")
             for note in meta["notes"][:5]:
                 expect(sheet.locator(".update-notes li", has_text=note)).to_be_visible()
             assert "null" not in sheet.inner_text()
-            expect(sheet.get_by_role("link", name="تحميل التحديث")).to_have_attribute("href", "/download")
-            run.shot(page, "h01-update-available")
-            run.step("2.0.0 sees «تحديث متوفر» with the notes and the /download link")
-            sheet.get_by_role("button", name="لاحقًا").click()
-            expect(sheet).to_be_hidden()
+            expect(sheet.get_by_role("link", name="تحميل التحديث")).to_have_attribute("href", "/download/dzplay.apk")
+            expect(sheet.get_by_role("button", name="لاحقًا")).to_have_count(0)
+            run.shot(page, "h01-update-mandatory")
+            run.step("2.0.0 sees «تحديث إلزامي» with the notes and the APK link, no «لاحقًا»")
+            page.keyboard.press("Escape")
+            page.locator(".sheet-backdrop").click(position={"x": 10, "y": 10})
+            page.evaluate("location.hash = '#/messages'")
+            page.wait_for_timeout(500)
+            expect(sheet).to_be_visible()
             page.reload()
-            page.wait_for_timeout(2500)
-            expect(page.locator(".sheet", has_text="تحديث متوفر")).to_have_count(0)
-            run.step("shown once only")
+            expect(page.locator(".sheet", has_text="تحديث إلزامي")).to_be_visible(timeout=10000)
+            run.step("it cannot be closed (Escape, outside, another page) and comes back on every launch")
 
             print("Current app → nothing")
             cur = browser.new_context(**MOBILE, user_agent=UA.format(v=latest), locale="ar",

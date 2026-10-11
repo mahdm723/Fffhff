@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from app import clock
 from app.models import Conversation
 from app.security.sessions import resolve_session
+from app.services import access
 
 router = APIRouter()
 log = logging.getLogger("dzplay.ws")
@@ -113,6 +114,9 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     st = ws.app.state.dz
     if not _origin_allowed(ws):  # blocks cross-site WebSocket hijacking
         await ws.close(code=4403)
+        return
+    if access.decision(st.settings, access.classify(st.settings, ws.headers.get("user-agent", ""), ws.cookies)):
+        await ws.close(code=4403)  # V6 phase 14: the same gate as the pages and the API (services/access.py)
         return
     token = ws.cookies.get(st.settings.SESSION_COOKIE_NAME)
 

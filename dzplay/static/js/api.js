@@ -52,9 +52,26 @@ async function doRequest(method, path, body) {
   try { data = await res.json(); } catch { /* empty body */ }
   if (!res.ok) {
     const err = (data && data.error) || {};
+    if (res.status === 403 && err.code === 'app_required') leaveForGate();
     throw new ApiError(res.status, err.code || 'error', err.message || t('حدث خطأ. حاول مرة أخرى.'), err.retry_after ?? null);
   }
   return data;
+}
+
+// V6 phase 14: this client may not use the app (an Android browser, an old or unproven app, a computer). Our app
+// proves itself again (its access cookie may have expired); anything else reloads into the server's access page,
+// without the offline copy that would otherwise keep showing the app.
+let leaving = false;
+function leaveForGate() {
+  if (leaving) return;
+  leaving = true;
+  const native = window.DZPLAYAndroid;
+  if (native && typeof native.refreshAccess === 'function') { native.refreshAccess(); return; }
+  const unregister = 'serviceWorker' in navigator
+    ? navigator.serviceWorker.getRegistrations().then((regs) => Promise.all(regs.map((r) => r.unregister())))
+    : Promise.resolve();
+  const clear = window.caches ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))) : Promise.resolve();
+  Promise.all([unregister, clear]).catch(() => {}).finally(() => location.replace('/'));
 }
 
 export const api = {

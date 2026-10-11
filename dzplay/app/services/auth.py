@@ -47,6 +47,7 @@ class ClientContext:
     ip: str
     ip_hash: str
     trusted: bool
+    device_id: str | None = None  # V6 phase 14: the attested phone (our APK), when there is one
 
 
 def make_context(settings: Settings, ip: str) -> ClientContext:
@@ -156,6 +157,9 @@ def register(db: Session, settings: Settings, ctx: ClientContext, *, email: obje
 
     name = names.require_name(display_name, settings)
     _check_registration_quota(db, settings, ctx)
+    from app.services import access
+
+    access.check_signup_device(db, settings, ctx.device_id)  # V6 phase 14: accounts per attested phone
     _check_antibot(db, settings, ctx, "register", antibot_payload)
 
     if db.scalar(select(User.id).where(User.email == email_n)):
@@ -171,6 +175,7 @@ def register(db: Session, settings: Settings, ctx: ClientContext, *, email: obje
     except IntegrityError:
         raise AppError(409, "email_taken", "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.") from None
     log_event(db, "register", ctx, user.id)
+    access.seen(db, user, ctx.device_id, signup=True)
     return user
 
 
@@ -279,6 +284,9 @@ def login(db: Session, settings: Settings, ctx: ClientContext, *, email: object,
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(password)
     log_event(db, "login_success", ctx, user.id)
+    from app.services import access
+
+    access.seen(db, user, ctx.device_id)
     return user
 
 
@@ -314,6 +322,9 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
         if user.status == "banned":
             raise AppError(403, "account_banned", "تم إيقاف هذا الحساب بسبب مخالفة شروط الاستخدام.")
         log_event(db, "login_success_google", ctx, user.id)
+        from app.services import access
+
+        access.seen(db, user, ctx.device_id)
         return user
 
     if db.scalar(select(User.id).where(User.email == email_n)):
@@ -323,6 +334,9 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
                        "هذا البريد مسجّل بكلمة مرور. سجّل الدخول بالبريد وكلمة المرور.")
 
     _check_registration_quota(db, settings, ctx)
+    from app.services import access
+
+    access.check_signup_device(db, settings, ctx.device_id)
     user = User(email=email_n, google_sub=sub, password_hash=None, registration_ip_hash=ctx.ip_hash,
                 privacy_ack_version=cms.ack_version(db), onboarding_required=True)
     db.add(user)
@@ -331,6 +345,7 @@ def google_login(db: Session, settings: Settings, ctx: ClientContext, *, credent
     except IntegrityError:
         raise AppError(409, "email_taken", "تعذّر إنشاء الحساب. حاول مرة أخرى.") from None
     log_event(db, "register", ctx, user.id, "google")
+    access.seen(db, user, ctx.device_id, signup=True)
     return user
 
 

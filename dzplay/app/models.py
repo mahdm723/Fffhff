@@ -118,6 +118,8 @@ class User(Base):
     device_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
     appearance: Mapped[str | None] = mapped_column(Text, nullable=True)  # V6 phase 8: JSON {mode, accent, font}
     language: Mapped[str | None] = mapped_column(String(5), nullable=True)  # V6 phase 12: ar|fr|en (NULL = not chosen yet)
+    # V6 phase 14: the attested phone the account was created on (MAX_ACCOUNTS_PER_DEVICE)
+    registered_device_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 
 
 class NameHistory(Base):
@@ -623,6 +625,35 @@ class MembershipTx(Base):
     next_check_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+
+
+class AppDevice(Base):
+    """V6 phase 14: a phone where our APK proved itself (Android Key Attestation). The key lives in the phone's secure
+    hardware; later launches sign a challenge with it. Nothing personal: a key, a security level, versions."""
+
+    __tablename__ = "app_devices"
+    __table_args__ = (Index("ux_app_devices_key", "key_id", unique=True),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    key_id: Mapped[str] = mapped_column(String(64))  # sha256 of the public key (hex)
+    public_key: Mapped[str] = mapped_column(Text)  # SubjectPublicKeyInfo, base64
+    security_level: Mapped[str] = mapped_column(String(12))  # tee | strongbox
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: attestation / os / patch / boot state
+    version_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class UserDevice(Base):
+    """V6 phase 14: which accounts used which attested phone (registration and sign-ins)."""
+
+    __tablename__ = "user_devices"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(32), primary_key=True, index=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
 class MembershipRefund(Base):

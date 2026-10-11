@@ -36,6 +36,8 @@ def info() -> dict | None:
             meta = {}
         data = {
             "version_code": int(meta.get("version_code", 0)),
+            # V6 phase 14: every update is mandatory — older apps get the «update» page (and a blocking screen)
+            "min_version_code": int(meta.get("min_version_code", meta.get("version_code", 0))),
             "version_name": str(meta.get("version_name", "")),
             "released": meta.get("released"),
             "min_android": meta.get("min_android", "6.0"),

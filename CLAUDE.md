@@ -72,6 +72,13 @@
     - **يعرض النتيجة فقط ولا يغيّر `status` أبدًا.** القرار للمالك (قبول/رفض/حظر)، والاختبارات تفرض ذلك.
     - الفحص المتكرر في `main._chain_loop` (حجز ذري لكل صف). الشبكة تُقرأ خارج أي معاملة.
     - في الاختبارات: `chain_transport` (MockTransport)، و`CHAIN_CHECK_ENABLED=False` افتراضيًا، و`e2e/fake_chain.py`.
+  - **الوصول للتطبيق (المرحلة 14):**
+    - `services/access.py`: من يفتح التطبيق. أندرويد من الـAPK فقط، وiPhone/iPad من المتصفح (iPad يُعرف باللمس عبر `js/gate.js` وكوكي `dz_touch`)، والكمبيوتر حسب `WEB_DESKTOP_ACCESS`. اللوحة و`/download` والسياسات و`/api/app/*` مفتوحة دائمًا.
+    - البوابة في `security_middleware` و`/api/ws`: الصفحات ← صفحة وصول من `download.gate_page`، والـAPI ← 403 `app_required`.
+    - إثبات الـAPK: `security/attestation.py` (Key Attestation حتى جذور Google في `attestation_roots.py`، والحزمة وبصمة شهادة التوقيع) و`api/app_access.py` ← توكن موقّع في كوكي `dz_app`. الـUser-Agent وحده لا يكفي أبدًا.
+    - ربط الجهاز: `app_devices`، و`user_devices`، و`users.registered_device_id`، والحد `MAX_ACCOUNTS_PER_DEVICE`.
+    - صمام الأمان `ANDROID_APP_GATE` من اللوحة. كل تحديث للتطبيق إلزامي (`version.json` → `min_version_code`).
+    - في الاختبارات: `WEB_DESKTOP_ACCESS=True` (المتصفحات فيها حواسيب)، وسلاسل شهادات مصطنعة من جذر اختباري (`tests/test_access.py`).
 - **اللغات (V6 المرحلة 12):** العربية (الأصل والاحتياط) والفرنسية والإنجليزية.
   - **النص العربي هو المفتاح:** `t('…')` في الواجهة (`static/js/i18n.js`)، و`tr('…')`/`N_('…')` في الخادم (`app/i18n/`). رسائل `AppError` تُكتب بالعربية وقيمها في `params` (`{name}`)، ولا تُدمج في النص.
   - الترجمات المرفقة في `app/i18n/fr.json` و`en.json` (وصيغ الجمع العربية في `ar.json`)، ونصوص نظام المحتوى في `app/i18n/content_fr.py` و`content_en.py`.
@@ -148,6 +155,7 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
 
 ### Android
 - **البناء:** CI عند أي تغيير في `dzplay/android/**` (`.github/workflows/android-apk.yml`). الـAPK غير الموقّع يُدفع إلى فرع `android-build`.
+- **الحد الأدنى:** Android 7.0 (minSdk 24) منذ 3.2.0، لأن Key Attestation يحتاجه.
 - **التوقيع:** خارج المستودع بنفس المفتاح دائمًا (alias `dzplay`، شهادة SHA-256 تبدأ بـ`46:15:BE`). **المفتاح لا يُرفع إلى git أبدًا، ولا يتغيّر `applicationId`.**
 - **النشر:**
   - الـAPK الموقّع في `dzplay/static/download/dzplay.apk`، مع `version.json` (`version_code`/`version_name`/`notes`).

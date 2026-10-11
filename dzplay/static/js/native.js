@@ -1,5 +1,6 @@
 // Inside the DZPLAY Android app: register its Firebase token (new-message alerts while the app is closed)
-// and tell the user once when a newer version is on /download.
+// and tell the user when a newer version is on /download. V6 phase 14: every update is mandatory — below
+// min_version_code the sheet cannot be closed (the server refuses the old version anyway: services/access.py).
 import { appName } from './brand.js';
 import { api } from './api.js';
 import { h, isAndroidApp, sheet } from './ui.js';
@@ -20,6 +21,10 @@ export function newer(a, b) { // "2.0.0" > "1.2.0"
     if (d) return d > 0;
   }
   return false;
+}
+
+function appVersionCode() { // 3.2.0+ tells its versionCode; older apps only their name
+  try { return (native() && native().versionCode && Number(native().versionCode())) || 0; } catch { return 0; }
 }
 
 function fcmToken() {
@@ -44,16 +49,21 @@ async function checkUpdate() {
   let rel;
   try { rel = await api.get('/api/app/version'); } catch { return; }
   if (!rel.available || !rel.version_name || !newer(rel.version_name, mine)) return;
+  const code = appVersionCode();
+  const mandatory = code ? code < (rel.min_version_code || 0) : (rel.min_version_code || 0) >= (rel.version_code || 0);
   const key = `dz:update-seen:${rel.version_name}`;
-  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { /* ignore */ }
+  if (!mandatory) {
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { /* ignore */ }
+  }
   sheet((panel, close) => {
     panel.append(...[
-      h('h2', { text: t('تحديث متوفر') }),
+      h('h2', { text: mandatory ? t('تحديث إلزامي') : t('تحديث متوفر') }),
       h('p', { text: t('الإصدار {version_name} من تطبيق {app} متاح (لديك {mine}).', { version_name: rel.version_name, app: appName(), mine }) }),
+      mandatory ? h('p', { class: 'muted', text: t('لا يمكن متابعة استخدام التطبيق قبل التحديث. يبقى حسابك وبياناتك كما هي.') }) : null,
       (rel.notes || []).length ? h('ul', { class: 'update-notes' }, ...rel.notes.slice(0, 5).map((n) => h('li', { text: n }))) : null,
       h('div', { class: 'actions' },
-        h('a', { class: 'btn btn--primary btn--block', href: '/download' }, t('تحميل التحديث')),
-        h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('لاحقًا'))),
+        h('a', { class: 'btn btn--primary btn--block', href: rel.url || '/download' }, t('تحميل التحديث')),
+        mandatory ? null : h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('لاحقًا'))),
     ].filter(Boolean));
-  });
+  }, null, { dismissible: !mandatory });
 }

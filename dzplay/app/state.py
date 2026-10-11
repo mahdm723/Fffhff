@@ -26,6 +26,8 @@ class AppState:
     telegram_transport: object | None = None  # tests only (httpx.MockTransport)
     chain_transport: object | None = None  # tests only: the TronGrid / BSC answers (httpx.MockTransport)
     _chain: object | None = None
+    attestation_roots: set | None = None  # V6 phase 14: None = Google's roots (tests put their own)
+    _revocations: object | None = None
     fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (new-message alerts in the Android app)
     pipeline: object | None = None  # V5 MediaPipeline (user uploads -> worker -> Telegram storage)
 
@@ -78,6 +80,22 @@ class AppState:
 
             self._chain = ChainReader(self.settings, transport=self.chain_transport)
         return self._chain
+
+    def trusted_roots(self) -> set:
+        """V6 phase 14: the public keys an attestation chain must end at (Google's hardware attestation roots)."""
+        if self.attestation_roots is None:
+            from app.security.attestation import google_roots
+
+            self.attestation_roots = google_roots()
+        return self.attestation_roots
+
+    def revoked_serials(self) -> set:
+        """Google's list of revoked attestation certificates (refreshed daily in the background)."""
+        if self._revocations is None:
+            from app.security.attestation import RevocationList
+
+            self._revocations = RevocationList(self.settings.ATTESTATION_STATUS_URL)
+        return self._revocations.current()
 
     def configure_telegram(self, token: str | None, chat_id: str = "", secret: str = "", source: str = "none") -> None:
         """(Re)build the Telegram client + bot live; token None disables the bot.

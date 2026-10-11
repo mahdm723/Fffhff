@@ -1,6 +1,6 @@
 """V6 phase 10b: every screen fits a phone (360 and 390 px wide).
 
-On every page of the app, its main sheets, the policy / download pages and every tab of the panel (with
+On every page of the app, its main sheets, the policy / download / access pages and every tab of the panel (with
 their detail views):
 
 1. the page is never wider than the screen (no horizontal scroll);
@@ -401,6 +401,18 @@ def public_pages(run: Run, browser, base: str, width: int) -> None:
         page.wait_for_timeout(300)
         check(page, f"{width} {path}")
     ctx.close()
+    # V6 phase 14: the access pages (an Android browser, the old app, an app that could not prove itself); the
+    # «computer» page needs WEB_DESKTOP_ACCESS off: run_access_e2e.py checks it the same way
+    android = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
+    for kind, ua in (("android", android), ("update", android + " DZPLAYApp/3.1.0"), ("unverified", android + " DZPLAYApp/3.2.0")):
+        ctx = browser.new_context(viewport={"width": width, "height": 780}, device_scale_factor=2, is_mobile=True,
+                                  has_touch=True, locale=LANG, color_scheme="dark", user_agent=ua)
+        page = ctx.new_page()
+        run.watch(page, f"gate-{kind}-{width}")
+        page.goto(base + "/")
+        expect(page.locator(f'.dl-gate[data-gate="{kind}"]')).to_be_visible()
+        check(page, f"{width} access page {kind}")
+        ctx.close()
 
 
 # ----------------------------------------------------------------------------- panel

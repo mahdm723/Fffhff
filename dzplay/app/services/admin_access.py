@@ -156,8 +156,10 @@ def user_detail(db: Session, user_id: str) -> dict:
         AuthSession.user_id == u.id, AuthSession.expires_at > clock.utcnow())) or 0
     history = db.execute(select(NameHistory).where(NameHistory.user_id == u.id)
                          .order_by(NameHistory.changed_at.desc()).limit(50)).scalars()
+    from app.services.access import user_devices
     from app.services.messaging import privacy_view
     return {
+        "devices": user_devices(db, u),  # V6 phase 14: the attested phones (Android app) of this account
         "user": {"id": u.id, "email": u.email, "team": _team_label(u), "status": u.status,
                  "method": "google" if u.google_sub and not u.password_hash else ("google+email" if u.google_sub else "email"),
                  "created_at": iso(u.created_at), "last_active_at": iso(u.last_active_at), "profile_ref": ref,

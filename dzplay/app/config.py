@@ -129,6 +129,15 @@ class Settings(BaseSettings):
         "46:15:BE:65:23:30:C9:0A:C6:2C:C3:2C:E5:6B:0C:C0:CB:03:2B:8B:37:E7:13:86:0C:66:D0:A0:FA:EC:79:BF"
     )
 
+    # --- V6 phase 14: access to the app ------------------------------------------------------------
+    # Android: only the APK (proved by Android Key Attestation); Android browsers get the «download the app» page.
+    # iPhone / iPad: the browser. Computers: only when WEB_DESKTOP_ACCESS is on. The panel and /download: everywhere.
+    ANDROID_APP_GATE: bool = True  # the safety valve: off = Android browsers are let in again (panel setting)
+    WEB_DESKTOP_ACCESS: bool = False  # computers may use the web app (panel setting)
+    MAX_ACCOUNTS_PER_DEVICE: int = 2  # accounts created from one attested phone (panel setting)
+    APP_TOKEN_HOURS: int = 12  # the app's access cookie (dz_app); the app renews it every few hours
+    ATTESTATION_STATUS_URL: str = "https://android.googleapis.com/attestation/status"  # revoked keys ("" = skip)
+
     # --- admin panel (separate admin accounts + TOTP 2FA) ---------------------
     PUBLIC_URL: str = ""  # https://your-domain (set by the installer); used to register the Telegram webhook
     ADMIN_PATH: str = ""  # secret URL prefix of the panel, e.g. /panel-x7f3k9q2; empty disables the panel

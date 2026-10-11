@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- appName is generated from gradle.properties (appName); %1$s below is that name. -->
+<!-- appName is generated from gradle.properties (appName); %1$s below is that name.
+     The app's texts in Arabic (default); values-fr and values-en follow the phone's language. -->
 <resources>
+    <string name="lang" translatable="false">ar</string>
     <string name="shareTitle">مشاركة %1$s</string>
     <string name="messageChannel">الرسائل الجديدة</string>
     <string name="newMessage">لديك رسالة جديدة على %1$s</string>
+    <string name="offline">تعذّر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.</string>
+    <string name="retry">إعادة المحاولة</string>
 </resources>

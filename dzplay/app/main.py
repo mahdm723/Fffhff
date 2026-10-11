@@ -44,6 +44,7 @@ from app.api import notifications as notifications_api
 from app.api import people as people_api
 from app.api import policies as policies_api
 from app.api import admin_i18n as admin_i18n_api
+from app.api import app_access as app_access_api
 from app.api import posts as posts_api
 from app.api import rewards as rewards_api
 from app.api import telegram as telegram_api
@@ -52,7 +53,7 @@ from app.api import ws as ws_api
 from app.config import Settings, get_settings
 from app.errors import AppError
 from app.security.net import client_ip
-from app.services import admin_auth
+from app.services import access, admin_auth
 from app.services.cleanup import run_cleanup
 from app.state import AppState
 
@@ -104,9 +105,10 @@ _UPLOAD_PATH = "/api/uploads"  # V5: file uploads carry their own per-purpose ca
 I18N_IMPORT_BYTES = 3 * 1024 * 1024  # V6 phase 12: a translation file (every text + the policy pages), panel only
 
 
-def _error(status: int, code: str, message: str, retry_after: int | None = None, params: dict | None = None) -> JSONResponse:
+def _error(status: int, code: str, message: str, retry_after: int | None = None, params: dict | None = None,
+           extra: dict | None = None) -> JSONResponse:
     """The error body; the message (an Arabic msgid) in the request's language (V6 phase 12)."""
-    body = {"error": {"code": code, "message": i18n.tr(message, **(params or {}))}}
+    body = {"error": {"code": code, "message": i18n.tr(message, **(params or {})), **(extra or {})}}
     headers = {}
     if retry_after is not None:
         body["error"]["retry_after"] = retry_after
@@ -286,6 +288,13 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
         if in_admin and not admin_auth.ip_allowed(settings, client_ip(request, settings)):
             return _error(404, "not_found", "غير موجود.")  # outside the allowlist the panel does not exist
         is_api = path.startswith("/api/") or (in_admin and path.startswith(admin_prefix + "/api/"))
+        if access.gated(path, admin_prefix):  # V6 phase 14: who may open the app (services/access.py)
+            verdict = access.decision(settings, access.classify(settings, request.headers.get("user-agent", ""),
+                                                                request.cookies))
+            if verdict is not None:
+                if is_api:
+                    return _error(403, "app_required", N_("افتح التطبيق للمتابعة."), extra={"gate": verdict})
+                return download_api.gate_response(request, verdict)
         cap = I18N_IMPORT_BYTES if in_admin and path.startswith(admin_prefix + "/api/admin/i18n/import") else MAX_BODY_BYTES
         if is_api and path != _UPLOAD_PATH and int(request.headers.get("content-length") or 0) > cap:
             return _error(413, "too_large", "الطلب كبير جدًا.")
@@ -356,6 +365,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
     app.include_router(uploads_api.router)
     app.include_router(account_api.router)
     app.include_router(i18n_api.router)
+    app.include_router(app_access_api.router)
     if settings.admin_enabled:
         app.include_router(admin_api.router, prefix=admin_prefix)
         app.include_router(admin_v5_api.router, prefix=admin_prefix)

@@ -7,7 +7,7 @@ import com.google.firebase.messaging.RemoteMessage;
 
 /**
  * Data-only pushes from the server (no name, number or text inside):
- *   {type: "message"} → "لديك رسالة جديدة على <appName>"
+ *   {type: "message", lang, title, body} → "لديك رسالة جديدة على <appName>" (in the account's language)
  * Anything else (such as "call" from a server older than V6) is ignored.
  */
 public class MessagingService extends FirebaseMessagingService {
@@ -24,7 +24,7 @@ public class MessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(RemoteMessage message) {
         if ("message".equals(message.getData().get("type"))) {
-            Notifications.showMessage(this);
+            Notifications.showMessage(this, message.getData().get("title"), message.getData().get("body"));
         }
     }
 }

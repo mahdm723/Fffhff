@@ -29,3 +29,8 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Plex A
 .dl-url { font-size: 13px; word-break: break-all; color: var(--ink2); }
 .dl-foot { text-align: center; }
 .dl-foot a { color: #a99cff; }
+/* V6 phase 14: the access pages (an Android browser, an old app, a computer) */
+.dl-gate { border-color: #ff5f8a66; }
+.dl-gate p { margin: 0 0 4px; color: var(--ink2); }
+.dl-btn--ghost { background: none; color: var(--ink); border: 1px solid var(--line); box-shadow: none; width: 100%; margin-top: 12px; font: inherit; font-weight: 700; cursor: pointer; }
+.dl-btn[hidden] { display: none; }
