@@ -1,7 +1,9 @@
-// «الهوية» (super admin): the new logo, stage A — three concepts side by side, each at real pixel sizes, on dark
-// and light, as an Android icon (circle / rounded square / squircle, themed monochrome), in one colour, next to
-// the DALTA.BIT wordmark and on a phone home screen; plus the brand colours and a proposal (not applied) to align
-// the app's default accent with the brand red. Nothing here changes the app.
+// «الهوية» (super admin): the new logo before it is applied — the chosen concept (three candlesticks) in its two
+// versions to choose from, A and B side by side (A on the left, B on the right, whatever the page direction), each
+// at real pixel sizes, on dark and light, as an Android icon (circle / rounded square / squircle, themed
+// monochrome), as the notification icon, in one colour, next to the DALTA.BIT wordmark, with the dot's glow pulse
+// and on a phone home screen; the earlier concepts; the brand colours and a proposal (not applied) to align the
+// app's default accent with the brand red. Nothing here changes the app.
 import { appName, wordmarkParts } from '/js/brand.js';
 import { h } from '/js/ui.js';
 import { icon } from '/js/icons.js';
@@ -13,19 +15,30 @@ const SIZES = [16, 24, 48, 96, 192, 512]; // small first: legibility is decided 
 // (100 units) are scaled so their corners stay inside it.
 const FG_SCALE = 0.58;
 
-// The concept files come from the repository (trusted), and are still filtered: only plain shapes survive.
-const TAGS = new Set(['svg', 'g', 'path', 'circle', 'rect']);
+// The logo files come from the repository (trusted), and are still filtered: only plain shapes and the dot's
+// radial gradients survive; a fill may only point at a gradient of the same file (url(#id)).
+const TAGS = new Set(['svg', 'g', 'path', 'circle', 'rect', 'defs', 'radialGradient', 'stop']);
 const ATTRS = new Set(['class', 'd', 'cx', 'cy', 'r', 'x', 'y', 'width', 'height', 'rx', 'fill', 'stroke', 'stroke-width',
-  'stroke-linejoin', 'stroke-linecap', 'fill-rule', 'viewBox']);
+  'stroke-linejoin', 'stroke-linecap', 'fill-rule', 'viewBox', 'id', 'fx', 'fy', 'offset', 'stop-color', 'stop-opacity']);
+const URL_REF = /^url\(#([A-Za-z][\w-]*)\)$/;
+let copies = 0;
 
 function shapes(svgText) {
   const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
   const root = doc.documentElement;
   if (root.nodeName !== 'svg') return [];
+  // every copy gets its own gradient ids (dozens of copies share one page; some sit in closed <details>)
+  const suffix = `-c${(copies += 1)}`;
   const clean = (node) => {
     if (node.nodeType !== 1 || !TAGS.has(node.nodeName)) return null;
     const el = document.createElementNS(NS, node.nodeName);
-    for (const a of node.attributes) if (ATTRS.has(a.name)) el.setAttribute(a.name, a.value);
+    for (const a of node.attributes) {
+      if (!ATTRS.has(a.name)) continue;
+      let v = a.value;
+      if (a.name === 'id') v += suffix;
+      if (v.startsWith('url(')) { const m = v.match(URL_REF); if (!m) continue; v = `url(#${m[1]}${suffix})`; }
+      el.setAttribute(a.name, v);
+    }
     for (const c of node.childNodes) { const k = clean(c); if (k) el.append(k); }
     return el;
   };
@@ -45,6 +58,7 @@ function svgEl(size, viewBox) {
 function mark(concept, size, ink, { mono = false } = {}) {
   const s = svgEl(size, '0 0 100 100');
   s.classList.add('brand-mark');
+  if (concept.variant) s.dataset.logo = concept.variant;
   if (mono) s.classList.add('brand-mark--mono');
   s.style.color = ink;
   s.append(...shapes(concept.svg));
@@ -61,6 +75,7 @@ const MASKS = {
 function appIcon(concept, size, { shape = 'squircle', bg, ink, mono = false } = {}) {
   const s = svgEl(size, '0 0 108 108');
   s.classList.add('brand-icon');
+  if (concept.variant) s.dataset.logo = concept.variant;
   if (mono) s.classList.add('brand-mark--mono');
   s.style.color = ink;
   const g = document.createElementNS(NS, 'g');
@@ -169,7 +184,7 @@ function conceptCard(c, i, colors) {
     h('div', { class: 'brand-phones' }, phone(c, colors, 'circle'), phone(c, colors, 'squircle')));
 }
 
-// ------------------------------------------------------------------ the chosen logo (two versions)
+// ------------------------------------------------------------------ the chosen logo: versions A and B
 
 const pick = (large, small, px) => (px <= 24 ? small : large); // 16–24 px: the small version
 
@@ -184,66 +199,77 @@ function notificationMock(small, colors) {
       h('b', { text: 'رسالة جديدة' }),
       h('span', { text: `لديك رسالة جديدة على ${appName()}` })),
     h('div', { class: 'brand-strip brand-strip--wrap' },
-      labelled(tinted(24, '#fff'), '24 أبيض (شريط الحالة)'), labelled(tinted(36, '#fff'), '36'), labelled(tinted(48, '#fff'), '48')));
+      labelled(tinted(24, '#fff'), '24 أبيض'), labelled(tinted(36, '#fff'), '36'), labelled(tinted(48, '#fff'), '48')));
 }
 
 function chosenCard(d, colors) {
-  const L = d.chosen.large, S = d.chosen.small;
-  const icon2 = (px, tone, v) => labelled(appIcon(v, px, tone === 'dark' ? { bg: colors.black, ink: colors.white } : { bg: colors.white, ink: colors.black }),
-    `${px}${v === S ? ' · صغيرة' : ''}`);
-  const sizes = (tone) => h('div', {},
-    wrap(...[16, 24, 48, 96].map((px) => icon2(px, tone, pick(L, S, px)))),
-    strip(...[192, 512].map((px) => icon2(px, tone, L))));
-  const every = (v, tone) => wrap(...[16, 24, 48, 96].map((px) => icon2(px, tone, v)));
-  const loose = (tone) => wrap(...[96, 48, 24, 16].map((px) => labelled(mark(pick(L, S, px), px, tone === 'dark' ? colors.white : colors.black), `${px}`)));
-  const android = (px) => wrap(
-    labelled(appIcon(L, px, { shape: 'circle', bg: colors.black, ink: colors.white }), 'دائرة'),
-    labelled(appIcon(L, px, { shape: 'rounded', bg: colors.black, ink: colors.white }), 'مربع مستدير'),
-    labelled(appIcon(L, px, { shape: 'squircle', bg: colors.black, ink: colors.white }), 'squircle'),
-    labelled(appIcon(L, px, { shape: 'circle', bg: '#DCE3F2', ink: '#1F2F4F', mono: true }), 'Android 13 (themed)'),
-    labelled(appIcon(L, px, { shape: 'circle', bg: '#2A2F3A', ink: '#C9D6F2', mono: true }), 'themed داكن'));
+  const V = d.chosen.variants.map((v) => ({ ...v, L: { ...v.large, variant: v.id }, S: { ...v.small, variant: v.id } }));
+  const on = (tone) => (tone === 'dark' ? { bg: colors.black, ink: colors.white } : { bg: colors.white, ink: colors.black });
+  const inkOf = (tone) => (tone === 'dark' ? colors.white : colors.black);
+  // A on the left, B on the right (a phone stacks them, A first); each column says which one it is
+  const both = (fn, tight = false) => h('div', { class: `brand-ab${tight ? ' brand-ab--tight' : ''}` },
+    ...V.map((v) => h('div', { class: 'brand-ab__col' }, h('span', { class: 'brand-ab__tag', text: `النسخة ${v.label}` }), fn(v))));
+  const icon2 = (v, px, tone, small = px <= 24) => labelled(appIcon(small ? v.S : v.L, px, on(tone)), `${px}${small ? ' · صغيرة' : ''}`);
+  const sizes = (v, tone) => h('div', {},
+    wrap(...[16, 24, 48, 96].map((px) => icon2(v, px, tone))),
+    strip(...[192, 512].map((px) => icon2(v, px, tone))));
+  const compare = (v) => wrap(...[16, 24].flatMap((px) => [
+    labelled(appIcon(v.L, px, on('dark')), `${px} كبيرة`), labelled(appIcon(v.S, px, on('dark')), `${px} صغيرة`)]));
+  const loose = (v, tone) => wrap(...[96, 48, 24, 16].map((px) => labelled(mark(pick(v.L, v.S, px), px, inkOf(tone)), `${px}`)));
+  const android = (v, px) => wrap(
+    labelled(appIcon(v.L, px, { shape: 'circle', bg: colors.black, ink: colors.white }), 'دائرة'),
+    labelled(appIcon(v.L, px, { shape: 'rounded', bg: colors.black, ink: colors.white }), 'مربع مستدير'),
+    labelled(appIcon(v.L, px, { shape: 'squircle', bg: colors.black, ink: colors.white }), 'squircle'),
+    labelled(appIcon(v.L, px, { shape: 'circle', bg: '#DCE3F2', ink: '#1F2F4F', mono: true }), 'Android 13'),
+    labelled(appIcon(v.L, px, { shape: 'circle', bg: '#2A2F3A', ink: '#C9D6F2', mono: true }), 'Android 13 داكن'));
+  const mono = (v, tone) => wrap(labelled(mark(v.L, 96, inkOf(tone), { mono: true }), tone === 'dark' ? 'أبيض' : 'أسود'),
+    labelled(mark(v.S, 24, inkOf(tone), { mono: true }), '24'));
+  const lockup = (v, tone, anim = false) => h('div', { class: 'brand-stack' },
+    panel(tone, colors, h('div', { class: `brand-lockup${anim ? ' brand-anim' : ''}` }, mark(v.L, anim ? 96 : 48, inkOf(tone)), wordmark(colors, inkOf(tone)))),
+    panel(tone, colors, h('div', { class: `brand-lockup brand-lockup--header${anim ? ' brand-anim' : ''}` }, mark(v.S, 24, inkOf(tone)), wordmark(colors, inkOf(tone), 18))));
+
   return h('section', { class: 'admin-card glass brand-concept', id: 'concept-chosen', 'aria-labelledby': 'concept-chosen-title' },
     h('header', { class: 'brand-concept__head' },
       h('span', { class: 'brand-concept__num', text: '✓' }),
       h('div', {}, h('h2', { id: 'concept-chosen-title', text: d.chosen.title }),
-        h('p', { class: 'admin-meta', text: 'نسختان: الكبيرة من 48px فما فوق، والصغيرة لـ16 و24px ولأيقونة الإشعارات.' }))),
-    h('div', { class: 'brand-pair' },
-      panel('wall-dark', colors, h('div', { class: 'brand-version' }, appIcon(L, 120, { bg: colors.black, ink: colors.white }),
-        h('div', {}, h('b', { text: 'الكبيرة' }), h('p', { text: L.notes }), h('small', { text: L.use })))),
-      panel('wall-dark', colors, h('div', { class: 'brand-version' }, appIcon(S, 120, { bg: colors.black, ink: colors.white }),
-        h('div', {}, h('b', { text: 'الصغيرة' }), h('p', { text: S.notes }), h('small', { text: S.use }))))),
+        h('p', { class: 'admin-meta', text: `${d.chosen.idea} اختر واحدة من النسختين. لكل نسخة رسمتان: الكبيرة من 48px فما فوق، والصغيرة لـ16 و24px ولأيقونة الإشعارات. النقطة متوهجة، ومسطحة بلون واحد في أيقونة الإشعارات ونسخة Android 13 (شرط النظام). لا تُعكس أي نسخة تلقائيًا في الصفحات العربية.` }))),
+    both((v) => panel('wall-dark', colors, h('div', { class: 'brand-hero' },
+      labelled(appIcon(v.L, 120, on('dark')), 'الكبيرة'), labelled(appIcon(v.S, 56, on('dark')), 'الصغيرة'))), true),
+    h('ul', { class: 'brand-notes' },
+      ...V.map((v) => h('li', {}, h('b', { text: `${v.title}: ` }), v.notes)),
+      h('li', { text: `الكبيرة: ${d.chosen.notes.large} (${d.chosen.use.large})` }),
+      h('li', { text: `الصغيرة: ${d.chosen.notes.small} (${d.chosen.use.small})` })),
 
-    h('h3', { text: 'كل حجم بنسخته: 16 و24 (الصغيرة) · 48 · 96 · 192 · 512 (الكبيرة)' }),
-    panel('wall-dark', colors, sizes('dark')),
-    panel('wall-light', colors, sizes('light')),
+    h('h3', { text: 'كل حجم بنسخته: 16 و24 (الصغيرة) · 48 · 96 · 192 · 512 (الكبيرة، اسحب أفقيًا)' }),
+    both((v) => panel('wall-dark', colors, sizes(v, 'dark'))),
+    both((v) => panel('wall-light', colors, sizes(v, 'light'))),
 
-    h('h3', { text: 'مقارنة: الكبيرة ثم الصغيرة في الأحجام الصغيرة' }),
-    h('div', { class: 'brand-pair' }, panel('wall-dark', colors, every(L, 'dark')), panel('wall-dark', colors, every(S, 'dark'))),
+    h('h3', { text: 'مقارنة في الأحجام الصغيرة: الرسمة الكبيرة ثم الصغيرة' }),
+    both((v) => panel('wall-dark', colors, compare(v))),
 
     h('h3', { text: 'الرمز وحده على خلفية داكنة وفاتحة (رأس الصفحات والـfavicon)' }),
-    h('div', { class: 'brand-pair' }, panel('dark', colors, loose('dark')), panel('light', colors, loose('light'))),
+    both((v) => panel('dark', colors, loose(v, 'dark'))),
+    both((v) => panel('light', colors, loose(v, 'light'))),
 
     h('h3', { text: 'أيقونة Android (adaptive): دائرة، مربع مستدير، squircle، وAndroid 13 أحادية — 96 ثم 48' }),
-    panel('wall-dark', colors, android(96)),
-    panel('wall-light', colors, android(48)),
+    both((v) => panel('wall-dark', colors, android(v, 96))),
+    both((v) => panel('wall-light', colors, android(v, 48))),
 
-    h('h3', { text: 'أيقونة الإشعارات: النسخة الصغيرة بيضاء مسطحة' }),
-    panel('wall-dark', colors, notificationMock(S, colors)),
+    h('h3', { text: 'أيقونة الإشعارات: الرسمة الصغيرة بيضاء مسطحة (بلا توهج)' }),
+    both((v) => panel('wall-dark', colors, notificationMock(v.S, colors))),
 
-    h('h3', { text: 'بلون واحد' }),
-    h('div', { class: 'brand-pair' },
-      panel('light', colors, wrap(labelled(mark(L, 96, colors.black, { mono: true }), 'أسود'), labelled(mark(S, 24, colors.black, { mono: true }), '24'))),
-      panel('dark', colors, wrap(labelled(mark(L, 96, colors.white, { mono: true }), 'أبيض'), labelled(mark(S, 24, colors.white, { mono: true }), '24')))),
+    h('h3', { text: 'بلون واحد (بلا توهج)' }),
+    both((v) => h('div', { class: 'brand-stack' }, panel('light', colors, mono(v, 'light')), panel('dark', colors, mono(v, 'dark')))),
 
     h('h3', { text: 'مع الاسم: الشعار الكامل، ورأس صفحة التطبيق (24px)' }),
-    panel('dark', colors, h('div', { class: 'brand-lockup' }, mark(L, 48, colors.white), wordmark(colors, colors.white))),
-    panel('light', colors, h('div', { class: 'brand-lockup' }, mark(L, 48, colors.black), wordmark(colors, colors.black))),
-    h('div', { class: 'brand-pair' },
-      panel('dark', colors, h('div', { class: 'brand-lockup brand-lockup--header' }, mark(S, 24, colors.white), wordmark(colors, colors.white, 18))),
-      panel('light', colors, h('div', { class: 'brand-lockup brand-lockup--header' }, mark(S, 24, colors.black), wordmark(colors, colors.black, 18)))),
+    both((v) => h('div', { class: 'brand-stack' }, lockup(v, 'dark'), lockup(v, 'light'))),
+
+    h('h3', { text: 'توهج النقطة داخل التطبيق: نبض خفيف وبطيء (يتوقف مع «تقليل الحركة» في الهاتف)' }),
+    both((v) => h('div', { class: 'brand-stack' }, lockup(v, 'dark', true), lockup(v, 'light', true))),
 
     h('h3', { text: 'على الشاشة الرئيسية (مع أيقونة الإشعار في شريط الحالة)' }),
-    h('div', { class: 'brand-phones' }, phone(L, colors, 'circle', S), phone(L, colors, 'squircle', S)));
+    both((v) => h('div', { class: 'brand-phones' }, phone(v.L, colors, 'squircle', v.S))),
+    both((v) => h('div', { class: 'brand-phones' }, phone(v.L, colors, 'circle', v.S))));
 }
 
 function swatch(name, hex, note) {
@@ -278,8 +304,8 @@ export function renderBrand(main) {
     const { colors, contrast: k } = d;
     main.replaceChildren(
       h('section', { class: 'admin-card glass brand-intro' },
-        h('h2', { text: 'الشعار الجديد: المفهوم المختار بنسختيه' }),
-        h('p', { class: 'admin-meta', text: 'المعاينة فقط، ولم يُطبَّق شيء في التطبيق بعد. بعد الموافقة يُطبَّق في كل مكان (المرحلة ب).' }),
+        h('h2', { text: 'الشعار الجديد: ثلاث شموع، نسختان للاختيار' }),
+        h('p', { class: 'admin-meta', text: 'المعاينة فقط، ولم يُطبَّق شيء في التطبيق بعد. بعد اختيار النسخة تُطبَّق في كل مكان (المرحلة ب).' }),
         h('div', { class: 'brand-swatches' },
           swatch('أسود', colors.black), swatch('أبيض', colors.white),
           swatch('أحمر العلامة', colors.red, `تباين ${k.red_on_black}:1 على الأسود، ${k.red_on_white}:1 على الأبيض`)),

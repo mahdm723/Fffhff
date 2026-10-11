@@ -56,28 +56,81 @@ def test_the_preview_is_for_the_super_admin_only(make_harness):
     assert d["colors"]["red"] == "#E5232D"
 
 
-def test_the_chosen_logo_has_a_large_and_a_small_version():
-    """Concept 3 chosen: large (≥ 48 px: five candles on a base, wicks) and small (16–24 px and the notification icon:
-    three thick staggered candles, no base, no wick, a bigger red dot)."""
-    brand = CONCEPTS.parent
-    shapes = {}
-    for name in ("logo-large", "logo-small"):
-        text = (brand / f"{name}.svg").read_text()
-        root = ET.fromstring(text)
-        assert root.get("viewBox") == "0 0 100 100", name
-        for el in root.iter():
-            assert el.tag.removeprefix(SVG) in {"svg", "g", "path", "circle", "rect"}, (name, el.tag)
-        assert set(re.findall(r'(?:fill|stroke)="([^"]+)"', text)) <= {"currentColor", admin_brand.COLORS["red"]}, name
-        shapes[name] = ([(float(r.get("x")), float(r.get("width")), float(r.get("height")), float(r.get("y"))) for r in root.iter(SVG + "rect")],
-                        float(root.find(SVG + "circle").get("r")))
-    large, large_dot = shapes["logo-large"]
-    small, small_dot = shapes["logo-small"]
-    assert len(small) == 3 and min(w for _x, w, _h, _y in small) >= 20  # three thick candles, nothing thin
-    assert small_dot > large_dot  # a bigger red dot at small sizes
-    bodies = sorted((x, w) for x, w, _h, _y in large if w == 11)
-    assert len(bodies) == 5 and all(b[0] - (a[0] + a[1]) >= 6 for a, b in zip(bodies, bodies[1:]))  # clear gaps
-    # the small one is not mirrored (reads as a candle chart, not a triangle)
-    tops = {x: y for x, _w, _h, y in small}
-    assert tops[min(tops)] != tops[max(tops)]  # the side candles sit at different levels
+def _logo(name: str):
+    root = ET.fromstring((CONCEPTS.parent / f"{name}.svg").read_text())
+    rects = [{k: float(r.get(k)) for k in ("x", "y", "width", "height")} for r in root.iter(SVG + "rect")]
+    circles = {c.get("class"): {k: float(c.get(k)) for k in ("cx", "cy", "r")} for c in root.iter(SVG + "circle")}
+    return root, rects, circles
+
+
+DOT_STOPS = {"#FF8A80", "#FF3B3B", "#C8141C", admin_brand.COLORS["red"]}  # the brand red, lighter at the centre
+
+
+def test_the_chosen_logo_is_three_candles_with_a_glowing_dot_on_the_wick_in_two_versions():
+    """Concept 3, revision 4 — three candles on a base: the tallest with a clear thin wick and the red dot on the
+    wick like a flame (not stuck to the body), then shorter, then shorter. Version A: the tallest on the LEFT,
+    falling to the right; version B: A mirrored, rising from the left to the tallest on the RIGHT — each its own
+    fixed drawing. The dot glows (a radial gradient + a soft halo). Large (≥ 48 px): a wick on every candle.
+    Small (16–24 px): the same heights, thicker, only the tallest keeps its wick, a bigger dot."""
+    found = {}
+    for variant in ("a", "b"):
+        for size in ("large", "small"):
+            name = f"logo-{variant}-{size}"
+            text = (CONCEPTS.parent / f"{name}.svg").read_text()
+            root, rects, circles = _logo(name)
+            assert root.get("viewBox") == "0 0 100 100", name
+            ids = set()
+            for el in root.iter():
+                assert el.tag.removeprefix(SVG) in {"svg", "g", "defs", "radialGradient", "stop", "circle", "rect"}, (name, el.tag)
+                assert not any(k.startswith("on") or "href" in k or k == "transform" for k in el.attrib), (name, el.attrib)
+                if el.get("id"):
+                    ids.add(el.get("id"))
+            paints = set(re.findall(r'(?:fill|stroke)="([^"]+)"', text))
+            refs = {p[5:-1] for p in paints if p.startswith("url(#")}
+            assert paints - {f"url(#{r})" for r in refs} <= {"currentColor"} and refs <= ids, (name, paints)
+            assert set(re.findall(r'stop-color="([^"]+)"', text)) <= DOT_STOPS, name
+            dot, glow = circles["dot"], circles["glow"]
+            assert dot["cx"] == glow["cx"] and dot["cy"] == glow["cy"] and glow["r"] > dot["r"], name  # a halo around it
+
+            base = max(rects, key=lambda r: r["width"])
+            body_w = max(r["width"] for r in rects if r is not base)
+            bodies = sorted((r for r in rects if r["width"] == body_w), key=lambda r: r["x"])  # left to right
+            wicks = [r for r in rects if r["width"] < body_w / 2]
+            assert len(bodies) == 3 and len(bodies) + len(wicks) + 1 == len(rects), name
+            h = [round(base["y"] + base["height"] - b["y"], 3) for b in bodies]  # height above the bottom of the base
+            if variant == "a":
+                assert h[0] > h[1] > h[2], (name, h)  # the tallest on the left, then shorter, then shorter
+            else:
+                assert h[0] < h[1] < h[2], (name, h)  # rising to the tallest on the right
+            tall = max(bodies, key=lambda b: base["y"] + base["height"] - b["y"])
+            axis = tall["x"] + tall["width"] / 2
+            wick = [w for w in wicks if abs(w["x"] + w["width"] / 2 - axis) < 0.01]
+            assert len(wick) == 1, name
+            wick = wick[0]
+            assert wick["y"] < tall["y"] <= wick["y"] + wick["height"], name  # a thin wick standing on the body
+            assert abs(dot["cx"] - axis) < 0.01, name  # the dot on the tallest candle's axis
+            assert dot["cy"] < wick["y"] <= dot["cy"] + dot["r"], name  # resting on the top of the wick
+            gaps = [b["x"] - (a["x"] + a["width"]) for a, b in zip(bodies, bodies[1:])]
+            found[name] = {"rects": rects, "dot": dot, "glow": glow, "body": body_w, "gap": min(gaps),
+                           "wicks": len(wicks), "dot_gap": tall["y"] - (dot["cy"] + dot["r"])}  # clear of the body
+    for size in ("large", "small"):
+        a, b = found[f"logo-a-{size}"], found[f"logo-b-{size}"]
+        mirrored = sorted((round(100 - r["x"] - r["width"], 3), r["y"], r["width"], r["height"]) for r in a["rects"])
+        assert mirrored == sorted((r["x"], r["y"], r["width"], r["height"]) for r in b["rects"]), size  # B = A mirrored
+        assert b["dot"] == {**a["dot"], "cx": 100 - a["dot"]["cx"]} and b["glow"]["r"] == a["glow"]["r"], size
+    large, small = found["logo-a-large"], found["logo-a-small"]
+    assert large["wicks"] == 3 and small["wicks"] == 1  # wicks at large sizes; only the tallest keeps one when small
+    assert large["gap"] >= 6 and small["gap"] >= 6 and large["dot_gap"] >= 8 and small["dot_gap"] >= 8
+    assert large["dot"]["r"] > 9  # a little bigger than revision 3
+    assert small["body"] > large["body"] and small["dot"]["r"] > large["dot"]["r"]  # thicker, a bigger dot
     d = admin_brand.preview_data()
-    assert d["chosen"]["large"]["svg"].startswith("<svg") and d["chosen"]["small"]["svg"].startswith("<svg")
+    assert [v["id"] for v in d["chosen"]["variants"]] == ["a", "b"]
+    for v in d["chosen"]["variants"]:
+        assert v["large"]["svg"].startswith("<svg") and v["small"]["svg"].startswith("<svg"), v["id"]
+
+
+def test_the_glow_pulse_respects_reduced_motion_and_the_flat_versions_have_no_glow():
+    css = (Path(__file__).resolve().parent.parent / "app" / "admin_static" / "admin.css").read_text()
+    assert re.search(r"\.brand-mark--mono \.glow\s*\{\s*display:\s*none", css)  # notification, Android 13 themed
+    reduced = css[css.index("prefers-reduced-motion: reduce"):]
+    assert re.search(r"\.brand-anim \.glow, \.brand-anim \.dot\s*\{\s*animation:\s*none", reduced)

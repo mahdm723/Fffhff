@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT">
+  <!-- DALTA.BIT logo, large version (48 px and up), version A: three Japanese candlesticks on one base, the tallest on
+       the LEFT, then shorter, then shorter. The tallest has a clear thin wick and the red dot sits on it like a
+       flame; every candle has a wick.
+       Never mirrored automatically (the same drawing in RTL pages). The dot glows: a lighter centre (radial
+       gradient) and a soft halo; flat versions (notification icon, Android 13 themed icon) hide .glow and fill
+       .dot with one colour. Colours: currentColor (black or white) + the brand red family. -->
+  <defs>
+    <radialGradient id="dz-dot" cx="0.38" cy="0.34" r="0.78">
+      <stop offset="0" stop-color="#FF8A80"/>
+      <stop offset="0.45" stop-color="#FF3B3B"/>
+      <stop offset="1" stop-color="#C8141C"/>
+    </radialGradient>
+    <radialGradient id="dz-glow">
+      <stop offset="0" stop-color="#FF3B3B" stop-opacity="0.8"/>
+      <stop offset="0.5" stop-color="#E5232D" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#E5232D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle class="glow" cx="25" cy="17.5" r="17" fill="url(#dz-glow)"/>
+  <g class="ink" fill="currentColor">
+    <rect x="10" y="83" width="80" height="9" rx="3"/>
+    <rect x="17" y="38" width="16" height="47" rx="3"/>
+    <rect x="23" y="26" width="4" height="14" rx="1.5"/>
+    <rect x="42" y="51" width="16" height="34" rx="3"/>
+    <rect x="48" y="43" width="4" height="10" rx="1.5"/>
+    <rect x="67" y="64" width="16" height="21" rx="3"/>
+    <rect x="73" y="56" width="4" height="10" rx="1.5"/>
+  </g>
+  <circle class="dot" cx="25" cy="17.5" r="9.5" fill="url(#dz-dot)"/>
+</svg>

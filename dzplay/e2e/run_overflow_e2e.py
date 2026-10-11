@@ -393,6 +393,42 @@ PANEL_TABS = ("overview", "users", "content", "engage", "reports", "media", "mem
 DETAIL = {"users": ".admin-card--tap", "content": ".admin-card--tap", "support": ".admin-line--btn", "texts": ".admin-line--btn"}
 
 
+LOGO_ORDER_JS = r"""() => {
+  // every copy of the chosen logo on the page (data-logo = a | b): its candles left to right ON SCREEN (the page is
+  // RTL), and where the red dot is
+  const out = [];
+  for (const svg of document.querySelectorAll('#concept-chosen svg[data-logo]')) {
+    const rects = [...svg.querySelectorAll('.ink rect')].map((r) => r.getBoundingClientRect()).filter((b) => b.width > 0);
+    const dot = svg.querySelector('.dot');
+    if (rects.length < 5 || !dot) continue;  // base + 3 bodies + at least the tall wick
+    const base = rects.reduce((a, b) => (b.width > a.width ? b : a));
+    const bodyW = Math.max(...rects.filter((b) => b !== base).map((b) => b.width));
+    const bodies = rects.filter((b) => b !== base && b.width > bodyW * 0.9).sort((a, b) => a.left - b.left);
+    const h = bodies.map((b) => base.bottom - b.top);
+    const tall = h.indexOf(Math.max(...h));
+    const d = dot.getBoundingClientRect();
+    const dx = d.left + d.width / 2;
+    const dotOver = bodies.map((b) => Math.abs(b.left + b.width / 2 - dx)).reduce((m, v, i, a) => (v < a[m] ? i : m), 0);
+    out.push({ v: svg.dataset.logo, n: bodies.length, tall, dotOver, above: d.bottom <= bodies[tall].top + 0.5,
+               h: h.map((v) => Math.round(v * 10) / 10) });
+  }
+  return out;
+}"""
+
+
+def logo_not_mirrored(page: Page, width: int) -> None:
+    """Each version keeps its own left-to-right order in the RTL panel (never mirrored by the page): A falls from
+    the tallest on the left, B rises to the tallest on the right; the dot is above the tallest."""
+    copies = page.evaluate(LOGO_ORDER_JS)
+    problem_if(sum(c["v"] == "a" for c in copies) < 20 or sum(c["v"] == "b" for c in copies) < 20,
+               f"{width} «الهوية»: too few copies of the logo found ({len(copies)})")
+    for c in copies:
+        h = c["h"]
+        ordered = h[0] > h[1] > h[2] if c["v"] == "a" else h[0] < h[1] < h[2]
+        problem_if(c["n"] != 3 or not ordered or c["dotOver"] != c["tall"] or not c["above"],
+                   f"{width} «الهوية»: a logo copy is mirrored or out of order: {c}")
+
+
 def panel_pages(run: Run, browser, base: str, width: int, admin: str) -> None:
     from app.security import totp
 
@@ -413,6 +449,8 @@ def panel_pages(run: Run, browser, base: str, width: int, admin: str) -> None:
         page.locator(f"#tab-{tab}").click()
         page.wait_for_timeout(900)
         check(page, f"{width} panel «{tab}»", admin=True)
+        if tab == "brand":
+            logo_not_mirrored(page, width)
         sel = DETAIL.get(tab)
         if sel and page.locator(sel).count():
             page.locator(sel).first.click()

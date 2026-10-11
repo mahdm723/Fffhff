@@ -343,6 +343,14 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .brand-notes { margin: 0; padding-inline-start: 20px; color: var(--ink-2); font-size: 13.5px; }
 .brand-panel { border-radius: 16px; padding: 12px; min-width: 0; border: 1px solid var(--line); }
 .brand-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; }
+/* the two logo versions side by side: A on the left, B on the right in any page direction (a phone stacks them) */
+.brand-ab { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px; direction: ltr; }
+.brand-ab--tight { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.brand-ab__col { direction: rtl; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.brand-ab__tag { align-self: flex-start; font-weight: 700; font-size: 12.5px; padding: 2px 10px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--glass-border); }
+.brand-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 12px; direction: ltr; }
+.brand-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 /* real pixel sizes: a 512px icon is wider than a phone, so the row scrolls sideways (only this row) */
 .brand-strip { display: flex; align-items: flex-end; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 4px; direction: ltr; }
 .brand-strip--wrap { flex-wrap: wrap; overflow-x: visible; justify-content: center; }
@@ -350,6 +358,13 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .brand-cell figcaption { font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums; }
 .brand-mark, .brand-icon { display: block; flex: none; shape-rendering: geometricPrecision; }
 .brand-mark--mono .dot { fill: currentColor; }
+.brand-mark--mono .glow { display: none; } /* flat: notification icon, Android 13 themed icon */
+/* the dot's glow, alive: a slow, soft pulse of the halo (what the app header, splash and sign-in will do) */
+.brand-anim .glow { transform-box: fill-box; transform-origin: center; animation: dz-glow 3.2s ease-in-out infinite; }
+.brand-anim .dot { animation: dz-dot 3.2s ease-in-out infinite; }
+@keyframes dz-glow { 0%, 100% { opacity: .62; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes dz-dot { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.2); } }
+@media (prefers-reduced-motion: reduce) { .brand-anim .glow, .brand-anim .dot { animation: none; } }
 .brand-lockup { display: flex; align-items: center; justify-content: center; gap: 12px; direction: ltr; flex-wrap: wrap; }
 .brand-word { font-weight: 700; letter-spacing: -0.02em; display: inline-flex; align-items: baseline; gap: .06em; line-height: 1; }
 .brand-word__dot { width: .3em; height: .3em; border-radius: 50%; display: inline-block; }

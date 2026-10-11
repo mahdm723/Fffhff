@@ -1,5 +1,6 @@
-"""The new logo: read-only data for the panel's «الهوية» tab — the chosen logo (concept 3, a Δ of candlesticks) in
-its two versions from brand/ (large: 48 px and up; small: 16–24 px and the notification icon), the earlier concepts
+"""The new logo: read-only data for the panel's «الهوية» tab — the chosen logo (concept 3: three candlesticks) in two
+versions to choose from, A (the tallest on the left) and B (A mirrored), each drawn large (48 px and up) and small
+(16–24 px and the notification icon) in brand/, the earlier concepts
 from brand/concepts/, the brand colours with their measured contrast, and a proposal (not applied) to align the
 app's default accent with the brand red. Super admin only; nothing here changes the app."""
 
@@ -54,11 +55,22 @@ CONCEPTS = (
 
 CHOSEN = {
     "id": "candles",
-    "title": "Δ من شموع يابانية (المختار)",
-    "large": {"file": "logo-large.svg", "use": "48px فما فوق: أيقونة التطبيق، الشاشة الرئيسية، شاشة البداية، الصفحات، og:image",
-              "notes": "خمس شموع على قاعدة، بفراغات أوضح بينها (6 بدل 4) فيبقى كل عمود مقروءًا، وشكل القلعة كما هو."},
-    "small": {"file": "logo-small.svg", "use": "16 و24px: favicon، أيقونة الإشعارات (بيضاء مسطحة)، رأس الصفحات الصغير",
-              "notes": "ثلاث شموع سميكة متفاوتة كمخطط شموع حقيقي (غير متناظرة فلا تُقرأ مثلثًا)، بلا قاعدة ولا فتائل، ونقطة حمراء أكبر."},
+    "title": "ثلاث شموع يابانية: النسختان أ و ب",
+    "idea": "ثلاث شموع على قاعدة: الأطول بفتيل واضح والنقطة الحمراء المتوهجة فوقه كاللهب، ثم أقصر، ثم أقصر.",
+    "use": {"large": "48px فما فوق: أيقونة التطبيق، الشاشة الرئيسية، شاشة البداية، الصفحات، og:image",
+            "small": "16 و24px: favicon، أيقونة الإشعارات (بيضاء مسطحة)، رأس الصفحات الصغير"},
+    "variants": (
+        {"id": "a", "label": "أ", "title": "النسخة أ: الأطول على اليسار",
+         "notes": "الأطول على اليسار ثم تتناقص نحو اليمين. في الرسوم البيانية يسير الزمن من اليسار إلى اليمين، فتُقرأ "
+                  "فيها نزولًا، أما عين القارئ العربي (من اليمين) فتقرؤها صعودًا نحو النقطة.",
+         "large": {"file": "logo-a-large.svg"}, "small": {"file": "logo-a-small.svg"}},
+        {"id": "b", "label": "ب", "title": "النسخة ب: الأطول على اليمين",
+         "notes": "الشموع تتصاعد من اليسار نحو الأطول على اليمين: صعود في اتجاه الزمن في الرسوم البيانية، والنقطة في "
+                  "آخره كالسعر الآن. ملاحظة: صغيرةً في شريط الحالة قد تشبه أعمدة قوة إشارة الشبكة.",
+         "large": {"file": "logo-b-large.svg"}, "small": {"file": "logo-b-small.svg"}},
+    ),
+    "notes": {"large": "الشموع الثلاث بفتائلها، والنقطة متوهجة (مركز أفتح وهالة).",
+              "small": "نفس الأطوال بسماكة أكبر وقاعدة أسمك، والفتيل للشمعة الطويلة وحدها، والنقطة بتوهج مبسط."},
 }
 
 # The proposal (not applied): replace the coral default accent by a red one built on the brand red.
@@ -79,8 +91,9 @@ def preview_data() -> dict:
     red, black, white = COLORS["red"], COLORS["black"], COLORS["white"]
     surfaces = {mode: {"bg": bg, "card": card} for mode, (bg, card) in ap.SURFACES.items()}
     current = ap.ACCENTS[ap.DEFAULT_ACCENT]
-    chosen = {**CHOSEN, **{v: {**CHOSEN[v], "svg": (BRAND_DIR / CHOSEN[v]["file"]).read_text(encoding="utf-8")}
-                           for v in ("large", "small")}}
+    svg = lambda f: (BRAND_DIR / f["file"]).read_text(encoding="utf-8")
+    chosen = {**CHOSEN, "variants": [{**v, "large": {**v["large"], "svg": svg(v["large"])},
+                                      "small": {**v["small"], "svg": svg(v["small"])}} for v in CHOSEN["variants"]]}
     return {
         "chosen": chosen,
         "concepts": concepts,
