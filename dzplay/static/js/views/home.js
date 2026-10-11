@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { icon } from '../icons.js';
 import { infiniteSentinel, onIdeaChange, postCard } from '../ideas.js';
 import { PickError, chooseFile, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
-import { autoGrow, h, newClientId, toast, wordmark } from '../ui.js';
+import { autoGrow, h, logoLockup, newClientId, toast } from '../ui.js';
 import { renderMarket } from './market.js';
 
 const DRAFT_KEY = 'dz:idea-draft';
@@ -290,7 +290,7 @@ function renderIdeasPane(page, { config, navigate }) {
 
   const bell = h('button', { class: 'icon-btn glass bell-btn', type: 'button', 'aria-label': 'الإشعارات', onclick: () => navigate('#/notifications') }, icon('bell'));
   page.replaceChildren(...[
-    h('header', { class: 'topbar' }, wordmark(), bell),
+    h('header', { class: 'topbar' }, logoLockup({ size: 24, pulse: true }), bell),
     announcementBanner(config),
     composer,
     h('div', { class: 'section-head' },

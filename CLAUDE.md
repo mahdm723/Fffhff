@@ -61,6 +61,10 @@
   - `services/cms.py` + `markdown.py`: نظام المحتوى (`content_blocks`/`content_revisions`). النصوص الافتراضية في الكود، و`{{متغيرات}}` من الإعدادات، والمحوّل يهرّب كل شيء. إعادة الموافقة عبر `cms.ack_version`.
   - `services/appearance.py`: الألوان، ومصدرها الوحيد. `python -m app.services.appearance --write` يولّد `static/css/accents.css`، واختبار يتحقق من التباين ≥ 4.5.
   - `services/brand.py` (الخادم) و`static/js/brand.js` (الواجهة): اسم التطبيق. لا تكتب الاسم في الكود.
+  - **الشعار (11c):**
+    - المصدر رسمتان فقط: `brand/logo-large.svg` (48px فما فوق) و`brand/logo-small.svg` (16–24px). كل الأيقونات (Android، وPWA، وfavicon، وog:image، وصورة البوت، و`static/js/logo-shapes.js`) تُولَّد منهما بـ`python brand/build.py`، ولا تُعدَّل يدويًا. `--check` تستعمله الاختبارات.
+    - القواعد في `brand/BRAND.md`: لا يُعكس الشعار أبدًا، والنقطة متوهجة إلا في أيقونة الإشعارات وAndroid 13 (مسطحتان).
+    - في الواجهة: `logoMark()` / `logoLockup()` في `ui.js`. النبض بـ`.logo-mark--pulse`، ويتوقف مع `prefers-reduced-motion`.
   - اللوحة: `admin_static/admin-money.js` + `api/admin_money.py`.
 - **الرسائل:** المباشرة وطلبات المراسلة فقط. الرسائل المجهولة العشوائية (matching، كشف الهوية) حُذفت في المرحلة 1ب. المحادثات المجهولة القديمة (`kind IS NULL`) للقراءة فقط (`messaging.require_open`)، ثم تُصدَّر مشفّرة وتُحذف بعد `LEGACY_ANON_RETENTION_DAYS`.
 
@@ -72,6 +76,7 @@
 - **عرض الهاتف (360px):**
   - أي قائمة `display:grid` تأخذ `grid-template-columns: minmax(0, 1fr)`، وإلا وسّع نص `nowrap` الصفحة كلها.
   - كل صفحة أو نافذة جديدة تُضاف إلى `e2e/run_overflow_e2e.py`. يفحص عند 360 و390: لا تمرير أفقي، ولا حقل مخفي، ولا نص مقطوع، وشريط الحالة، والنجمة.
+- **الشعار:** `logoMark({ size, pulse, mono })` في `ui.js` فقط (الصغيرة عند ≤24px). نقطة الاسم بلون `--brand-red` في كل ألوان التمييز.
 - **النجمة الزرقاء:** `starMark()` في `ui.js` فقط، بشكل محسوب في `icons.js` ولون `--star` (`appearance.STAR`). حجمها 18px بجانب كل اسم عبر `nameLine`.
 - **خانات الكتابة:** `autoGrow` بلا مقبض تغيير حجم.
 - **النوافذ (sheets):** تُغلق عند تغيّر الصفحة، إلا الإلزامية منها.

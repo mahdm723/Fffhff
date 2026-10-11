@@ -41,7 +41,8 @@ gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 --decrypt "$file"
 [ -s "$work/db.dump" ] || { echo "the backup has no database dump" >&2; exit 1; }
 
 if [ "$yes" != true ]; then
-  echo "This REPLACES the current DZPLAY database with: $file"
+  name="$(env_get APP_NAME)"
+  echo "This REPLACES the current ${name:-DALTA.BIT} database with: $file"
   read -r -p "Type RESTORE to continue: " answer </dev/tty
   [ "$answer" = "RESTORE" ] || { echo "cancelled"; exit 1; }
 fi

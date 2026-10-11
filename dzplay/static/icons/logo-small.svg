@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT">
-  <!-- DALTA.BIT logo, small version (16–24 px, notification icon), version A: the same three heights, thicker, on a
-       thicker base; only the tallest (LEFT) keeps its wick, thicker, with the dot on it; a simpler glow.
+  <!-- DALTA.BIT logo, small version (16–24 px, notification icon). The master: brand/build.py makes every icon
+       from it. The same three heights, thicker, on a thicker base; only the tallest (LEFT) keeps its wick,
+       thicker, with the dot on it; a simpler glow.
        Never mirrored automatically (the same drawing in RTL pages). The dot glows: a lighter centre (radial
        gradient) and a soft halo; flat versions (notification icon, Android 13 themed icon) hide .glow and fill
        .dot with one colour. Colours: currentColor (black or white) + the brand red family. -->

@@ -1,7 +1,6 @@
-"""The new logo: read-only data for the panel's «الهوية» tab — the chosen logo (concept 3: three candlesticks) in two
-versions to choose from, A (the tallest on the left) and B (A mirrored), each drawn large (48 px and up) and small
-(16–24 px and the notification icon) in brand/, the earlier concepts
-from brand/concepts/, the brand colours with their measured contrast, and a proposal (not applied) to align the
+"""The logo: read-only data for the panel's «الهوية» tab — the adopted logo (concept 3, three candlesticks, version A)
+drawn large (48 px and up) and small (16–24 px and the notification icon) in brand/, the earlier concepts from
+brand/concepts/, the brand colours with their measured contrast, and a proposal (not applied) to align the
 app's default accent with the brand red. Super admin only; nothing here changes the app."""
 
 from __future__ import annotations
@@ -55,19 +54,15 @@ CONCEPTS = (
 
 CHOSEN = {
     "id": "candles",
-    "title": "ثلاث شموع يابانية: النسختان أ و ب",
-    "idea": "ثلاث شموع على قاعدة: الأطول بفتيل واضح والنقطة الحمراء المتوهجة فوقه كاللهب، ثم أقصر، ثم أقصر.",
+    "title": "الشعار المعتمد: ثلاث شموع",
+    "idea": "ثلاث شموع على قاعدة: الأطول على اليسار بفتيل واضح والنقطة الحمراء المتوهجة فوقه كاللهب، ثم أقصر، ثم أقصر.",
     "use": {"large": "48px فما فوق: أيقونة التطبيق، الشاشة الرئيسية، شاشة البداية، الصفحات، og:image",
             "small": "16 و24px: favicon، أيقونة الإشعارات (بيضاء مسطحة)، رأس الصفحات الصغير"},
+    # one version now (A, chosen by the owner); the preview keeps a list so a future proposal can sit beside it
     "variants": (
         {"id": "a", "label": "أ", "title": "النسخة أ: الأطول على اليسار",
-         "notes": "الأطول على اليسار ثم تتناقص نحو اليمين. في الرسوم البيانية يسير الزمن من اليسار إلى اليمين، فتُقرأ "
-                  "فيها نزولًا، أما عين القارئ العربي (من اليمين) فتقرؤها صعودًا نحو النقطة.",
-         "large": {"file": "logo-a-large.svg"}, "small": {"file": "logo-a-small.svg"}},
-        {"id": "b", "label": "ب", "title": "النسخة ب: الأطول على اليمين",
-         "notes": "الشموع تتصاعد من اليسار نحو الأطول على اليمين: صعود في اتجاه الزمن في الرسوم البيانية، والنقطة في "
-                  "آخره كالسعر الآن. ملاحظة: صغيرةً في شريط الحالة قد تشبه أعمدة قوة إشارة الشبكة.",
-         "large": {"file": "logo-b-large.svg"}, "small": {"file": "logo-b-small.svg"}},
+         "notes": "الأطول على اليسار ثم تتناقص نحو اليمين. لا تُعكس في الصفحات العربية.",
+         "large": {"file": "logo-large.svg"}, "small": {"file": "logo-small.svg"}},
     ),
     "notes": {"large": "الشموع الثلاث بفتائلها، والنقطة متوهجة (مركز أفتح وهالة).",
               "small": "نفس الأطوال بسماكة أكبر وقاعدة أسمك، والفتيل للشمعة الطويلة وحدها، والنقطة بتوهج مبسط."},

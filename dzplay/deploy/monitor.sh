@@ -41,6 +41,7 @@ BANS_PER_HOUR="$(num MONITOR_BANS_PER_HOUR 20)"
 REMIND_HOURS="$(num MONITOR_REMIND_HOURS 6)"
 DOMAIN="$(env_get DOMAIN)"
 HOST="$(hostname 2>/dev/null || echo server)"
+APP_LABEL="$(env_get APP_NAME)"; APP_LABEL="${APP_LABEL:-DALTA.BIT}"  # the app's name (APP_NAME)
 
 log() { printf '%s %s\n' "$(date '+%F %T')" "$*"; }
 
@@ -51,7 +52,7 @@ send_via_curl() {  # last resort when the app container cannot send: token from 
   [ -n "$token" ] && [ -n "$chat" ] || return 1
   printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$token" \
     | curl -fsS --max-time 20 -K - --data-urlencode "chat_id=$chat" \
-        --data-urlencode "text=🚨 DZPLAY — تنبيه الخادم (${HOST})
+        --data-urlencode "text=🚨 ${APP_LABEL} — تنبيه الخادم (${HOST})
 $1" -o /dev/null
 }
 

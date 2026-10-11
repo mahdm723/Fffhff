@@ -2,7 +2,7 @@
 // API there. Sign-in = admin account + password + TOTP code; the session is an
 // HttpOnly cookie scoped to the panel path (never readable from JS).
 // All server data is inserted with textContent.
-import { h, toast, confirmSheet, wordmark, REPORT_REASONS } from '/js/ui.js';
+import { h, toast, confirmSheet, logoLockup, REPORT_REASONS } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 import {
   bytes, call, emptyState, fmt, handleError, hooks, iconButton, sectionHead, segmented, shortRef, spinner, userRef, waitText, when,
@@ -129,7 +129,7 @@ function renderLogin(message = '') {
   }, user, pass, code, error, submit);
 
   app.replaceChildren(h('main', { class: 'admin-login' },
-    wordmark(true),
+    logoLockup({ size: 72, pulse: true, large: true }),
     h('h1', { class: 'admin-login__title', text: 'لوحة الإدارة' }),
     h('p', { class: 'admin-login__lead', text: 'للمشرفين فقط. الدخول بحساب مشرف ورمز من تطبيق المصادقة.' }),
     form,
@@ -160,7 +160,7 @@ function renderShell(stats) {
 
   app.replaceChildren(h('div', { class: 'admin-shell' },
     h('header', { class: 'admin-top' },
-      h('div', { class: 'admin-top__brand' }, wordmark(), h('span', { class: 'admin-top__title', text: 'لوحة التحكم' })),
+      h('div', { class: 'admin-top__brand' }, logoLockup({ size: 24 }), h('span', { class: 'admin-top__title', text: 'لوحة التحكم' })),
       h('div', { class: 'admin-top__actions' },
         iconButton('refresh', 'تحديث', () => refresh(true)),
         iconButton('logout', 'خروج', () => signOut()))),

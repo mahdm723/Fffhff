@@ -14,6 +14,7 @@ from email.message import EmailMessage
 from email.utils import formataddr, make_msgid, parseaddr
 
 from app.config import Settings
+from app.services import brand
 
 
 class MailError(Exception):
@@ -37,7 +38,7 @@ def _reset_bodies(app_name: str, code: str, hours: int) -> tuple[str, str]:
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f2ec;padding:24px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:18px;padding:28px 24px">
-        <tr><td style="font-size:22px;font-weight:bold;direction:ltr;text-align:right">dzplay<span style="color:#e5466f">.</span></td></tr>
+        <tr><td style="font-size:22px;font-weight:bold;direction:ltr;text-align:right">{brand.email_name_html(app_name)}</td></tr>
         <tr><td style="padding-top:18px;font-size:16px;line-height:1.7">رمز استعادة حسابك:</td></tr>
         <tr><td align="center" style="padding:16px 0">
           <div style="display:inline-block;font-size:30px;letter-spacing:6px;font-weight:bold;direction:ltr;background:#f5f2ec;border-radius:12px;padding:12px 20px">{c}</div>

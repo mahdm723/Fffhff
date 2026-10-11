@@ -12,8 +12,8 @@ import { call, handleError, spinner } from './admin-common.js';
 const NS = 'http://www.w3.org/2000/svg';
 const SIZES = [16, 24, 48, 96, 192, 512]; // small first: legibility is decided at 16–48px
 // Android adaptive icon: a 108-unit canvas, content guaranteed visible inside the 66-unit circle. The marks
-// (100 units) are scaled so their corners stay inside it.
-const FG_SCALE = 0.58;
+// (100 units) are scaled so every drawn pixel stays inside it (the same value as brand/build.py).
+const FG_SCALE = 0.57;
 
 // The logo files come from the repository (trusted), and are still filtered: only plain shapes and the dot's
 // radial gradients survive; a fill may only point at a gradient of the same file (url(#id)).
@@ -100,8 +100,9 @@ function labelled(node, text) {
   return h('figure', { class: 'brand-cell' }, node, h('figcaption', { text }));
 }
 
-function strip(...cells) {
-  return h('div', { class: 'brand-strip' }, ...cells);
+/** A big size drawn to fit the column (512 never fits a phone): the real size is shown up to 192. */
+function fitted(node, text) {
+  return h('figure', { class: 'brand-cell brand-cell--fit' }, node, h('figcaption', { text }));
 }
 
 function wrap(...cells) {
@@ -148,7 +149,8 @@ function conceptCard(c, i, colors) {
   // 16–96 together (they decide legibility), 192 and 512 in their own row that scrolls sideways on a phone
   const icons = (tone, list) => list.map((px) => labelled(
     appIcon(c, px, tone === 'dark' ? { bg: colors.black, ink: colors.white } : { bg: colors.white, ink: colors.black }), `${px}`));
-  const sizes = (tone) => h('div', {}, wrap(...icons(tone, SIZES.slice(0, 4))), strip(...icons(tone, SIZES.slice(4))));
+  const sizes = (tone) => h('div', {}, wrap(...icons(tone, SIZES.slice(0, 5))),
+    fitted(appIcon(c, 512, tone === 'dark' ? { bg: colors.black, ink: colors.white } : { bg: colors.white, ink: colors.black }), '512 · مصغّرة لتناسب العرض'));
   const loose = (tone) => wrap(...[96, 48, 24, 16].map((px) => labelled(mark(c, px, tone === 'dark' ? colors.white : colors.black), `${px}`)));
   return h('section', { class: 'admin-card glass brand-concept', id: `concept-${c.id}`, 'aria-labelledby': `concept-${c.id}-title` },
     h('header', { class: 'brand-concept__head' },
@@ -156,7 +158,7 @@ function conceptCard(c, i, colors) {
       h('div', {}, h('h2', { id: `concept-${c.id}-title`, text: c.title }), h('p', { class: 'admin-meta', text: c.idea }))),
     h('ul', { class: 'brand-notes' }, ...c.notes.map((n) => h('li', { text: n }))),
 
-    h('h3', { text: 'أيقونة التطبيق بحجمها الحقيقي: 16 · 24 · 48 · 96 · 192 · 512 (اسحب أفقيًا للأكبر)' }),
+    h('h3', { text: 'أيقونة التطبيق بحجمها الحقيقي: 16 · 24 · 48 · 96 · 192، و512 مصغّرة' }),
     panel('wall-dark', colors, sizes('dark')),
     panel('wall-light', colors, sizes('light')),
 
@@ -207,12 +209,13 @@ function chosenCard(d, colors) {
   const on = (tone) => (tone === 'dark' ? { bg: colors.black, ink: colors.white } : { bg: colors.white, ink: colors.black });
   const inkOf = (tone) => (tone === 'dark' ? colors.white : colors.black);
   // A on the left, B on the right (a phone stacks them, A first); each column says which one it is
-  const both = (fn, tight = false) => h('div', { class: `brand-ab${tight ? ' brand-ab--tight' : ''}` },
-    ...V.map((v) => h('div', { class: 'brand-ab__col' }, h('span', { class: 'brand-ab__tag', text: `النسخة ${v.label}` }), fn(v))));
+  // one column per version (A on the left, B on the right when there are two); a single version needs no tag
+  const both = (fn, tight = false) => h('div', { class: `brand-ab${tight && V.length > 1 ? ' brand-ab--tight' : ''}` },
+    ...V.map((v) => h('div', { class: 'brand-ab__col' }, V.length > 1 ? h('span', { class: 'brand-ab__tag', text: `النسخة ${v.label}` }) : null, fn(v))));
   const icon2 = (v, px, tone, small = px <= 24) => labelled(appIcon(small ? v.S : v.L, px, on(tone)), `${px}${small ? ' · صغيرة' : ''}`);
   const sizes = (v, tone) => h('div', {},
     wrap(...[16, 24, 48, 96].map((px) => icon2(v, px, tone))),
-    strip(...[192, 512].map((px) => icon2(v, px, tone))));
+    wrap(icon2(v, 192, tone)), fitted(appIcon(v.L, 512, on(tone)), '512 · مصغّرة لتناسب العرض'));
   const compare = (v) => wrap(...[16, 24].flatMap((px) => [
     labelled(appIcon(v.L, px, on('dark')), `${px} كبيرة`), labelled(appIcon(v.S, px, on('dark')), `${px} صغيرة`)]));
   const loose = (v, tone) => wrap(...[96, 48, 24, 16].map((px) => labelled(mark(pick(v.L, v.S, px), px, inkOf(tone)), `${px}`)));
@@ -232,7 +235,7 @@ function chosenCard(d, colors) {
     h('header', { class: 'brand-concept__head' },
       h('span', { class: 'brand-concept__num', text: '✓' }),
       h('div', {}, h('h2', { id: 'concept-chosen-title', text: d.chosen.title }),
-        h('p', { class: 'admin-meta', text: `${d.chosen.idea} اختر واحدة من النسختين. لكل نسخة رسمتان: الكبيرة من 48px فما فوق، والصغيرة لـ16 و24px ولأيقونة الإشعارات. النقطة متوهجة، ومسطحة بلون واحد في أيقونة الإشعارات ونسخة Android 13 (شرط النظام). لا تُعكس أي نسخة تلقائيًا في الصفحات العربية.` }))),
+        h('p', { class: 'admin-meta', text: `${d.chosen.idea} رسمتان: الكبيرة من 48px فما فوق، والصغيرة لـ16 و24px ولأيقونة الإشعارات. النقطة متوهجة، ومسطحة بلون واحد في أيقونة الإشعارات ونسخة Android 13 (شرط النظام). لا يُعكس الشعار في الصفحات العربية.` }))),
     both((v) => panel('wall-dark', colors, h('div', { class: 'brand-hero' },
       labelled(appIcon(v.L, 120, on('dark')), 'الكبيرة'), labelled(appIcon(v.S, 56, on('dark')), 'الصغيرة'))), true),
     h('ul', { class: 'brand-notes' },
@@ -240,7 +243,7 @@ function chosenCard(d, colors) {
       h('li', { text: `الكبيرة: ${d.chosen.notes.large} (${d.chosen.use.large})` }),
       h('li', { text: `الصغيرة: ${d.chosen.notes.small} (${d.chosen.use.small})` })),
 
-    h('h3', { text: 'كل حجم بنسخته: 16 و24 (الصغيرة) · 48 · 96 · 192 · 512 (الكبيرة، اسحب أفقيًا)' }),
+    h('h3', { text: 'كل حجم بنسخته: 16 و24 (الصغيرة) · 48 · 96 · 192 · 512 (الكبيرة)' }),
     both((v) => panel('wall-dark', colors, sizes(v, 'dark'))),
     both((v) => panel('wall-light', colors, sizes(v, 'light'))),
 
@@ -304,8 +307,8 @@ export function renderBrand(main) {
     const { colors, contrast: k } = d;
     main.replaceChildren(
       h('section', { class: 'admin-card glass brand-intro' },
-        h('h2', { text: 'الشعار الجديد: ثلاث شموع، نسختان للاختيار' }),
-        h('p', { class: 'admin-meta', text: 'المعاينة فقط، ولم يُطبَّق شيء في التطبيق بعد. بعد اختيار النسخة تُطبَّق في كل مكان (المرحلة ب).' }),
+        h('h2', { text: 'الشعار المعتمد: ثلاث شموع' }),
+        h('p', { class: 'admin-meta', text: 'مطبَّق في التطبيق ولوحة القيادة وأيقونات Android وPWA والبريد. كل الأيقونات تُولَّد من رسمتي brand/ بالأمر python brand/build.py.' }),
         h('div', { class: 'brand-swatches' },
           swatch('أسود', colors.black), swatch('أبيض', colors.white),
           swatch('أحمر العلامة', colors.red, `تباين ${k.red_on_black}:1 على الأسود، ${k.red_on_white}:1 على الأبيض`)),

@@ -20,7 +20,7 @@ from email.utils import parseaddr
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.services import mail_templates, mailer, runtime_config
+from app.services import brand, mail_templates, mailer, runtime_config
 from app.services.mailer import MailError
 
 log = logging.getLogger("dzplay.mail")
@@ -69,7 +69,8 @@ def _html(app_name: str, text: str, highlight: str | None) -> str:
     return (f'<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>{name}</title></head>'
             '<body style="margin:0;background:#f5f2ec;font-family:Tahoma,Arial,sans-serif;color:#1a1c2a">'
             '<div style="max-width:480px;margin:24px auto;background:#fff;border-radius:18px;padding:28px 24px;'
-            f'font-size:15px;line-height:1.8"><div style="font-size:20px;font-weight:bold;direction:ltr;text-align:right">{name}</div>'
+            f'font-size:15px;line-height:1.8"><div style="font-size:20px;font-weight:bold;direction:ltr;text-align:right">'
+            f'{brand.email_name_html(app_name)}</div>'
             f'<div style="padding-top:16px">{body}</div></div></body></html>')
 
 

@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { createAntibot } from '../antibot.js';
 import { genderPicker, nameInput } from '../onboarding.js';
 import { privacySheet } from '../privacy.js';
-import { canOfferAndroidApp, h, wordmark } from '../ui.js';
+import { canOfferAndroidApp, h, logoLockup } from '../ui.js';
 
 let gsiLoading = null;
 function loadGoogleScript() {
@@ -261,7 +261,7 @@ export function renderAuth(root, { config, onAuthenticated }) {
   root.replaceChildren(
     h('main', { class: 'auth' },
       h('div', { class: 'auth__brand' },
-        wordmark(true),
+        logoLockup({ size: 88, pulse: true, large: true }),
         h('p', { class: 'auth__tagline', text: config.welcome_text || 'مجتمع للمتداولين وأخبار العملات الرقمية والتحليلات.' }),
       ),
       tabs,

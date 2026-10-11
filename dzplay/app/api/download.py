@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from app.api.deps import get_state
-from app.services import app_release
+from app.services import app_release, brand
 
 router = APIRouter(tags=["download"])
 
@@ -58,14 +58,15 @@ def download_page(request: Request) -> HTMLResponse:
   <title>تحميل {name}</title>
   <meta name="description" content="حمّل تطبيق {name} لأندرويد أو أضفه إلى شاشة iPhone الرئيسية.">
   <meta name="referrer" content="no-referrer">
-  <link rel="icon" href="/icons/icon-192.png">
+  {brand.HEAD_ICONS}
+  {brand.og_tags(st.settings, base, f"تحميل {st.settings.APP_NAME}", f"حمّل تطبيق {st.settings.APP_NAME} لأندرويد أو أضفه إلى شاشة iPhone الرئيسية.")}
   <link rel="stylesheet" href="/css/download.css">
 </head>
 <body>
   <main class="dl">
     <header class="dl-head">
       <img class="dl-icon" src="/icons/icon-192.png" width="88" height="88" alt="">
-      <h1>{name}</h1>
+      <h1 class="dl-name" dir="ltr" aria-label="{name}">{brand.wordmark_html(st.settings.APP_NAME)}</h1>
       <p class="dl-tag">مجتمع للمتداولين: أخبار العملات الرقمية والتحليلات والأفكار، وبياناتك محمية.</p>
     </header>
 

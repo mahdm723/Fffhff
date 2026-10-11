@@ -51,7 +51,9 @@ docker compose version >/dev/null 2>&1 || die "Docker Compose plugin missing. In
 ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null) + Compose"
 
 # --- 2. code ------------------------------------------------------------------------
-say "2/6 Downloading DZPLAY ($BRANCH)"
+# the app's name for these messages: APP_NAME from .env (DALTA.BIT until the first install wrote one)
+app_label() { local n=""; [ -f "$APP_DIR/.env" ] && n="$(grep -E '^APP_NAME=' "$APP_DIR/.env" | tail -1 | cut -d= -f2-)"; echo "${n:-DALTA.BIT}"; }
+say "2/6 Downloading $(app_label) ($BRANCH)"
 if [ -d "$SRC_DIR/.git" ]; then
   git -C "$SRC_DIR" fetch -q --depth 1 origin "$BRANCH"
   git -C "$SRC_DIR" checkout -q -B "$BRANCH" FETCH_HEAD
@@ -250,7 +252,7 @@ fi
 cat <<EOF
 
 =====================================================================
-  DZPLAY is installed 🎉
+  $(app_label) is installed 🎉
 
   Open on your phone:   $PUBLIC_URL
 

@@ -10,8 +10,8 @@
   <meta name="color-scheme" content="dark light">
   <meta name="referrer" content="no-referrer">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  {{HEAD_ICONS}}
+  {{OG}}
   <link rel="preload" href="/fonts/plex-arabic-arabic-400.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/js/theme-boot.js"></script>
   <link rel="stylesheet" href="/css/app.css">
@@ -21,7 +21,7 @@
 <body>
   <div id="app" aria-live="polite">
     <div class="boot">
-      <div class="wordmark wordmark--lg">{{WORDMARK}}</div>
+      <div class="boot__brand">{{LOGO}}<div class="wordmark wordmark--lg">{{WORDMARK}}</div></div>
     </div>
   </div>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>

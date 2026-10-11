@@ -35,7 +35,8 @@ set_env() {  # set_env KEY VALUE — replace or append (value never printed)
 env_get() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- || true; }
 
 echo
-echo "DZPLAY — Telegram bot setup"
+name="$(env_get APP_NAME)"
+echo "${name:-DALTA.BIT} — Telegram bot setup"
 echo "  1) Get the token from @BotFather (use a NEW token: /revoke the one shared in chats)."
 echo "  2) Your chat ID: send any message to @userinfobot in Telegram, it replies with your Id."
 echo "  3) Open your own bot and press Start."

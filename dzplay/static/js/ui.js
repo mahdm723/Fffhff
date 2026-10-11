@@ -1,6 +1,7 @@
 // DOM helpers. User content is only ever inserted with textContent — never innerHTML.
 import { appName, wordmarkParts } from './brand.js';
 import { STAR_CHECK, STAR_SEAL, icon } from './icons.js';
+import { LOGO } from './logo-shapes.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -100,6 +101,46 @@ export function idChip(publicId) {
   if (!publicId) return null;
   return h('button', { class: 'id-chip', type: 'button', 'aria-label': `نسخ المعرّف ${publicId}`, onclick: () => copyText(publicId, 'نُسخ المعرّف.') },
     h('span', { dir: 'ltr', text: publicId }), icon('copy'));
+}
+
+let logoCopies = 0;
+
+/** The logo (brand/, generated into logo-shapes.js): three candles, the red dot glowing on the tallest one's wick.
+ *  Never mirrored (fixed coordinates, LTR). The small drawing at 24px and below, the large one above. `pulse`: the
+ *  slow glow of the header, boot and sign-in screens (off with «تقليل الحركة»); `mono`: one colour, no glow.
+ *  The candles take the text colour (currentColor). */
+export function logoMark({ size = 24, pulse = false, mono = false } = {}) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    return e;
+  };
+  const L = size <= 24 ? LOGO.small : LOGO.large;
+  const id = `dz-logo-${(logoCopies += 1)}`; // gradient ids: unique per copy
+  const gradient = (gid, attrs, stops) => {
+    const g = el('radialGradient', { id: gid, ...attrs });
+    for (const [offset, color, opacity] of stops) {
+      g.append(el('stop', { offset, 'stop-color': color, ...(opacity === undefined ? {} : { 'stop-opacity': opacity }) }));
+    }
+    return g;
+  };
+  const { stops, ...dotAttrs } = L.dotGradient;
+  const [cx, cy, r] = L.dot;
+  const svg = el('svg', { viewBox: '0 0 100 100', width: size, height: size, 'aria-hidden': 'true',
+    class: `logo-mark${pulse ? ' logo-mark--pulse' : ''}${mono ? ' logo-mark--mono' : ''}` });
+  const defs = el('defs', {});
+  defs.append(gradient(`${id}-dot`, dotAttrs, stops), gradient(`${id}-glow`, {}, L.glowStops));
+  const ink = el('g', { class: 'ink', fill: 'currentColor' });
+  for (const [x, y, width, height, rx] of L.ink) ink.append(el('rect', { x, y, width, height, rx }));
+  svg.append(defs, el('circle', { class: 'glow', cx, cy, r: L.glow, fill: `url(#${id}-glow)` }), ink,
+    el('circle', { class: 'dot', cx, cy, r, fill: `url(#${id}-dot)` }));
+  return svg;
+}
+
+/** The logo + the name side by side (left to right, like the name itself). */
+export function logoLockup({ size = 24, pulse = false, large = false } = {}) {
+  return h('span', { class: `logo-lockup${large ? ' logo-lockup--lg' : ''}` }, logoMark({ size, pulse }), wordmark(large));
 }
 
 export function wordmark(large = false) {

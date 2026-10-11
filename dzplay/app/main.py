@@ -60,13 +60,21 @@ _ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m 
     "admin-texts", "admin-brand")}}
 
 
-def brand(page: str, settings: Settings) -> str:
-    """{{APP_NAME}} / {{WORDMARK}} in a page: the name from APP_NAME, escaped; in the wordmark a dot in the name
-    becomes the gradient dot (DALTA.BIT → DALTA●BIT), otherwise the dot follows the name."""
+def brand(page: str, settings: Settings, base: str = "") -> str:
+    """The placeholders of a page shell: {{APP_NAME}} (escaped), {{WORDMARK}} (the name with the logo's red dot:
+    DALTA.BIT → DALTA●BIT), {{LOGO}} (the logo inline, for the boot screen), {{HEAD_ICONS}} and {{OG}} (link
+    previews, absolute URLs from `base`)."""
+    from app.services import brand as brand_svc
+
     name = settings.APP_NAME
-    first, dot, rest = name.partition(".")
-    mark = f'{html.escape(first)}<span class="wordmark__dot"></span>{html.escape(rest) if dot else ""}'
-    return page.replace("{{APP_NAME}}", html.escape(name)).replace("{{WORDMARK}}", mark)
+    page = page.replace("{{HEAD_ICONS}}", brand_svc.HEAD_ICONS)
+    if "{{OG}}" in page:
+        page = page.replace("{{OG}}", brand_svc.og_tags(settings, base, name, OG_DESCRIPTION))
+    return (page.replace("{{APP_NAME}}", html.escape(name)).replace("{{WORDMARK}}", brand_svc.wordmark_html(name))
+            .replace("{{LOGO}}", brand_svc.logo_svg()))
+
+
+OG_DESCRIPTION = "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك."
 
 
 _CSRF_EXEMPT = {"/api/telegram/webhook"}  # authenticated by Telegram's secret header instead
@@ -337,9 +345,10 @@ def create_app(settings: Settings | None = None, telegram_transport=None) -> Fas
     if STATIC_DIR.is_dir():
         @app.get("/", include_in_schema=False)
         @app.get("/index.html", include_in_schema=False)
-        def index() -> HTMLResponse:
+        def index(request: Request) -> HTMLResponse:
             """The app shell, with the name from APP_NAME (V6 phase 8: one setting renames the whole app)."""
-            return HTMLResponse(brand((STATIC_DIR / "index.html").read_text(encoding="utf-8"), settings))
+            base = settings.PUBLIC_URL or str(request.base_url)
+            return HTMLResponse(brand((STATIC_DIR / "index.html").read_text(encoding="utf-8"), settings, base))
 
         @app.get("/manifest.webmanifest", include_in_schema=False)
         def manifest() -> Response:

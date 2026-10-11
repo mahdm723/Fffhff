@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)">
   <meta name="color-scheme" content="dark light">
   <meta name="referrer" content="no-referrer">
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  {{HEAD_ICONS}}
   <link rel="preload" href="/fonts/plex-arabic-arabic-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/accents.css">
@@ -19,7 +19,7 @@
 <body class="admin">
   <div id="app" aria-live="polite">
     <div class="boot">
-      <div class="wordmark wordmark--lg">{{WORDMARK}}</div>
+      <div class="boot__brand">{{LOGO}}<div class="wordmark wordmark--lg">{{WORDMARK}}</div></div>
     </div>
   </div>
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>

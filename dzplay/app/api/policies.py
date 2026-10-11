@@ -17,7 +17,7 @@ from starlette.exceptions import HTTPException
 
 from app.api.deps import get_state
 from app.config import Settings
-from app.services import cms
+from app.services import brand, cms
 
 router = APIRouter(tags=["policies"])
 
@@ -44,7 +44,7 @@ def _page(settings: Settings, title: str, inner: str, updated: str | None) -> st
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{html.escape(title)} — {app}</title>
   <meta name="referrer" content="no-referrer">
-  <link rel="icon" href="/icons/icon-192.png">
+  {brand.HEAD_ICONS}
   <link rel="stylesheet" href="/css/download.css">
   <link rel="stylesheet" href="/css/policies.css">
 </head>

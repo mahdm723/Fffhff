@@ -53,7 +53,7 @@ cmd_status() {
   has_keys /root/.ssh/authorized_keys && ok "root" || warn "root: no key"
   users="$(key_users || true)"
   [ -n "$users" ] && for u in $users; do ok "$u (sudo)"; done || warn "no sudo user with an SSH key yet: run  $0 add-user NAME"
-  [ -f "$CONF" ] && ok "DZPLAY SSH hardening is applied ($CONF)" || warn "DZPLAY SSH hardening is not applied"
+  [ -f "$CONF" ] && ok "SSH hardening (keys only) is applied ($CONF)" || warn "SSH hardening (keys only) is not applied"
   { systemctl is-active --quiet "$TIMER.timer" 2>/dev/null || [ -f "$STATE/rollback.pid" ]; } \
     && warn "safety rollback timer is running: run '$0 confirm' after testing" || true
 }

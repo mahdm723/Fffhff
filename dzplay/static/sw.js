@@ -1,12 +1,12 @@
 // Service worker: offline app shell + privacy-preserving push notifications.
-const VERSION = 'dz-v29';
+const VERSION = 'dz-v30';
 const SHELL = [
   '/', '/css/app.css', '/css/accents.css', '/manifest.webmanifest', '/js/theme-boot.js', '/js/brand.js', '/js/content.js', '/js/appearance.js',
   '/js/app.js', '/js/api.js', '/js/ui.js', '/js/icons.js', '/js/store.js', '/js/notify.js',
   '/js/antibot.js', '/js/pow-worker.js', '/js/ideas.js', '/js/privacy.js', '/js/people.js', '/js/onboarding.js', '/js/native.js', '/js/keyboard.js', '/js/media-pick.js', '/js/views/support.js', '/js/views/membership.js', '/js/views/earnings.js', '/js/views/giveaway.js', '/js/views/contact.js',
   '/js/views/auth.js', '/js/views/home.js', '/js/views/messages.js', '/js/views/chat.js', '/js/views/profile.js', '/js/views/user.js', '/js/views/market.js', '/js/views/users.js', '/js/views/notifications.js', '/js/views/post.js',
   '/fonts/plex-arabic-arabic-400.woff2', '/fonts/plex-arabic-arabic-500.woff2', '/fonts/plex-arabic-arabic-700.woff2',
-  '/icons/icon.svg', '/icons/icon-192.png',
+  '/js/logo-shapes.js', '/icons/icon.svg', '/icons/icon-192.png', '/icons/badge-96.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -55,6 +55,7 @@ self.addEventListener('push', (event) => {
       tag: 'dz-message',
       renotify: true,
       icon: '/icons/icon-192.png',
+      badge: '/icons/badge-96.png', // the status-bar icon: the small logo, white and flat
       data: { url: data.url || '/#/messages' },
     });
   })());

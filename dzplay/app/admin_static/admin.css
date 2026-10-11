@@ -47,7 +47,7 @@
 /* ---------- shell ---------- */
 .admin-shell { max-width: 960px; margin: 0 auto; padding: calc(12px + var(--safe-t)) 16px calc(40px + var(--safe-b)); }
 .admin-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; }
-.admin-top__brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.admin-top__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .admin-top__title { font-weight: 700; color: var(--ink-2); font-size: 15px; white-space: nowrap; }
 .admin-top__actions { display: flex; gap: 8px; }
 
@@ -356,14 +356,15 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .brand-strip--wrap { flex-wrap: wrap; overflow-x: visible; justify-content: center; }
 .brand-cell { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
 .brand-cell figcaption { font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums; }
+.brand-cell--fit { width: 100%; max-width: 512px; margin: 12px auto 0; }
+.brand-cell--fit svg { width: 100%; height: auto; }
 .brand-mark, .brand-icon { display: block; flex: none; shape-rendering: geometricPrecision; }
 .brand-mark--mono .dot { fill: currentColor; }
 .brand-mark--mono .glow { display: none; } /* flat: notification icon, Android 13 themed icon */
 /* the dot's glow, alive: a slow, soft pulse of the halo (what the app header, splash and sign-in will do) */
 .brand-anim .glow { transform-box: fill-box; transform-origin: center; animation: dz-glow 3.2s ease-in-out infinite; }
 .brand-anim .dot { animation: dz-dot 3.2s ease-in-out infinite; }
-@keyframes dz-glow { 0%, 100% { opacity: .62; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
-@keyframes dz-dot { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.2); } }
+/* dz-glow / dz-dot: the keyframes of the app's logo pulse (app.css) */
 @media (prefers-reduced-motion: reduce) { .brand-anim .glow, .brand-anim .dot { animation: none; } }
 .brand-lockup { display: flex; align-items: center; justify-content: center; gap: 12px; direction: ltr; flex-wrap: wrap; }
 .brand-word { font-weight: 700; letter-spacing: -0.02em; display: inline-flex; align-items: baseline; gap: .06em; line-height: 1; }

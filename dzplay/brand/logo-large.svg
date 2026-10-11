@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT">
-  <!-- DALTA.BIT logo, large version (48 px and up), version A: three Japanese candlesticks on one base, the tallest on
-       the LEFT, then shorter, then shorter. The tallest has a clear thin wick and the red dot sits on it like a
-       flame; every candle has a wick.
+  <!-- DALTA.BIT logo, large version (48 px and up). The master: brand/build.py makes every icon from it.
+       Three Japanese candlesticks on one base: the tallest on the LEFT, then shorter, then shorter. The tallest
+       has a clear thin wick and the red dot sits on it like a flame; every candle has a wick.
        Never mirrored automatically (the same drawing in RTL pages). The dot glows: a lighter centre (radial
        gradient) and a soft halo; flat versions (notification icon, Android 13 themed icon) hide .glow and fill
        .dot with one colour. Colours: currentColor (black or white) + the brand red family. -->

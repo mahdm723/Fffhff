@@ -59,7 +59,7 @@ export async function refreshPushSubscription() {
 
 export async function showLocalNotification() {
   if (!(await notificationsEnabled())) return;
-  const options = { body: body(), tag: 'dz-message', renotify: true, icon: '/icons/icon-192.png', data: { url: '/#/messages' } };
+  const options = { body: body(), tag: 'dz-message', renotify: true, icon: '/icons/icon-192.png', badge: '/icons/badge-96.png', data: { url: '/#/messages' } };
   const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
   if (reg) reg.showNotification(appName(), options);
   else new Notification(appName(), options);

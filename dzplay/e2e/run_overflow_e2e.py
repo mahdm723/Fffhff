@@ -417,11 +417,11 @@ LOGO_ORDER_JS = r"""() => {
 
 
 def logo_not_mirrored(page: Page, width: int) -> None:
-    """Each version keeps its own left-to-right order in the RTL panel (never mirrored by the page): A falls from
-    the tallest on the left, B rises to the tallest on the right; the dot is above the tallest."""
+    """The logo keeps its left-to-right order in the RTL panel (never mirrored by the page): the tallest on the
+    left, then shorter, then shorter (a B version, if one is ever proposed again, rises to the right); the dot is
+    above the tallest."""
     copies = page.evaluate(LOGO_ORDER_JS)
-    problem_if(sum(c["v"] == "a" for c in copies) < 20 or sum(c["v"] == "b" for c in copies) < 20,
-               f"{width} «الهوية»: too few copies of the logo found ({len(copies)})")
+    problem_if(sum(c["v"] == "a" for c in copies) < 20, f"{width} «الهوية»: too few copies of the logo found ({len(copies)})")
     for c in copies:
         h = c["h"]
         ordered = h[0] > h[1] > h[2] if c["v"] == "a" else h[0] < h[1] < h[2]
