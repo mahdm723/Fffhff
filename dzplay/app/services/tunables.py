@@ -118,6 +118,9 @@ REGISTRY: list[Tunable] = [
     Tunable("PAYMENT_AMOUNT_TOLERANCE", "float", "membership", "فرق مقبول في المبلغ (USDT، 0 = المبلغ بالضبط)", 0, 100),
     Tunable("AUTO_NOTIFY_UNDERPAYMENT", "bool", "membership", "طلب الفارق من المستخدم آليًا عند نقص المبلغ"),
     Tunable("MEMBERSHIP_MAX_TXIDS", "int", "membership", "أقصى عدد للعمليات في طلب واحد (الدفع + الفارق)", 1, 10),
+    # V6 phase 16: automatic grant after the check
+    Tunable("AUTO_APPROVE_MEMBERSHIP", "bool", "membership", "منح العضوية تلقائيًا عند تطابق الفحص الآلي"),
+    Tunable("AUTO_APPROVE_DAILY_MAX", "int", "membership", "أقصى عدد للمنح التلقائي في اليوم", 0, 1000),
     # V6 phase 14: access to the app
     Tunable("ANDROID_APP_GATE", "bool", "access", "أندرويد من التطبيق فقط (إيقافه يسمح لمتصفح أندرويد مؤقتًا)"),
     Tunable("WEB_DESKTOP_ACCESS", "bool", "access", "السماح باستخدام التطبيق من الكمبيوتر"),

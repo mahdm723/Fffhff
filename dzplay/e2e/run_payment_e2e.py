@@ -5,6 +5,8 @@
    and network, and adds the TXID of the difference.
 3. The second transfer is checked and summed: the panel shows «✅ مطابق — وصل 50.00 USDT». Still pending until the
    owner presses «قبول»; then the user is a member.
+4. V6 phase 16: with AUTO_APPROVE_MEMBERSHIP on, a second user's ✅ payment is granted without the owner; the panel
+   shows «🤖 مُنحت تلقائيًا» and «🚫 سحب العضوية» takes it back.
 Every screen fits a 390 px phone (the overflow checks of run_overflow_e2e).
 
     PW_CHROMIUM=… python e2e/run_payment_e2e.py
@@ -32,7 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "is_mobile": True, "has_touch": True}
 OURS_HEX = "1f" * 20
 WALLET = chain.tron_from_hex20(OURS_HEX)
-TX1, TX2 = "ab" * 32, "cd" * 32
+TX1, TX2, TX3 = "ab" * 32, "cd" * 32, "ef" * 32
 
 
 def wait_for(fn, what: str, seconds: float = 20) -> None:
@@ -145,7 +147,33 @@ def main() -> int:
             card.get_by_role("button", name="قبول").click()
             ap.locator(".sheet").last.get_by_role("button", name="قبول").click()
             wait_for(lambda: c.get("/api/me").json().get("member") is True, "the membership")
-            run.step("the owner accepts: the user is a member (the only way a request is decided)")
+            run.step("the owner accepts: the user is a member (the only way a request is decided, while "
+                     "AUTO_APPROVE_MEMBERSHIP is off)")
+
+            # 4. V6 phase 16: AUTO_APPROVE_MEMBERSHIP on → a ✅ match is granted without the owner, who can take it back
+            status = ap.evaluate("""async (base) => (await fetch(base + '/api/admin/settings', {method: 'PUT',
+                credentials: 'same-origin', headers: {'X-DZ-Requested': '1', 'Content-Type': 'application/json'},
+                body: JSON.stringify({changes: {AUTO_APPROVE_MEMBERSHIP: true}})})).status""", ae.ADMIN_PATH)
+            assert status == 200, status
+            c2 = ae.register(base, "auto@example.com")
+            fake.add(TX3, 50, OURS_HEX)
+            assert c2.post("/api/membership/requests", json={"txid": TX3}).status_code == 201
+            wait_for(lambda: c2.get("/api/me").json().get("member") is True, "the automatic grant")
+            ap.reload()
+            ap.locator("#tab-membership").click()
+            ap.get_by_role("tab", name="مقبول").click()  # granted: no longer among the pending requests
+            card = ap.locator(".admin-card", has=ap.locator(".admin-auto"))
+            expect(card.locator(".admin-auto__head")).to_contain_text("🤖 مُنحت تلقائيًا")
+            expect(card.locator(".admin-paycheck__head")).to_contain_text("✅ مطابق")
+            run.shot(ap, "4-panel-auto-granted")
+            card.screenshot(path=str(run.shots / "4b-card-auto-granted.png"))
+            ro.check(ap, "panel membership (auto granted)", admin=True)
+            card.get_by_role("button", name="🚫 سحب العضوية").click()
+            ap.locator(".sheet").last.get_by_role("button", name="سحب").click()
+            wait_for(lambda: c2.get("/api/me").json().get("member") is False, "the revoke")
+            expect(ap.locator(".admin-card", has_text="سُحبت العضوية الممنوحة تلقائيًا")).to_have_count(1)
+            run.step("AUTO_APPROVE_MEMBERSHIP on: 50 USDT ✅ is granted automatically («🤖 مُنحت تلقائيًا»); "
+                     "«🚫 سحب العضوية» takes it back")
             browser.close()
         if ro.PROBLEMS:
             problems.extend(ro.PROBLEMS)

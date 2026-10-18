@@ -70,6 +70,10 @@ def backfill(engine: Engine) -> dict:
             now = clock.utcnow()
             conn.execute(text("INSERT INTO app_settings (key, value, updated_at, updated_by) "
                               "VALUES ('schema.v6_anon_closed_at', :v, :t, 'system')"), {"v": now.isoformat(), "t": now})
+        # V6 phase 16: the daily counter of automatic membership grants exists before two checks can race to create it
+        if conn.execute(text("SELECT 1 FROM app_settings WHERE key = 'auto_approve.day'")).first() is None:
+            conn.execute(text("INSERT INTO app_settings (key, value, updated_at, updated_by) "
+                              "VALUES ('auto_approve.day', '{}', :t, 'system')"), {"t": clock.utcnow()})
         missing = [r[0] for r in conn.execute(text("SELECT id FROM users WHERE public_id IS NULL"))]
         if missing:
             taken = {r[0] for r in conn.execute(text("SELECT public_id FROM users WHERE public_id IS NOT NULL"))}

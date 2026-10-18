@@ -958,6 +958,22 @@
   "plural": false
  },
  {
+  "id": "أُوقفت عضويتك بعد المراجعة.",
+  "where": [
+   "app/services/membership_auto.py:128"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "أُوقفت عضويتك بعد مراجعة الدفع. للاستفسار تواصل مع الدعم.",
+  "where": [
+   "app/services/membership_auto.py:129"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "إبلاغ",
   "where": [
    "static/js/media-pick.js:215",
@@ -1755,6 +1771,15 @@
   "plural": false
  },
  {
+  "id": "اكتب السبب (3 أحرف على الأقل).",
+  "where": [
+   "app/services/suspicion.py:68",
+   "app/services/suspicion.py:81"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "اكتب السبب.",
   "where": [
    "app/services/rewards.py:257"
@@ -1813,7 +1838,7 @@
  {
   "id": "اكتب رمزًا أولًا.",
   "where": [
-   "app/services/signup.py:325"
+   "app/services/signup.py:326"
   ],
   "client": false,
   "plural": false
@@ -2301,7 +2326,7 @@
  {
   "id": "الرمز {min} حرفًا على الأقل.",
   "where": [
-   "app/services/signup.py:320"
+   "app/services/signup.py:321"
   ],
   "client": false,
   "plural": false
@@ -2385,7 +2410,7 @@
   "id": "السحب",
   "where": [
    "app/services/cms.py:641",
-   "app/services/membership.py:420"
+   "app/services/membership.py:429"
   ],
   "client": false,
   "plural": false
@@ -2554,7 +2579,7 @@
  {
   "id": "العضوية",
   "where": [
-   "app/services/membership.py:420"
+   "app/services/membership.py:429"
   ],
   "client": false,
   "plural": false
@@ -2664,7 +2689,7 @@
  {
   "id": "المبلغ المدفوع ليس أقل من السعر.",
   "where": [
-   "app/services/payment_check.py:321"
+   "app/services/payment_check.py:328"
   ],
   "client": false,
   "plural": false
@@ -3161,7 +3186,7 @@
   "id": "تاريخ الانتهاء غير صالح.",
   "where": [
    "app/services/giveaway.py:154",
-   "app/services/signup.py:288"
+   "app/services/signup.py:289"
   ],
   "client": false,
   "plural": false
@@ -3170,7 +3195,7 @@
   "id": "تاريخ الانتهاء يجب أن يكون في المستقبل.",
   "where": [
    "app/services/giveaway.py:156",
-   "app/services/signup.py:328"
+   "app/services/signup.py:329"
   ],
   "client": false,
   "plural": false
@@ -3751,8 +3776,8 @@
   "where": [
    "app/services/membership.py:196",
    "app/services/membership.py:279",
-   "app/services/payment_check.py:319",
-   "app/services/payment_check.py:385",
+   "app/services/payment_check.py:326",
+   "app/services/payment_check.py:392",
    "app/services/verification.py:301",
    "app/services/withdrawals.py:114"
   ],
@@ -4552,7 +4577,7 @@
   "where": [
    "app/services/membership.py:147",
    "app/services/membership.py:157",
-   "app/services/payment_check.py:369",
+   "app/services/payment_check.py:376",
    "app/services/verification.py:271",
    "app/services/verification.py:255"
   ],
@@ -4620,7 +4645,7 @@
  {
   "id": "رُفض الطلب وحُظر الحساب.",
   "where": [
-   "app/services/payment_check.py:389"
+   "app/services/payment_check.py:396"
   ],
   "client": false,
   "plural": false
@@ -4983,9 +5008,9 @@
    "app/services/messaging.py:647",
    "app/services/people.py:65",
    "app/services/people.py:103",
-   "app/services/signup.py:322",
-   "app/services/signup.py:337",
-   "app/services/signup.py:335"
+   "app/services/signup.py:323",
+   "app/services/signup.py:338",
+   "app/services/signup.py:336"
   ],
   "client": false,
   "plural": false
@@ -5280,7 +5305,7 @@
    "app/errors.py:23",
    "app/main.py:289",
    "app/main.py:383",
-   "app/services/payment_check.py:361"
+   "app/services/payment_check.py:368"
   ],
   "client": false,
   "plural": false
@@ -5759,7 +5784,7 @@
  {
   "id": "لا يمكن إضافة عملية إلى هذا الطلب الآن.",
   "where": [
-   "app/services/payment_check.py:363"
+   "app/services/payment_check.py:370"
   ],
   "client": false,
   "plural": false
@@ -6911,6 +6936,14 @@
   "plural": false
  },
  {
+  "id": "هذا الطلب لم يُمنح تلقائيًا أو سُحب من قبل.",
+  "where": [
+   "app/services/membership_auto.py:122"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "هذا الملف غير متاح",
   "where": [
    "static/js/views/user.js:29"
@@ -7015,7 +7048,7 @@
   "id": "وصلت إلى الحد الأقصى لعدد العمليات في الطلب. تواصل مع الدعم.",
   "where": [
    "static/js/views/membership.js:55",
-   "app/services/payment_check.py:365"
+   "app/services/payment_check.py:372"
   ],
   "client": true,
   "plural": false
@@ -7301,7 +7334,7 @@
  {
   "id": "ينقص دفع العضوية {amount} USDT. أرسل الفارق على شبكة {network} إلى العنوان نفسه، ثم أضف رقم العملية في «عضويتي».",
   "where": [
-   "app/services/payment_check.py:326"
+   "app/services/payment_check.py:333"
   ],
   "client": false,
   "plural": false

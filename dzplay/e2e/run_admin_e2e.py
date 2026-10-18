@@ -306,6 +306,16 @@ class Run:
         assert "password" not in sheet.inner_text().lower() and "null" not in sheet.inner_text()
         self.step("users: search by e-mail, full user page (posts, conversations, reports, events)")
         self.shot(page, "08-user-detail-dark")
+        suspect = sheet.locator(".admin-suspect")  # V6 phase 16: «مشبوه» → no automatic membership grant
+        expect(suspect).to_contain_text("بلاغ مفتوح ضد الحساب")  # the seed reported this account
+        suspect.get_by_placeholder("سبب تعليم الحساب كمشبوه").fill("تحويلات من محافظ متكررة")
+        suspect.get_by_role("button", name="تعليم الحساب كمشبوه").click()
+        expect(sheet.locator(".admin-suspect")).to_contain_text("الحساب معلَّم كمشبوه: تحويلات من محافظ متكررة")
+        sheet.locator(".admin-suspect").scroll_into_view_if_needed()
+        self.shot(page, "08b-user-suspicious")
+        sheet.locator(".admin-suspect").get_by_role("button", name="إزالة علامة الحساب المشبوه").click()
+        expect(sheet.locator(".admin-suspect")).not_to_contain_text("الحساب معلَّم كمشبوه")
+        self.step("users: «تعليم الحساب كمشبوه» with a reason, shown on the user page, then removed")
         sheet.get_by_role("button", name="إنهاء كل الجلسات").click()
         expect(page.locator(".toast").last).to_contain_text("أُنهيت")
         sheet.get_by_role("button", name="إغلاق").click()

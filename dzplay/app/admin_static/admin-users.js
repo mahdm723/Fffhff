@@ -92,6 +92,27 @@ const GENDER = { male: 'رجل', female: 'أنثى', unspecified: 'أفضّل ع
 
 const LEVEL = { tee: 'TEE (عتاد آمن)', strongbox: 'StrongBox (شريحة آمنة)' };
 
+// V6 phase 16: «مشبوه» — no automatic membership grant for this account (or for any account on a marked phone)
+function markButton(url, on, what, paint) {
+  const reason = h('input', { class: 'input', maxlength: '255', placeholder: `سبب تعليم ${what} كمشبوه` });
+  const go = async () => {
+    if (!on && reason.value.trim().length < 3) { toast('اكتب السبب (3 أحرف على الأقل).', 'error'); reason.focus(); return; }
+    if (await attempt(() => call('POST', url, { on: !on, reason: on ? null : reason.value.trim() }))) { toast('تم.'); paint(); }
+  };
+  return h('div', { class: 'admin-actions' }, on ? null : reason,
+    h('button', { type: 'button', class: `btn btn--sm ${on ? 'btn--ghost' : 'btn--danger'}`, onclick: go },
+      on ? `إزالة علامة ${what} المشبوه` : `تعليم ${what} كمشبوه`));
+}
+
+function suspectBox(u, s, paint) {
+  const reasons = s.reasons || [];
+  return h('section', { class: 'admin-group glass admin-suspect' },
+    h('h3', { class: 'admin-group__title', text: 'مشبوه؟ (لا منح تلقائي للعضوية)' }),
+    reasons.length ? h('ul', { class: 'admin-auto__why' }, ...reasons.map((x) => h('li', { text: x })))
+      : h('p', { class: 'admin-meta', text: 'لا إشارات. مشاركة الشبكة نفسها لا تُعدّ إشارة.' }),
+    markButton(`/api/admin/users/${encodeURIComponent(u.id)}/suspicious`, !!s.flagged, 'الحساب', paint));
+}
+
 function privacyText(p) {
   if (!p) return '—';
   return [p.accept_direct === 'everyone' ? 'يستقبل المباشرة' : 'لا يستقبل المباشرة',
@@ -137,13 +158,16 @@ export function openUser(id) {
             }))),
         await userV5Section(u.id, paint),
         await userMoneySection(u.id, paint),
+        suspectBox(u, d.suspicion || {}, paint),
         section('الأجهزة (تطبيق أندرويد)', (d.devices || []).length,
           h('p', { class: 'admin-meta', text: 'هواتف أثبت فيها التطبيق نفسه (Key Attestation). على iPhone لا يوجد ربط بالجهاز.' }),
           ...(d.devices || []).map((v) => h('div', { class: 'admin-line admin-line--col' },
             h('span', {}, chip(LEVEL[v.security_level] || v.security_level), v.registered_here ? chip('أُنشئ منه الحساب', 'chip--warn') : null,
               chip(`${fmt(v.accounts)} حساب على هذا الجهاز`, v.accounts > 1 ? 'chip--hot' : ''),
+              v.suspicious ? chip(`مشبوه: ${v.suspicious_reason || ''}`, 'chip--hot') : null,
               h('code', { dir: 'ltr', text: shortRef(v.id) })),
-            h('span', { class: 'admin-meta', text: `الإصدار ${v.version_code || '—'} · أول ظهور ${when(v.first_seen)} · آخر ظهور ${when(v.last_seen)}` })))),
+            h('span', { class: 'admin-meta', text: `الإصدار ${v.version_code || '—'} · أول ظهور ${when(v.first_seen)} · آخر ظهور ${when(v.last_seen)}` }),
+            markButton(`/api/admin/devices/${encodeURIComponent(v.id)}/suspicious`, v.suspicious, 'الجهاز', paint)))),
         section('سجل الأسماء (للإدارة فقط)', d.name_history.length, ...d.name_history.map((n) => h('div', { class: 'admin-line' },
           h('bdi', { text: n.old || 'dzplay' }), h('span', { text: '←' }), h('bdi', { text: n.new || 'dzplay' }),
           h('span', { class: 'admin-meta', text: when(n.at) })))),

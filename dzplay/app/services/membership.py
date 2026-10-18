@@ -345,7 +345,16 @@ def admin_view(db: Session, req: MembershipRequest) -> dict:
             "wallet": req.wallet, "txid": req.txid, "explorer_url": explorer_link(template, req.txid),
             "note": req.admin_note, "created_at": iso(req.created_at), "decided_at": iso(req.decided_at),
             "decided_by": req.decided_by, "member": is_member(user),
-            "check": payment_check.view(db, req)}  # V6 phase 13: the automatic check (information only)
+            "check": payment_check.view(db, req),  # V6 phase 13: the automatic check (information only)
+            "auto": _auto_view(db, req, user)}  # V6 phase 16: automatic grant / why it stays manual
+
+
+def _auto_view(db: Session, req: MembershipRequest, user: User | None) -> dict:
+    from app.services import membership_auto, suspicion
+
+    note = membership_auto.note_of(req)
+    return {"state": req.auto_state, "review": note.get("review"), "manual": note.get("manual") or [],
+            "suspicion": suspicion.reasons(db, user) if user is not None and req.status == "pending" else []}
 
 
 def refund_view(db: Session, r: MembershipRefund) -> dict:
@@ -435,7 +444,7 @@ def install(state) -> None:
     from app.services import payment_check
     from app.services.media_moderation import mark_done
 
-    actions = ("accept", "reject", "ban", "banyes", "menu", "topup", "recheck")
+    actions = ("accept", "reject", "ban", "banyes", "menu", "topup", "recheck", "revoke", "revokeyes")
 
     def on_callback(bot, cq: dict, payload: str) -> None:
         action, _, rid = payload.partition(":")
@@ -446,6 +455,10 @@ def install(state) -> None:
         if action in ("ban", "menu"):  # a ban is confirmed by a second tap
             bot.tg.answer_callback(cq.get("id"), "اضغط «تأكيد الحظر» للمتابعة" if action == "ban" else "")
             payment_check.update_owner(state, rid, confirm_ban=action == "ban")
+            return
+        if action == "revoke":  # V6 phase 16: taking back an automatic grant is confirmed too
+            bot.tg.answer_callback(cq.get("id"), "اضغط «تأكيد سحب العضوية» للمتابعة")
+            payment_check.update_owner(state, rid, confirm="revoke")
             return
         if action == "recheck":
             bot.tg.answer_callback(cq.get("id"), "جارٍ الفحص…")
@@ -462,6 +475,10 @@ def install(state) -> None:
                     payment_check.request_topup(db, state.settings, req, actor, effects)
                 elif action == "banyes":
                     payment_check.ban(db, state.settings, req, actor, effects)
+                elif action == "revokeyes":
+                    from app.services import membership_auto
+
+                    membership_auto.revoke(db, state.settings, req, actor, effects)
                 else:
                     decide(db, state.settings, req, action, actor, "", effects)
         except AppError as exc:
@@ -472,7 +489,8 @@ def install(state) -> None:
             bot.tg.answer_callback(cq.get("id"), "💬 طُلب الفارق من المستخدم")
             payment_check.update_owner(state, rid)
             return
-        label = {"accept": "✅ قُبلت العضوية", "reject": "❌ رُفض الطلب", "banyes": "⛔ حُظر الحساب ورُفض الطلب"}[action]
+        label = {"accept": "✅ قُبلت العضوية", "reject": "❌ رُفض الطلب", "banyes": "⛔ حُظر الحساب ورُفض الطلب",
+                 "revokeyes": "🚫 سُحبت العضوية"}[action]
         bot.tg.answer_callback(cq.get("id"), label)
         payment_check.update_owner(state, rid)
         msg = cq.get("message") or {}

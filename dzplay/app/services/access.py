@@ -246,6 +246,7 @@ def user_devices(db: Session, user: User) -> list[dict]:
     for link, dev in rows:
         accounts = db.scalar(select(func.count()).select_from(UserDevice).where(UserDevice.device_id == dev.id)) or 0
         out.append({"id": dev.id, "security_level": dev.security_level, "version_code": dev.version_code,
+                    "suspicious": dev.suspicious_at is not None, "suspicious_reason": dev.suspicious_reason,
                     "details": dev.details, "first_seen": link.first_seen_at.isoformat() + "Z",
                     "last_seen": link.last_seen_at.isoformat() + "Z", "accounts": accounts,
                     "registered_here": dev.id == user.registered_device_id})

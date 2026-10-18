@@ -428,3 +428,8 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .admin-paycheck__tx { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; min-width: 0; }
 .admin-paycheck__tx code { overflow-wrap: anywhere; min-width: 0; font-size: 12px; }
 .admin-card .admin-meta code { overflow-wrap: anywhere; word-break: break-all; }
+/* V6 phase 16: automatic membership grant / why it stays manual; suspicious marks */
+.admin-auto { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 8px 12px; border-radius: 12px; border: 1px dashed var(--line); }
+.admin-auto__head { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.admin-auto__why { margin: 0; padding-inline-start: 18px; color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+.admin-suspect { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }

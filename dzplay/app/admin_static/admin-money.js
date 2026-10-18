@@ -44,6 +44,27 @@ function checkBox(r, reload) {
     pending ? h('div', { class: 'admin-actions' }, recheck, c.can_request_topup ? topup : '', r.user_status !== 'banned' ? ban : '') : '');
 }
 
+// V6 phase 16: automatic grant — shown with «سحب العضوية»; or why the request waits for you
+function autoBox(r, reload) {
+  const a = r.auto || {};
+  if (a.state === 'granted') {
+    const revoke = btn('🚫 سحب العضوية', 'btn--danger', async () => {
+      if (!(await confirmDanger('سحب العضوية الممنوحة تلقائيًا؟', 'تتوقف العضوية وتُلغى مكافأة الدعوة المرتبطة، ويصل المستخدم إشعار وبريد. لا يُسترجع المبلغ تلقائيًا.', 'سحب'))) return;
+      if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/revoke`, { reason: null }))) { toast('سُحبت العضوية.'); reload(); }
+    });
+    return h('div', { class: 'admin-auto' },
+      h('p', { class: 'admin-auto__head' }, chip('🤖 مُنحت تلقائيًا', 'chip--team'),
+        a.review === 'over' ? chip('⚠️ مبلغ زائد: للمراجعة', 'chip--warn') : ''),
+      h('div', { class: 'admin-actions' }, revoke));
+  }
+  if (a.state === 'revoked') return h('p', { class: 'admin-meta', text: '🚫 سُحبت العضوية الممنوحة تلقائيًا' });
+  const why = [...(a.suspicion || []), ...(a.manual || [])].filter((x, i, all) => all.indexOf(x) === i);
+  if (r.status !== 'pending' || !why.length) return '';
+  return h('div', { class: 'admin-auto' },
+    h('p', { class: 'admin-auto__head', text: '↩️ لن يُمنح تلقائيًا:' }),
+    h('ul', { class: 'admin-auto__why' }, ...why.map((x) => h('li', { text: x }))));
+}
+
 export function renderMembership(main) {
   const summary = h('p', { class: 'admin-meta' });
   const list = h('div', { class: 'admin-list' }, spinner());
@@ -61,6 +82,7 @@ export function renderMembership(main) {
       h('p', { class: 'admin-meta', text: when(r.created_at) }),
       txLine(r),
       checkBox(r, load),
+      autoBox(r, load),
       r.note ? h('p', { class: 'admin-meta', text: `ملاحظة: ${r.note} (${r.decided_by || ''})` }) : '',
       r.status === 'pending' ? h('div', { class: 'admin-actions' }, note,
         btn('قبول', 'btn--primary', decide('accept')), btn('رفض', 'btn--danger', decide('reject'))) : '');

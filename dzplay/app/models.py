@@ -120,6 +120,10 @@ class User(Base):
     language: Mapped[str | None] = mapped_column(String(5), nullable=True)  # V6 phase 12: ar|fr|en (NULL = not chosen yet)
     # V6 phase 14: the attested phone the account was created on (MAX_ACCOUNTS_PER_DEVICE)
     registered_device_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    # V6 phase 16: marked suspicious by an admin (no automatic membership grant)
+    suspicious_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    suspicious_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    suspicious_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # V6 phase 15: one mailbox, one account (lowercase, no +tag, no dots for Gmail) and how the signup was confirmed
     email_canonical: Mapped[str | None] = mapped_column(String(254), nullable=True, index=True)
     signup_verified_via: Mapped[str | None] = mapped_column(String(12), nullable=True)  # email | admin_code | google
@@ -605,6 +609,9 @@ class MembershipRequest(Base):
     checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     underpay_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # the user was asked
     underpay_notified_micro: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # … for this missing amount
+    # V6 phase 16: automatic grant — granting (claimed) | granted | revoked; auto_note: JSON (review / why manual)
+    auto_state: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    auto_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class MembershipTx(Base):
@@ -646,6 +653,9 @@ class AppDevice(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # V6 phase 16: marked suspicious by an admin (accounts on this phone get no automatic membership grant)
+    suspicious_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    suspicious_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class SignupPending(Base):

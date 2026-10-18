@@ -308,6 +308,9 @@ class Settings(BaseSettings):
     PAYMENT_AMOUNT_TOLERANCE: float = 0.0  # USDT: a difference up to this is still a match
     AUTO_NOTIFY_UNDERPAYMENT: bool = False  # ask the user for the missing amount without waiting for the owner
     MEMBERSHIP_MAX_TXIDS: int = 3  # the first payment + top-ups in one request
+    # V6 phase 16: membership granted automatically after a ✅ check (off by default; panel settings)
+    AUTO_APPROVE_MEMBERSHIP: bool = False
+    AUTO_APPROVE_DAILY_MAX: int = 10  # automatic grants per day (UTC); beyond: back to the owner's review
 
     # --- V6 phase 5b: promotional rewards («أرباحي») — separate from membership, amounts in USDT -----
     REFERRAL_ENABLED: bool = True

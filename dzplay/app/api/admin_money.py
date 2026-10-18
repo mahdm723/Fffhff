@@ -103,6 +103,47 @@ def refund_decide(refund_id: str, body: DecideBody, request: Request, ac: AdminC
     return result
 
 
+class OptionalReasonBody(_Body):
+    reason: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/membership/requests/{request_id}/revoke")
+def membership_revoke(request_id: str, body: OptionalReasonBody, request: Request,
+                      ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """V6 phase 16: «سحب العضوية» of an automatic grant (the services audit it)."""
+    from app.services import membership_auto
+
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        req = membership.by_id(db, MembershipRequest, request_id)
+        result = membership_auto.revoke(db, st.settings, req, f"admin:{ac.actor}", effects, reason=body.reason or "")
+    st.dispatch(effects)
+    return result
+
+
+class SuspiciousBody(_Body):
+    on: bool
+    reason: str | None = Field(default=None, max_length=255)
+
+
+@router.post("/users/{user_ref}/suspicious")
+def user_suspicious(user_ref: str, body: SuspiciousBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """V6 phase 16: «تعليم كمشبوه» — no automatic membership grant for this account (audited)."""
+    from app.services import suspicion
+
+    with get_state(request).database.session() as db:
+        return suspicion.mark_user(db, user_ref, body.on, body.reason or "", f"admin:{ac.actor}")
+
+
+@router.post("/devices/{device_id}/suspicious")
+def device_suspicious(device_id: str, body: SuspiciousBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    from app.services import suspicion
+
+    with get_state(request).database.session() as db:
+        return suspicion.mark_device(db, device_id, body.on, body.reason or "", f"admin:{ac.actor}")
+
+
 @router.post("/users/{user_ref}/membership/end")
 def membership_end(user_ref: str, body: ReasonBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     st = get_state(request)

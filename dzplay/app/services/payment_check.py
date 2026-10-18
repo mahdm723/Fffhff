@@ -1,7 +1,9 @@
 """V6 phase 13: the automatic check of membership payments on the chain.
 
 THE RULE: the system checks and SHOWS the result; it never accepts or rejects a request. Only membership.decide
-changes a request's status — from the panel or the owner's Telegram buttons (accept / reject / ban).
+changes a request's status — from the panel or the owner's Telegram buttons (accept / reject / ban). V6 phase 16: the
+one exception is AUTO_APPROVE_MEMBERSHIP (off by default) — services/membership_auto.py grants a ✅ request whose every
+condition holds; nothing is ever rejected automatically.
 
 For every TXID of a request (the first payment, then top-ups): success and confirmations, the recipient is the
 platform wallet, the token is the official USDT contract, the time is after the account was created, the TXID was not
@@ -212,6 +214,11 @@ def run(state, request_id: str, force: bool = False) -> str | None:
         if (enabled and settings.AUTO_NOTIFY_UNDERPAYMENT and status == "under"
                 and req.underpay_notified_micro != -(req.diff_micro or 0)):
             request_topup(db, settings, req, "system:auto", effects)
+        if enabled and status in ("match", "over"):  # V6 phase 16 (off by default)
+            from app.services import membership_auto
+
+            if membership_auto.try_approve(db, settings, req, status, effects):
+                changed = True
         first = req.tg_message_id is None
     state.dispatch(effects)
     if first:
@@ -405,15 +412,29 @@ def owner_text(db: Session, req: MembershipRequest) -> str:
         lines.append(f"{i}) {'الفارق ' if t['kind'] == 'topup' else ''}{t['txid']}\n   {t['label']}{amount}{conf}\n   {t['explorer_url'] or ''}")
     if req.underpay_notified_at:
         lines.append(f"💬 طُلب الفارق من المستخدم ({usdt(req.underpay_notified_micro)} USDT)")
+    from app.services.membership_auto import note_of
+
+    note = note_of(req)
+    if req.auto_state == "granted":
+        lines.append("✅ تم منح العضوية تلقائيًا بعد الفحص" + (" — ⚠️ مبلغ زائد: للمراجعة" if note.get("review") == "over" else ""))
+    elif req.auto_state == "revoked":
+        lines.append("🚫 سُحبت العضوية الممنوحة تلقائيًا")
+    elif req.status == "pending" and note.get("manual"):
+        lines.append("↩️ للمراجعة اليدوية: " + "، ".join(note["manual"]))
     if req.status != "pending":
         lines.append(f"القرار: {v['status_label']}")
     return "\n".join(lines)
 
 
-def owner_keyboard(req: MembershipRequest, confirm_ban: bool = False) -> dict | None:
+def owner_keyboard(req: MembershipRequest, confirm_ban: bool = False, confirm: str | None = None) -> dict | None:
+    rid = req.id
+    if req.status == "accepted" and req.auto_state == "granted":  # V6 phase 16: the owner can take it back
+        if confirm == "revoke":
+            return {"inline_keyboard": [[{"text": "🚫 تأكيد سحب العضوية", "callback_data": f"ms:revokeyes:{rid}"},
+                                         {"text": "↩️ تراجع", "callback_data": f"ms:menu:{rid}"}]]}
+        return {"inline_keyboard": [[{"text": "🚫 سحب العضوية", "callback_data": f"ms:revoke:{rid}"}]]}
     if req.status != "pending":
         return None
-    rid = req.id
     if confirm_ban:
         return {"inline_keyboard": [[{"text": "⛔ تأكيد الحظر والرفض", "callback_data": f"ms:banyes:{rid}"},
                                      {"text": "↩️ تراجع", "callback_data": f"ms:menu:{rid}"}]]}
@@ -445,7 +466,7 @@ def send_owner(state, request_id: str) -> None:
             req.tg_message_id = res.get("message_id")
 
 
-def update_owner(state, request_id: str, confirm_ban: bool = False) -> None:
+def update_owner(state, request_id: str, confirm_ban: bool = False, confirm: str | None = None) -> None:
     bot = state.bot
     if bot is None:
         return
@@ -453,7 +474,7 @@ def update_owner(state, request_id: str, confirm_ban: bool = False) -> None:
         req = db.get(MembershipRequest, request_id)
         if req is None or req.tg_message_id is None:
             return
-        text, kb, msg_id = owner_text(db, req), owner_keyboard(req, confirm_ban), req.tg_message_id
+        text, kb, msg_id = owner_text(db, req), owner_keyboard(req, confirm_ban, confirm), req.tg_message_id
     try:
         bot.tg.edit_message_text(bot.admin_id, msg_id, text, reply_markup=kb)
     except Exception as exc:  # noqa: BLE001 - e.g. «message is not modified»

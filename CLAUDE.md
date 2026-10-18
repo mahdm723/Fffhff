@@ -69,7 +69,9 @@
   - **فحص الدفع على البلوكشين (المرحلة 13):**
     - `services/chain.py`: قراءة فقط. TronGrid لـTRC20، وJSON-RPC لـBEP20، وعقدا USDT الرسميان ثابتان.
     - `services/payment_check.py`: لكل TXID حالة في `membership_txs`، ونتيجة الطلب في `membership_requests.check_*`.
-    - **يعرض النتيجة فقط ولا يغيّر `status` أبدًا.** القرار للمالك (قبول/رفض/حظر)، والاختبارات تفرض ذلك.
+    - **يعرض النتيجة فقط ولا يغيّر `status` أبدًا**، إلا عبر `services/membership_auto.py` حين يكون `AUTO_APPROVE_MEMBERSHIP` مفعّلًا (معطّل افتراضيًا). القرار للمالك (قبول/رفض/حظر)، والاختبارات تفرض ذلك.
+    - **المنح التلقائي (المرحلة 16):** `membership_auto.try_approve` بعد `aggregate`. الشروط: كل TXID `ok`، والنتيجة `match`/`over` (الزائد يُعلَّم للمراجعة)، والحساب نشط وغير مشبوه، والعدد دون `AUTO_APPROVE_DAILY_MAX`. حجز ذري (`auto_state`)، ثم `membership.decide` نفسها. «سحب العضوية» (`ms:revoke` واللوحة) = `membership.end` + عكس مكافأة الدعوة، بلا استرجاع تلقائي.
+    - `services/suspicion.py`: علامة «مشبوه» من اللوحة على الحساب أو الجهاز، وجهاز مشترك مع حساب محظور/موقوف، وبلاغ أو رصد مفتوح، وقفل إقلاع مفتوح. **مشاركة الشبكة أو IP ليست إشارة أبدًا.**
     - الفحص المتكرر في `main._chain_loop` (حجز ذري لكل صف). الشبكة تُقرأ خارج أي معاملة.
     - في الاختبارات: `chain_transport` (MockTransport)، و`CHAIN_CHECK_ENABLED=False` افتراضيًا، و`e2e/fake_chain.py`.
   - **الوصول للتطبيق (المرحلة 14):**
