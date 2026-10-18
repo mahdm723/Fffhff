@@ -43,13 +43,13 @@ def test_policies_index_404_and_live_values(hx):
     assert c.get("/policies").status_code == 200
     assert c.get("/policies/nope").status_code == 404
     page = c.get("/policies/privacy").text
-    assert f"{hx.settings.CHAT_IMAGE_TTL_AFTER_VIEW} ثانية" in page and "لا نؤرشف صور المحادثات" in page
+    assert "أُوقف إرسال الصور في المحادثات نهائيًا" in page and "180 يومًا" in page  # V6 phase 17
     assert "Telegram" in page and "GPS" in page and "18" in page and "حذف حسابي" in page
     with hx.db() as db:
-        tunables.save(db, hx.settings, {"CHAT_IMAGE_TTL_AFTER_VIEW": 45, "CHAT_IMAGE_ARCHIVE": True}, "owner")
+        tunables.save(db, hx.settings, {"MEDIA_EVIDENCE_RETENTION_DAYS": 90}, "owner")
     hx.state.reload_tunables()
     page = c.get("/policies/privacy").text
-    assert "45 ثانية" in page and "إعداد الأرشفة مفعّل" in page
+    assert "90 يومًا" in page
     ver = c.get("/policies/verification").text
     assert "ليست تحققًا من الهوية الحقيقية" in ver and "العضوية" in ver
     terms = c.get("/policies/terms").text

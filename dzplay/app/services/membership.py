@@ -1,6 +1,8 @@
-"""V6 phase 5: membership — a one-time payment (MEMBERSHIP_PRICE, 50 USDT by default) for in-app FEATURES only:
-the blue star, picture posts, chat pictures. It is never linked to trading, earnings or any return, and paying
-never counts in any reward rule.
+"""V6 phase 5: membership — a one-time payment (MEMBERSHIP_PRICE, 50 USDT by default) for in-app FEATURES only.
+It is never linked to trading, earnings or any return, and paying never counts in any reward rule.
+V6 phase 17: the features are a registry (FEATURES), each switched on or off for everyone from the panel
+(MEMBER_FEATURE_<KEY>); today only the blue star. Posting pictures is a separate per-account permission granted by
+an admin (users.can_post_images), and pictures in chats are gone.
 
 Flow: the member pays to the wallet of the panel's payment settings (pay.*), sends the TXID → the admin accepts
 or rejects (panel or Telegram ms: buttons) → on acceptance, in one locked transaction: ledger "mem_pay", the
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from datetime import timedelta
 
 from sqlalchemy import func, select
@@ -31,7 +34,30 @@ from app.services.messaging import Effects, iso
 log = logging.getLogger("dzplay.membership")
 DEFAULT_REJECT = N_("لم نتمكن من تأكيد الدفع. تحقق من رقم العملية والمبلغ والشبكة.")
 
-FEATURES = [N_("النجمة الزرقاء بجانب اسمك"), N_("نشر الأفكار مع صورة"), N_("إرسال صور مؤقتة في المحادثات")]
+
+
+@dataclass(frozen=True)
+class Feature:
+    key: str
+    label: str  # N_() — shown in «عضويتي», the panel and {{member_features}}
+    setting: str  # the panel switch (tunable): off = the feature is gone for every member
+
+
+# A new feature: one line here + its setting in config/tunables + its check where it applies (e.g. badges.star).
+FEATURES = (Feature("star", N_("النجمة الزرقاء بجانب اسمك"), "MEMBER_FEATURE_STAR"),)
+
+
+def feature_on(settings: Settings | None, key: str) -> bool:
+    feature = next((f for f in FEATURES if f.key == key), None)
+    if feature is None:
+        return False
+    return True if settings is None else bool(getattr(settings, feature.setting, False))
+
+
+def features_on(settings: Settings) -> list[Feature]:
+    return [f for f in FEATURES if feature_on(settings, f.key)]
+
+
 REFUND_NETWORKS = {
     "TRC20": {"label": N_("USDT على TRON (TRC20)"), "address": r"^T[1-9A-HJ-NP-Za-km-z]{33}$",
               "tx": r"^[0-9a-fA-F]{64}$", "explorer": "https://tronscan.org/#/transaction/{txid}"},
@@ -103,7 +129,7 @@ def overview(db: Session, settings: Settings, user: User) -> dict:
                    "wallet": pay["wallet"], "note": pay["note"], "qr": qr_svg(pay["wallet"])}
     return {
         "price": ledger.from_minor(_price_minor(settings)), "currency": pay["currency"] or ledger.CURRENCY,
-        "features": [i18n.tr(f) for f in FEATURES], "member": is_member(user), "member_since": iso(user.member_since),
+        "features": [i18n.tr(f.label) for f in features_on(settings)], "member": is_member(user), "member_since": iso(user.member_since),
         "ended_at": iso(user.member_ended_at), "payment": payment,
         "request": None if last is None else {"id": last.id, "status": last.status,
                                               "status_label": i18n.tr(STATUS_AR.get(last.status, last.status)),

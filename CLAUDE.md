@@ -87,6 +87,12 @@
     - `users.email_canonical`: صندوق واحد = حساب واحد (Gmail بلا نقاط، وبلا `+tag`). `users.signup_verified_via`: `email` / `admin_code` / `google`.
     - رمز إنشاء الحساب الإداري: في `app_settings` (`signup.admin_code`، argon2)، يُضبط من اللوحة بـ2FA، وكل استعمال في سجل التدقيق وTelegram.
     - في الاختبارات: `REGISTRATION_EMAIL_VERIFICATION=False` افتراضيًا، و`tests/test_signup_verify.py` و`e2e/run_signup_e2e.py` يفعّلانه.
+- **الصور والعضوية (المرحلة 17):**
+  - نشر الصور مع الأفكار إذن لكل حساب (`users.can_post_images`) يمنحه المدير فقط (`services/image_permission.py`، فردي أو جماعي، مع التدقيق). لا علاقة له بالعضوية.
+  - ميزات العضوية في `membership.FEATURES`، ولكل ميزة مفتاح `MEMBER_FEATURE_*` من اللوحة. الإيقاف يزيلها عن الجميع فورًا.
+  - النجمة تُحسب بـ`badges.star(user)` في كل payload، ولا تُقرأ `verified_at` مباشرة. نجمة العضوية تتبع ميزة `star`، والنجمة اليدوية تبقى.
+  - صور المحادثات متوقفة نهائيًا: 410 `chat_images_disabled` في Caddy و`security_middleware` قبل قراءة الجسم.
+  - `admin_cli purge-chat-images` (عبر `deploy/chat-images-purge.sh` بعد نسخة احتياطية) يحذف القديمة من الخادم وقناة التخزين، إلا المبلَّغ عنها (`legal_hold`).
 - **اللغات (V6 المرحلة 12):** العربية (الأصل والاحتياط) والفرنسية والإنجليزية.
   - **النص العربي هو المفتاح:** `t('…')` في الواجهة (`static/js/i18n.js`)، و`tr('…')`/`N_('…')` في الخادم (`app/i18n/`). رسائل `AppError` تُكتب بالعربية وقيمها في `params` (`{name}`)، ولا تُدمج في النص.
   - الترجمات المرفقة في `app/i18n/fr.json` و`en.json` (وصيغ الجمع العربية في `ar.json`)، ونصوص نظام المحتوى في `app/i18n/content_fr.py` و`content_en.py`.
@@ -153,6 +159,7 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
   - `deploy/harden.sh`: ufw وfail2ban والتحديثات التلقائية.
   - `deploy/ssh-harden.sh`: SSH بالمفاتيح فقط، ويرفض التطبيق قبل إثبات دخول بالمفتاح. **لا يُطبَّق قبل موافقة المالك.**
   - `deploy/monitor.sh`: تنبيهات Telegram كل 5 دقائق.
+  - `deploy/chat-images-purge.sh`: نسخة كاملة ← حذف صور المحادثات القديمة من كل مكان إلا المبلَّغ عنها (مرة واحدة، آمن للتكرار؛ يشغّله `install.sh`).
   - `deploy/v6-cleanup.sh [anon]`: نسخة كاملة ← تصدير مشفّر للبيانات القديمة ← تحقق ← حذف (مرة واحدة، آمن للتكرار).
     - `anon`: المحادثات المجهولة القديمة بعد `LEGACY_ANON_RETENTION_DAYS`.
     - cron يومي `/etc/cron.d/dzplay-v6-anon` يثبّته `install.sh`.

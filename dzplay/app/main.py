@@ -102,6 +102,17 @@ for _ext, _type in {".js": "text/javascript", ".webmanifest": "application/manif
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 MAX_BODY_BYTES = 64 * 1024  # API bodies are tiny JSON documents
 _UPLOAD_PATH = "/api/uploads"  # V5: file uploads carry their own per-purpose cap (app.services.media_items)
+# V6 phase 17: pictures in chats are switched off for good — refused here, before the body is read
+_CHAT_MEDIA_PATH = re.compile(r"^/api/conversations/[^/]+/media$")
+
+
+def _chat_picture_upload(request: Request) -> bool:
+    path = request.url.path
+    if request.method != "POST":
+        return False
+    if path == _UPLOAD_PATH:
+        return request.query_params.get("purpose") == "chat"
+    return bool(_CHAT_MEDIA_PATH.match(path))
 I18N_IMPORT_BYTES = 3 * 1024 * 1024  # V6 phase 12: a translation file (every text + the policy pages), panel only
 
 
@@ -295,6 +306,8 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
                 if is_api:
                     return _error(403, "app_required", N_("افتح التطبيق للمتابعة."), extra={"gate": verdict})
                 return download_api.gate_response(request, verdict)
+        if _chat_picture_upload(request):
+            return _error(410, "chat_images_disabled", N_("إرسال الصور في المحادثات متوقف نهائيًا."))
         cap = I18N_IMPORT_BYTES if in_admin and path.startswith(admin_prefix + "/api/admin/i18n/import") else MAX_BODY_BYTES
         if is_api and path != _UPLOAD_PATH and int(request.headers.get("content-length") or 0) > cap:
             return _error(413, "too_large", "الطلب كبير جدًا.")

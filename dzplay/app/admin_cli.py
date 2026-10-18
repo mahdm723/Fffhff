@@ -12,6 +12,7 @@
   python -m app.admin_cli audit [--limit 50]
   python -m app.admin_cli gen-secret
   python -m app.admin_cli gen-vapid
+  python -m app.admin_cli purge-chat-images        (V6 phase 17, once, after a full backup: deploy/chat-images-purge.sh)
 """
 
 from __future__ import annotations
@@ -190,6 +191,71 @@ def _legacy_anon(database: Database, settings, args) -> None:
     print("Removed: " + json.dumps(counts, sort_keys=True))
 
 
+def _delete_stored(tg, storage: str, message_id: int, delay: float) -> bool:
+    """Delete one message of the storage channel: True when it is gone (or was already gone)."""
+    import re
+    import time
+
+    from app.services.telegram import TelegramError
+
+    for _ in range(4):
+        try:
+            tg.delete_message(storage, message_id)
+            return True
+        except TelegramError as exc:
+            text = str(exc)
+            if "message to delete not found" in text or "MESSAGE_ID_INVALID" in text:
+                return True
+            wait = re.search(r"retry after (\d+)", text)
+            if " 429 " not in text and wait is None:
+                return False
+            time.sleep(min(30, int(wait.group(1)) if wait else 2) if delay else 0)
+        finally:
+            time.sleep(delay)  # Telegram's rate limits: a steady pace
+    return False
+
+
+def _purge_chat_images(settings, database: Database, transport=None, delay: float = 0.05) -> None:
+    """V6 phase 17: pictures in chats are gone for good. Every chat picture not tied to a report is made unreachable
+    and deleted from the Telegram storage channel; reported ones are kept as evidence. Safe to run again (what could
+    not be deleted from Telegram is retried, and listed for a manual deletion)."""
+    from app.services import audit, media_items, tunables
+    from app.services.media import MediaStore
+    from app.services.runtime_config import telegram_config
+    from app.services.telegram import TelegramClient
+    from app.models import MediaItem
+
+    with database.session() as db:
+        tunables.apply(db, settings)  # the storage channel may have been set in the panel
+        cfg = telegram_config(db, settings)
+    media_items.install(MediaStore(settings, database, None))  # the cached copies are deleted too
+    with database.session() as db:
+        result = media_items.purge_chat_images(db, "cli:purge-chat-images")
+    storage = str(settings.TELEGRAM_STORAGE_CHANNEL_ID or "")
+    deleted, left = 0, []
+    if result["storage"] and cfg["token"] and storage:
+        tg = TelegramClient(settings.model_copy(update={"TELEGRAM_BOT_TOKEN": cfg["token"]}), transport=transport)
+        for item_id, message_id in result["storage"]:
+            if _delete_stored(tg, storage, message_id, delay):
+                with database.session() as db:
+                    item = db.get(MediaItem, item_id)
+                    if item is not None:
+                        item.tg_message_id = None
+                deleted += 1
+            else:
+                left.append(message_id)
+    else:
+        left = [m for _i, m in result["storage"]]
+    with database.session() as db:
+        audit.record(db, "cli", "chat_images_purge",
+                     detail=f"removed={result['removed']} kept={result['kept']} telegram_deleted={deleted} left={len(left)}")
+    _print({"removed": result["removed"], "kept_reported": result["kept"], "telegram_deleted": deleted,
+            "telegram_not_deleted": left})
+    if left:
+        print("Some storage messages could not be deleted by the bot (listed above): delete them by hand in the "
+              "storage channel, or run the command again.", file=sys.stderr)
+
+
 def _market_check(settings, transport) -> None:
     """V6 phase 2: can this server reach Bybit's public market API? Tries both domains."""
     from app.services import market
@@ -252,6 +318,8 @@ def main(argv: list[str] | None = None, telegram_transport=None, market_transpor
     p.add_argument("--anon", action="store_true")
     sub.add_parser("stars-count")  # accounts that hold the blue star
     sub.add_parser("market-check")  # V6 phase 2: reach Bybit from this server (both domains)
+    p = sub.add_parser("purge-chat-images")  # V6 phase 17: chat pictures deleted everywhere (except reported ones)
+    p.add_argument("--check", action="store_true", help="exit 0 when there is nothing (left) to do, 1 otherwise")
     args = parser.parse_args(argv)
 
     if args.cmd == "gen-secret":
@@ -273,6 +341,16 @@ def main(argv: list[str] | None = None, telegram_transport=None, market_transpor
         with database.session() as db:
             tunables.apply(db, settings)  # the domain chosen in the panel
         _market_check(settings, market_transport)
+        return
+    if args.cmd == "purge-chat-images":
+        if args.check:
+            from app.services import media_items
+
+            with database.session() as db:
+                left = media_items.chat_images_left(db)
+            print(f"Chat pictures left to delete or to keep as evidence: {left}")
+            raise SystemExit(1 if left else 0)
+        _purge_chat_images(settings, database, telegram_transport)
         return
     if args.cmd in ("export-legacy", "drop-legacy", "legacy-status", "stars-count"):
         _legacy(database, settings, args)

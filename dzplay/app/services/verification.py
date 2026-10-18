@@ -29,7 +29,7 @@ from app.config import Settings
 from app.errors import AppError, not_found
 from app.i18n import N_
 from app.models import AppSetting, MediaItem, Post, Report, User, VerificationRequest
-from app.services import audit
+from app.services import audit, badges
 from app.services.content import clean_message
 from app.services.messaging import Effects, iso
 
@@ -180,7 +180,7 @@ def overview(db: Session, settings: Settings, user: User) -> dict:
                       currency=pay["currency"], network=pay["network_label"]) if pay["available"] else None
     return {
         "enabled": settings.VERIFY_ENABLED,
-        "verified": user.verified_at is not None,
+        "verified": badges.star(user),
         "verified_at": iso(user.verified_at),
         "conditions": conditions(db, settings, user),
         "payment": {"available": pay["available"], "currency": pay["currency"], "network": pay["network"],
@@ -426,5 +426,5 @@ def install(state) -> None:
 
 
 def is_verified(user: User | None) -> bool:
-    return bool(user is not None and user.verified_at is not None)
+    return badges.star(user)
 

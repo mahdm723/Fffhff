@@ -144,6 +144,55 @@ def device_suspicious(device_id: str, body: SuspiciousBody, request: Request, ac
         return suspicion.mark_device(db, device_id, body.on, body.reason or "", f"admin:{ac.actor}")
 
 
+class ImagesBody(_Body):
+    on: bool
+
+
+class ImagesBulkBody(_Body):
+    ids: list[str] = Field(min_length=1, max_length=200)
+    on: bool
+
+
+@router.post("/users/{user_ref}/images")
+def user_images(user_ref: str, body: ImagesBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """V6 phase 17: «نشر الصور» — the per-account permission to post pictures (never given by the membership)."""
+    from app.services import image_permission
+
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        user = db.get(User, user_ref) if len(user_ref) <= 32 else None
+        if user is None:
+            raise not_found()
+        image_permission.set_allowed(db, [user.id], body.on, f"admin:{ac.actor}", effects)
+        result = image_permission.view(db, user)
+    st.dispatch(effects)
+    return result
+
+
+@router.post("/images/bulk")
+def images_bulk(body: ImagesBulkBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    from app.services import image_permission
+
+    st = get_state(request)
+    effects = Effects()
+    with st.database.session() as db:
+        result = image_permission.set_allowed(db, body.ids, body.on, f"admin:{ac.actor}", effects)
+    st.dispatch(effects)
+    return result
+
+
+@router.get("/images")
+def images_lists(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """«من نشر صورًا سابقًا» + «لديهم الإذن الآن» (e-mails: the access is audited like the users list)."""
+    from app.services import image_permission
+
+    with get_state(request).database.session() as db:
+        result = image_permission.lists(db)
+        _record(db, ac, "view_image_permissions", detail=f"former={len(result['former'])} holders={len(result['holders'])}")
+        return result
+
+
 @router.post("/users/{user_ref}/membership/end")
 def membership_end(user_ref: str, body: ReasonBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
     st = get_state(request)

@@ -22,19 +22,14 @@ Votre nom affiché, votre photo, votre identifiant public, l’icône de genre s
 Pour faire fonctionner le service, le modérer et protéger les utilisateurs, l’équipe d’administration peut consulter les données des comptes (dont l’e-mail), les publications et commentaires, les messages tant qu’ils sont conservés, les images publiées, et uniquement les images de conversation qui ont été signalées. L’accès est protégé par un compte administrateur et une validation en deux étapes, et chaque consultation et chaque action sont consignées dans un journal d’audit interne. Les messages, commentaires et images sont analysés automatiquement pour détecter les contenus nuisibles.
 
 # 4. Prestataire de stockage externe
-Les images sont stockées dans un **canal privé Telegram** appartenant à {{app}}, auquel seul le bot de la plateforme a accès. Notre serveur fait transiter les fichiers et n’en garde qu’une copie temporaire pour accélérer l’affichage. Votre application ne se connecte jamais à Telegram, et aucun utilisateur n’obtient la référence du fichier. Une copie des images publiées et des photos de profil (pas des images de conversation) est envoyée à un groupe privé de modérateurs pour examen.
+Les images sont stockées dans un **canal privé Telegram** appartenant à {{app}}, auquel seul le bot de la plateforme a accès. Notre serveur fait transiter les fichiers et n’en garde qu’une copie temporaire pour accélérer l’affichage. Votre application ne se connecte jamais à Telegram, et aucun utilisateur n’obtient la référence du fichier. Une copie des images publiées et des photos de profil est envoyée à un groupe privé de modérateurs pour examen.
 
 # 5. Suppression des métadonnées et vérification
 Avant l’enregistrement, chaque image est réencodée et toutes ses métadonnées sont supprimées : position GPS, modèle d’appareil, date, etc. Le fichier est vérifié sur votre appareil puis sur le serveur par un modèle automatique de détection de contenu pornographique, et ce qui enfreint les règles est refusé avant d’être enregistré. Aucune vérification automatique ne permet de déterminer l’âge des personnes ; nous nous appuyons donc sur les signalements et l’examen humain.
 
 # 6. Images de conversation
-- L’envoi d’images dans les conversations est réservé aux membres, et tout utilisateur peut les recevoir et les ouvrir.
-- Elles arrivent floutées, ne s’affichent que lorsque le destinataire appuie dessus, puis restent visibles {{chat_ttl}} secondes seulement avant de disparaître des deux côtés.
-- Une image jamais ouverte est supprimée après {{chat_unopened}}.
-- Une fois expirée, elle est immédiatement supprimée du serveur et des appareils, et la copie de stockage est effacée après un court délai de signalement ({{chat_grace_min}} minute(s)) pendant lequel personne ne la voit.
-- {{chat_archive}}
-- Une image signalée est conservée comme preuve pour l’examen jusqu’à {{evidence_days}} jours.
-- Dans l’application Android, les captures d’écran sont bloquées pendant l’affichage, mais il est impossible d’empêcher de photographier l’écran avec un autre appareil : n’envoyez rien que vous n’accepteriez pas de voir circuler.
+- L’envoi d’images dans les conversations est définitivement arrêté : le serveur refuse toute image de conversation avant même de la lire.
+- Les anciennes images de conversation ont été supprimées du serveur et du stockage, sauf les images signalées : elles sont conservées comme preuve pour l’équipe de modération uniquement, jusqu’à {{evidence_days}} jours, puis supprimées.
 
 # 7. Âge
 {{app}} est réservé aux adultes (18 ans et plus).
@@ -64,10 +59,10 @@ Vous êtes responsable de ce que vous publiez et envoyez. Vous autorisez {{app}}
 Les prix du marché, les publications, les analyses et les commentaires sont **fournis à titre d’information uniquement et ne constituent pas un conseil en investissement**, ni une recommandation d’achat ou de vente. Vos décisions de trading relèvent de votre seule responsabilité, et {{app}} ne propose aucun service de trading ni de garde de fonds.
 
 # 5. Vie privée entre utilisateurs
-Il est interdit de révéler l’identité d’un autre utilisateur, de publier ses données ou de chercher à les connaître, ainsi que d’enregistrer et de diffuser les conversations et les images éphémères.
+Il est interdit de révéler l’identité d’un autre utilisateur, de publier ses données ou de chercher à les connaître, ainsi que d’enregistrer et de diffuser les conversations.
 
 # 6. Adhésion
-L’adhésion est un paiement unique ({{membership_price}} USDT actuellement) qui donne accès à des **fonctionnalités dans l’application uniquement** : l’étoile bleue, la publication d’idées avec une image et l’envoi d’images dans les conversations. **Elle n’a aucun lien avec le trading ni avec un quelconque gain ou rendement financier**, et n’entre dans les critères d’aucune récompense. {{refund_policy}} Détails dans les [conditions de l’adhésion](/policies/membership_terms).
+L’adhésion est un paiement unique ({{membership_price}} USDT actuellement) qui donne accès à des **fonctionnalités dans l’application uniquement** (actuellement : {{member_features}}). **Elle n’a aucun lien avec le trading ni avec un quelconque gain ou rendement financier**, et n’entre dans les critères d’aucune récompense. {{refund_policy}} Détails dans les [conditions de l’adhésion](/policies/membership_terms).
 
 # 7. Récompenses promotionnelles et retraits
 Des récompenses promotionnelles **totalement indépendantes de l’adhésion**, sans lien avec le trading et non garanties. Détails dans les [conditions des récompenses](/policies/rewards_terms) et les [conditions de retrait](/policies/withdraw_terms).
@@ -87,7 +82,7 @@ La discussion, l’analyse, l’actualité du marché et les idées, dans le res
 # Interdit
 - Les menaces, le chantage, le harcèlement, les intimidations et le dénigrement.
 - Les arnaques et les promesses de gains garantis, les collectes d’argent, et le fait de demander des mots de passe ou des phrases secrètes de portefeuille.
-- Les contenus sexuels, pornographiques ou de nudité, dans les idées, les images ou les images de conversation.
+- Les contenus sexuels, pornographiques ou de nudité, dans les idées ou les images.
 - **Tout contenu sexuel ou abusif impliquant un mineur : il est supprimé immédiatement, son auteur est banni définitivement et une copie est conservée comme preuve.**
 - Les discours de haine et l’incitation à la violence.
 - La publication ou la demande de numéros de téléphone, de comptes, d’adresses ou de données personnelles, les vôtres comme celles des autres.
@@ -95,7 +90,7 @@ La discussion, l’analyse, l’actualité du marché et les idées, dans le res
 - Se faire passer pour {{app}} ou son équipe, ou utiliser dans les noms des symboles ressemblant à l’étoile.
 
 # Images
-Une image avec une idée toutes les 24 heures (actuellement {{idea_image_limit}}) pour les membres, examinée par l’équipe de modération. Les images de conversation sont éphémères et disponibles une fois que l’autre personne a répondu. Ce qui semble contraire aux règles est refusé automatiquement.
+Publier une image avec une idée nécessite une autorisation accordée compte par compte par l’administration (sans lien avec l’adhésion), dans la limite de {{idea_image_limit}} toutes les 24 heures ; elle est examinée par l’équipe de modération. L’envoi d’images dans les conversations est arrêté. Ce qui semble contraire aux règles est refusé automatiquement.
 
 # Signalements
 Utilisez le bouton « Signaler » sur n’importe quel contenu. Les signalements sont confidentiels. À partir de {{report_threshold}} signalements de personnes différentes, le contenu est masqué temporairement jusqu’à son examen.
@@ -107,16 +102,15 @@ VERIFICATION = """# Qu’est-ce que l’étoile bleue ?
 Un badge qui indique que le compte est **membre ou compte de confiance au sein de {{app}}**. **Ce n’est pas une vérification de l’identité réelle** : nous ne demandons aucun document, aucun vrai nom et aucune photo d’identité.
 
 # Comment l’obtenir ?
-L’étoile est incluse dans **l’adhésion** (Mon compte → Mon adhésion). Ceux qui avaient l’étoile avant l’adhésion la conservent. L’étoile liée à l’adhésion disparaît si l’adhésion prend fin ou est remboursée, et toute étoile peut être retirée en cas d’infraction.
+L’étoile est incluse dans **l’adhésion** (Mon compte → Mon adhésion), tant que cette fonctionnalité est activée. Ceux qui avaient l’étoile avant l’adhésion la conservent. L’étoile liée à l’adhésion disparaît si l’adhésion prend fin ou est remboursée, et toute étoile peut être retirée en cas d’infraction.
 
 # Où apparaît-elle ?
 Sur le profil, les publications, les commentaires, la page des utilisateurs et les conversations."""
 
 MEMBERSHIP_TERMS = """# Qu’est-ce que l’adhésion ?
-Un abonnement à paiement unique ({{membership_price}} USDT actuellement) qui donne accès à des **fonctionnalités dans l’application uniquement** :
-- L’étoile bleue à côté de votre nom.
-- La publication d’idées avec une image.
-- L’envoi d’images dans les conversations (elles disparaissent {{chat_ttl}} secondes après leur ouverture).
+Un abonnement à paiement unique ({{membership_price}} USDT actuellement) qui donne accès à des **fonctionnalités dans l’application uniquement**, actuellement : {{member_features}}. Des fonctionnalités peuvent être ajoutées ou arrêtées pour tous les membres à la fois ; cela apparaît ici.
+
+La publication d’images avec les idées ne fait pas partie de l’adhésion : c’est une autorisation accordée compte par compte par l’administration.
 
 # Ce qu’elle n’est pas
 L’adhésion **n’est liée à aucun gain ni rendement**, ni au trading. Elle ne donne droit à aucune récompense et n’entre dans les critères d’aucune récompense ni d’aucun concours.
@@ -163,7 +157,7 @@ Une communauté de traders pour partager l’actualité des cryptomonnaies, des 
 Vos données sont protégées : personne ne voit votre e-mail ni aucune donnée privée vous concernant, à part ce que vous choisissez d’afficher."""
 
 FAQ = """# L’adhésion rapporte-t-elle des gains ?
-Non. L’adhésion donne uniquement des fonctionnalités dans l’application (l’étoile, les images dans les idées et les conversations), sans aucun lien avec un rendement.
+Non. L’adhésion donne uniquement des fonctionnalités dans l’application (actuellement : {{member_features}}), sans aucun lien avec un rendement.
 
 # L’application donne-t-elle des conseils de trading ?
 Non. Le marché et les publications servent uniquement à s’informer et à discuter ; vos décisions relèvent de votre responsabilité.
@@ -178,8 +172,8 @@ CONTACT = """Le plus rapide : un **ticket de support** depuis l’application (M
 
 Les réponses aux messages automatiques de {{app}} (codes et notifications) ne sont pas lues. Nous ne vous demanderons jamais votre mot de passe ni aucun code."""
 
-MEMBERSHIP_INTRO = ("L’adhésion donne accès à des **fonctionnalités dans {{app}} uniquement** : l’étoile bleue, la publication d’idées "
-                    "avec une image et l’envoi d’images dans les conversations. Elle n’est liée à aucun gain ni rendement, ni au trading.")
+MEMBERSHIP_INTRO = ("L’adhésion donne accès à des **fonctionnalités dans {{app}} uniquement** (actuellement : {{member_features}}). "
+                    "Elle n’est liée à aucun gain ni rendement, ni au trading.")
 WELCOME = "Une communauté de traders, l’actualité des cryptomonnaies et des analyses. Personne ne voit votre e-mail ni vos données."
 MARKET_DISCLAIMER = "À titre d’information uniquement, ce n’est pas un conseil en investissement. Les prix proviennent de Bybit et peuvent avoir un léger retard."
 
@@ -219,8 +213,8 @@ CONTENT: dict[str, tuple[str | None, str]] = {
     ),
     "email.membership_accepted": (
         "{app} : adhésion",
-        "Bonjour,\n\nVotre adhésion est activée. Les fonctionnalités réservées aux membres sont désormais disponibles (l’étoile "
-        "bleue, les idées avec image, les images dans les conversations).\n\nL’équipe {app}",
+        "Bonjour,\n\nVotre adhésion est activée. Les fonctionnalités réservées aux membres sont désormais disponibles dans "
+        "l’application.\n\nL’équipe {app}",
     ),
     "email.membership_rejected": (
         "{app} : adhésion",

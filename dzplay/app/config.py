@@ -234,7 +234,7 @@ class Settings(BaseSettings):
     FCM_SERVICE_ACCOUNT_FILE: str = ""  # SECRET file (never in the repo): Firebase service-account JSON path
     FCM_PROJECT_ID: str = ""  # empty = read from the service-account file
 
-    # --- V5: user media (idea images, ephemeral chat images) ------------------------------
+    # --- V5: user media (idea images, profile pictures) ------------------------------
     # Telegram is the file store; the server only relays. Two PRIVATE chats, both with the bot as admin:
     TELEGRAM_STORAGE_CHANNEL_ID: str = ""  # private channel holding every published file (e.g. -1001234567890)
     TELEGRAM_MODERATION_CHAT_ID: str = ""  # private group of moderators: each upload arrives with action buttons
@@ -261,14 +261,7 @@ class Settings(BaseSettings):
     IDEA_IMAGE_LIMIT_PER_24H: int = 1
     IDEA_IMAGE_REQUIRE_APPROVAL: bool = False
     AVATAR_CHANGES_PER_DAY: int = 3  # V6 phase 3: new profile pictures per user in 24 h  # True: an idea with an image appears only after approval
-    # ephemeral chat images
-    CHAT_IMAGES_ENABLED: bool = True
-    CHAT_IMAGE_TTL_AFTER_VIEW: int = 60  # seconds the picture stays visible once opened (V6 phase 6: 60)
-    CHAT_IMAGE_UNOPENED_TTL: int = 24 * HOUR  # never opened: removed after this
-    CHAT_IMAGE_PER_HOUR: int = 10
-    CHAT_IMAGE_REPORT_GRACE: int = 600  # expired pictures stay reportable this long (storage copy only, never shown)
-    CHAT_IMAGE_ARCHIVE: bool = False  # False: expired chat pictures are deleted everywhere (unless reported)
-    CHAT_IMAGE_FLAG_SECURE: bool = True  # Android app blocks screenshots while a chat picture is open
+    # V6 phase 17: pictures in chats are switched off for good (no settings; admin_cli purge-chat-images)
     # reports on media
     REPORT_AUTO_HIDE_THRESHOLD: int = 3  # distinct reporters hide a picture/post until reviewed (0 = off)
     MEDIA_EVIDENCE_RETENTION_DAYS: int = 180  # reported / illegal media kept (Telegram) for review, then deleted
@@ -311,6 +304,8 @@ class Settings(BaseSettings):
     # V6 phase 16: membership granted automatically after a ✅ check (off by default; panel settings)
     AUTO_APPROVE_MEMBERSHIP: bool = False
     AUTO_APPROVE_DAILY_MAX: int = 10  # automatic grants per day (UTC); beyond: back to the owner's review
+    # V6 phase 17: the membership features, each switchable for everyone (services/membership.FEATURES)
+    MEMBER_FEATURE_STAR: bool = True
 
     # --- V6 phase 5b: promotional rewards («أرباحي») — separate from membership, amounts in USDT -----
     REFERRAL_ENABLED: bool = True

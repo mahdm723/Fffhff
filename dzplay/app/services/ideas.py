@@ -28,7 +28,7 @@ from app import clock
 from app.config import Settings
 from app.errors import AppError, not_found
 from app.models import Block, Comment, Post, PostReaction, ProfileRef, Report, User
-from app.services import brand
+from app.services import badges, brand
 from app.services.auth import log_event
 from app.services.content import clean_message
 from app.services.messaging import (
@@ -105,7 +105,7 @@ def _author_view(u: User | None) -> dict:
 
     return {"name": names.shown_name(u) if u is not None else PEER_NAME,
             "gender": names.public_gender(u) if u is not None else None,
-            "verified": bool(u is not None and u.verified_at is not None),
+            "verified": badges.star(u),
             "avatar_url": avatar_url(u) if u is not None and not u.is_system else None}
 
 
@@ -448,7 +448,7 @@ def _comment_views(db: Session, post: Post, viewer_id: str, rows: list[Comment])
                       "verified": False, "gender": None}
         else:
             author = {"name": names.shown_name(u) if u else PEER_NAME, "public_id": u.public_id if u else None,
-                      "avatar_url": avatar_url(u) if u else None, "verified": bool(u and u.verified_at),
+                      "avatar_url": avatar_url(u) if u else None, "verified": badges.star(u),
                       "gender": names.public_gender(u) if u else None}
         to = users.get(c.reply_to_user_id) if c.reply_to_user_id else None
         out.append({
@@ -631,7 +631,7 @@ def public_profile(db: Session, viewer: User, ref: str) -> dict:
         "name": names.shown_name(owner),
         "gender": names.public_gender(owner),
         "public_id": owner.public_id,
-        "verified": owner.verified_at is not None,
+        "verified": badges.star(owner),
         "avatar_url": avatar_url(owner),
         "is_me": owner.id == viewer.id,
         "stats": idea_stats(db, owner.id),  # public stats only — never messaging stats or personal data

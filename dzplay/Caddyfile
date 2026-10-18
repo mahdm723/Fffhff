@@ -21,6 +21,23 @@
 	request_body @small {
 		max_size 64KB
 	}
+	# V6 phase 17: pictures in chats are switched off for good — refused here, before any byte of the body is passed on
+	# (the app refuses them too: 410 chat_images_disabled).
+	@chatpicture {
+		method POST
+		path /api/uploads
+		query purpose=chat
+	}
+	@chatsend {
+		method POST
+		path_regexp ^/api/conversations/[^/]+/media$
+	}
+	respond @chatpicture 410 {
+		close
+	}
+	respond @chatsend 410 {
+		close
+	}
 	# Caddy is the only proxy: overwrite any client-supplied X-Forwarded-For.
 	reverse_proxy app:8000 {
 		header_up X-Forwarded-For {remote_host}

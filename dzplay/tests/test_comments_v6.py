@@ -135,21 +135,24 @@ def test_likers_list_and_dislikers_never_exposed(hx):
     assert not [p for p in paths if "dislik" in p]
 
 
-def test_picture_posts_are_for_members_only(hx):
+def test_picture_posts_need_the_admin_permission_not_the_membership(hx):
+    """V6 phase 17: posting pictures is a per-account permission granted by an admin; a membership does not give it."""
     from app.services import media_items
 
     a = hx.user()
-    assert a.get("/api/uploads/config").json()["idea"]["member"] is False
+    assert a.get("/api/uploads/config").json()["idea"]["allowed"] is False
     with hx.db() as db:
         user = db.scalar(select(User).where(User.email == a.email))
+        user.member_since = clock.utcnow()  # a member…
+        db.flush()
         try:
-            media_items.begin_upload(db, hx.settings, hx.state.limiter, user, purpose="idea", conversation_id=None, length=100)
-            raise AssertionError("expected members_only")
+            media_items.begin_upload(db, hx.settings, hx.state.limiter, user, purpose="idea", length=100)
+            raise AssertionError("expected images_not_allowed")
         except Exception as exc:  # noqa: BLE001
-            assert getattr(exc, "code", None) == "members_only"
-        user.member_since = clock.utcnow()
+            assert getattr(exc, "code", None) == "images_not_allowed"  # …still without the permission
+        user.can_post_images = True
         db.commit()
-    assert a.get("/api/uploads/config").json()["idea"]["member"] is True
+    assert a.get("/api/uploads/config").json()["idea"]["allowed"] is True
 
 
 def test_team_comments_carry_a_badge(hx):

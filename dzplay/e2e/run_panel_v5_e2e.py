@@ -55,8 +55,8 @@ def main() -> int:
     try:
         # data: a user with a picture waiting for approval and a support ticket
         u = register(base, "panel-user@example.com")
-        with sqlite3.connect(str(tmp / "panel.db")) as con:  # V6 phase 4: picture posts are for members
-            con.execute("UPDATE users SET member_since = datetime('now') WHERE email = 'panel-user@example.com'")
+        with sqlite3.connect(str(tmp / "panel.db")) as con:  # V6 phase 17: posting pictures is the admin's permission
+            con.execute("UPDATE users SET can_post_images = 1 WHERE email = 'panel-user@example.com'")
         mid = u.post("/api/uploads?purpose=idea", content=jpeg(), headers={"Content-Type": "application/octet-stream"}).json()["upload"]["id"]
         for _ in range(100):
             if u.get(f"/api/uploads/{mid}").json()["upload"]["state"] == "ready":
@@ -123,11 +123,12 @@ def main() -> int:
 
             print("Live settings")
             page.get_by_role("tab", name="الإعدادات").click()
-            row = page.locator(".admin-setting", has_text="مدة عرض الصورة بعد فتحها")
-            row.locator("input").fill("60")
+            row = page.locator(".admin-setting", has_text="منشورات الصور في 24 ساعة")
+            row.locator("input").fill("2")
             row.get_by_role("button", name="حفظ").click()
             expect(page.get_by_text("حُفظ وطُبّق فورًا.")).to_be_visible(timeout=10000)
-            assert u.get("/api/uploads/config").json()["chat"]["ttl_after_view"] == 60
+            assert u.get("/api/uploads/config").json()["idea"]["limit"] == 2
+            expect(page.locator(".admin-setting", has_text="مدة عرض الصورة بعد فتحها")).to_have_count(0)  # V6 phase 17
             run.shot(page, "p04-settings")
             run.step("setting changed live (no restart)")
 

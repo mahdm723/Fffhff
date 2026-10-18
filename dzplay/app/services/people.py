@@ -24,7 +24,7 @@ from app import clock
 from app.config import HOUR, Settings
 from app.errors import AppError, not_found, rate_limited
 from app.models import PUBLIC_ID_RE, Block, MediaItem, Report, User
-from app.services import ideas, names
+from app.services import badges, ideas, names
 from app.services.media_items import avatar_url
 from app.services.rate_limit import Limit
 
@@ -35,14 +35,14 @@ def _like(q: str) -> str:
 
 def card(db: Session, u: User) -> dict:
     return {"name": names.shown_name(u), "public_id": u.public_id, "gender": names.public_gender(u),
-            "profile_ref": ideas.profile_ref_for(db, u.id), "verified": u.verified_at is not None,
+            "profile_ref": ideas.profile_ref_for(db, u.id), "verified": badges.star(u),
             "avatar_url": avatar_url(u)}
 
 
 def list_card(u: User) -> dict:
     """«المستخدمون»: the public card only."""
     return {"public_id": u.public_id, "name": names.shown_name(u), "avatar_url": avatar_url(u),
-            "verified": u.verified_at is not None, "gender": names.public_gender(u)}
+            "verified": badges.star(u), "gender": names.public_gender(u)}
 
 
 def _base_filters(viewer: User) -> list:

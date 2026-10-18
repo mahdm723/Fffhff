@@ -316,6 +316,13 @@ class Run:
         sheet.locator(".admin-suspect").get_by_role("button", name="إزالة علامة الحساب المشبوه").click()
         expect(sheet.locator(".admin-suspect")).not_to_contain_text("الحساب معلَّم كمشبوه")
         self.step("users: «تعليم الحساب كمشبوه» with a reason, shown on the user page, then removed")
+        pics = sheet.locator("section.admin-images")  # V6 phase 17: the picture permission, granted by the admin only
+        expect(pics).to_contain_text("غير مسموح")
+        pics.get_by_role("button", name="منح إذن نشر الصور").click()
+        expect(sheet.locator("section.admin-images")).to_contain_text("مسموح منذ")
+        sheet.locator("section.admin-images").get_by_role("button", name="سحب إذن نشر الصور").click()
+        expect(sheet.locator("section.admin-images")).to_contain_text("غير مسموح")
+        self.step("users: «منح إذن نشر الصور» then «سحب» on the user page")
         sheet.get_by_role("button", name="إنهاء كل الجلسات").click()
         expect(page.locator(".toast").last).to_contain_text("أُنهيت")
         sheet.get_by_role("button", name="إغلاق").click()

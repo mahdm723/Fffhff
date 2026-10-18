@@ -159,9 +159,11 @@ def user_detail(db: Session, user_id: str) -> dict:
                          .order_by(NameHistory.changed_at.desc()).limit(50)).scalars()
     from app.services.access import user_devices
     from app.services.messaging import privacy_view
+    from app.services.image_permission import view as image_permission_view
     from app.services.suspicion import reasons as suspicion_reasons
     return {
         "devices": user_devices(db, u),  # V6 phase 14: the attested phones (Android app) of this account
+        "images": image_permission_view(db, u),  # V6 phase 17: the admin-only picture permission
         # V6 phase 16: suspicious (no automatic membership grant): the admin's mark + every signal found now
         "suspicion": {"flagged": u.suspicious_at is not None, "reason": u.suspicious_reason, "by": u.suspicious_by,
                       "reasons": suspicion_reasons(db, u)},

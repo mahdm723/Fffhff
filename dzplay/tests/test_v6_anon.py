@@ -13,7 +13,6 @@ import pytest
 from sqlalchemy import select
 
 from app import clock
-from app.errors import AppError
 from app.models import Conversation, Message, Report, User
 from tests.conftest import chat, legacy_anonymous, reply, send
 from tests.test_admin_access import _all_routes
@@ -56,13 +55,7 @@ def test_old_anonymous_chat_is_read_only(hx):
     for c in (a, b):  # nothing new, from either side
         r = reply(c, cid, "رد جديد")
         assert r.status_code == 403 and r.json()["error"]["code"] == "anonymous_closed"
-    with hx.db() as db:  # no chat picture either
-        from app.services import media_items
-
-        user = db.scalar(select(User).where(User.email == b.email))
-        with pytest.raises(AppError) as err:
-            media_items.chat_target(db, user, cid)
-        assert err.value.code == "anonymous_closed"
+    assert b.post(f"/api/conversations/{cid}/media", json={"media_id": "a" * 32}).status_code == 410  # no chat picture
     # safety stays: report, mute, block
     assert b.post(f"/api/conversations/{cid}/report", json={"reason": "harassment"}).status_code == 201
     assert b.post(f"/api/conversations/{cid}/mute", json={"muted": True}).status_code == 200

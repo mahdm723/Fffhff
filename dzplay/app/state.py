@@ -55,6 +55,9 @@ class AppState:
 
         state.pipeline = MediaPipeline(state)
         media_items.install(media)
+        from app.services import badges
+
+        badges.install(settings)  # V6 phase 17: the star follows the membership features switched in the panel
         from app.services import mail
 
         mail.install(state)  # V6 phase 7: failed deliveries are reported to the admin chat

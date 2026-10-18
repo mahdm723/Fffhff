@@ -19,7 +19,7 @@
  {
   "id": " يريد مراسلتك",
   "where": [
-   "static/js/views/chat.js:299"
+   "static/js/views/chat.js:202"
   ],
   "client": true,
   "plural": false
@@ -27,7 +27,7 @@
  {
   "id": "USDT على BNB Smart Chain (BEP20)",
   "where": [
-   "app/services/membership.py:38"
+   "app/services/membership.py:64"
   ],
   "client": false,
   "plural": false
@@ -35,7 +35,7 @@
  {
   "id": "USDT على TRON (TRC20)",
   "where": [
-   "app/services/membership.py:36"
+   "app/services/membership.py:62"
   ],
   "client": false,
   "plural": false
@@ -140,8 +140,7 @@
   "id": "{n} ث",
   "where": [
    "static/js/media-pick.js:233",
-   "static/js/views/chat.js:188",
-   "static/js/views/chat.js:466"
+   "static/js/views/chat.js:364"
   ],
   "client": true,
   "plural": true
@@ -189,7 +188,7 @@
  {
   "id": "، أو على بريد الدعم الرسمي {email}",
   "where": [
-   "app/services/cms.py:113"
+   "app/services/cms.py:117"
   ],
   "client": false,
   "plural": false
@@ -344,7 +343,7 @@
  {
   "id": "أدخل رقم عملية التحويل (TXID) الصحيح.",
   "where": [
-   "app/services/membership.py:286",
+   "app/services/membership.py:312",
    "app/services/withdrawals.py:119"
   ],
   "client": false,
@@ -448,18 +447,8 @@
   "plural": false
  },
  {
-  "id": "أرسلت صورًا كثيرة هذه الساعة. حاول لاحقًا.",
-  "where": [
-   "app/services/media_items.py:342",
-   "app/services/media_items.py:187"
-  ],
-  "client": false,
-  "plural": false
- },
- {
   "id": "أرسلت عدة رسائل متتالية. انتظر رد الطرف الآخر.",
   "where": [
-   "app/services/media_items.py:340",
    "app/services/messaging.py:337"
   ],
   "client": false,
@@ -572,7 +561,7 @@
  {
   "id": "أفكار أخرى",
   "where": [
-   "static/js/views/home.js:251"
+   "static/js/views/home.js:248"
   ],
   "client": true,
   "plural": false
@@ -580,7 +569,7 @@
  {
   "id": "أفكار من الآخرين",
   "where": [
-   "static/js/views/home.js:298"
+   "static/js/views/home.js:295"
   ],
   "client": true,
   "plural": false
@@ -799,7 +788,7 @@
  {
   "id": "أُرسل إليك {amount} USDT (استرجاع العضوية).",
   "where": [
-   "app/services/membership.py:307"
+   "app/services/membership.py:333"
   ],
   "client": false,
   "plural": false
@@ -856,7 +845,7 @@
  {
   "id": "أُرسل طلب مراسلة. يمكنك إرسال {n} رسائل على الأكثر حتى يرد.",
   "where": [
-   "static/js/views/chat.js:312"
+   "static/js/views/chat.js:215"
   ],
   "client": true,
   "plural": true
@@ -864,7 +853,7 @@
  {
   "id": "أُرسل طلب مراسلة. يمكنك إرسال رسائل قليلة حتى يرد.",
   "where": [
-   "static/js/views/chat.js:312"
+   "static/js/views/chat.js:215"
   ],
   "client": true,
   "plural": false
@@ -880,7 +869,7 @@
  {
   "id": "أُرسلت",
   "where": [
-   "static/js/views/chat.js:15"
+   "static/js/views/chat.js:14"
   ],
   "client": true,
   "plural": false
@@ -904,7 +893,7 @@
  {
   "id": "أُرسلت فكرتك، وستظهر بعد مراجعة الصورة.",
   "where": [
-   "static/js/views/home.js:238"
+   "static/js/views/home.js:233"
   ],
   "client": true,
   "plural": false
@@ -928,7 +917,7 @@
  {
   "id": "أُعيدت الإشعارات.",
   "where": [
-   "static/js/views/chat.js:360"
+   "static/js/views/chat.js:258"
   ],
   "client": true,
   "plural": false
@@ -952,7 +941,7 @@
  {
   "id": "أُوقفت الرسائل المجهولة العشوائية. هذه محادثة قديمة للقراءة فقط وستُحذف قريبًا.",
   "where": [
-   "static/js/views/chat.js:268"
+   "static/js/views/chat.js:171"
   ],
   "client": true,
   "plural": false
@@ -960,7 +949,7 @@
  {
   "id": "أُوقفت عضويتك بعد المراجعة.",
   "where": [
-   "app/services/membership_auto.py:128"
+   "app/services/membership_auto.py:129"
   ],
   "client": false,
   "plural": false
@@ -968,7 +957,7 @@
  {
   "id": "أُوقفت عضويتك بعد مراجعة الدفع. للاستفسار تواصل مع الدعم.",
   "where": [
-   "app/services/membership_auto.py:129"
+   "app/services/membership_auto.py:130"
   ],
   "client": false,
   "plural": false
@@ -977,8 +966,8 @@
   "id": "إبلاغ",
   "where": [
    "static/js/media-pick.js:215",
-   "static/js/views/chat.js:229",
-   "static/js/views/chat.js:348"
+   "static/js/views/chat.js:132",
+   "static/js/views/chat.js:246"
   ],
   "client": true,
   "plural": false
@@ -986,8 +975,8 @@
  {
   "id": "إجراء غير صالح.",
   "where": [
-   "app/services/membership.py:190",
-   "app/services/membership.py:273",
+   "app/services/membership.py:216",
+   "app/services/membership.py:299",
    "app/services/verification.py:299",
    "app/services/withdrawals.py:109"
   ],
@@ -1013,7 +1002,7 @@
  {
   "id": "إرسال",
   "where": [
-   "static/js/views/chat.js:75"
+   "static/js/views/chat.js:71"
   ],
   "client": true,
   "plural": false
@@ -1038,7 +1027,7 @@
   "id": "إرسال البلاغ",
   "where": [
    "static/js/ideas.js:334",
-   "static/js/views/chat.js:399"
+   "static/js/views/chat.js:297"
   ],
   "client": true,
   "plural": false
@@ -1060,27 +1049,10 @@
   "plural": false
  },
  {
-  "id": "إرسال الصور في المحادثات متوقف حاليًا.",
+  "id": "إرسال الصور في المحادثات متوقف نهائيًا.",
   "where": [
-   "app/api/uploads.py:69",
-   "app/services/media_items.py:328",
-   "app/services/media_items.py:183"
-  ],
-  "client": false,
-  "plural": false
- },
- {
-  "id": "إرسال الصور في المحادثات ميزة للأعضاء. أي شخص يستطيع استقبالها، وتختفي بعد {n} ثانية من فتحها.",
-  "where": [
-   "static/js/views/chat.js:110"
-  ],
-  "client": true,
-  "plural": true
- },
- {
-  "id": "إرسال الصور في المحادثات ميزة للأعضاء. اطّلع على «عضويتي» من حسابك.",
-  "where": [
-   "app/services/media_items.py:73"
+   "app/main.py:310",
+   "app/services/media_items.py:69"
   ],
   "client": false,
   "plural": false
@@ -1097,22 +1069,6 @@
   "id": "إرسال رقم العملية",
   "where": [
    "static/js/views/membership.js:24"
-  ],
-  "client": true,
-  "plural": false
- },
- {
-  "id": "إرسال صور مؤقتة في المحادثات",
-  "where": [
-   "app/services/membership.py:34"
-  ],
-  "client": false,
-  "plural": false
- },
- {
-  "id": "إرسال صورة",
-  "where": [
-   "static/js/views/chat.js:98"
   ],
   "client": true,
   "plural": false
@@ -1138,7 +1094,7 @@
  {
   "id": "إزالة الصورة",
   "where": [
-   "static/js/views/home.js:157",
+   "static/js/views/home.js:152",
    "static/js/views/profile.js:68"
   ],
   "client": true,
@@ -1204,8 +1160,8 @@
   "id": "إعادة المحاولة",
   "where": [
    "static/js/app.js:253",
-   "static/js/views/chat.js:244",
-   "static/js/views/home.js:285",
+   "static/js/views/chat.js:147",
+   "static/js/views/home.js:282",
    "static/js/views/market.js:158",
    "static/js/views/users.js:36",
    "app/api/download.py:154"
@@ -1234,21 +1190,12 @@
   "plural": false
  },
  {
-  "id": "إعداد الأرشفة مفعّل حاليًا: تُحفظ نسخة من صور المحادثات بعد انتهائها في مستودع التخزين الخاص ولا يراها أي مستخدم.",
-  "where": [
-   "app/services/cms.py:91"
-  ],
-  "client": false,
-  "plural": false
- },
- {
   "id": "إغلاق",
   "where": [
    "static/js/ideas.js:212",
    "static/js/ideas.js:275",
    "static/js/media-pick.js:214",
    "static/js/privacy.js:29",
-   "static/js/views/chat.js:113",
    "static/js/views/market.js:73",
    "static/js/views/profile.js:198"
   ],
@@ -1290,7 +1237,7 @@
  {
   "id": "إلغاء كتم الإشعارات",
   "where": [
-   "static/js/views/chat.js:347"
+   "static/js/views/chat.js:245"
   ],
   "client": true,
   "plural": false
@@ -1387,7 +1334,7 @@
  {
   "id": "احظر هذا الشخص أيضًا",
   "where": [
-   "static/js/views/chat.js:429"
+   "static/js/views/chat.js:327"
   ],
   "client": true,
   "plural": false
@@ -1435,7 +1382,7 @@
  {
   "id": "اختر الشبكة من القائمة.",
   "where": [
-   "app/services/membership.py:230",
+   "app/services/membership.py:256",
    "app/services/verification.py:83",
    "app/services/withdrawals.py:68"
   ],
@@ -1538,7 +1485,7 @@
  {
   "id": "استرجاع العضوية غير متاح.",
   "where": [
-   "app/services/membership.py:249"
+   "app/services/membership.py:275"
   ],
   "client": false,
   "plural": false
@@ -1672,22 +1619,6 @@
   "plural": false
  },
  {
-  "id": "اضغط للعرض",
-  "where": [
-   "static/js/views/chat.js:191"
-  ],
-  "client": true,
-  "plural": false
- },
- {
-  "id": "اضغط للعرض · تختفي بعد",
-  "where": [
-   "static/js/views/chat.js:191"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "افتح {app} من الأيقونة الجديدة وسجّل الدخول.",
   "where": [
    "app/api/download.py:75"
@@ -1706,7 +1637,7 @@
  {
   "id": "افتح التطبيق للمتابعة.",
   "where": [
-   "app/main.py:296"
+   "app/main.py:307"
   ],
   "client": false,
   "plural": false
@@ -1755,7 +1686,7 @@
  {
   "id": "اكتب أول فكرة",
   "where": [
-   "static/js/views/home.js:263"
+   "static/js/views/home.js:260"
   ],
   "client": true,
   "plural": false
@@ -1822,7 +1753,7 @@
  {
   "id": "اكتب رسالة",
   "where": [
-   "static/js/views/chat.js:74"
+   "static/js/views/chat.js:70"
   ],
   "client": true,
   "plural": false
@@ -1830,7 +1761,7 @@
  {
   "id": "اكتب رسالة…",
   "where": [
-   "static/js/views/chat.js:74"
+   "static/js/views/chat.js:70"
   ],
   "client": true,
   "plural": false
@@ -1846,7 +1777,7 @@
  {
   "id": "اكتب سبب الرفض.",
   "where": [
-   "app/services/membership.py:301",
+   "app/services/membership.py:327",
    "app/services/withdrawals.py:125"
   ],
   "client": false,
@@ -1962,7 +1893,7 @@
  {
   "id": "الإبلاغ عن رسالة",
   "where": [
-   "static/js/views/chat.js:425"
+   "static/js/views/chat.js:323"
   ],
   "client": true,
   "plural": false
@@ -1970,7 +1901,7 @@
  {
   "id": "الإبلاغ عن محادثة",
   "where": [
-   "static/js/views/chat.js:425"
+   "static/js/views/chat.js:323"
   ],
   "client": true,
   "plural": false
@@ -1994,7 +1925,7 @@
  {
   "id": "الإشعارات",
   "where": [
-   "static/js/views/home.js:292",
+   "static/js/views/home.js:289",
    "static/js/views/notifications.js:26"
   ],
   "client": true,
@@ -2116,7 +2047,7 @@
  {
   "id": "البلاغات سرية. نحتفظ فقط بنص الرسالة المُبلّغ عنها لمراجعتها.",
   "where": [
-   "static/js/views/chat.js:426"
+   "static/js/views/chat.js:324"
   ],
   "client": true,
   "plural": false
@@ -2209,7 +2140,7 @@
  {
   "id": "الخادم مشغول بمعالجة ملفات أخرى. حاول بعد دقيقة.",
   "where": [
-   "app/api/uploads.py:92"
+   "app/api/uploads.py:84"
   ],
   "client": false,
   "plural": false
@@ -2269,7 +2200,7 @@
   "id": "الدفع غير متاح حاليًا. حاول لاحقًا.",
   "where": [
    "static/js/views/membership.js:22",
-   "app/services/membership.py:143"
+   "app/services/membership.py:169"
   ],
   "client": true,
   "plural": false
@@ -2302,7 +2233,7 @@
  {
   "id": "الرسالة أطول من {n} حرف.",
   "where": [
-   "static/js/views/chat.js:203"
+   "static/js/views/chat.js:106"
   ],
   "client": true,
   "plural": true
@@ -2409,8 +2340,8 @@
  {
   "id": "السحب",
   "where": [
-   "app/services/cms.py:641",
-   "app/services/membership.py:429"
+   "app/services/cms.py:639",
+   "app/services/membership.py:455"
   ],
   "client": false,
   "plural": false
@@ -2477,19 +2408,9 @@
   "plural": false
  },
  {
-  "id": "الصور للأعضاء",
-  "where": [
-   "static/js/views/chat.js:109",
-   "static/js/views/chat.js:318",
-   "static/js/views/home.js:119"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "الصورة التالية بعد {hh}:{mm}:{ss}",
   "where": [
-   "static/js/views/home.js:138"
+   "static/js/views/home.js:133"
   ],
   "client": true,
   "plural": false
@@ -2505,7 +2426,7 @@
  {
   "id": "الصورة المختارة",
   "where": [
-   "static/js/views/home.js:156"
+   "static/js/views/home.js:151"
   ],
   "client": true,
   "plural": false
@@ -2547,7 +2468,7 @@
  {
   "id": "الطلب كبير جدًا.",
   "where": [
-   "app/main.py:300"
+   "app/main.py:313"
   ],
   "client": false,
   "plural": false
@@ -2579,7 +2500,7 @@
  {
   "id": "العضوية",
   "where": [
-   "app/services/membership.py:429"
+   "app/services/membership.py:455"
   ],
   "client": false,
   "plural": false
@@ -2603,7 +2524,7 @@
  {
   "id": "العنوان طويل جدًا.",
   "where": [
-   "app/services/cms.py:521"
+   "app/services/cms.py:519"
   ],
   "client": false,
   "plural": false
@@ -2611,7 +2532,7 @@
  {
   "id": "العنوان لا يطابق شكل عناوين {network}.",
   "where": [
-   "app/services/membership.py:232",
+   "app/services/membership.py:258",
    "app/services/withdrawals.py:71"
   ],
   "client": false,
@@ -2789,7 +2710,7 @@
  {
   "id": "الملف أكبر من الحجم المعلن.",
   "where": [
-   "app/api/uploads.py:109"
+   "app/api/uploads.py:101"
   ],
   "client": false,
   "plural": false
@@ -2797,7 +2718,7 @@
  {
   "id": "الملف أكبر من الحد المسموح ({mb} MB).",
   "where": [
-   "app/services/media_items.py:165"
+   "app/services/media_items.py:143"
   ],
   "client": false,
   "plural": false
@@ -2805,7 +2726,7 @@
  {
   "id": "الملف فارغ.",
   "where": [
-   "app/services/media_items.py:163"
+   "app/services/media_items.py:141"
   ],
   "client": false,
   "plural": false
@@ -2821,7 +2742,7 @@
  {
   "id": "الملف ما زال قيد المعالجة. انتظر لحظة.",
   "where": [
-   "app/services/media_items.py:229"
+   "app/services/media_items.py:199"
   ],
   "client": false,
   "plural": false
@@ -2830,7 +2751,7 @@
   "id": "الملف مرفوض.",
   "where": [
    "static/js/media-pick.js:197",
-   "app/services/media_items.py:231",
+   "app/services/media_items.py:201",
    "app/services/media_pipeline.py:161"
   ],
   "client": true,
@@ -2839,7 +2760,7 @@
  {
   "id": "النجمة الزرقاء بجانب اسمك",
   "where": [
-   "app/services/membership.py:34"
+   "app/services/membership.py:47"
   ],
   "client": false,
   "plural": false
@@ -2847,7 +2768,7 @@
  {
   "id": "النص طويل جدًا.",
   "where": [
-   "app/services/cms.py:534"
+   "app/services/cms.py:532"
   ],
   "client": false,
   "plural": false
@@ -2855,7 +2776,7 @@
  {
   "id": "النص غير صالح.",
   "where": [
-   "app/services/cms.py:531"
+   "app/services/cms.py:529"
   ],
   "client": false,
   "plural": false
@@ -2955,17 +2876,9 @@
   "plural": false
  },
  {
-  "id": "انتهت صلاحية الصورة",
-  "where": [
-   "static/js/views/chat.js:184"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "انتهت صلاحية الصورة.",
   "where": [
-   "app/services/media_items.py:394"
+   "app/services/media_items.py:291"
   ],
   "client": false,
   "plural": false
@@ -2999,7 +2912,7 @@
  {
   "id": "انتهت مهلة المعالجة.",
   "where": [
-   "app/services/media_items.py:551"
+   "app/services/media_items.py:452"
   ],
   "client": false,
   "plural": false
@@ -3201,17 +3114,9 @@
   "plural": false
  },
  {
-  "id": "تتاح الصور بعد أن يرد الطرف الآخر",
-  "where": [
-   "static/js/views/chat.js:318"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "تجاهل",
   "where": [
-   "static/js/views/chat.js:303"
+   "static/js/views/chat.js:206"
   ],
   "client": true,
   "plural": false
@@ -3430,14 +3335,6 @@
   "plural": false
  },
  {
-  "id": "تعذّر إرسال الصورة.",
-  "where": [
-   "static/js/views/chat.js:142"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "تعذّر إنشاء الحساب. حاول مرة أخرى.",
   "where": [
    "app/services/auth.py:397"
@@ -3503,7 +3400,7 @@
   "id": "تعذّر تجهيز الصورة.",
   "where": [
    "static/js/media-pick.js:161",
-   "static/js/views/home.js:178"
+   "static/js/views/home.js:173"
   ],
   "client": true,
   "plural": false
@@ -3512,14 +3409,6 @@
   "id": "تعذّر تحديث الصورة.",
   "where": [
    "static/js/views/profile.js:53"
-  ],
-  "client": true,
-  "plural": false
- },
- {
-  "id": "تعذّر تحميل الصورة. حاول مرة أخرى.",
-  "where": [
-   "static/js/views/chat.js:168"
   ],
   "client": true,
   "plural": false
@@ -3667,7 +3556,7 @@
   "id": "تفاصيل إضافية (اختياري)",
   "where": [
    "static/js/ideas.js:331",
-   "static/js/views/chat.js:395"
+   "static/js/views/chat.js:293"
   ],
   "client": true,
   "plural": false
@@ -3758,7 +3647,7 @@
  {
   "id": "تم الإرجاع",
   "where": [
-   "app/services/membership.py:42"
+   "app/services/membership.py:68"
   ],
   "client": false,
   "plural": false
@@ -3774,8 +3663,8 @@
  {
   "id": "تم البت في هذا الطلب.",
   "where": [
-   "app/services/membership.py:196",
-   "app/services/membership.py:279",
+   "app/services/membership.py:222",
+   "app/services/membership.py:305",
    "app/services/payment_check.py:326",
    "app/services/payment_check.py:392",
    "app/services/verification.py:301",
@@ -3804,7 +3693,7 @@
   "id": "تم الحظر.",
   "where": [
    "static/js/ideas.js:230",
-   "static/js/views/chat.js:374"
+   "static/js/views/chat.js:272"
   ],
   "client": true,
   "plural": false
@@ -3836,7 +3725,7 @@
  {
   "id": "تم تجاهل الطلب.",
   "where": [
-   "static/js/views/chat.js:325"
+   "static/js/views/chat.js:223"
   ],
   "client": true,
   "plural": false
@@ -3852,7 +3741,7 @@
  {
   "id": "تم تفعيل عضويتك ✨",
   "where": [
-   "app/services/membership.py:215"
+   "app/services/membership.py:241"
   ],
   "client": false,
   "plural": false
@@ -3923,7 +3812,7 @@
    "static/js/views/earnings.js:12",
    "static/js/views/earnings.js:108",
    "static/js/views/giveaway.js:9",
-   "static/js/views/home.js:270",
+   "static/js/views/home.js:267",
    "static/js/views/market.js:108",
    "static/js/views/membership.js:10",
    "static/js/views/notifications.js:22",
@@ -3948,7 +3837,7 @@
  {
   "id": "جارٍ الرفع 0%",
   "where": [
-   "static/js/views/home.js:221"
+   "static/js/views/home.js:216"
   ],
   "client": true,
   "plural": false
@@ -3956,7 +3845,7 @@
  {
   "id": "جارٍ الرفع {pct}%",
   "where": [
-   "static/js/views/home.js:223"
+   "static/js/views/home.js:218"
   ],
   "client": true,
   "plural": false
@@ -3964,18 +3853,8 @@
  {
   "id": "جارٍ الفحص على الخادم…",
   "where": [
-   "static/js/views/chat.js:133",
-   "static/js/views/chat.js:135",
-   "static/js/views/home.js:223",
-   "static/js/views/home.js:225"
-  ],
-  "client": true,
-  "plural": false
- },
- {
-  "id": "جارٍ رفع الصورة {pct}%",
-  "where": [
-   "static/js/views/chat.js:133"
+   "static/js/views/home.js:218",
+   "static/js/views/home.js:220"
   ],
   "client": true,
   "plural": false
@@ -3991,9 +3870,8 @@
  {
   "id": "جارٍ فحص الصورة…",
   "where": [
-   "static/js/views/chat.js:127",
-   "static/js/views/home.js:170",
-   "static/js/views/home.js:171"
+   "static/js/views/home.js:165",
+   "static/js/views/home.js:166"
   ],
   "client": true,
   "plural": false
@@ -4066,7 +3944,7 @@
  {
   "id": "حدث خطأ غير متوقع. حاول مرة أخرى.",
   "where": [
-   "app/main.py:345"
+   "app/main.py:358"
   ],
   "client": false,
   "plural": false
@@ -4100,8 +3978,8 @@
   "where": [
    "static/js/ideas.js:236",
    "static/js/ideas.js:285",
-   "static/js/views/chat.js:245",
-   "static/js/views/chat.js:383"
+   "static/js/views/chat.js:148",
+   "static/js/views/chat.js:281"
   ],
   "client": true,
   "plural": false
@@ -4125,7 +4003,7 @@
  {
   "id": "حذف المحادثة",
   "where": [
-   "static/js/views/chat.js:350"
+   "static/js/views/chat.js:248"
   ],
   "client": true,
   "plural": false
@@ -4133,7 +4011,7 @@
  {
   "id": "حذف المحادثة؟",
   "where": [
-   "static/js/views/chat.js:381"
+   "static/js/views/chat.js:279"
   ],
   "client": true,
   "plural": false
@@ -4235,9 +4113,9 @@
   "id": "حظر",
   "where": [
    "static/js/ideas.js:228",
-   "static/js/views/chat.js:304",
-   "static/js/views/chat.js:349",
-   "static/js/views/chat.js:368"
+   "static/js/views/chat.js:207",
+   "static/js/views/chat.js:247",
+   "static/js/views/chat.js:266"
   ],
   "client": true,
   "plural": false
@@ -4261,7 +4139,7 @@
  {
   "id": "حظر هذا الشخص؟",
   "where": [
-   "static/js/views/chat.js:366"
+   "static/js/views/chat.js:264"
   ],
   "client": true,
   "plural": false
@@ -4436,7 +4314,7 @@
  {
   "id": "رجوع",
   "where": [
-   "static/js/views/chat.js:54",
+   "static/js/views/chat.js:50",
    "static/js/views/contact.js:12",
    "static/js/views/earnings.js:15",
    "static/js/views/earnings.js:111",
@@ -4518,7 +4396,7 @@
  {
   "id": "رسوم الاسترجاع",
   "where": [
-   "app/services/membership.py:295"
+   "app/services/membership.py:321"
   ],
   "client": false,
   "plural": false
@@ -4575,8 +4453,8 @@
  {
   "id": "رقم العملية هذا مستخدم في طلب آخر.",
   "where": [
-   "app/services/membership.py:147",
-   "app/services/membership.py:157",
+   "app/services/membership.py:173",
+   "app/services/membership.py:183",
    "app/services/payment_check.py:376",
    "app/services/verification.py:271",
    "app/services/verification.py:255"
@@ -4587,7 +4465,7 @@
  {
   "id": "رقم العملية هذا مسجّل لاسترجاع آخر.",
   "where": [
-   "app/services/membership.py:288"
+   "app/services/membership.py:314"
   ],
   "client": false,
   "plural": false
@@ -4653,7 +4531,7 @@
  {
   "id": "رُفض طلب الاسترجاع: {note}",
   "where": [
-   "app/services/membership.py:308"
+   "app/services/membership.py:334"
   ],
   "client": false,
   "plural": false
@@ -4685,7 +4563,7 @@
  {
   "id": "رُفض طلب العضوية: {note}",
   "where": [
-   "app/services/membership.py:216"
+   "app/services/membership.py:242"
   ],
   "client": false,
   "plural": false
@@ -4701,7 +4579,7 @@
  {
   "id": "سؤال",
   "where": [
-   "app/services/cms.py:642"
+   "app/services/cms.py:640"
   ],
   "client": false,
   "plural": false
@@ -4717,7 +4595,7 @@
  {
   "id": "ستختفي المحادثة من قائمتك. إذا كتب لك الطرف الآخر مجددًا ستعود للظهور.",
   "where": [
-   "static/js/views/chat.js:382"
+   "static/js/views/chat.js:280"
   ],
   "client": true,
   "plural": false
@@ -4789,7 +4667,7 @@
  {
   "id": "سحب الأرباح",
   "where": [
-   "app/services/cms.py:640",
+   "app/services/cms.py:638",
    "app/services/email_codes.py:23"
   ],
   "client": false,
@@ -4842,7 +4720,7 @@
  {
   "id": "شارك فكرة",
   "where": [
-   "static/js/views/home.js:187"
+   "static/js/views/home.js:182"
   ],
   "client": true,
   "plural": false
@@ -4850,7 +4728,7 @@
  {
   "id": "شاهدت كل الأفكار الحالية. اضغط ↻ لترتيب جديد.",
   "where": [
-   "static/js/views/home.js:283"
+   "static/js/views/home.js:280"
   ],
   "client": true,
   "plural": false
@@ -4869,7 +4747,7 @@
  {
   "id": "شكرًا لك. تم إرسال البلاغ وحظر هذا الشخص.",
   "where": [
-   "static/js/views/chat.js:413"
+   "static/js/views/chat.js:311"
   ],
   "client": true,
   "plural": false
@@ -4878,7 +4756,7 @@
   "id": "شكرًا لك. تم إرسال البلاغ وسيُراجع.",
   "where": [
    "static/js/ideas.js:342",
-   "static/js/views/chat.js:418"
+   "static/js/views/chat.js:316"
   ],
   "client": true,
   "plural": false
@@ -4894,7 +4772,7 @@
  {
   "id": "شوهدت",
   "where": [
-   "static/js/views/chat.js:17"
+   "static/js/views/chat.js:16"
   ],
   "client": true,
   "plural": false
@@ -4924,17 +4802,9 @@
   "plural": false
  },
  {
-  "id": "صورة · لم تُفتح بعد",
+  "id": "صورة محذوفة",
   "where": [
-   "static/js/views/chat.js:190"
-  ],
-  "client": true,
-  "plural": false
- },
- {
-  "id": "صورة مؤقتة",
-  "where": [
-   "static/js/views/chat.js:172"
+   "static/js/views/chat.js:99"
   ],
   "client": true,
   "plural": false
@@ -4993,14 +4863,15 @@
   "where": [
    "app/api/app_access.py:60",
    "app/api/app_access.py:58",
-   "app/api/uploads.py:77",
-   "app/main.py:335",
+   "app/api/uploads.py:70",
+   "app/main.py:348",
    "app/services/auth.py:132",
    "app/services/email_codes.py:43",
    "app/services/engagement.py:195",
    "app/services/ideas.py:240",
-   "app/services/media_items.py:157",
-   "app/services/media_items.py:161",
+   "app/services/image_permission.py:40",
+   "app/services/media_items.py:135",
+   "app/services/media_items.py:139",
    "app/services/messaging.py:251",
    "app/services/messaging.py:71",
    "app/services/messaging.py:651",
@@ -5018,8 +4889,8 @@
  {
   "id": "طلب غير مسموح.",
   "where": [
-   "app/main.py:305",
-   "app/main.py:308"
+   "app/main.py:318",
+   "app/main.py:321"
   ],
   "client": false,
   "plural": false
@@ -5091,7 +4962,7 @@
  {
   "id": "ظرف الأسبوع",
   "where": [
-   "app/services/cms.py:642"
+   "app/services/cms.py:640"
   ],
   "client": false,
   "plural": false
@@ -5153,7 +5024,7 @@
   "id": "عرض الملف",
   "where": [
    "static/js/people.js:96",
-   "static/js/views/chat.js:346"
+   "static/js/views/chat.js:244"
   ],
   "client": true,
   "plural": false
@@ -5177,7 +5048,7 @@
  {
   "id": "عضويتك مفعّلة بالفعل.",
   "where": [
-   "app/services/membership.py:137"
+   "app/services/membership.py:163"
   ],
   "client": false,
   "plural": false
@@ -5185,7 +5056,6 @@
  {
   "id": "عضويتي",
   "where": [
-   "static/js/views/chat.js:112",
    "static/js/views/membership.js:14",
    "static/js/views/profile.js:276"
   ],
@@ -5276,7 +5146,7 @@
  {
   "id": "عنوان غير صالح.",
   "where": [
-   "app/services/cms.py:518"
+   "app/services/cms.py:516"
   ],
   "client": false,
   "plural": false
@@ -5303,8 +5173,8 @@
   "where": [
    "app/api/i18n.py:22",
    "app/errors.py:23",
-   "app/main.py:289",
-   "app/main.py:383",
+   "app/main.py:300",
+   "app/main.py:396",
    "app/services/payment_check.py:368"
   ],
   "client": false,
@@ -5401,17 +5271,9 @@
   "plural": false
  },
  {
-  "id": "فُتحت · تختفي بعد",
-  "where": [
-   "static/js/views/chat.js:190"
-  ],
-  "client": true,
-  "plural": false
- },
- {
   "id": "قبلت الطلب. يمكنكما الآن التحدث.",
   "where": [
-   "static/js/views/chat.js:326"
+   "static/js/views/chat.js:224"
   ],
   "client": true,
   "plural": false
@@ -5419,7 +5281,7 @@
  {
   "id": "قبول",
   "where": [
-   "static/js/views/chat.js:302"
+   "static/js/views/chat.js:205"
   ],
   "client": true,
   "plural": false
@@ -5435,7 +5297,7 @@
  {
   "id": "قيد الإرسال",
   "where": [
-   "static/js/views/chat.js:14"
+   "static/js/views/chat.js:13"
   ],
   "client": true,
   "plural": false
@@ -5443,7 +5305,7 @@
  {
   "id": "قيد التنفيذ",
   "where": [
-   "app/services/membership.py:42",
+   "app/services/membership.py:68",
    "app/services/withdrawals.py:28"
   ],
   "client": false,
@@ -5452,7 +5314,7 @@
  {
   "id": "قيد المراجعة",
   "where": [
-   "app/services/membership.py:41",
+   "app/services/membership.py:67",
    "app/services/rewards.py:39",
    "app/services/verification.py:39"
   ],
@@ -5486,7 +5348,7 @@
  {
   "id": "كتم الإشعارات",
   "where": [
-   "static/js/views/chat.js:347"
+   "static/js/views/chat.js:245"
   ],
   "client": true,
   "plural": false
@@ -5494,7 +5356,7 @@
  {
   "id": "كشف الطرف الآخر هويته.",
   "where": [
-   "static/js/views/chat.js:32"
+   "static/js/views/chat.js:31"
   ],
   "client": true,
   "plural": false
@@ -5502,7 +5364,7 @@
  {
   "id": "كشفتَ هويتك.",
   "where": [
-   "static/js/views/chat.js:32"
+   "static/js/views/chat.js:31"
   ],
   "client": true,
   "plural": false
@@ -5572,7 +5434,7 @@
   "id": "كلمة المرور غير صحيحة.",
   "where": [
    "app/services/account_deletion.py:33",
-   "app/services/membership.py:240"
+   "app/services/membership.py:266"
   ],
   "client": false,
   "plural": false
@@ -5608,7 +5470,7 @@
  {
   "id": "كن أول من يشارك فكرة مع الجميع.",
   "where": [
-   "static/js/views/home.js:262"
+   "static/js/views/home.js:259"
   ],
   "client": true,
   "plural": false
@@ -5640,7 +5502,7 @@
  {
   "id": "لا توجد أفكار بعد",
   "where": [
-   "static/js/views/home.js:261"
+   "static/js/views/home.js:258"
   ],
   "client": true,
   "plural": false
@@ -5712,7 +5574,7 @@
  {
   "id": "لا تُسترجع قيمة العضوية بعد تفعيلها.",
   "where": [
-   "app/services/cms.py:106"
+   "app/services/cms.py:110"
   ],
   "client": false,
   "plural": false
@@ -5723,14 +5585,6 @@
    "static/js/views/earnings.js:89"
   ],
   "client": true,
-  "plural": false
- },
- {
-  "id": "لا نؤرشف صور المحادثات: بعد انتهائها تُحذف نهائيًا (إلا إذا أُبلغ عنها).",
-  "where": [
-   "app/services/cms.py:90"
-  ],
-  "client": false,
   "plural": false
  },
  {
@@ -5768,7 +5622,7 @@
  {
   "id": "لا يمكن أن تكون الصفحة فارغة. لاستعادة النص الأصلي استعمل «النص الافتراضي».",
   "where": [
-   "app/services/cms.py:536"
+   "app/services/cms.py:534"
   ],
   "client": false,
   "plural": false
@@ -5824,7 +5678,7 @@
  {
   "id": "لا يمكن طلب الاسترجاع الآن (انتهت المدة أو لديك طلب مفتوح).",
   "where": [
-   "app/services/membership.py:251"
+   "app/services/membership.py:277"
   ],
   "client": false,
   "plural": false
@@ -5973,7 +5827,7 @@
  {
   "id": "لديك طلب قيد المراجعة بالفعل.",
   "where": [
-   "app/services/membership.py:140",
+   "app/services/membership.py:166",
    "app/services/verification.py:237"
   ],
   "client": false,
@@ -5990,7 +5844,7 @@
  {
   "id": "لغة غير معروفة.",
   "where": [
-   "app/services/cms.py:510"
+   "app/services/cms.py:508"
   ],
   "client": false,
   "plural": false
@@ -6038,7 +5892,7 @@
  {
   "id": "لم تُرسل",
   "where": [
-   "static/js/views/chat.js:243"
+   "static/js/views/chat.js:146"
   ],
   "client": true,
   "plural": false
@@ -6054,7 +5908,7 @@
  {
   "id": "لم نتمكن من تأكيد الدفع. تحقق من رقم العملية والمبلغ والشبكة.",
   "where": [
-   "app/services/membership.py:32"
+   "app/services/membership.py:35"
   ],
   "client": false,
   "plural": false
@@ -6078,7 +5932,7 @@
  {
   "id": "لم يكتمل الرفع.",
   "where": [
-   "app/api/uploads.py:120"
+   "app/api/uploads.py:112"
   ],
   "client": false,
   "plural": false
@@ -6086,8 +5940,8 @@
  {
   "id": "لم يكتمل رفع الملف. أعد المحاولة.",
   "where": [
-   "app/api/uploads.py:112",
-   "app/api/uploads.py:124"
+   "app/api/uploads.py:104",
+   "app/api/uploads.py:116"
   ],
   "client": false,
   "plural": false
@@ -6095,7 +5949,7 @@
  {
   "id": "لن تصلك إشعارات من هذه المحادثة.",
   "where": [
-   "static/js/views/chat.js:360"
+   "static/js/views/chat.js:258"
   ],
   "client": true,
   "plural": false
@@ -6103,7 +5957,7 @@
  {
   "id": "لن يتمكن من مراسلتك أو العثور عليك بالبحث. ستُغلق هذه المحادثة.",
   "where": [
-   "static/js/views/chat.js:367"
+   "static/js/views/chat.js:265"
   ],
   "client": true,
   "plural": false
@@ -6119,7 +5973,7 @@
  {
   "id": "لن يعرف أنك قرأت رسائله حتى تقبل. إذا تجاهلت الطلب يختفي دون إشعاره.",
   "where": [
-   "static/js/views/chat.js:300"
+   "static/js/views/chat.js:203"
   ],
   "client": true,
   "plural": false
@@ -6144,7 +5998,7 @@
  {
   "id": "مثال",
   "where": [
-   "app/services/cms.py:641"
+   "app/services/cms.py:639"
   ],
   "client": false,
   "plural": false
@@ -6200,7 +6054,7 @@
  {
   "id": "محادثة مباشرة",
   "where": [
-   "static/js/views/chat.js:68"
+   "static/js/views/chat.js:64"
   ],
   "client": true,
   "plural": false
@@ -6208,7 +6062,7 @@
  {
   "id": "محادثة مباشرة: يرى كل طرف اسم الآخر ومعرّفه فقط، دون بريد أو رقم. تُحذف الرسائل من الخادم تلقائيًا بعد مدة.",
   "where": [
-   "static/js/views/chat.js:267"
+   "static/js/views/chat.js:170"
   ],
   "client": true,
   "plural": false
@@ -6224,7 +6078,7 @@
  {
   "id": "محادثة مجهولة قديمة · للقراءة فقط",
   "where": [
-   "static/js/views/chat.js:69"
+   "static/js/views/chat.js:65"
   ],
   "client": true,
   "plural": false
@@ -6240,7 +6094,7 @@
  {
   "id": "محادثة مجهولة قديمة للقراءة فقط.",
   "where": [
-   "static/js/views/chat.js:290"
+   "static/js/views/chat.js:193"
   ],
   "client": true,
   "plural": false
@@ -6248,7 +6102,7 @@
  {
   "id": "محادثة مجهولة قديمة للقراءة فقط، تُحذف في {when}.",
   "where": [
-   "static/js/views/chat.js:290"
+   "static/js/views/chat.js:193"
   ],
   "client": true,
   "plural": false
@@ -6346,8 +6200,8 @@
  {
   "id": "مرفوض",
   "where": [
-   "app/services/membership.py:41",
-   "app/services/membership.py:42",
+   "app/services/membership.py:67",
+   "app/services/membership.py:68",
    "app/services/rewards.py:39",
    "app/services/verification.py:39",
    "app/services/withdrawals.py:28"
@@ -6407,7 +6261,7 @@
  {
   "id": "معلومات المحادثة",
   "where": [
-   "static/js/views/chat.js:55"
+   "static/js/views/chat.js:51"
   ],
   "client": true,
   "plural": false
@@ -6415,7 +6269,7 @@
  {
   "id": "معلومات وخيارات",
   "where": [
-   "static/js/views/chat.js:57"
+   "static/js/views/chat.js:53"
   ],
   "client": true,
   "plural": false
@@ -6449,7 +6303,7 @@
  {
   "id": "مقبول",
   "where": [
-   "app/services/membership.py:41",
+   "app/services/membership.py:67",
    "app/services/verification.py:39"
   ],
   "client": false,
@@ -6697,15 +6551,15 @@
   "id": "نشر",
   "where": [
    "static/js/views/home.js:103",
-   "static/js/views/home.js:245"
+   "static/js/views/home.js:240"
   ],
   "client": true,
   "plural": false
  },
  {
-  "id": "نشر الأفكار مع صورة",
+  "id": "نشر الصور غير مفعّل لحسابك. تمنحه الإدارة فقط.",
   "where": [
-   "app/services/membership.py:34"
+   "app/services/media_items.py:65"
   ],
   "client": false,
   "plural": false
@@ -6713,17 +6567,9 @@
  {
   "id": "نشر الصور مع الأفكار متوقف حاليًا.",
   "where": [
-   "app/api/uploads.py:62",
-   "app/services/media_items.py:253",
-   "app/services/media_items.py:172"
-  ],
-  "client": false,
-  "plural": false
- },
- {
-  "id": "نشر الصور مع الأفكار ميزة للأعضاء. اطّلع على «عضويتي» من حسابك.",
-  "where": [
-   "app/services/media_items.py:65"
+   "app/api/uploads.py:58",
+   "app/services/media_items.py:223",
+   "app/services/media_items.py:149"
   ],
   "client": false,
   "plural": false
@@ -6739,7 +6585,7 @@
  {
   "id": "نشط الآن",
   "where": [
-   "static/js/views/chat.js:67"
+   "static/js/views/chat.js:63"
   ],
   "client": true,
   "plural": false
@@ -6755,7 +6601,7 @@
  {
   "id": "نص مثال.",
   "where": [
-   "app/services/cms.py:641"
+   "app/services/cms.py:639"
   ],
   "client": false,
   "plural": false
@@ -6855,7 +6701,7 @@
  {
   "id": "نُشرت فكرتك ✨",
   "where": [
-   "static/js/views/home.js:238"
+   "static/js/views/home.js:233"
   ],
   "client": true,
   "plural": false
@@ -6938,7 +6784,7 @@
  {
   "id": "هذا الطلب لم يُمنح تلقائيًا أو سُحب من قبل.",
   "where": [
-   "app/services/membership_auto.py:122"
+   "app/services/membership_auto.py:123"
   ],
   "client": false,
   "plural": false
@@ -6962,7 +6808,7 @@
  {
   "id": "هذا الملف مستخدم بالفعل.",
   "where": [
-   "app/services/media_items.py:233"
+   "app/services/media_items.py:203"
   ],
   "client": false,
   "plural": false
@@ -6987,9 +6833,7 @@
  {
   "id": "هذه المحادثة لم تعد متاحة.",
   "where": [
-   "static/js/views/chat.js:444",
-   "app/services/media_items.py:146",
-   "app/services/media_items.py:389",
+   "static/js/views/chat.js:342",
    "app/services/messaging.py:334",
    "app/services/messaging.py:736"
   ],
@@ -6999,7 +6843,7 @@
  {
   "id": "هذه المحادثة مغلقة ولم يعد بالإمكان الرد فيها.",
   "where": [
-   "static/js/views/chat.js:294"
+   "static/js/views/chat.js:197"
   ],
   "client": true,
   "plural": false
@@ -7015,7 +6859,7 @@
  {
   "id": "هوية هذا الشخص مخفية. يظهر باسم dzplay.",
   "where": [
-   "static/js/views/chat.js:343"
+   "static/js/views/chat.js:241"
   ],
   "client": true,
   "plural": false
@@ -7039,7 +6883,7 @@
  {
   "id": "وصلت",
   "where": [
-   "static/js/views/chat.js:16"
+   "static/js/views/chat.js:15"
   ],
   "client": true,
   "plural": false
@@ -7258,7 +7102,7 @@
  {
   "id": "يقرؤها الجميع، ويظهر معها اسمك الذي اخترته.",
   "where": [
-   "static/js/views/home.js:188"
+   "static/js/views/home.js:183"
   ],
   "client": true,
   "plural": false
@@ -7266,7 +7110,7 @@
  {
   "id": "يكتب الآن",
   "where": [
-   "static/js/views/chat.js:256"
+   "static/js/views/chat.js:159"
   ],
   "client": true,
   "plural": false
@@ -7274,18 +7118,9 @@
  {
   "id": "يمكن طلب استرجاعها خلال {n} أيام من تفعيلها، ويُعاد المبلغ ناقص رسوم {fee} USDT، وتتوقف الميزات عند الإرجاع.",
   "where": [
-   "app/services/cms.py:103"
+   "app/services/cms.py:107"
   ],
   "client": false,
-  "plural": false
- },
- {
-  "id": "يمكنك إرسال الصور بعد أن يرد عليك الطرف الآخر.",
-  "where": [
-   "static/js/views/chat.js:119",
-   "app/services/media_items.py:148"
-  ],
-  "client": true,
   "plural": false
  },
  {
@@ -7308,7 +7143,7 @@
   "id": "يمكنك تغيير صورتك {n} مرات في اليوم. حاول لاحقًا.",
   "where": [
    "static/js/views/profile.js:40",
-   "app/services/media_items.py:103"
+   "app/services/media_items.py:102"
   ],
   "client": true,
   "plural": true
@@ -7324,9 +7159,9 @@
  {
   "id": "يمكنك نشر صورة واحدة كل 24 ساعة.",
   "where": [
-   "app/api/uploads.py:66",
-   "app/services/media_items.py:257",
-   "app/services/media_items.py:176"
+   "app/api/uploads.py:62",
+   "app/services/media_items.py:227",
+   "app/services/media_items.py:153"
   ],
   "client": false,
   "plural": false

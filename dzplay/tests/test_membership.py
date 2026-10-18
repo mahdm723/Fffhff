@@ -34,6 +34,7 @@ def mx(make_harness, smtp):
                       TELEGRAM_ADMIN_CHAT_ID=str(tg.ADMIN_ID), TELEGRAM_WEBHOOK_SECRET="hook-secret-0123456789",
                       SMTP_HOST="127.0.0.1", SMTP_PORT=smtp.port, SMTP_SECURITY="none", SMTP_FROM="no-reply@dzplay.test")
     hx.default_member = False
+    hx.default_images = False  # V6 phase 17: the picture permission is separate (the admin grants it)
     hx.tg, hx.smtp = fake, smtp
     adm = hx.admin()
     r = adm.put("/api/admin/payment-settings", json={"currency": "USDT", "network": "TRC20", "wallet": WALLET})
@@ -99,8 +100,8 @@ def test_full_flow_accept_star_ledger_notification_mail(mx):
     assert _accept(mx, rid).status_code == 409
     with mx.db() as db:
         assert db.scalar(select(LedgerEntry.id).where(LedgerEntry.kind == "mem_pay").offset(1)) is None
-    # members can post pictures now (phase 4 rule)
-    assert a.get("/api/uploads/config").json()["idea"]["member"] is True
+    # V6 phase 17: posting pictures is the admin's permission, never the membership's
+    assert a.get("/api/uploads/config").json()["idea"]["allowed"] is False
 
 
 def test_telegram_button_accepts(mx):

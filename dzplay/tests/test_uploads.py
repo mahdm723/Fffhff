@@ -4,7 +4,6 @@ pictures, moderation buttons, reports, live tunables."""
 from __future__ import annotations
 
 import io
-import json
 
 import pytest
 from PIL import Image
@@ -14,7 +13,7 @@ from app.models import MediaItem, Post, SecurityEvent, User
 from app.services import media_check, media_items, tunables
 from app.services.messaging import Effects
 from tests import fake_telegram as tg
-from tests.conftest import reply, send
+from tests.conftest import send
 
 STORAGE = "-1001111111111"
 MODCHAT = "-1002222222222"
@@ -367,101 +366,6 @@ def _chat(mx):
     a, b = mx.user(), mx.user()
     cid = send(a, b, "مرحبا، كيف الحال؟").json()["conversation"]["id"]
     return a, b, cid
-
-
-def test_chat_picture_after_reply_blurred_open_countdown_then_gone_everywhere(mx):
-    a, b, cid = _chat(mx)
-    assert upload(mx, a, jpeg(), purpose="chat", conversation_id=cid).status_code == 403  # b has not replied yet
-    assert reply(b, cid, "أهلا").status_code == 201
-    mid = ready_upload(mx, a, jpeg(), purpose="chat", conversation_id=cid)
-    stranger = mx.user()
-    assert stranger.post(f"/api/conversations/{cid}/media", json={"media_id": mid}).status_code == 404
-    r = a.post(f"/api/conversations/{cid}/media", json={"media_id": mid, "client_id": "img-000000001"})
-    assert r.status_code == 201, r.text
-    msg = r.json()["message"]
-    assert msg["kind"] == "image" and msg["media"]["state"] == "sealed" and "url" not in msg["media"]
-    conv = b.get(f"/api/conversations/{cid}").json()
-    got = next(m for m in conv["messages"] if m["id"] == msg["id"])
-    assert got["media"]["state"] == "sealed" and got["media"]["blur"].startswith("data:image/jpeg;base64,")
-    assert "url" not in json.dumps(got["media"])
-    assert b.get("/api/conversations").json()["conversations"][0]["last_message"]["preview"] == "📷 صورة"
-    # only the recipient can open it; nothing in the moderation chat (not reported)
-    assert a.post(f"/api/messages/{msg['id']}/open").status_code == 404
-    assert stranger.post(f"/api/messages/{msg['id']}/open").status_code == 404
-    opened = b.post(f"/api/messages/{msg['id']}/open").json()
-    assert opened["seconds_left"] == mx.settings.CHAT_IMAGE_TTL_AFTER_VIEW and opened["secure"] is True
-    img = b.get(opened["url"])
-    assert img.status_code == 200 and img.headers["cache-control"] == "no-store"
-    assert mx.tg.copies == []
-    a_view = next(m for m in a.get(f"/api/conversations/{cid}").json()["messages"] if m["id"] == msg["id"])
-    ttl = mx.settings.CHAT_IMAGE_TTL_AFTER_VIEW
-    assert a_view["media"]["state"] == "open" and a_view["media"]["seconds_left"] > ttl - 5  # the sender sees the countdown
-    # re-opening does not restart the countdown
-    clock.advance(ttl // 2)
-    assert b.post(f"/api/messages/{msg['id']}/open").json()["seconds_left"] <= ttl - ttl // 2
-    clock.advance(ttl - ttl // 2 + 1)
-    assert b.get(opened["url"]).status_code == 404  # dead the moment it expires
-    assert b.post(f"/api/messages/{msg['id']}/open").status_code == 410
-    for c in (a, b):
-        m = next(m for m in c.get(f"/api/conversations/{cid}").json()["messages"] if m["id"] == msg["id"])
-        assert m["media"] == {"kind": "image", "state": "expired", "blur": None}
-    assert tick(mx)["expired"] == 1
-    assert not list(mx.state.media.dir.glob(f"{mid}*"))  # server cache emptied at once
-    assert mx.tg.deleted == []  # storage copy waits for the short report window
-    clock.advance(mx.settings.CHAT_IMAGE_REPORT_GRACE + 1)
-    tick(mx)
-    assert (STORAGE, mx.tg.documents[0]["message_id"]) in mx.tg.deleted
-    with mx.db() as db:
-        item = db.get(MediaItem, mid)
-        assert item.state == "expired" and item.tg_file_id is None and item.tg_message_id is None
-
-
-def test_unopened_chat_picture_expires_and_reported_one_is_kept(mx):
-    a, b, cid = _chat(mx)
-    reply(b, cid, "نعم")
-    m1 = ready_upload(mx, a, jpeg(), purpose="chat", conversation_id=cid)
-    msg1 = a.post(f"/api/conversations/{cid}/media", json={"media_id": m1}).json()["message"]
-    m2 = ready_upload(mx, a, jpeg((0, 0, 0)), purpose="chat", conversation_id=cid)
-    msg2 = a.post(f"/api/conversations/{cid}/media", json={"media_id": m2}).json()["message"]
-    opened = b.post(f"/api/messages/{msg2['id']}/open").json()
-    assert b.post(f"/api/messages/{msg2['id']}/report", json={"reason": "harassment"}).status_code == 201
-    mx.state.pipeline.wait_idle()
-    assert mx.tg.copies[-1]["chat_id"] == MODCHAT and "صورة محادثة" in mx.tg.copies[-1]["caption"]
-    clock.advance(mx.settings.CHAT_IMAGE_UNOPENED_TTL + 1)
-    assert b.get(opened["url"]).status_code in (403, 404)  # signature expired / file gone
-    tick(mx)
-    clock.advance(mx.settings.CHAT_IMAGE_REPORT_GRACE + 1)
-    tick(mx)
-    docs = {d["file_id"]: d for d in mx.tg.documents}
-    with mx.db() as db:
-        i1, i2 = db.get(MediaItem, m1), db.get(MediaItem, m2)
-        assert i1.state == i2.state == "expired"
-        assert i2.legal_hold is True and i2.tg_file_id in docs  # reported: kept as evidence
-    deleted_ids = {mid for _chat_id, mid in mx.tg.deleted}
-    assert docs[next(f for f in docs if docs[f]["message_id"] not in deleted_ids)]["message_id"]  # one kept
-    assert len(mx.tg.deleted) == 1
-    assert msg1["id"] != msg2["id"]
-
-
-def test_chat_picture_limits_and_switch(mx):
-    a, b, cid = _chat(mx)
-    reply(b, cid, "تفضل")
-    with mx.db() as db:
-        tunables.save(db, mx.settings, {"CHAT_IMAGE_PER_HOUR": 1}, "owner")
-    mx.state.reload_tunables()
-    mid = ready_upload(mx, a, jpeg(), purpose="chat", conversation_id=cid)
-    assert a.post(f"/api/conversations/{cid}/media", json={"media_id": mid}).status_code == 201
-    assert upload(mx, a, jpeg(), purpose="chat", conversation_id=cid).status_code == 429
-    with mx.db() as db:
-        tunables.save(db, mx.settings, {"CHAT_IMAGES_ENABLED": False}, "owner")
-    mx.state.reload_tunables()
-    assert upload(mx, b, jpeg(), purpose="chat", conversation_id=cid).status_code == 403
-    # blocked conversation: no pictures
-    with mx.db() as db:
-        tunables.save(db, mx.settings, {"CHAT_IMAGES_ENABLED": True}, "owner")
-    mx.state.reload_tunables()
-    assert b.post(f"/api/conversations/{cid}/block").status_code in (200, 204)
-    assert upload(mx, b, jpeg(), purpose="chat", conversation_id=cid).status_code in (403, 404)
 
 
 # ----------------------------------------------------------------- tunables

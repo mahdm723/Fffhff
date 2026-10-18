@@ -496,6 +496,12 @@ def panel_pages(run: Run, browser, base: str, width: int, admin: str) -> None:
         check(page, f"{width} panel «{tab}»", admin=True)
         if tab == "brand":
             logo_not_mirrored(page, width)
+        if tab == "users":  # V6 phase 17: the picture permission lists (opened on demand)
+            page.locator("details.admin-images > summary").click()
+            page.wait_for_timeout(900)
+            check(page, f"{width} panel «users» picture permission", admin=True)
+            run.shot(page, f"{width}-panel-users-images")
+            page.locator("details.admin-images > summary").click()
         sel = DETAIL.get(tab)
         if sel and page.locator(sel).count():
             page.locator(sel).first.click()

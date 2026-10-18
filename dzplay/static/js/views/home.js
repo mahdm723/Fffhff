@@ -113,12 +113,7 @@ function renderIdeasPane(page, { config, navigate }) {
   function paintQuota() {
     clearInterval(quotaTimer);
     if (!quota || !quota.enabled) { imageBtn.hidden = true; imageNote.hidden = true; return; }
-    if (!quota.member) { // V6 phase 4: picture posts are a membership feature
-      imageBtn.hidden = true;
-      imageNote.hidden = false;
-      imageNote.replaceChildren(h('button', { class: 'link-btn', type: 'button', onclick: () => navigate('#/membership') }, t('الصور للأعضاء')));
-      return;
-    }
+    if (!quota.allowed) { imageBtn.hidden = true; imageNote.hidden = true; return; } // V6 phase 17: granted by the admin only
     imageBtn.hidden = false;
     const tickNote = () => {
       const left = quota.next_at ? Date.parse(quota.next_at) - Date.now() : 0;
@@ -246,6 +241,8 @@ function renderIdeasPane(page, { config, navigate }) {
     update();
   });
   refreshQuota();
+  const onAccount = () => refreshQuota(); // the admin granted or took back the picture permission
+  document.addEventListener('dz:account', onAccount);
 
   // ------------------------------------------------------------ feed
   const refreshBtn = h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': t('أفكار أخرى') }, icon('refresh'));
@@ -324,6 +321,7 @@ function renderIdeasPane(page, { config, navigate }) {
   page.addEventListener('scroll', onScroll, { passive: true });
 
   return () => {
+    document.removeEventListener('dz:account', onAccount);
     clearInterval(quotaTimer);
     if (picked && picked.preview) URL.revokeObjectURL(picked.preview);
     sentinel.stop();

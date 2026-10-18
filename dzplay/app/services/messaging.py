@@ -30,7 +30,7 @@ from app.config import PRIVACY_VERSION, Settings
 from app.errors import AppError, not_found, rate_limited
 from app.i18n import N_
 from app.models import Block, Conversation, Message, Report, User
-from app.services import legacy_v6, names
+from app.services import badges, legacy_v6, names
 from app.services.auth import log_event
 from app.services.content import clean_message, preview
 from app.services.moderation import flag_content
@@ -129,7 +129,7 @@ def peer_card(c: Conversation, viewer_id: str, peer: User | None) -> dict:
     # V5: the blue star is shown in direct chats only, never in anonymous ones (even after a reveal)
     return {"name": names.shown_name(peer), "public_id": peer.public_id, "gender": names.public_gender(peer),
             "profile_ref": None, "anonymous": False, "active": bool(active),
-            "verified": bool(c.is_direct and peer.verified_at is not None),
+            "verified": bool(c.is_direct and badges.star(peer)),
             "avatar_url": avatar_url(peer) if c.is_direct else None}
 
 
@@ -612,7 +612,7 @@ def profile(user: User, settings: Settings | None = None) -> dict:
         "needs_gender": user.gender_asked_at is None,
         "needs_onboarding": bool(user.onboarding_required),
         "age_confirmed": user.age_confirmed_at is not None,
-        "verified": user.verified_at is not None,
+        "verified": badges.star(user),
         "privacy": privacy_view(user),
         "status": user.status,
         "stats": {
@@ -714,7 +714,7 @@ def person_card(db: Session, viewer: User, public_id: object) -> dict:
     visible = conv is not None and not conv.hidden_for(viewer.id)
     return {"name": names.shown_name(target), "public_id": target.public_id, "gender": names.public_gender(target),
             "profile_ref": ideas.profile_ref_for(db, target.id), "can_message": can_message,
-            "conversation_id": conv.id if visible else None, "verified": target.verified_at is not None,
+            "conversation_id": conv.id if visible else None, "verified": badges.star(target),
             "avatar_url": avatar_url(target)}
 
 

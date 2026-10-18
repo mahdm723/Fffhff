@@ -22,19 +22,14 @@ Your display name, picture, public ID, gender icon if you chose one, and the blu
 To run the service, moderate it and protect users, the admin team can see account data (including email), posts and comments, messages while they're kept, published images, and only those chat images that have been reported. Access is protected by an admin account and two-step verification, and every view and action is recorded in an internal audit log. Messages, comments and images are scanned automatically for harmful content.
 
 # 4. External storage provider
-Images are stored in a **private Telegram channel** owned by {{app}}, which only the platform's own bot can access. Our server passes files through and only keeps a temporary copy to speed up display. Your app never connects to Telegram, and no user ever gets the file reference. A copy of published images and profile pictures (not chat images) goes to a private moderators' group for review.
+Images are stored in a **private Telegram channel** owned by {{app}}, which only the platform's own bot can access. Our server passes files through and only keeps a temporary copy to speed up display. Your app never connects to Telegram, and no user ever gets the file reference. A copy of published images and profile pictures goes to a private moderators' group for review.
 
 # 5. Metadata removal and scanning
 Before saving, every image is re-encoded and all its metadata is removed: GPS location, device model, date and so on. The file is checked on your device and then on the server by an automatic pornography-detection model, and anything that breaks the rules is rejected before it's saved. No automatic check can detect people's ages, so we rely on reports and human review.
 
 # 6. Chat images
-- Sending images in chats is a member feature, and any user can receive and open them.
-- They arrive blurred and only show when the recipient taps them, then stay for just {{chat_ttl}} seconds and disappear for both sides.
-- An image that is never opened is deleted after {{chat_unopened}}.
-- Once it expires, it's deleted right away from the server and the devices, and the stored copy is deleted after a short reporting window ({{chat_grace_min}} min) during which nobody sees it.
-- {{chat_archive}}
-- A reported image is kept as evidence for review for up to {{evidence_days}} days.
-- In the Android app, screenshots are blocked while an image is shown, but nobody can stop someone from photographing the screen with another device: don't send anything you wouldn't accept being seen.
+- Sending images in chats is turned off for good: the server refuses any chat image before even reading it.
+- Past chat images were deleted from the server and from storage, except reported ones: they're kept as evidence for the moderation team only, for up to {{evidence_days}} days, then deleted.
 
 # 7. Age
 {{app}} is for adults only (18 and over).
@@ -64,10 +59,10 @@ You're responsible for what you post and send. You allow {{app}} to display the 
 Market prices, posts, analysis and comments are **for information only and are not investment advice**, nor a recommendation to buy or sell. Your trading decisions are yours alone, and {{app}} offers no trading or custody service.
 
 # 5. Privacy between users
-It's forbidden to reveal another user's identity, publish their data or try to find it out, or to record and share conversations and disappearing images.
+It's forbidden to reveal another user's identity, publish their data or try to find it out, or to record and share conversations.
 
 # 6. Membership
-The membership is a one-time payment ({{membership_price}} USDT at the moment) that gives **in-app features only**: the blue star, posting ideas with an image, and sending images in chats. **It has nothing to do with trading or with any profit or financial return**, and it is not part of the criteria for any reward. {{refund_policy}} Details in the [Membership Terms](/policies/membership_terms).
+The membership is a one-time payment ({{membership_price}} USDT at the moment) that gives **in-app features only** (currently: {{member_features}}). **It has nothing to do with trading or with any profit or financial return**, and it is not part of the criteria for any reward. {{refund_policy}} Details in the [Membership Terms](/policies/membership_terms).
 
 # 7. Promotional rewards and withdrawals
 Promotional rewards, **completely separate from the membership**, unrelated to trading and not guaranteed. Details in the [Rewards Terms](/policies/rewards_terms) and the [Withdrawal Terms](/policies/withdraw_terms).
@@ -87,7 +82,7 @@ Discussion, analysis, market news and ideas, shared respectfully, along with exp
 # Not allowed
 - Threats, blackmail, harassment, intimidation and bullying.
 - Scams and promises of guaranteed profit, fundraising, and asking for passwords or wallet seed phrases.
-- Sexual, pornographic or nude content, in ideas, images or chat images.
+- Sexual, pornographic or nude content, in ideas or images.
 - **Any sexual or abusive content involving a minor: it's deleted immediately, its author is permanently banned, and a copy is kept as evidence.**
 - Hate speech and incitement to violence.
 - Posting or asking for phone numbers, accounts, addresses or personal data, yours or anyone else's.
@@ -95,7 +90,7 @@ Discussion, analysis, market news and ideas, shared respectfully, along with exp
 - Impersonating {{app}} or its team, or using star-like symbols in names.
 
 # Images
-One image with an idea every 24 hours (currently {{idea_image_limit}}) for members, reviewed by the moderation team. Chat images are temporary and become available once the other person replies. Anything that looks like it breaks the rules is rejected automatically.
+Posting an image with an idea needs a permission the admin team grants account by account (not linked to the membership), up to {{idea_image_limit}} every 24 hours, and it's reviewed by the moderation team. Sending images in chats is turned off. Anything that looks like it breaks the rules is rejected automatically.
 
 # Reports
 Use the "Report" button on any content. Reports are confidential. After {{report_threshold}} reports from different people, the content is hidden temporarily until it's reviewed.
@@ -107,16 +102,15 @@ VERIFICATION = """# What is the blue star?
 A badge meaning the account is **a member or a trusted account within {{app}}**. **It is not a real-identity check**: we never ask for any document, real name or ID photo.
 
 # How do I get it?
-The star comes with the **membership** (My account → My membership). Anyone who had the star before the membership keeps it. A membership star goes away if the membership ends or is refunded, and any star can be removed for breaking the rules.
+The star comes with the **membership** (My account → My membership), as long as this feature is on. Anyone who had the star before the membership keeps it. A membership star goes away if the membership ends or is refunded, and any star can be removed for breaking the rules.
 
 # Where does it show?
 On the profile, posts, comments, the users page and conversations."""
 
 MEMBERSHIP_TERMS = """# What is the membership?
-A one-time payment ({{membership_price}} USDT at the moment) for **in-app features only**:
-- The blue star next to your name.
-- Posting ideas with an image.
-- Sending images in chats (they disappear {{chat_ttl}} seconds after being opened).
+A one-time payment ({{membership_price}} USDT at the moment) for **in-app features only**, currently: {{member_features}}. Features may be added or turned off for all members at once; it shows here.
+
+Posting images with ideas isn't a membership feature: it's a permission the admin team grants account by account.
 
 # What it is not
 The membership **is not linked to any profit or return**, nor to trading. It gives no right to any reward and is not part of the criteria for any reward or contest.
@@ -163,7 +157,7 @@ A community for traders to share crypto news, analysis and ideas.
 Your data is protected: nobody sees your email or any private data about you, except what you choose to show."""
 
 FAQ = """# Does the membership earn money?
-No. The membership only gives in-app features (the star, images in ideas and chats), and it's not linked to any return.
+No. The membership only gives in-app features (currently: {{member_features}}), and it's not linked to any return.
 
 # Does the app give trading advice?
 No. The market and posts are for information and discussion only, and your decisions are your own.
@@ -178,8 +172,8 @@ CONTACT = """The fastest way: a **support ticket** from inside the app (My accou
 
 Replies to {{app}}'s automatic emails (codes and notifications) are not read. We will never ask you for your password or any code."""
 
-MEMBERSHIP_INTRO = ("The membership gives **features inside {{app}} only**: the blue star, posting ideas with an image, and sending "
-                    "images in chats. It's not linked to any profit or return, nor to trading.")
+MEMBERSHIP_INTRO = ("The membership gives **features inside {{app}} only** (currently: {{member_features}}). "
+                    "It's not linked to any profit or return, nor to trading.")
 WELCOME = "A community for traders, crypto news and analysis. Nobody sees your email or your data."
 MARKET_DISCLAIMER = "For information only, not investment advice. Prices come from Bybit and may be slightly delayed."
 
@@ -219,8 +213,7 @@ CONTENT: dict[str, tuple[str | None, str]] = {
     ),
     "email.membership_accepted": (
         "{app}: membership",
-        "Hello,\n\nYour membership is now active. Member features are available to you (the blue star, ideas with images, "
-        "images in chats).\n\nThe {app} team",
+        "Hello,\n\nYour membership is now active. Member features are available to you in the app.\n\nThe {app} team",
     ),
     "email.membership_rejected": (
         "{app}: membership",

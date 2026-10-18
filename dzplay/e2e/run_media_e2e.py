@@ -1,4 +1,6 @@
-"""V5 phase B in a real browser (phone viewport): idea picture + ephemeral chat picture.
+"""V5 phase B in a real browser (phone viewport): idea picture + profile picture. V6 phase 17: posting pictures needs
+the admin's permission (not the membership); pictures in chats are off for good (no button; an old one shows
+«صورة محذوفة»).
 
 A small fake Telegram Bot API (local HTTP server) stands in for api.telegram.org: it stores the files the
 server sends to the "storage channel" and records moderation copies and deletions.
@@ -13,7 +15,6 @@ import io
 import itertools
 import json
 import os
-import re
 import sqlite3
 import sys
 import tempfile
@@ -27,6 +28,7 @@ from pathlib import Path
 from playwright.sync_api import expect, sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from run_e2e import MOBILE, Run, register, start_server  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -119,6 +121,30 @@ def photo(path: Path, color=(220, 90, 40)) -> Path:
     return path
 
 
+def old_picture(db_file: Path, sender: str, recipient: str) -> None:
+    """A chat picture as stored before phase 17 (the purge deletes its file; the message stays as «صورة محذوفة»)."""
+    from datetime import timedelta
+
+    from sqlalchemy import create_engine, select
+    from sqlalchemy.orm import Session
+
+    from app import clock
+    from app.models import Conversation, MediaItem, Message, User
+
+    with Session(create_engine(f"sqlite:///{db_file}")) as db:
+        a = db.scalar(select(User).where(User.email == sender))
+        b = db.scalar(select(User).where(User.email == recipient))
+        conv = db.scalar(select(Conversation).order_by(Conversation.created_at.desc()))
+        now = clock.utcnow()
+        item = MediaItem(owner_id=a.id, owner_public_id=a.public_id, purpose="chat", kind="image", state="removed",
+                         conversation_id=conv.id, attached_type="message", created_at=now, removed_at=now)
+        db.add(item)
+        db.flush()
+        db.add(Message(conversation_id=conv.id, sender_id=a.id, recipient_id=b.id, content="", kind="image",
+                       media_id=item.id, created_at=now, expires_at=now + timedelta(days=1)))
+        db.commit()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8771)
@@ -127,14 +153,14 @@ def main() -> int:
     tg = FakeTelegram()
     env = {"TELEGRAM_BOT_TOKEN": TOKEN, "TELEGRAM_ADMIN_CHAT_ID": "1001", "TELEGRAM_API_BASE": f"http://127.0.0.1:{tg.port}",
            "TELEGRAM_STORAGE_CHANNEL_ID": STORAGE, "TELEGRAM_MODERATION_CHAT_ID": MODCHAT,
-           "CHAT_IMAGE_TTL_AFTER_VIEW": "8", "MEDIA_TICK_SECONDS": "1", "CHAT_IMAGE_REPORT_GRACE": "1",
+           "MEDIA_TICK_SECONDS": "1",
            "NO_PROXY": "127.0.0.1,localhost", "no_proxy": "127.0.0.1,localhost"}
     tmp = Path(tempfile.mkdtemp(prefix="dz-media-e2e-"))
     db_file = tmp / "media-e2e.db"
     env["DATABASE_URL"] = f"sqlite:///{db_file}"
     proc, base = start_server(args.port, env)
     run = Run(base, Path(args.shots))
-    pic1, pic2 = photo(tmp / "idea.jpg"), photo(tmp / "chat.jpg", (30, 160, 90))
+    pic1 = photo(tmp / "idea.jpg")
     pic3 = photo(tmp / "avatar.jpg", (200, 120, 40))
     chromium = os.environ.get("PW_CHROMIUM", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
     suffix = str(int(time.time()))
@@ -147,9 +173,11 @@ def main() -> int:
             run.watch(b, "B")
             register(run, a, f"media-a{suffix}@example.com")
             register(run, b, f"media-b{suffix}@example.com")
-            # V6 phase 4: picture posts are for members (membership payments arrive in phase 5): A is one
+            # V6 phase 17: posting pictures is the admin's per-account permission: A has it (not a member),
+            # B is a member without it
             with sqlite3.connect(db_file) as con:
-                con.execute("UPDATE users SET member_since = datetime('now') WHERE email = ?", (f"media-a{suffix}@example.com",))
+                con.execute("UPDATE users SET can_post_images = 1 WHERE email = ?", (f"media-a{suffix}@example.com",))
+                con.execute("UPDATE users SET member_since = datetime('now') WHERE email = ?", (f"media-b{suffix}@example.com",))
             a.reload()
 
             print("Idea picture")
@@ -184,9 +212,11 @@ def main() -> int:
 
             b.goto(base + "/#/home")
             expect(b.locator("#idea-compose")).to_be_visible(timeout=10000)
-            expect(b.get_by_role("button", name="الصور للأعضاء")).to_be_visible(timeout=10000)  # B is not a member
-            expect(b.get_by_role("button", name="إضافة صورة")).to_have_count(0)
-            run.step("a non-member sees «الصور للأعضاء» instead of the picture button")
+            expect(b.get_by_role("button", name="أفكار أخرى")).to_be_visible(timeout=10000)
+            expect(b.get_by_role("button", name="إضافة صورة")).to_have_count(0)  # a member, without the permission
+            expect(b.get_by_role("button", name="الصور للأعضاء")).to_have_count(0)  # no membership link any more
+            run.shot(b, "m02a-no-permission")
+            run.step("a member without the admin's permission has no picture button (and no «للأعضاء» link)")
             b.get_by_role("button", name="أفكار أخرى").click()
             bcard = b.locator(".post-card", has_text="غروب جميل اليوم")
             expect(bcard.locator(".post-card__media img")).to_be_visible(timeout=15000)
@@ -215,7 +245,7 @@ def main() -> int:
             run.shot(b, "m02c-users-with-avatar")
             run.step("profile picture: square 512 px on the phone → scanned → moderators notified → shown to others")
 
-            print("Ephemeral chat picture")
+            print("Chat pictures: off for good")
             b_id = b.evaluate("fetch('/api/me').then((r) => r.json()).then((j) => j.public_id)")
             a.goto(base + "/#/users")
             a.locator(".people-search input").fill(b_id)
@@ -230,49 +260,22 @@ def main() -> int:
             b.locator(".request-bar").get_by_role("button", name="قبول").click()
             b.locator(".chat__composer textarea").fill("أهلا بك")
             b.locator(".chat__composer .send-btn").click()
-            b_img = b.get_by_role("button", name="إرسال صورة")  # V6 phase 6: B is not a member
-            expect(b_img).to_have_class(re.compile("chat__img-btn--locked"), timeout=15000)
-            b_img.click()
-            expect(b.locator(".sheet")).to_contain_text("ميزة للأعضاء")
-            expect(b.locator(".sheet").get_by_role("button", name="عضويتي")).to_be_visible()
-            run.shot(b, "m03b-chat-members-only")
-            b.locator(".sheet").get_by_role("button", name="إغلاق").click()
-            run.step("a non-member taps the chat picture button: membership note instead of the file picker")
+            expect(b.locator(".bubble", has_text="أهلا بك")).to_be_visible(timeout=10000)
+            old_picture(db_file, f"media-a{suffix}@example.com", f"media-b{suffix}@example.com")  # sent before phase 17
+            b.reload()
+            expect(b.get_by_text("صورة محذوفة")).to_be_visible(timeout=15000)
+            expect(b.get_by_role("button", name="إرسال صورة")).to_have_count(0)
+            expect(b.locator(".chat__img-btn")).to_have_count(0)
+            run.shot(b, "m04-chat-no-pictures")
             a.goto(base + "/#/messages")
             a.locator(".conv-item").first.click()
-            chat_img = a.get_by_role("button", name="إرسال صورة")
-            expect(chat_img).to_be_enabled(timeout=15000)
-            with a.expect_file_chooser() as fc:
-                chat_img.click()
-            fc.value.set_files(str(pic2))
-            expect(a.get_by_text("صورة · لم تُفتح بعد")).to_be_visible(timeout=60000)
-            run.shot(a, "m04-chat-sent")
-            run.step("sent after the other side replied (button enabled only then)")
-
-            expect(b.get_by_text("اضغط للعرض")).to_be_visible(timeout=15000)
-            expect(b.locator(".img-msg__blur")).to_be_visible()
-            run.shot(b, "m05-chat-blurred")
-            b.get_by_text("اضغط للعرض").click()
-            expect(b.locator(".viewer img")).to_be_visible(timeout=15000)
-            b.wait_for_function("() => { const i = document.querySelector('.viewer img'); return i && i.naturalWidth > 0; }")
-            expect(b.locator(".viewer__timer")).to_contain_text("ث")
-            run.shot(b, "m06-chat-open-countdown")
-            run.step("recipient opens it: full screen with a countdown")
-            expect(a.locator(".img-msg__timer")).to_be_visible(timeout=10000)
-            run.step("sender sees the countdown too")
-            expect(b.locator(".viewer")).to_have_count(0, timeout=15000)
-            expect(b.get_by_text("انتهت صلاحية الصورة")).to_be_visible(timeout=5000)
-            expect(a.get_by_text("انتهت صلاحية الصورة")).to_be_visible(timeout=10000)
-            run.shot(b, "m07-chat-expired")
-            run.step("after the countdown: gone on both sides")
-            b.reload()
-            expect(b.get_by_text("انتهت صلاحية الصورة")).to_be_visible(timeout=15000)
-            deadline = time.time() + 10
-            chat_doc = tg.documents[-1]
-            while time.time() < deadline and (STORAGE, chat_doc["message_id"]) not in tg.deleted:
-                time.sleep(0.3)
-            assert (STORAGE, chat_doc["message_id"]) in tg.deleted, tg.deleted
-            run.step("deleted from the Telegram storage channel after the short report window")
+            expect(a.get_by_text("صورة محذوفة")).to_be_visible(timeout=15000)
+            expect(a.locator(".chat__img-btn")).to_have_count(0)
+            status = a.evaluate("""() => fetch('/api/uploads?purpose=chat', {method: 'POST', credentials: 'same-origin',
+                headers: {'X-DZ-Requested': '1', 'Content-Type': 'application/octet-stream'}, body: new Uint8Array(2048)})
+                .then((r) => r.status)""")
+            assert status == 410, status
+            run.step("chat: no picture button on either side, an old picture shows «صورة محذوفة», an upload gets 410")
             browser.close()
     finally:
         proc.terminate()

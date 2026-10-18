@@ -1,4 +1,4 @@
-// V6 phase 5: «عضويتي» — features only (the blue star, ideas with a picture, chat pictures). Never any return.
+// V6 phase 5: «عضويتي» — in-app features only (V6 phase 17: the ones switched on in the panel). Never any return.
 // Pay once to the wallet shown (QR + copy), send the TXID, the team checks it. Optional refund within the window.
 import { contentBlock } from '../content.js';
 import { api } from '../api.js';
@@ -136,7 +136,7 @@ export function renderMembership(page, { navigate, onMe }) {
       status,
       req && req.status === 'rejected' && !d.member ? h('p', { class: 'mem-note', text: t('رُفض طلبك السابق: {note}', { note: req.note || '' }) }) : '',
       req && req.status === 'pending' && req.topup ? topupBox(req) : '',
-      h('h3', { class: 'section-title', text: t('ميزات الأعضاء') }), features(d),
+      d.features.length ? h('h3', { class: 'section-title', text: t('ميزات الأعضاء') }) : '', d.features.length ? features(d) : '',
       d.member || (req && req.status === 'pending') ? '' : payBox(d),
       d.member ? refundBox(d) : '',
       h('p', { class: 'muted mem-terms' }, t('التفاصيل في '), h('a', { href: '/policies/terms', target: '_blank', rel: 'noopener' }, t('شروط الاستخدام')), '.'));

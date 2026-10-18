@@ -124,6 +124,10 @@ class User(Base):
     suspicious_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     suspicious_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     suspicious_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # V6 phase 17: posting pictures — a per-account permission granted and taken back by an admin only
+    can_post_images: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    images_granted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    images_granted_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # V6 phase 15: one mailbox, one account (lowercase, no +tag, no dots for Gmail) and how the signup was confirmed
     email_canonical: Mapped[str | None] = mapped_column(String(254), nullable=True, index=True)
     signup_verified_via: Mapped[str | None] = mapped_column(String(12), nullable=True)  # email | admin_code | google

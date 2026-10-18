@@ -52,7 +52,7 @@ export function renderMedia(main) {
   }
   main.replaceChildren(
     sectionHead('الإشراف على الوسائط'),
-    h('p', { class: 'admin-meta', text: 'صور الأفكار، وصور المحادثات المبلّغ عنها فقط. تصل نسخة من كل منشور إلى مجموعة الإشراف في Telegram.' }),
+    h('p', { class: 'admin-meta', text: 'صور الأفكار والصور الشخصية، وصور المحادثات القديمة المبلّغ عنها فقط (إرسال الصور في المحادثات متوقف نهائيًا). تصل نسخة من كل منشور إلى مجموعة الإشراف في Telegram.' }),
     segmented([['pending', 'بانتظار الموافقة'], ['published', 'منشور'], ['reported', 'مبلّغ عنه'], ['rejected', 'مرفوض بالفحص'], ['removed', 'محذوف']],
       mediaState.filter, (v) => { mediaState.filter = v; load(); }, 'تصفية الوسائط'),
     list);

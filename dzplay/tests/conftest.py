@@ -93,6 +93,7 @@ class Harness:
         self.admin_secrets: dict[str, str] = {}
         # V6 phase 4: picture posts are for members; media test harnesses (Telegram configured) start with members
         self.default_member = telegram_transport is not None
+        self.default_images = telegram_transport is not None  # V6 phase 17: the admin's picture permission
         self._admin_clients: dict[str, AdminClient] = {}
 
     def client(self, ip: str | None = None) -> TestClient:
@@ -125,7 +126,19 @@ class Harness:
         c.email = email  # type: ignore[attr-defined]
         if self.default_member:
             self.make_member(c)
+        if self.default_images:
+            self.grant_images(c)
         return c
+
+    def grant_images(self, c: TestClient, on: bool = True) -> None:
+        """V6 phase 17: the per-account permission to post pictures (as if an admin had granted it)."""
+        from sqlalchemy import select
+
+        from app.models import User
+
+        with self.db() as db:
+            db.scalar(select(User).where(User.email == c.email)).can_post_images = on or None
+            db.commit()
 
     def make_member(self, c: TestClient) -> None:
         """V6: an active membership (as if a payment had been accepted)."""

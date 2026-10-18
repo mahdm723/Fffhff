@@ -1,7 +1,8 @@
-"""V5 uploads: idea pictures and ephemeral chat pictures.
+"""V5 uploads: idea pictures and profile pictures (V6 phase 17: pictures in chats are switched off for good —
+purpose=chat is refused with 410 by the security middleware before the request reaches this router).
 
-POST /api/uploads?purpose=idea|chat[&conversation_id=]   body = the raw file (Content-Length required)
-  Checks run BEFORE any byte is read (session, 18+, quotas, size, chat rules); the body is then streamed
+POST /api/uploads?purpose=idea|avatar   body = the raw file (Content-Length required)
+  Checks run BEFORE any byte is read (session, 18+, permission, quotas, size); the body is then streamed
   into the size-capped temp area with a hard cap, and the media worker takes over. The answer is an
   upload id the phone polls (or hears about on the WebSocket) until it is ready / refused.
 """
@@ -31,11 +32,6 @@ class PrecheckBody(_Body):
     size: int | None = None
 
 
-class ChatImageBody(_Body):
-    media_id: str = Field(max_length=40)
-    client_id: str | None = Field(default=None, max_length=64)
-
-
 @router.get("/uploads/config")
 def config(request: Request) -> dict:
     """Everything the phone checks before uploading (types, sizes, NSFW thresholds) + the user's quotas."""
@@ -60,15 +56,12 @@ def precheck(body: PrecheckBody, request: Request) -> dict:
             quota = media_items.idea_quota(db, st.settings, user)
             if not quota["enabled"]:
                 raise AppError(403, "idea_images_off", "نشر الصور مع الأفكار متوقف حاليًا.")
-            if not quota["member"]:
-                raise media_items._members_only()
+            if not quota["allowed"]:
+                raise media_items.images_not_allowed()
             if quota["remaining"] <= 0:
                 raise AppError(429, "idea_image_limit", "يمكنك نشر صورة واحدة كل 24 ساعة.")
         elif body.purpose == "chat":
-            if not st.settings.CHAT_IMAGES_ENABLED:
-                raise AppError(403, "chat_images_off", "إرسال الصور في المحادثات متوقف حاليًا.")
-            media_items.require_chat_member(user)
-            media_items.chat_target(db, user, body.conversation_id)
+            raise media_items.chat_images_disabled()
         elif body.purpose == "avatar":
             quota = media_items.avatar_quota(db, st.settings, user)
             if quota["remaining"] <= 0:
@@ -80,8 +73,7 @@ def precheck(body: PrecheckBody, request: Request) -> dict:
 
 
 @router.post("/uploads", status_code=202)
-async def upload(request: Request, purpose: str = Query(max_length=8),
-                 conversation_id: str | None = Query(default=None, max_length=40)) -> dict:
+async def upload(request: Request, purpose: str = Query(max_length=8)) -> dict:
     st = get_state(request)
     reason = st.pipeline.unavailable()
     if reason:
@@ -95,7 +87,7 @@ async def upload(request: Request, purpose: str = Query(max_length=8),
         with st.database.session() as db:
             user = current_user(request, db)
             item, job = media_items.begin_upload(db, st.settings, st.limiter, user, purpose=purpose,
-                                                 conversation_id=conversation_id, length=length)
+                                                 length=length)
             return item.id, job, int(length or 0)
 
     item_id, job, cap = await run_in_threadpool(start)
@@ -133,21 +125,9 @@ def upload_status(media_id: str, request: Request) -> dict:
         return {"upload": media_items.status_of(db, current_user(request, db), media_id)}
 
 
-@router.post("/conversations/{conversation_id}/media", status_code=201)
-def send_chat_image(conversation_id: str, body: ChatImageBody, request: Request) -> dict:
-    st = get_state(request)
-    effects = Effects()
-    with st.database.session() as db:
-        user = current_user(request, db)
-        result = media_items.send_chat_image(db, st.settings, st.limiter, user, conversation_id, media_id=body.media_id,
-                                             client_id=body.client_id, effects=effects)
-    st.dispatch(effects)
-    return result
-
-
 @router.post("/messages/{message_id}/open")
 def open_chat_image(message_id: str, request: Request) -> dict:
-    """The recipient taps a blurred chat picture: starts its countdown and returns a short-lived URL."""
+    """An old chat picture (V6 phase 17: always 410 — the pictures are gone)."""
     st = get_state(request)
     effects = Effects()
     with st.database.session() as db:

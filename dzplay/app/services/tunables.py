@@ -40,7 +40,7 @@ class Tunable:
 GROUPS = {
     "media": "الوسائط والفحص",
     "ideas": "الأفكار",
-    "chat": "الرسائل وصور المحادثة",
+    "chat": "الرسائل",
     "moderation": "الإشراف والبلاغات",
     "telegram": "قنوات Telegram",
     "support": "الدعم",
@@ -72,21 +72,13 @@ REGISTRY: list[Tunable] = [
             max_len=100),
     # ideas
     Tunable("IDEA_IMAGES_ENABLED", "bool", "ideas", "السماح بصورة مع الفكرة"),
-    Tunable("IDEA_IMAGE_LIMIT_PER_24H", "int", "ideas", "منشورات الصور لكل عضو في 24 ساعة (للأعضاء فقط)", 0, 50),
+    Tunable("IDEA_IMAGE_LIMIT_PER_24H", "int", "ideas", "منشورات الصور في 24 ساعة (لمن منحته الإدارة إذن نشر الصور)", 0, 50),
     Tunable("IDEA_IMAGE_REQUIRE_APPROVAL", "bool", "ideas", "الفكرة ذات الصورة تظهر بعد الموافقة فقط"),
     Tunable("AVATAR_CHANGES_PER_DAY", "int", "media", "تغيير الصورة الشخصية في 24 ساعة", 1, 50),
     Tunable("MAX_POSTS_PER_HOUR", "int", "ideas", "أفكار في الساعة", 1, 200),
     Tunable("MAX_POSTS_PER_DAY", "int", "ideas", "أفكار في اليوم", 1, 1000),
     Tunable("MAX_POST_LENGTH", "int", "ideas", "أقصى طول للفكرة (حرف)", 50, 10000),
     # chat
-    Tunable("CHAT_IMAGES_ENABLED", "bool", "chat", "السماح بالصور في المحادثات"),
-    Tunable("CHAT_IMAGE_TTL_AFTER_VIEW", "int", "chat", "مدة عرض الصورة بعد فتحها (ثانية)", 5, 3600),
-    # max 46 h: Telegram lets bots delete a message only during its first 48 hours
-    Tunable("CHAT_IMAGE_UNOPENED_TTL", "int", "chat", "حذف الصورة غير المفتوحة بعد (ثانية)", 300, 46 * 3600),
-    Tunable("CHAT_IMAGE_REPORT_GRACE", "int", "chat", "مهلة الإبلاغ بعد انتهاء الصورة (ثانية، لا تُعرض خلالها)", 0, 3600),
-    Tunable("CHAT_IMAGE_PER_HOUR", "int", "chat", "صور المحادثة في الساعة لكل مستخدم", 1, 200),
-    Tunable("CHAT_IMAGE_ARCHIVE", "bool", "chat", "أرشفة صور المحادثة بعد انتهائها (يُذكر في السياسة)"),
-    Tunable("CHAT_IMAGE_FLAG_SECURE", "bool", "chat", "منع لقطة الشاشة أثناء عرض الصورة (تطبيق أندرويد)"),
     Tunable("MAX_MESSAGES_PER_MINUTE", "int", "chat", "رسائل في الدقيقة", 1, 120),
     Tunable("MAX_MESSAGES_PER_HOUR", "int", "chat", "رسائل في الساعة", 1, 2000),
     Tunable("LEGACY_ANON_RETENTION_DAYS", "int", "chat", "حذف المحادثات المجهولة القديمة بعد (يوم من إيقافها)", 0, 90),
@@ -121,6 +113,7 @@ REGISTRY: list[Tunable] = [
     # V6 phase 16: automatic grant after the check
     Tunable("AUTO_APPROVE_MEMBERSHIP", "bool", "membership", "منح العضوية تلقائيًا عند تطابق الفحص الآلي"),
     Tunable("AUTO_APPROVE_DAILY_MAX", "int", "membership", "أقصى عدد للمنح التلقائي في اليوم", 0, 1000),
+    Tunable("MEMBER_FEATURE_STAR", "bool", "membership", "ميزة العضوية: النجمة الزرقاء (الإيقاف يزيلها عن كل الأعضاء)"),
     # V6 phase 14: access to the app
     Tunable("ANDROID_APP_GATE", "bool", "access", "أندرويد من التطبيق فقط (إيقافه يسمح لمتصفح أندرويد مؤقتًا)"),
     Tunable("WEB_DESKTOP_ACCESS", "bool", "access", "السماح باستخدام التطبيق من الكمبيوتر"),

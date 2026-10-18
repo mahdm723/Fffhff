@@ -3,10 +3,9 @@
 // and the conversation menu (mute, report, block, delete). V6: old anonymous chats are read-only.
 import { api } from '../api.js';
 import { icon } from '../icons.js';
-import { PickError, chooseFile, openViewer, prepareImage, uploadBlob, uploadConfig, waitReady } from '../media-pick.js';
 import * as store from '../store.js';
 import {
-  REPORT_REASONS, autoGrow, confirmSheet, formatDay, formatTime, h, idChip, nameLine, newClientId, personAvatar, sheet, toast,
+  REPORT_REASONS, autoGrow, confirmSheet, formatDay, formatTime, h, idChip, nameLine, personAvatar, sheet, toast,
 } from '../ui.js';
 import { t } from '../i18n.js';
 
@@ -34,9 +33,6 @@ function systemText(m) {
 }
 
 const isAnonymous = (conv) => !conv || (conv.kind !== 'direct' && (!conv.peer_card || conv.peer_card.anonymous));
-// V5: pictures in chats unlock once the other side has replied.
-const canSendImage = (conv) => !!conv && conv.status === 'active' && !conv.read_only && conv.peer_has_replied && !store.isRequest(conv)
-  && !(conv.request && conv.request.state !== 'accepted');
 
 export function renderChat(root, { conversationId, navigate }) {
   const body = h('div', { class: 'chat__body', role: 'log', 'aria-live': 'polite' });
@@ -95,106 +91,13 @@ export function renderChat(root, { conversationId, navigate }) {
   sendBtn.addEventListener('pointerdown', (e) => e.preventDefault()); // keep the keyboard open
   sendBtn.addEventListener('click', send);
   const requestHint = h('p', { class: 'chat__hint', hidden: true });
-  const imageBtn = h('button', { class: 'icon-btn icon-btn--plain chat__img-btn', type: 'button', 'aria-label': t('إرسال صورة'), hidden: true }, icon('image'));
-  const uploadLine = h('p', { class: 'chat__upload', hidden: true });
-  let chatImages = null; // upload config (null until loaded / unavailable)
-  let sendingImage = false;
-  imageBtn.addEventListener('click', () => sendImage());
-  const composer = h('div', { class: 'chat__composer-wrap' }, requestHint, uploadLine,
-    h('div', { class: 'chat__composer' }, imageBtn, textarea, sendBtn));
-  uploadConfig().then((cfg) => { chatImages = cfg.available && cfg.chat.enabled ? cfg : null; draw(); }).catch(() => {});
+  // V6 phase 17: pictures in chats are switched off for good (the server refuses them before reading a byte)
+  const composer = h('div', { class: 'chat__composer-wrap' }, requestHint,
+    h('div', { class: 'chat__composer' }, textarea, sendBtn));
 
-  function membersOnlySheet() { // V6 phase 6: sending pictures is a membership feature (receiving is free)
-    sheet((panel, close) => panel.append(
-      h('h2', { text: t('الصور للأعضاء') }),
-      h('p', { text: t('إرسال الصور في المحادثات ميزة للأعضاء. أي شخص يستطيع استقبالها، وتختفي بعد {n} ثانية من فتحها.', { n: chatImages.chat.ttl_after_view }) }),
-      h('div', { class: 'actions' },
-        h('button', { class: 'btn btn--block btn--primary', type: 'button', onclick: () => { close(); navigate('#/membership'); } }, t('عضويتي')),
-        h('button', { class: 'btn btn--block btn--ghost', type: 'button', onclick: close }, t('إغلاق')))));
-  }
-
-  async function sendImage() {
-    const conv = store.getConversation(conversationId);
-    if (chatImages && !chatImages.chat.member) { membersOnlySheet(); return; }
-    if (!canSendImage(conv)) { toast(t('يمكنك إرسال الصور بعد أن يرد عليك الطرف الآخر.')); return; }
-    if (sendingImage || !chatImages) return;
-    const file = await chooseFile('image/jpeg,image/png,image/webp,image/heic,image/heif');
-    if (!file) return;
-    sendingImage = true;
-    imageBtn.disabled = true;
-    const line = (t) => { uploadLine.hidden = !t; uploadLine.textContent = t || ''; };
-    try {
-      line(t('جارٍ فحص الصورة…'));
-      const picked = await prepareImage(file, chatImages);
-      if (picked.preview) URL.revokeObjectURL(picked.preview); // never kept on the phone
-      await api.post('/api/uploads/precheck', { purpose: 'chat', conversation_id: conversationId });
-      const up = await uploadBlob(picked.blob, {
-        purpose: 'chat', conversationId,
-        onProgress: (f) => line(f < 1 ? t('جارٍ رفع الصورة {pct}%', { pct: Math.round(f * 100) }) : t('جارٍ الفحص على الخادم…')),
-      });
-      line(t('جارٍ الفحص على الخادم…'));
-      await waitReady(up.id);
-      await api.post(`/api/conversations/${encodeURIComponent(conversationId)}/media`, { media_id: up.id, client_id: newClientId() });
-      await store.loadConversation(conversationId);
-      line('');
-    } catch (err) {
-      line('');
-      toast(err instanceof PickError ? err.message : (err.message || t('تعذّر إرسال الصورة.')), 'error', 4500);
-    }
-    sendingImage = false;
-    draw();
-  }
-
-  // ---------------- ephemeral pictures
-  const secondsLeft = (media) => Math.max(0, Math.ceil((Date.parse(media.view_expires_at) - Date.now()) / 1000));
-
-  async function openImage(m) {
-    let res;
-    try {
-      res = await api.post(`/api/messages/${encodeURIComponent(m.id)}/open`);
-    } catch (err) {
-      if (err.status === 410) { m.media = { kind: 'image', state: 'expired', blur: null }; draw(); }
-      toast(err.message, 'error');
-      return;
-    }
-    m.media = { ...m.media, state: 'open', view_expires_at: res.view_expires_at };
-    draw();
-    let blobUrl = null;
-    try {
-      const r = await fetch(res.url, { credentials: 'same-origin', cache: 'no-store' });
-      if (!r.ok) throw new Error('gone');
-      blobUrl = URL.createObjectURL(await r.blob());
-    } catch {
-      toast(t('تعذّر تحميل الصورة. حاول مرة أخرى.'), 'error');
-      return;
-    }
-    openViewer(blobUrl, {
-      alt: t('صورة مؤقتة'), countdown: res.seconds_left, secure: res.secure,
-      onExpire: () => { m.media = { kind: 'image', state: 'expired', blur: null }; draw(); },
-      onReport: () => reportSheet(m.id),
-      onClose: () => URL.revokeObjectURL(blobUrl), // the picture leaves the phone's memory
-    });
-  }
-
-  function imageContent(m) {
-    const media = m.media || { state: 'expired' };
-    let state = media.state;
-    if (state === 'open' && media.view_expires_at && secondsLeft(media) <= 0) state = 'expired';
-    if (state === 'expired') {
-      return { node: h('span', { class: 'img-msg img-msg--gone' }, icon('timer'), h('span', { text: t('انتهت صلاحية الصورة') })), action: null };
-    }
-    const blur = media.blur ? h('img', { class: 'img-msg__blur', src: media.blur, alt: '' }) : null;
-    const timer = state === 'open'
-      ? h('span', { class: 'img-msg__timer', dataset: { expires: media.view_expires_at } }, t('{n} ث', { n: secondsLeft(media) })) : null;
-    let label;
-    if (m.mine) label = state === 'open' ? t('فُتحت · تختفي بعد') : t('صورة · لم تُفتح بعد');
-    else label = state === 'open' ? t('اضغط للعرض · تختفي بعد') : t('اضغط للعرض');
-    return {
-      node: h('span', { class: `img-msg ${m.mine ? 'img-msg--mine' : ''}` }, blur,
-        h('span', { class: 'img-msg__label' }, icon(m.mine ? 'image' : 'eye'), h('span', { text: label }), timer)),
-      action: m.mine ? null : () => openImage(m),
-    };
-  }
+  const imageContent = () => ({ // an old picture: deleted everywhere (only a reported one is kept, for the moderators)
+    node: h('span', { class: 'img-msg img-msg--gone' }, icon('image'), h('span', { text: t('صورة محذوفة') })), action: null,
+  });
 
   function send() {
     const content = textarea.value.trim();
@@ -311,11 +214,6 @@ export function renderChat(root, { conversationId, navigate }) {
       const n = store.state.config.direct_before_reply;
       requestHint.textContent = n ? t('أُرسل طلب مراسلة. يمكنك إرسال {n} رسائل على الأكثر حتى يرد.', { n }) : t('أُرسل طلب مراسلة. يمكنك إرسال رسائل قليلة حتى يرد.');
     }
-    imageBtn.hidden = !chatImages;
-    const member = Boolean(chatImages && chatImages.chat.member);
-    imageBtn.disabled = sendingImage || (member && !canSendImage(conv));
-    imageBtn.classList.toggle('chat__img-btn--locked', !member);
-    imageBtn.title = !member ? t('الصور للأعضاء') : canSendImage(conv) ? '' : t('تتاح الصور بعد أن يرد الطرف الآخر');
     if (!composer.isConnected) footer.replaceChildren(composer);
   }
 

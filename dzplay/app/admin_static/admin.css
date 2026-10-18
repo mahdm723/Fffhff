@@ -433,3 +433,7 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .admin-auto__head { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .admin-auto__why { margin: 0; padding-inline-start: 18px; color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
 .admin-suspect { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+/* V6 phase 17: the picture permission (user page + the users tab list) and the membership features */
+.admin-images, .admin-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.admin-images h4 { margin: 8px 0 0; font-size: 14px; }
+.admin-images__bar { position: sticky; bottom: 8px; align-items: center; padding: 8px; border-radius: 12px; background: var(--surface-2); }

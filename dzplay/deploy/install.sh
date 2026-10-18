@@ -110,8 +110,6 @@ env_has TELEGRAM_WEBHOOK_SECRET || set_env TELEGRAM_WEBHOOK_SECRET "$(openssl ra
 sed -i 's|^FOOTER_TEXT=صُنع في ولاية سعيدة / حساسنة / قرية تامسنة$|FOOTER_TEXT=|' .env
 # V6 phase 8: the app is now called DALTA.BIT (only the old default name is changed; a name you set is kept).
 sed -i 's|^APP_NAME=DZPLAY$|APP_NAME=DALTA.BIT|' .env
-# V6 phase 6: chat pictures stay 60 s once opened (only the old default is changed; a value you set is kept).
-sed -i 's|^CHAT_IMAGE_TTL_AFTER_VIEW=120$|CHAT_IMAGE_TTL_AFTER_VIEW=60|' .env
 # V6: calls were removed — their TURN secret is no longer used.
 sed -i '/^TURN_SECRET=/d' .env
 # V6: new blue-star requests are closed until membership arrives (current stars are kept).
@@ -191,7 +189,7 @@ fi
 
 # Daily encrypted database backup (03:17 server time) + a first backup now.
 chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh deploy/monitor.sh deploy/ssh-harden.sh \
-  deploy/v6-cleanup.sh deploy/perms.sh
+  deploy/v6-cleanup.sh deploy/perms.sh deploy/chat-images-purge.sh
 cat > /etc/cron.d/dzplay-backup <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -219,6 +217,13 @@ if "$APP_DIR/deploy/backup.sh" >> /var/log/dzplay-backup.log 2>&1; then
   ok "Daily encrypted backups in $(grep -E '^BACKUP_DIR=.+' .env | cut -d= -f2- || echo /var/backups/dzplay)"
 else
   warn "The first backup failed: see /var/log/dzplay-backup.log"
+fi
+# V6 phase 17: pictures in chats are off for good — the old ones are deleted everywhere once (after its own full
+# backup), except reported ones kept as evidence. On later updates it has nothing to do.
+if "$APP_DIR/deploy/chat-images-purge.sh" >> /var/log/dzplay-backup.log 2>&1; then
+  ok "Chat pictures: deleted everywhere (reported ones kept as evidence)"
+else
+  warn "The chat pictures purge needs attention: see /var/log/dzplay-backup.log, then sudo $APP_DIR/deploy/chat-images-purge.sh"
 fi
 # Server monitoring every 5 minutes → Telegram alerts (disk, load, a stopped service, intrusion attempts).
 "$APP_DIR/deploy/monitor.sh" install >/dev/null && ok "Monitoring with Telegram alerts (every 5 minutes)"

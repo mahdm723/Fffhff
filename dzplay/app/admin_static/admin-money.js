@@ -65,6 +65,31 @@ function autoBox(r, reload) {
     h('ul', { class: 'admin-auto__why' }, ...why.map((x) => h('li', { text: x }))));
 }
 
+// V6 phase 17: the membership features, each switched on or off for every member at once (panel settings,
+// MEMBER_FEATURE_*; audited). Posting pictures is not one of them: it is a per-account permission (user page).
+function featuresBox() {
+  const box = h('section', { class: 'admin-group glass admin-features' }, h('h3', { class: 'admin-group__title', text: 'ميزات العضوية' }), spinner());
+  const paint = async () => {
+    const d = await attempt(() => call('GET', '/api/admin/settings'));
+    if (!d) return;
+    const rows = d.settings.filter((s) => s.key.startsWith('MEMBER_FEATURE_'));
+    box.replaceChildren(h('h3', { class: 'admin-group__title', text: 'ميزات العضوية' }),
+      h('p', { class: 'admin-meta', text: 'الإيقاف يزيل الميزة عن كل الأعضاء فورًا، والتفعيل يعيدها. النجمة الممنوحة يدويًا لا تتأثر.' }),
+      ...rows.map((s) => {
+        const box2 = h('input', { type: 'checkbox', checked: s.value ? true : null });
+        box2.addEventListener('change', async () => {
+          const on = box2.checked;
+          if (!on && !(await confirmDanger('إيقاف الميزة لكل الأعضاء؟', s.label, 'إيقاف'))) { box2.checked = true; return; }
+          if (await attempt(() => call('PUT', '/api/admin/settings', { changes: { [s.key]: on } }))) toast(on ? 'فُعّلت الميزة.' : 'أُوقفت الميزة.');
+          paint();
+        });
+        return h('label', { class: 'admin-check' }, box2, s.label.replace(/^ميزة العضوية: /, '').replace(/ \(.*\)$/, ''));
+      }));
+  };
+  paint();
+  return box;
+}
+
 export function renderMembership(main) {
   const summary = h('p', { class: 'admin-meta' });
   const list = h('div', { class: 'admin-list' }, spinner());
@@ -121,9 +146,10 @@ export function renderMembership(main) {
 
   main.replaceChildren(
     sectionHead('العضوية والدفع'),
-    h('p', { class: 'admin-meta', text: 'العضوية ميزات داخل التطبيق فقط (النجمة، الأفكار مع صورة، صور المحادثة) ولا علاقة لها بأي عائد. السعر ومدة الاسترجاع ورسومه من «الإعدادات ← العضوية».' }),
-    h('p', { class: 'admin-meta', text: 'كل طلب يُفحص آليًا على البلوكشين (TRC20 / BEP20): المستلم، عقد USDT الرسمي، المبلغ، التأكيدات، التاريخ، وعدم تكرار رقم العملية. الفحص يعرض النتيجة فقط؛ القبول والرفض والحظر قرارك دائمًا.' }),
+    h('p', { class: 'admin-meta', text: 'العضوية ميزات داخل التطبيق فقط ولا علاقة لها بأي عائد. نشر الصور ليس منها: إذن تمنحه لكل حساب من صفحته. السعر ومدة الاسترجاع ورسومه من «الإعدادات ← العضوية».' }),
+    h('p', { class: 'admin-meta', text: 'كل طلب يُفحص آليًا على البلوكشين (TRC20 / BEP20): المستلم، عقد USDT الرسمي، المبلغ، التأكيدات، التاريخ، وعدم تكرار رقم العملية. الفحص يعرض النتيجة فقط والقرار لك، إلا إن فعّلت «منح العضوية تلقائيًا» من «الإعدادات ← العضوية».' }),
     summary,
+    featuresBox(),
     paymentSettingsBox(),
     h('h3', { text: 'طلبات العضوية' }),
     segmented([['pending', 'قيد المراجعة'], ['accepted', 'مقبول'], ['rejected', 'مرفوض'], ['', 'الكل (سجل الدفع)']],

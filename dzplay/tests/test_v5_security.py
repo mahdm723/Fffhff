@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 
-from app import clock
 from app.models import MediaItem
 from tests.conftest import reply, send
 from tests.test_admin_access import _admin_routes
@@ -18,30 +17,27 @@ def test_someone_elses_upload_cannot_be_read_attached_or_published(mx):
     assert b.get(f"/api/uploads/{mid}").status_code == 404
     assert b.post("/api/posts", json={"content": "سرقة", "media_id": mid}).status_code in (403, 404)
     assert b.post("/api/studio/reels", json={"media_id": mid}).status_code in (404, 405)  # V6: the studio is gone
-    # the idea picture cannot be pushed into a chat either (wrong purpose), even by its owner
+    # the idea picture cannot be pushed into a chat either (V6 phase 17: no pictures in chats at all)
     cid = send(a, b, "مرحبا").json()["conversation"]["id"]
     reply(b, cid, "أهلا")
-    assert a.post(f"/api/conversations/{cid}/media", json={"media_id": mid}).status_code in (400, 404, 409)
+    assert a.post(f"/api/conversations/{cid}/media", json={"media_id": mid}).status_code == 410
     # still the owner's: it can be attached normally
     assert a.post("/api/posts", json={"content": "لي", "media_id": mid}).status_code == 201
 
 
-def test_signed_chat_picture_url_is_useless_to_anyone_else(mx):
-    a, b = mx.user(), mx.user()
-    cid = send(a, b, "مرحبا، كيف الحال؟").json()["conversation"]["id"]
-    reply(b, cid, "بخير")
+def test_signed_idea_picture_url_is_useless_to_anyone_else(mx):
+    """V6 phase 17: the same checks on an idea picture (pictures in chats are gone)."""
+    a = mx.user()
+    mid = ready_upload(mx, a, jpeg())
+    pid = a.post("/api/posts", json={"content": "صورة", "media_id": mid}).json()["id"]
+    url = a.get(f"/api/posts/{pid}").json()["media"]["url"]
+    assert a.get(url).status_code == 200
     stranger = mx.user()
-    mid = ready_upload(mx, a, jpeg(), purpose="chat", conversation_id=cid)
-    msg = a.post(f"/api/conversations/{cid}/media", json={"media_id": mid}).json()["message"]
-    url = b.post(f"/api/messages/{msg['id']}/open").json()["url"]
-    assert b.get(url).status_code == 200
-    assert stranger.get(url).status_code == 403  # bound to b's session
+    assert stranger.get(url).status_code == 403  # bound to a's session (the stranger gets its own URL)
     assert mx.client().get(url).status_code in (401, 403)  # no session at all
-    assert b.get(url.replace("/img?", "/poster?")).status_code in (403, 404)  # another variant: signature fails
+    assert a.get(url.replace("/img?", "/poster?")).status_code in (403, 404)  # another variant: signature fails
     tampered = url[:-2] + ("aa" if not url.endswith("aa") else "bb")
-    assert b.get(tampered).status_code == 403
-    clock.advance(mx.settings.CHAT_IMAGE_TTL_AFTER_VIEW + 1)
-    assert b.get(url).status_code == 404  # expired: dead even with a valid signature
+    assert a.get(tampered).status_code == 403
 
 
 def test_telegram_ids_never_reach_any_client(mx):
@@ -50,9 +46,8 @@ def test_telegram_ids_never_reach_any_client(mx):
     a.post("/api/posts", json={"content": "فكرة مع صورة", "media_id": mid})
     cid = send(a, b, "سلام").json()["conversation"]["id"]
     reply(b, cid, "وعليكم")
-    cmid = ready_upload(mx, a, jpeg((1, 2, 3)), purpose="chat", conversation_id=cid)
-    msg = a.post(f"/api/conversations/{cid}/media", json={"media_id": cmid}).json()["message"]
-    b.post(f"/api/messages/{msg['id']}/open")
+    cmid = ready_upload(mx, a, jpeg((1, 2, 3)), purpose="avatar")
+    a.put("/api/me/avatar", json={"media_id": cmid})
     mx.state.pipeline.wait_idle()
     with mx.db() as db:
         secrets = set()

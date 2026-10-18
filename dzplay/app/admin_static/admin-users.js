@@ -58,8 +58,52 @@ export function renderUsers(main) {
     },
   }, q, h('div', { class: 'admin-filters__row' }, status, method), h('div', { class: 'admin-filters__row' }, flagged.el, posts.el),
   h('button', { type: 'submit', class: 'btn btn--primary btn--block' }, icon('user'), 'بحث'));
-  main.replaceChildren(sectionHead('المستخدمون'), form, total, list, more);
+  main.replaceChildren(sectionHead('المستخدمون'), form, imagesPanel(), total, list, more);
   load(true);
+}
+
+// V6 phase 17: who may post pictures — granted account by account (or several at once), never by the membership
+function imagesPanel() {
+  const picked = new Set();
+  const count = h('span', { class: 'admin-meta' });
+  const body = h('div', { class: 'admin-images__body' });
+  async function bulk(on) {
+    if (!picked.size) return;
+    if (!on && !(await confirmDanger('سحب إذن نشر الصور؟', `${fmt(picked.size)} حساب`, 'سحب'))) return;
+    const r = await attempt(() => call('POST', '/api/admin/images/bulk', { ids: [...picked], on }));
+    if (r) { toast(`تم: ${fmt(r.changed)} حساب.`); picked.clear(); load(); }
+  }
+  const bar = h('div', { class: 'admin-actions admin-images__bar', hidden: true }, count,
+    h('button', { type: 'button', class: 'btn btn--sm btn--primary', onclick: () => bulk(true) }, 'منح المحددين'),
+    h('button', { type: 'button', class: 'btn btn--sm btn--danger', onclick: () => bulk(false) }, 'سحب من المحددين'));
+  const paintCount = () => { count.textContent = `${fmt(picked.size)} محدد`; bar.hidden = !picked.size; };
+  const row = (u) => {
+    const box = h('input', { type: 'checkbox', 'aria-label': 'تحديد', checked: picked.has(u.id) ? true : null });
+    box.addEventListener('change', () => { if (box.checked) picked.add(u.id); else picked.delete(u.id); paintCount(); });
+    const meta = [u.email, u.image_posts ? `${fmt(u.image_posts)} منشور بصورة، آخرها ${when(u.last_image_post)}` : '',
+      u.allowed && u.granted_at ? `مسموح منذ ${when(u.granted_at)}` : ''].filter(Boolean).join(' · ');
+    return h('label', { class: 'admin-check admin-pick' }, box,
+      h('span', {}, h('bdi', { text: u.name || 'dzplay' }), ' ', h('code', { dir: 'ltr', text: u.public_id || '' })),
+      u.allowed ? chip('مسموح', 'chip--team') : null,
+      h('span', { class: 'admin-meta', dir: 'auto', text: meta }));
+  };
+  async function load() {
+    body.replaceChildren(spinner());
+    const d = await attempt(() => call('GET', '/api/admin/images'));
+    if (!d) return;
+    body.replaceChildren(
+      h('h4', { text: `لديهم الإذن الآن (${fmt(d.holders.length)})` }),
+      d.holders.length ? h('div', { class: 'admin-picklist' }, ...d.holders.map(row)) : emptyState('لا أحد بعد.'),
+      h('h4', { text: `من نشر صورًا سابقًا (${fmt(d.former.length)})` }),
+      d.former.length ? h('div', { class: 'admin-picklist' }, ...d.former.map(row)) : emptyState('لا أحد.'));
+    paintCount();
+  }
+  const fold = h('details', { class: 'admin-group glass admin-images' },
+    h('summary', { text: 'إذن نشر الصور' }),
+    h('p', { class: 'admin-meta', text: 'يُمنح لكل حساب على حدة ولا يرتبط بالعضوية. الحد اليومي من «الإعدادات ← الأفكار». المنشورات القديمة بالصور تبقى كما هي.' }),
+    body, bar);
+  fold.addEventListener('toggle', () => { if (fold.open) load(); });
+  return fold;
 }
 
 function userCard(u) {
@@ -102,6 +146,24 @@ function markButton(url, on, what, paint) {
   return h('div', { class: 'admin-actions' }, on ? null : reason,
     h('button', { type: 'button', class: `btn btn--sm ${on ? 'btn--ghost' : 'btn--danger'}`, onclick: go },
       on ? `إزالة علامة ${what} المشبوه` : `تعليم ${what} كمشبوه`));
+}
+
+// V6 phase 17: the picture permission of this account (granted by an admin only; the membership never gives it)
+function imagesBox(u, im, paint) {
+  const on = !!im.allowed;
+  return h('section', { class: 'admin-group glass admin-images' },
+    h('h3', { class: 'admin-group__title', text: 'نشر الصور مع الأفكار' }),
+    h('p', { class: 'admin-meta', text: on ? `مسموح منذ ${when(im.granted_at)} (${im.granted_by || '—'})` : 'غير مسموح. لا يرتبط بالعضوية.' }),
+    h('p', { class: 'admin-meta', text: `منشورات بصور: ${fmt(im.image_posts || 0)}` }),
+    h('div', { class: 'admin-actions' }, h('button', {
+      type: 'button', class: `btn btn--sm ${on ? 'btn--danger' : 'btn--primary'}`,
+      onclick: async () => {
+        if (await attempt(() => call('POST', `/api/admin/users/${encodeURIComponent(u.id)}/images`, { on: !on }))) {
+          toast(on ? 'سُحب الإذن.' : 'مُنح الإذن.');
+          paint();
+        }
+      },
+    }, on ? 'سحب إذن نشر الصور' : 'منح إذن نشر الصور')));
 }
 
 function suspectBox(u, s, paint) {
@@ -158,6 +220,7 @@ export function openUser(id) {
             }))),
         await userV5Section(u.id, paint),
         await userMoneySection(u.id, paint),
+        imagesBox(u, d.images || {}, paint),
         suspectBox(u, d.suspicion || {}, paint),
         section('الأجهزة (تطبيق أندرويد)', (d.devices || []).length,
           h('p', { class: 'admin-meta', text: 'هواتف أثبت فيها التطبيق نفسه (Key Attestation). على iPhone لا يوجد ربط بالجهاز.' }),
