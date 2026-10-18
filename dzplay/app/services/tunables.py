@@ -50,6 +50,7 @@ GROUPS = {
     "rewards": "المكافآت والسحب",
     "access": "الوصول للتطبيق",
     "signup": "التسجيل وتأكيد البريد",
+    "reset": "استعادة الحساب",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -120,6 +121,14 @@ REGISTRY: list[Tunable] = [
     Tunable("MAX_ACCOUNTS_PER_DEVICE", "int", "access", "أقصى عدد حسابات تُنشأ من جهاز واحد", 1, 20),
     # V6 phase 15: e-mail confirmation at signup
     Tunable("REGISTRATION_EMAIL_VERIFICATION", "bool", "signup", "تأكيد البريد برمز قبل إنشاء الحساب"),
+    Tunable("REGISTRATION_CODE_AUTO", "bool", "signup", "إرسال رمز التسجيل بالبريد تلقائيًا (الإيقاف: يصلك في Telegram لترسله يدويًا)"),
+    # V6 phase 18: password recovery
+    Tunable("RESET_CODE_AUTO", "bool", "reset", "إرسال رمز الاستعادة بالبريد تلقائيًا (الإيقاف: تولّده أنت من Telegram)"),
+    Tunable("RESET_CODE_TTL", "int", "reset", "صلاحية رمز الاستعادة (ثوانٍ)", 600, 7 * 86400),
+    Tunable("RESET_MAX_CODE_ATTEMPTS", "int", "reset", "محاولات الرمز الخاطئة قبل إلغائه", 1, 20),
+    Tunable("RESET_MAX_PER_EMAIL", "int", "reset", "أقصى عدد طلبات لبريد واحد في اليوم", 1, 50),
+    Tunable("RESET_MAX_REQUESTS", "int", "reset", "أقصى عدد طلبات من شبكة واحدة قبل حظرها مؤقتًا", 1, 100),
+    Tunable("RESET_IP_BLOCK_DURATION", "int", "reset", "مدة الحظر المؤقت للشبكة (ثوانٍ)", 60, 7 * 86400),
     Tunable("REGISTER_CODE_TTL", "int", "signup", "صلاحية رمز التسجيل (ثوانٍ)", 120, 3600),
     Tunable("REGISTER_CODE_MAX_ATTEMPTS", "int", "signup", "محاولات الرمز الخاطئة قبل إلغاء التسجيل", 1, 20),
     Tunable("REGISTER_RESEND_SECONDS", "int", "signup", "الانتظار بين إرسالين للرمز (ثوانٍ)", 15, 3600),

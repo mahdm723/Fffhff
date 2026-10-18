@@ -284,6 +284,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
         if state.bot is not None:
             state.bot.shutdown()
         state.pipeline.shutdown()
+        state.mail_queue.shutdown()
 
     app = FastAPI(title=settings.APP_NAME, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.dz = state

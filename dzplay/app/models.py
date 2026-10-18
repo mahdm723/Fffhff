@@ -679,6 +679,7 @@ class SignupPending(Base):
     ip_hash: Mapped[str] = mapped_column(String(64))
     device_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     code_hash: Mapped[str] = mapped_column(String(64))
+    existing: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # V6 phase 18: address already has an account
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     sends: Mapped[int] = mapped_column(Integer, default=1)
     last_sent_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)

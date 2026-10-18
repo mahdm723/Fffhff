@@ -173,8 +173,10 @@ class Registration:
 
 def validate_registration(db: Session, settings: Settings, ctx: ClientContext, *, email: object, password: object,
                           password_confirm: object, antibot_payload: dict | None, honeypot: str | None,
-                          gender: object = None, age_confirmed: object = False, display_name: object = None) -> Registration:
-    """Every rule of a new account (form, anti-bot, per-network and per-phone limits, address free)."""
+                          gender: object = None, age_confirmed: object = False, display_name: object = None,
+                          allow_taken: bool = False) -> Registration:
+    """Every rule of a new account (form, anti-bot, per-network and per-phone limits, address free). allow_taken (V6
+    phase 18, signup with the e-mail code): a taken address is not refused here — same answer, see services/signup."""
     if honeypot:
         log_event(db, "honeypot", ctx)
         db.commit()
@@ -191,7 +193,7 @@ def validate_registration(db: Session, settings: Settings, ctx: ClientContext, *
     _check_registration_quota(db, settings, ctx)
     access.check_signup_device(db, settings, ctx.device_id)  # V6 phase 14: accounts per attested phone
     _check_antibot(db, settings, ctx, "register", antibot_payload)
-    if email_in_use(db, email_n):
+    if not allow_taken and email_in_use(db, email_n):
         db.commit()  # keep the consumed challenge
         raise AppError(409, "email_taken", "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.")
     return Registration(email_n, pw, gender, name)

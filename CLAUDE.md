@@ -83,7 +83,11 @@
     - في الاختبارات: `WEB_DESKTOP_ACCESS=True` (المتصفحات فيها حواسيب)، وسلاسل شهادات مصطنعة من جذر اختباري (`tests/test_access.py`).
   - **تأكيد البريد عند التسجيل (المرحلة 15):**
     - `services/signup.py`: مع `REGISTRATION_EMAIL_VERIFICATION` لا يُنشأ الحساب إلا بعد رمز من 6 أرقام يصل إلى البريد. قبله صف في `signup_pending` (بصمات فقط)، ثم `auth.create_user` (نفس مسار `auth.validate_registration`).
-    - بلا بريد نظام يعمل: 503 «التسجيل غير متاح مؤقتًا» وتنبيه Telegram.
+    - **المرحلة 18:** الرموز تخرج من طابور في الخلفية (`services/mail_queue.py`) لا من الطلب.
+      - الجواب واحد لبريد جديد ولبريد مسجّل (`validate_registration(allow_taken=True)`): البريد المسجّل يصله «لديك حساب بالفعل» ولا رمز.
+      - `REGISTRATION_CODE_AUTO` (مفعّل): الرمز بالبريد مع ملاحظة للمالك. موقوف: الرمز للمالك في Telegram (`sg:sent|cancel`).
+      - فشل البريد ← المسار اليدوي في Telegram + تنبيه. 503 «التسجيل غير متاح مؤقتًا» فقط بلا بريد ولا بوت.
+      - الاستعادة: `RESET_CODE_AUTO` (موقوف افتراضيًا) ← `password_reset.auto_send` من الطابور، وفشله يعيد الطلب إلى أزرار `rgen`/`rdeny`.
     - `users.email_canonical`: صندوق واحد = حساب واحد (Gmail بلا نقاط، وبلا `+tag`). `users.signup_verified_via`: `email` / `admin_code` / `google`.
     - رمز إنشاء الحساب الإداري: في `app_settings` (`signup.admin_code`، argon2)، يُضبط من اللوحة بـ2FA، وكل استعمال في سجل التدقيق وTelegram.
     - في الاختبارات: `REGISTRATION_EMAIL_VERIFICATION=False` افتراضيًا، و`tests/test_signup_verify.py` و`e2e/run_signup_e2e.py` يفعّلانه.

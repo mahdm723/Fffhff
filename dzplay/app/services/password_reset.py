@@ -11,6 +11,11 @@
    (+ confirmation + anti-bot) → every old session is revoked and the user is
    signed in.
 
+V6 phase 18 — RESET_CODE_AUTO (panel, off by default): the server makes the code itself (CSPRNG,
+RESET_CODE_LENGTH digits) and e-mails it from the mail queue (never from the request); the owner gets a note in
+Telegram (masked address, «إلغاء الطلب»). If the e-mail cannot leave, the request goes back to the manual path above
+(«تعذّر الإرسال تلقائيًا») + an alert. With the setting off, nothing changes. The answer is the same in both modes.
+
 Rules: codes stored only as argon2 hashes; valid RESET_CODE_TTL, single use;
 a new request cancels older ones; RESET_MAX_CODE_ATTEMPTS wrong codes cancel
 the code; RESET_MAX_REQUESTS per network → RESET_IP_BLOCK_DURATION block
@@ -44,7 +49,8 @@ from app.i18n import N_
 
 log = logging.getLogger("dzplay.reset")
 
-GENERIC = "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك بعد مراجعة الطلب."
+GENERIC = N_("إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك بعد مراجعة الطلب.")
+GENERIC_AUTO = N_("إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك خلال دقائق.")
 BAD_CODE = N_("الرمز غير صحيح أو منتهي الصلاحية.")
 _ID_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 _CODE_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
@@ -104,7 +110,7 @@ def request_reset(db: Session, settings: Settings, ctx: ClientContext, *, email:
     per_email = len(db.execute(select(SecurityEvent.id).where(
         SecurityEvent.type == "reset_request", SecurityEvent.detail == email_ref, SecurityEvent.created_at > since)).all())
     log_event(db, "reset_request", ctx, None, email_ref)
-    result: dict = {"message": GENERIC}
+    result: dict = {"message": i18n.tr(GENERIC_AUTO if settings.RESET_CODE_AUTO else GENERIC)}
     if per_email >= settings.RESET_MAX_PER_EMAIL:
         return result  # same answer; the admin is not bothered again
 
@@ -128,14 +134,14 @@ def request_reset(db: Session, settings: Settings, ctx: ClientContext, *, email:
 # ---------------------------------------------------------------------------
 
 
-def admin_prompt(db: Session, reset_id: str, manual: bool = False) -> tuple[str, dict] | None:
+def admin_prompt(db: Session, reset_id: str, manual: bool = False, note: str = "") -> tuple[str, dict] | None:
     r = db.get(PasswordReset, reset_id)
     user = db.get(User, r.user_id) if r else None
     if r is None or user is None:
         return None
     how = ("اضغط «توليد رمز» فيظهر لك الرمز هنا لترسله أنت إلى هذا البريد (البريد التلقائي غير مُعدّ)"
            if manual else "اضغط «توليد رمز» ليُرسَل رمز عشوائي إلى البريد")
-    text = (f"🔑 طلب استعادة حساب\n"
+    text = (f"{note}🔑 طلب استعادة حساب\n"
             f"البريد: {user.email}\n"
             f"رقم الطلب: {r.short_id}\n\n"
             f"{how}، أو اكتب:\n/code {r.short_id} <الرمز>")
@@ -196,13 +202,72 @@ def set_code_and_send(database, settings: Settings, short_id: str, code: str | N
         log.warning("reset e-mail failed for request %s: %s", sid, exc)
         with database.session() as db:
             audit.record(db, "telegram", "reset_mail_failed", target_type="reset", target_id=sid, detail=str(exc))
-        return f"❌ تعذّر إرسال البريد للطلب {sid} ({exc}). تحقق من إعدادات SMTP ثم أعد المحاولة."
+            r = _find_active(db, sid)
+            if r is not None and r.status in ACTIVE:
+                r.status = "sent"  # V6 phase 18: the owner sends it by hand (the code below is the valid one)
+        hours = max(1, settings.RESET_CODE_TTL // 3600)
+        return (f"⚠️ تعذّر إرسال البريد للطلب {sid} ({exc}).\n📋 أرسل هذا الرمز بنفسك:\nالبريد: {email}\nالرمز: {code}\n\n"
+                f"صالح {hours} ساعة ولمرة واحدة. (أصلح البريد: لوحة التحكم ← الأمان والنظام ← البريد)")
     with database.session() as db:
         r = _find_active(db, sid)
         if r is not None and r.status in ACTIVE:
             r.status = "sent"
         audit.record(db, "telegram", "reset_mail_sent", target_type="reset", target_id=sid)
     return f"✅ أُرسل رمز الاستعادة إلى بريد صاحب الطلب {sid}."
+
+
+def auto_send(state, reset_id: str) -> None:
+    """V6 phase 18 (mail queue): RESET_CODE_AUTO — the server makes the code and e-mails it; the owner gets a note.
+    If the e-mail cannot leave, the request goes back to the owner (the usual buttons) + an alert."""
+    from app.services.email_codes import mask
+
+    settings = state.settings
+    code = "".join(secrets.choice("0123456789") for _ in range(settings.RESET_CODE_LENGTH))
+    with state.database.session() as db:
+        r = db.get(PasswordReset, reset_id)
+        user = db.get(User, r.user_id) if r is not None else None
+        if r is None or user is None or r.status not in ACTIVE:
+            return  # cancelled meanwhile (a newer request, the owner)
+        now = clock.utcnow()
+        r.code_hash, r.code_set_at, r.attempts = hash_password(code), now, 0
+        r.expires_at = now + timedelta(seconds=settings.RESET_CODE_TTL)
+        sid, email = r.short_id, user.email
+        audit.record(db, "system:auto", "reset_code_auto", target_type="reset", target_id=sid)
+        out = mail.prepare(db, settings, "system", email, "email.reset",
+                           {"code": code, "hours": max(1, settings.RESET_CODE_TTL // 3600)}, highlight=code,
+                           lang=i18n.user_lang(user))
+    reason = "بريد النظام غير مضبوط" if out is None else ""
+    if out is not None:
+        try:
+            mail.deliver(out)
+        except Exception as exc:  # noqa: BLE001
+            reason = f"تعذّر الإرسال ({type(exc).__name__})"
+    bot, prompt = state.bot, None
+    with state.database.session() as db:
+        r = db.get(PasswordReset, reset_id)
+        if not reason:
+            if r is not None and r.status in ACTIVE:
+                r.status = "sent"
+            audit.record(db, "system:auto", "reset_mail_sent", target_type="reset", target_id=sid)
+        else:
+            if r is not None and r.status in ACTIVE:
+                r.code_hash = None  # never delivered: the owner makes the code (rgen / /code)
+            audit.record(db, "system:auto", "reset_mail_failed", target_type="reset", target_id=sid, detail=reason)
+            prompt = admin_prompt(db, reset_id, manual=True,
+                                  note=f"⚠️ تعذّر إرسال رمز الاستعادة تلقائيًا ({reason}).\n\n")
+    if bot is None:
+        if reason:
+            log.warning("reset %s: automatic e-mail failed and no bot to fall back to", sid)
+        return
+    try:
+        if not reason:
+            bot.say(f"ℹ️ أُرسل رمز استعادة تلقائيًا إلى {mask(email)} (الطلب {sid}).",
+                    reply_markup={"inline_keyboard": [[{"text": "✖️ إلغاء الطلب", "callback_data": f"rdeny:{sid}"}]]})
+        elif prompt:
+            text, keyboard = prompt
+            bot.say(text, reply_markup=keyboard)
+    except Exception as exc:  # noqa: BLE001 - the note never breaks the queue
+        log.warning("reset note not sent: %s", type(exc).__name__)
 
 
 def deny(database, short_id: str) -> str:

@@ -805,7 +805,7 @@
  {
   "id": "أُرسل الرمز مرات كثيرة. أعد التسجيل لاحقًا.",
   "where": [
-   "app/services/signup.py:183"
+   "app/services/signup.py:255"
   ],
   "client": false,
   "plural": false
@@ -1051,7 +1051,7 @@
  {
   "id": "إرسال الصور في المحادثات متوقف نهائيًا.",
   "where": [
-   "app/main.py:310",
+   "app/main.py:311",
    "app/services/media_items.py:69"
   ],
   "client": false,
@@ -1267,6 +1267,22 @@
   "plural": false
  },
  {
+  "id": "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك بعد مراجعة الطلب.",
+  "where": [
+   "app/services/password_reset.py:52"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك خلال دقائق.",
+  "where": [
+   "app/services/password_reset.py:53"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "إنشاء الحساب",
   "where": [
    "static/js/views/auth.js:242"
@@ -1444,7 +1460,7 @@
   "where": [
    "static/js/onboarding.js:69",
    "static/js/views/auth.js:280",
-   "app/services/auth.py:185",
+   "app/services/auth.py:187",
    "app/services/names.py:147"
   ],
   "client": true,
@@ -1637,7 +1653,7 @@
  {
   "id": "افتح التطبيق للمتابعة.",
   "where": [
-   "app/main.py:307"
+   "app/main.py:308"
   ],
   "client": false,
   "plural": false
@@ -1769,7 +1785,7 @@
  {
   "id": "اكتب رمزًا أولًا.",
   "where": [
-   "app/services/signup.py:326"
+   "app/services/signup.py:423"
   ],
   "client": false,
   "plural": false
@@ -2031,7 +2047,7 @@
   "where": [
    "app/services/auth.py:68",
    "app/services/auth.py:71",
-   "app/services/password_reset.py:94"
+   "app/services/password_reset.py:100"
   ],
   "client": false,
   "plural": false
@@ -2055,7 +2071,7 @@
  {
   "id": "التسجيل غير متاح مؤقتًا. حاول لاحقًا.",
   "where": [
-   "app/services/signup.py:51"
+   "app/services/signup.py:58"
   ],
   "client": false,
   "plural": false
@@ -2257,7 +2273,7 @@
  {
   "id": "الرمز {min} حرفًا على الأقل.",
   "where": [
-   "app/services/signup.py:321"
+   "app/services/signup.py:418"
   ],
   "client": false,
   "plural": false
@@ -2289,7 +2305,7 @@
  {
   "id": "الرمز غير صحيح أو منتهي الصلاحية.",
   "where": [
-   "app/services/password_reset.py:48"
+   "app/services/password_reset.py:54"
   ],
   "client": false,
   "plural": false
@@ -2299,7 +2315,7 @@
   "where": [
    "app/services/email_codes.py:78",
    "app/services/email_codes.py:87",
-   "app/services/signup.py:228"
+   "app/services/signup.py:296"
   ],
   "client": false,
   "plural": false
@@ -2468,7 +2484,7 @@
  {
   "id": "الطلب كبير جدًا.",
   "where": [
-   "app/main.py:313"
+   "app/main.py:314"
   ],
   "client": false,
   "plural": false
@@ -2817,7 +2833,7 @@
  {
   "id": "انتظر قليلًا قبل إعادة إرسال الرمز.",
   "where": [
-   "app/services/signup.py:181"
+   "app/services/signup.py:253"
   ],
   "client": false,
   "plural": false
@@ -2825,7 +2841,7 @@
  {
   "id": "انتظر قليلًا قبل المحاولة مرة أخرى.",
   "where": [
-   "app/services/auth.py:257"
+   "app/services/auth.py:259"
   ],
   "client": false,
   "plural": false
@@ -2861,8 +2877,8 @@
  {
   "id": "انتهت صلاحية التسجيل. أعد إدخال بياناتك.",
   "where": [
-   "app/services/signup.py:163",
-   "app/services/signup.py:178"
+   "app/services/signup.py:235",
+   "app/services/signup.py:250"
   ],
   "client": false,
   "plural": false
@@ -2870,7 +2886,7 @@
  {
   "id": "انتهت صلاحية الرمز. أعد إدخال بياناتك أو اطلب رمزًا جديدًا.",
   "where": [
-   "app/services/signup.py:167"
+   "app/services/signup.py:239"
   ],
   "client": false,
   "plural": false
@@ -2886,9 +2902,9 @@
  {
   "id": "انتهت صلاحية الطلب. اطلب رمزًا جديدًا.",
   "where": [
-   "app/services/password_reset.py:260",
-   "app/services/password_reset.py:264",
-   "app/services/password_reset.py:267"
+   "app/services/password_reset.py:325",
+   "app/services/password_reset.py:329",
+   "app/services/password_reset.py:332"
   ],
   "client": false,
   "plural": false
@@ -2896,7 +2912,7 @@
  {
   "id": "انتهت صلاحية جلسة تسجيل الدخول. أعد المحاولة.",
   "where": [
-   "app/services/auth.py:364"
+   "app/services/auth.py:366"
   ],
   "client": false,
   "plural": false
@@ -2968,7 +2984,7 @@
  {
   "id": "بريد حساب Google غير مؤكد.",
   "where": [
-   "app/services/auth.py:366"
+   "app/services/auth.py:368"
   ],
   "client": false,
   "plural": false
@@ -3099,7 +3115,7 @@
   "id": "تاريخ الانتهاء غير صالح.",
   "where": [
    "app/services/giveaway.py:154",
-   "app/services/signup.py:289"
+   "app/services/signup.py:386"
   ],
   "client": false,
   "plural": false
@@ -3108,7 +3124,7 @@
   "id": "تاريخ الانتهاء يجب أن يكون في المستقبل.",
   "where": [
    "app/services/giveaway.py:156",
-   "app/services/signup.py:329"
+   "app/services/signup.py:426"
   ],
   "client": false,
   "plural": false
@@ -3271,7 +3287,7 @@
  {
   "id": "تسجيل الدخول عبر Google غير مفعّل.",
   "where": [
-   "app/services/auth.py:351"
+   "app/services/auth.py:353"
   ],
   "client": false,
   "plural": false
@@ -3337,7 +3353,7 @@
  {
   "id": "تعذّر إنشاء الحساب. حاول مرة أخرى.",
   "where": [
-   "app/services/auth.py:397"
+   "app/services/auth.py:399"
   ],
   "client": false,
   "plural": false
@@ -3381,9 +3397,9 @@
  {
   "id": "تعذّر التحقق من حساب Google.",
   "where": [
-   "app/services/auth.py:353",
-   "app/services/auth.py:362",
-   "app/services/auth.py:359"
+   "app/services/auth.py:355",
+   "app/services/auth.py:364",
+   "app/services/auth.py:361"
   ],
   "client": false,
   "plural": false
@@ -3628,8 +3644,8 @@
  {
   "id": "تم إيقاف هذا الحساب بسبب مخالفة شروط الاستخدام.",
   "where": [
-   "app/services/auth.py:331",
-   "app/services/auth.py:373"
+   "app/services/auth.py:333",
+   "app/services/auth.py:375"
   ],
   "client": false,
   "plural": false
@@ -3944,7 +3960,7 @@
  {
   "id": "حدث خطأ غير متوقع. حاول مرة أخرى.",
   "where": [
-   "app/main.py:358"
+   "app/main.py:359"
   ],
   "client": false,
   "plural": false
@@ -4864,7 +4880,7 @@
    "app/api/app_access.py:60",
    "app/api/app_access.py:58",
    "app/api/uploads.py:70",
-   "app/main.py:348",
+   "app/main.py:349",
    "app/services/auth.py:132",
    "app/services/email_codes.py:43",
    "app/services/engagement.py:195",
@@ -4879,9 +4895,9 @@
    "app/services/messaging.py:647",
    "app/services/people.py:65",
    "app/services/people.py:103",
-   "app/services/signup.py:323",
-   "app/services/signup.py:338",
-   "app/services/signup.py:336"
+   "app/services/signup.py:420",
+   "app/services/signup.py:435",
+   "app/services/signup.py:433"
   ],
   "client": false,
   "plural": false
@@ -4889,8 +4905,8 @@
  {
   "id": "طلب غير مسموح.",
   "where": [
-   "app/main.py:318",
-   "app/main.py:321"
+   "app/main.py:319",
+   "app/main.py:322"
   ],
   "client": false,
   "plural": false
@@ -4898,7 +4914,7 @@
  {
   "id": "طلبات استعادة كثيرة من هذه الشبكة. حاول لاحقًا.",
   "where": [
-   "app/services/password_reset.py:99"
+   "app/services/password_reset.py:105"
   ],
   "client": false,
   "plural": false
@@ -4954,7 +4970,7 @@
  {
   "id": "طُلب التسجيل بهذا البريد مرات كثيرة اليوم. حاول لاحقًا.",
   "where": [
-   "app/services/signup.py:131"
+   "app/services/signup.py:205"
   ],
   "client": false,
   "plural": false
@@ -5173,8 +5189,8 @@
   "where": [
    "app/api/i18n.py:22",
    "app/errors.py:23",
-   "app/main.py:300",
-   "app/main.py:396",
+   "app/main.py:301",
+   "app/main.py:397",
    "app/services/payment_check.py:368"
   ],
   "client": false,
@@ -5233,7 +5249,7 @@
   "id": "فشل التحقق من أنك لست روبوتًا. أعد المحاولة.",
   "where": [
    "app/security/pow.py:66",
-   "app/services/auth.py:181"
+   "app/services/auth.py:183"
   ],
   "client": false,
   "plural": false
@@ -6119,7 +6135,7 @@
   "id": "محاولات كثيرة. حاول لاحقًا.",
   "where": [
    "app/services/messaging.py:234",
-   "app/services/password_reset.py:227"
+   "app/services/password_reset.py:292"
   ],
   "client": false,
   "plural": false
@@ -6135,7 +6151,7 @@
  {
   "id": "محاولات كثيرة: أُلغي التسجيل. أعد إدخال بياناتك.",
   "where": [
-   "app/services/signup.py:226"
+   "app/services/signup.py:294"
   ],
   "client": false,
   "plural": false
@@ -6733,7 +6749,7 @@
  {
   "id": "هذا البريد مسجّل بكلمة مرور. سجّل الدخول بالبريد وكلمة المرور.",
   "where": [
-   "app/services/auth.py:383"
+   "app/services/auth.py:385"
   ],
   "client": false,
   "plural": false
@@ -6741,9 +6757,9 @@
  {
   "id": "هذا البريد مسجّل مسبقًا. سجّل الدخول بدلًا من ذلك.",
   "where": [
-   "app/services/auth.py:196",
-   "app/services/auth.py:215",
-   "app/services/signup.py:232"
+   "app/services/auth.py:198",
+   "app/services/auth.py:217",
+   "app/services/signup.py:300"
   ],
   "client": false,
   "plural": false
@@ -6998,7 +7014,7 @@
  {
   "id": "يجب تأكيد أن عمرك 18 سنة أو أكثر والموافقة على شروط الاستخدام.",
   "where": [
-   "app/services/auth.py:187"
+   "app/services/auth.py:189"
   ],
   "client": false,
   "plural": false

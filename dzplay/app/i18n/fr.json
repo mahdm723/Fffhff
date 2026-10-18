@@ -175,6 +175,8 @@
  "إلغاء مكافأة دعوة (استرجاع العضوية)": "Annulation d’une récompense de parrainage (remboursement de l’adhésion)",
  "إن طلب التطبيق إذن الإشعارات فاسمح به لتصلك رسائلك الجديدة. لا يطلب كاميرا ولا ميكروفون.": "Si l’application demande l’autorisation d’envoyer des notifications, acceptez-la pour recevoir vos nouveaux messages. Elle ne demande ni la caméra ni le micro.",
  "إن ظهرت رسالة «لأمانك، لا يُسمح بتثبيت تطبيقات من هذا المصدر»: اضغط «الإعدادات» ثم فعّل «السماح من هذا المصدر» وارجع.": "Si le message « Pour votre sécurité, l’installation d’applications provenant de cette source n’est pas autorisée » s’affiche : appuyez sur « Paramètres », activez « Autoriser cette source », puis revenez.",
+ "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك بعد مراجعة الطلب.": "Si cette adresse e-mail est enregistrée, vous recevrez le code de récupération par e-mail après l’examen de la demande.",
+ "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك خلال دقائق.": "Si cette adresse e-mail est enregistrée, vous recevrez le code de récupération par e-mail dans quelques minutes.",
  "إنشاء الحساب": "Créer le compte",
  "ابحث بالاسم أو بالمعرّف. لا يظهر البريد أبدًا.": "Recherchez par nom ou par identifiant. L’e-mail n’apparaît jamais.",
  "ابحث عن أشخاص": "Rechercher des personnes",

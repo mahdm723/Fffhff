@@ -148,6 +148,9 @@ class Settings(BaseSettings):
     REGISTER_PER_EMAIL_PER_DAY: int = 5  # signups started for one mailbox (canonical address) per day
     REGISTER_VERIFY_PER_IP_PER_HOUR: int = 30  # code checks from one network per hour
     REGISTER_STARTS_PER_IP_PER_HOUR: int = 10  # signups started (and codes re-sent) from one network per hour
+    # V6 phase 18: codes e-mailed automatically (from the mail queue) or sent by the owner by hand (Telegram)
+    REGISTRATION_CODE_AUTO: bool = True
+    RESET_CODE_AUTO: bool = False
     ADMIN_SIGNUP_CODE_TRIES_PER_IP: int = 5  # wrong admin signup codes from one network per day (strict)
 
     # --- admin panel (separate admin accounts + TOTP 2FA) ---------------------

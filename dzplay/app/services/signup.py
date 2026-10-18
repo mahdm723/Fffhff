@@ -11,8 +11,13 @@ With REGISTRATION_EMAIL_VERIFICATION on (panel setting, on by default) the signu
    one can be sent after REGISTER_RESEND_SECONDS (REGISTER_MAX_SENDS at most), REGISTER_PER_EMAIL_PER_DAY signups
    per mailbox, REGISTER_STARTS_PER_IP_PER_HOUR / REGISTER_VERIFY_PER_IP_PER_HOUR per network.
 
-No working mailbox (not set up, or the server refuses): «التسجيل غير متاح مؤقتًا» and a Telegram alert to the owner
-(at most every 30 minutes).
+V6 phase 18 — the codes leave from a background queue (services/mail_queue.py), never from the request:
+* the answer is the same, and takes the same time, whether the address already has an account or not. A taken
+  address gets a pending row too (with a code that is never sent) and the queue e-mails it «لديك حساب بالفعل»;
+* REGISTRATION_CODE_AUTO on (default): the code is e-mailed, and the owner gets a note in Telegram (masked address);
+  off: the code and the address go to the owner in Telegram («أُرسل يدويًا» / «إلغاء التسجيل») to send by hand;
+* an e-mail that fails (or no mailbox set up) falls back to the manual path + an alert (at most every 30 minutes).
+«التسجيل غير متاح مؤقتًا» only when neither the system mailbox nor the Telegram bot works.
 
 The admin signup code: a code the owner chooses in the panel (12+ characters, stored as an argon2 hash, off by
 default, optional expiry and number of uses — it switches itself off at the last one). Typed on the code screen
@@ -25,11 +30,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app import clock, i18n
@@ -43,6 +49,7 @@ from app.services import audit, auth, mail, runtime_config
 from app.services.email_codes import mask
 from app.services.rate_limit import Limit
 
+log = logging.getLogger("dzplay.signup")
 ADMIN_CODE_KEY = "signup.admin_code"
 ADMIN_CODE_MIN = 12
 ADMIN_CODE_MAX = 128
@@ -86,17 +93,85 @@ def _unavailable(state, why: str) -> AppError:
     return AppError(503, "registration_unavailable", UNAVAILABLE)
 
 
-def _message(db: Session, settings: Settings, row: SignupPending, code: str):
+def _ready(state, db: Session) -> None:
+    """A code can reach the person: the system mailbox, or the owner's bot (manual path)."""
+    if not runtime_config.effective_settings(db, state.settings, "system").smtp_enabled and state.bot is None:
+        raise _unavailable(state, "لا بريد نظام ولا بوت Telegram")
+
+
+def _job(row: SignupPending, code: str) -> dict:
+    return {"id": row.id, "email": row.email, "lang": row.language, "code": code, "existing": bool(row.existing)}
+
+
+def _queue(state, job: dict) -> None:
+    if not state.mail_queue.submit(deliver, state, job):
+        raise _unavailable(state, "طابور البريد ممتلئ")
+
+
+def deliver(state, job: dict) -> None:
+    """Background (mail queue): the code — or «لديك حساب بالفعل» for a taken address — by e-mail in automatic mode,
+    to the owner in manual mode or when the e-mail cannot leave."""
+    settings = state.settings
+    if not settings.REGISTRATION_CODE_AUTO:
+        _manual(state, job, "")
+        return
     minutes = max(1, settings.REGISTER_CODE_TTL // 60)
-    return mail.prepare(db, settings, "system", row.email, "email.signup_code", {"code": code, "minutes": minutes},
-                        highlight=code, lang=row.language)
+    with state.database.session() as db:
+        if job["existing"]:
+            out = mail.prepare(db, settings, "system", job["email"], "email.signup_exists", {}, lang=job["lang"])
+        else:
+            out = mail.prepare(db, settings, "system", job["email"], "email.signup_code",
+                               {"code": job["code"], "minutes": minutes}, highlight=job["code"], lang=job["lang"])
+    reason = "بريد النظام غير مضبوط" if out is None else ""
+    if out is not None:
+        try:
+            mail.deliver(out)
+        except Exception as exc:  # noqa: BLE001 - MailError or anything else: the owner takes over
+            reason = f"تعذّر الإرسال ({type(exc).__name__})"
+    if not reason:
+        _note(state, ("ℹ️ محاولة تسجيل ببريد مسجّل مسبقًا ({masked}): أُرسلت له رسالة «لديك حساب بالفعل»."
+                      if job["existing"] else "ℹ️ أُرسل رمز تسجيل تلقائيًا إلى {masked}.").format(masked=mask(job["email"])))
+        return
+    _alert(state, f"⚠️ تعذّر إرسال رمز التسجيل تلقائيًا: {reason}. أُرسل إليك لترسله يدويًا. أصلح البريد من لوحة القيادة ← "
+                  "الأمان والنظام ← البريد ← «إرسال تجربة».")
+    _manual(state, job, reason)
 
 
-def _send(state, out) -> None:
+def _note(state, text: str, **kw) -> None:
+    bot = state.bot
+    if bot is None:
+        return
     try:
-        mail.deliver(out)
-    except Exception as exc:  # noqa: BLE001 - MailError or anything else: no signup without its e-mail
-        raise _unavailable(state, f"تعذّر إرسال رمز التسجيل بالبريد ({type(exc).__name__})") from None
+        bot.say(text, **kw)
+    except Exception as exc:  # noqa: BLE001 - a note never breaks the queue
+        log.warning("signup note not sent: %s", type(exc).__name__)
+
+
+def _alert(state, text: str) -> None:
+    try:
+        if state.limiter.check_and_hit([Limit("signup_mail_failed_alert", 1, ALERT_EVERY)]).allowed:
+            _note(state, text)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _manual(state, job: dict, reason: str) -> None:
+    """The owner sends the code by hand (manual mode, or the e-mail could not leave)."""
+    if state.bot is None:
+        log.warning("signup code for %s could not be delivered (no mailbox, no bot)", mask(job["email"]))
+        return
+    why = f" — {reason}" if reason else ""
+    if job["existing"]:
+        _note(state, f"ℹ️ محاولة تسجيل ببريد مسجّل مسبقًا{why}\nالبريد: {job['email']}\n"
+                     "لا رمز: صاحبه يملك حسابًا (يسجّل الدخول أو يستعيد كلمة المرور).")
+        return
+    minutes = max(1, state.settings.REGISTER_CODE_TTL // 60)
+    ref = job["id"][:16]
+    keyboard = {"inline_keyboard": [[{"text": "✅ أُرسل يدويًا", "callback_data": f"sg:sent:{ref}"}],
+                                    [{"text": "✖️ إلغاء التسجيل", "callback_data": f"sg:cancel:{ref}"}]]}
+    _note(state, f"✉️ رمز تسجيل حساب جديد{why}\nالبريد: {job['email']}\nالرمز: {job['code']}\n\n"
+                 f"صالح {minutes} دقيقة ولمرة واحدة. أرسله بنفسك إلى هذا البريد، ثم اضغط «أُرسل يدويًا».",
+          reply_markup=keyboard)
 
 
 def _limit_ip(state, ctx, what: str, limit: int) -> None:
@@ -119,38 +194,35 @@ def start(state, ctx, lang: str | None, **form) -> dict:
     """The signup form (with the code on): check everything, keep it pending, e-mail the code."""
     settings = state.settings
     with state.database.session() as db:
-        if not runtime_config.effective_settings(db, settings, "system").smtp_enabled:
-            raise _unavailable(state, "بريد النظام غير مضبوط")
+        _ready(state, db)
         _limit_ip(state, ctx, "start", settings.REGISTER_STARTS_PER_IP_PER_HOUR)
-        reg = auth.validate_registration(db, settings, ctx, **form)
+        reg = auth.validate_registration(db, settings, ctx, allow_taken=True, **form)
         canon = auth.canonical_email(reg.email)
         d = state.limiter.check_and_hit([Limit(f"signup_mailbox:{keyed_hash(settings.SECRET_KEY, 'signup', canon)[:40]}",
                                                max(1, settings.REGISTER_PER_EMAIL_PER_DAY), 86400)])
         if not d.allowed:
             db.commit()  # keep the consumed anti-bot challenge
             raise rate_limited(d.retry_after, "طُلب التسجيل بهذا البريد مرات كثيرة اليوم. حاول لاحقًا.")
+        existing = auth.email_in_use(db, reg.email)  # same work, same answer: only the e-mail differs (in the queue)
         db.execute(delete(SignupPending).where(SignupPending.email_canonical == canon))  # a new try replaces the old
         token = secrets.token_urlsafe(24)
         now = clock.utcnow()
         row = SignupPending(id=_id(token), email=reg.email, email_canonical=canon, password_hash=hash_password(reg.password),
                             display_name=reg.display_name, gender=reg.gender, language=i18n.normalize(lang),
                             ip_hash=ctx.ip_hash, device_id=ctx.device_id, attempts=0, sends=1, last_sent_at=now,
-                            expires_at=now + timedelta(seconds=settings.REGISTER_CODE_TTL), created_at=now, code_hash="")
-        code = _new_code()
+                            expires_at=now + timedelta(seconds=settings.REGISTER_CODE_TTL), created_at=now, code_hash="",
+                            existing=existing or None)
+        code = _new_code()  # a taken address: never sent (nobody can guess it in REGISTER_CODE_MAX_ATTEMPTS tries)
         row.code_hash = _code_hash(settings, row.id, code)
         db.add(row)
-        out = _message(db, settings, row, code)
-        if out is None:
-            db.rollback()
-            raise _unavailable(state, "بريد النظام غير مضبوط")
         db.commit()
         answer = _answer(settings, token, row)
-        pending_id = row.id
+        job = _job(row, code)
     try:
-        _send(state, out)
+        _queue(state, job)
     except AppError:
         with state.database.session() as db:
-            db.execute(delete(SignupPending).where(SignupPending.id == pending_id))
+            db.execute(delete(SignupPending).where(SignupPending.id == job["id"]))
             db.commit()
         raise
     return answer
@@ -182,8 +254,7 @@ def resend(state, ctx, token: object) -> dict:
         if (row.sends or 0) >= settings.REGISTER_MAX_SENDS:
             raise AppError(429, "too_many_sends", "أُرسل الرمز مرات كثيرة. أعد التسجيل لاحقًا.")
         _limit_ip(state, ctx, "start", settings.REGISTER_STARTS_PER_IP_PER_HOUR)
-        if not runtime_config.effective_settings(db, settings, "system").smtp_enabled:
-            raise _unavailable(state, "بريد النظام غير مضبوط")
+        _ready(state, db)
         now = clock.utcnow()
         code = _new_code()
         row.code_hash = _code_hash(settings, row.id, code)
@@ -191,13 +262,10 @@ def resend(state, ctx, token: object) -> dict:
         row.attempts = 0
         row.last_sent_at = now
         row.expires_at = now + timedelta(seconds=settings.REGISTER_CODE_TTL)
-        out = _message(db, settings, row, code)
-        if out is None:
-            db.rollback()
-            raise _unavailable(state, "بريد النظام غير مضبوط")
         db.commit()
         answer = _answer(settings, token, row)
-    _send(state, out)
+        job = _job(row, code)
+    _queue(state, job)
     return answer
 
 
@@ -245,6 +313,35 @@ def verify(db: Session, state, ctx, token: object, code: object, effects) -> Use
                       used["enabled"])
     db.delete(row)
     return user
+
+
+def install(state) -> None:
+    """Telegram buttons sg:<sent|cancel>:<first 16 characters of the pending id> (admin chat only)."""
+    from app.services.media_moderation import mark_done
+
+    def on_callback(bot, cq: dict, payload: str) -> None:
+        action, _, ref = payload.partition(":")
+        if action not in ("sent", "cancel") or not re.fullmatch(r"[0-9a-f]{16}", ref):
+            bot.tg.answer_callback(cq.get("id"), "غير معروف")
+            return
+        actor = f"telegram:{(cq.get('from') or {}).get('id')}"
+        with state.database.session() as db:
+            row = db.scalar(select(SignupPending).where(SignupPending.id.like(f"{ref}%")))
+            if row is None:
+                label = "انتهى هذا التسجيل (أُكمل أو أُلغي أو انتهت صلاحيته)"
+            elif action == "sent":
+                audit.record(db, actor, "signup_code_sent_by_hand", target_type="signup", detail=mask(row.email))
+                label = "✅ أُرسل الرمز يدويًا"
+            else:
+                audit.record(db, actor, "signup_cancelled", target_type="signup", detail=mask(row.email))
+                db.delete(row)
+                label = "✖️ أُلغي التسجيل"
+        bot.tg.answer_callback(cq.get("id"), label[:60])
+        msg = cq.get("message") or {}
+        mark_done(state, (msg.get("chat") or {}).get("id"), msg.get("message_id"), label)
+
+    if state.bot is not None:
+        state.bot.callback_handlers["sg"] = on_callback
 
 
 def alert_admin_code_used(state, masked: str, public_id: str, uses: int, max_uses: int | None, enabled: bool) -> None:

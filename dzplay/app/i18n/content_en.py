@@ -205,6 +205,12 @@ CONTENT: dict[str, tuple[str | None, str]] = {
         "{app}: your account confirmation code {code}",
         "Hello,\n\nYour code to confirm your new {app} account:\n\n{code}\n\nEnter it in the app to finish signing up. It is valid for {minutes} minutes. Don’t share it with anyone: the {app} team will never ask you for it.\nIf you didn’t ask to create an account, ignore this message: no account will be created.\n\nThe {app} team",
     ),
+    "email.signup_exists": (
+        "{app}: you already have an account",
+        "Hello,\n\nSomeone asked to create a new {app} account with this address, but you already have an account.\n"
+        "Sign in with your password, or choose \"Forgot password\" on the sign-in screen.\n"
+        "If it wasn’t you, ignore this message: nothing changed on your account.\n\nThe {app} team",
+    ),
     "email.reset": (
         "Your {app} account recovery code",
         "Your {app} account recovery code:\n\n    {code}\n\nEnter this code in the app to choose a new password. It's valid for "

@@ -46,6 +46,7 @@ def _code(smtp) -> str:
 def _start(hx, c, email, **extra):
     r = hx.register(c, email, **extra)
     assert r.status_code == 202, r.text
+    hx.state.mail_queue.wait_idle()  # V6 phase 18: the code leaves from the mail queue
     return r.json()
 
 
@@ -138,6 +139,7 @@ def test_resend_waits_and_replaces_the_code(make_harness, smtp):
     assert r.status_code == 429 and r.json()["error"]["retry_after"] > 0  # REGISTER_RESEND_SECONDS
     clock.advance(hx.settings.REGISTER_RESEND_SECONDS + 1)
     r = c.post("/api/auth/register/resend", json={"signup_token": d["signup_token"]})
+    hx.state.mail_queue.wait_idle()
     assert r.status_code == 200 and len(smtp.messages) == 2
     second = _code(smtp)
     clock.advance(hx.settings.REGISTER_RESEND_SECONDS + 1)
@@ -157,8 +159,11 @@ def test_one_mailbox_one_account_and_the_limits(make_harness, smtp):
     c = hx.client()
     d = _start(hx, c, "john.doe@gmail.com")
     assert c.post("/api/auth/register/verify", json={"signup_token": d["signup_token"], "code": _code(smtp)}).status_code == 201
-    r = hx.register(hx.client(), "johndoe+second@googlemail.com")  # the same Gmail mailbox
-    assert r.status_code == 409 and r.json()["error"]["code"] == "email_taken"
+    # the same Gmail mailbox: the same answer as a new address (V6 phase 18), «لديك حساب بالفعل» by e-mail, no account
+    _start(hx, hx.client(), "johndoe+second@googlemail.com")
+    assert "لديك حساب بالفعل" in smtp.messages[-1]["msg"]["Subject"]
+    with hx.db() as db:
+        assert len(db.scalars(select(User).where(User.email_canonical == "johndoe@gmail.com")).all()) == 1
     # per mailbox per day (any spelling)
     for spelling in ("ma.ry@gmail.com", "mary+1@gmail.com"):
         _start(hx, hx.client(), spelling)
@@ -185,27 +190,33 @@ def test_the_phone_limit_still_applies(make_harness, smtp):
     assert smtp.messages == []
 
 
-def test_no_mailbox_means_signup_is_unavailable(make_harness):
-    hx = _hx(make_harness, None)  # no SMTP at all
+def test_no_mailbox_and_no_bot_means_signup_is_unavailable(make_harness):
+    hx = make_harness(REGISTRATION_EMAIL_VERIFICATION=True)  # neither SMTP nor Telegram: no way to deliver a code
     r = hx.register(hx.client(), "nomail@example.com")
     assert r.status_code == 503 and r.json()["error"] == {"code": "registration_unavailable",
                                                           "message": "التسجيل غير متاح مؤقتًا. حاول لاحقًا."}
-    alerts = [t for t in hx.tg.texts() if "التسجيل متوقف مؤقتًا" in t]
-    assert len(alerts) == 1
-    hx.register(hx.client(), "nomail2@example.com")
-    assert len([t for t in hx.tg.texts() if "التسجيل متوقف مؤقتًا" in t]) == 1  # at most every 30 minutes
     with hx.db() as db:
         assert db.scalars(select(SignupPending)).all() == [] and db.scalars(select(User)).all() == []
 
 
-def test_a_mail_server_that_refuses_keeps_nothing(make_harness):
+def test_a_mail_server_that_refuses_hands_the_code_to_the_owner(make_harness):
+    """V6 phase 18: the person keeps the code screen; the owner gets the code to send by hand + an alert."""
     hx = _hx(make_harness, None, SMTP_HOST="127.0.0.1", SMTP_PORT=1, SMTP_SECURITY="none", SMTP_FROM="no-reply@dzplay.test",
              SMTP_TIMEOUT=2)
-    r = hx.register(hx.client(), "refused@example.com")
-    assert r.status_code == 503 and r.json()["error"]["code"] == "registration_unavailable"
-    assert any("التسجيل متوقف مؤقتًا" in t for t in hx.tg.texts())
-    with hx.db() as db:
-        assert db.scalars(select(SignupPending)).all() == []
+    c = hx.client()
+    d = _start(hx, c, "refused@example.com")
+    hx.state.bot.wait_idle()
+    texts = hx.tg.texts()
+    assert sum("تعذّر إرسال رمز التسجيل تلقائيًا" in t for t in texts) == 1
+    code = _code_in_text(next(t for t in texts if "refused@example.com" in t))
+    assert c.post("/api/auth/register/verify", json={"signup_token": d["signup_token"], "code": code}).status_code == 201
+    _start(hx, hx.client(), "refused2@example.com")
+    hx.state.bot.wait_idle()
+    assert sum("تعذّر إرسال رمز التسجيل تلقائيًا" in t for t in hx.tg.texts()) == 1  # the alert: at most every 30 min
+
+
+def _code_in_text(text: str) -> str:
+    return re.search(r"\b([0-9]{6})\b", text).group(1)
 
 
 def test_with_the_setting_off_accounts_are_made_at_once(make_harness):

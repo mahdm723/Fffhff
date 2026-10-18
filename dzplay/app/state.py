@@ -30,6 +30,7 @@ class AppState:
     _revocations: object | None = None
     fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (new-message alerts in the Android app)
     pipeline: object | None = None  # V5 MediaPipeline (user uploads -> worker -> Telegram storage)
+    mail_queue: object | None = None  # V6 phase 18: MailQueue (code e-mails, off the request path)
 
     @classmethod
     def build(cls, settings: Settings, telegram_transport=None, chain_transport=None) -> "AppState":
@@ -54,6 +55,9 @@ class AppState:
         from app.services.media_pipeline import MediaPipeline
 
         state.pipeline = MediaPipeline(state)
+        from app.services.mail_queue import MailQueue
+
+        state.mail_queue = MailQueue()  # V6 phase 18: code e-mails never leave from the request
         media_items.install(media)
         from app.services import badges
 
@@ -128,6 +132,9 @@ class AppState:
         from app.services import membership
 
         membership.install(self)
+        from app.services import signup
+
+        signup.install(self)  # V6 phase 18: «أُرسل يدويًا» / «إلغاء التسجيل»
 
     def load_runtime_config(self) -> None:
         """Apply bot settings saved from the admin panel (they take precedence over .env)."""

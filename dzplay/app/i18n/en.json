@@ -175,6 +175,8 @@
  "إلغاء مكافأة دعوة (استرجاع العضوية)": "Referral reward cancelled (membership refund)",
  "إن طلب التطبيق إذن الإشعارات فاسمح به لتصلك رسائلك الجديدة. لا يطلب كاميرا ولا ميكروفون.": "If the app asks for notification permission, allow it so you get your new messages. It never asks for the camera or microphone.",
  "إن ظهرت رسالة «لأمانك، لا يُسمح بتثبيت تطبيقات من هذا المصدر»: اضغط «الإعدادات» ثم فعّل «السماح من هذا المصدر» وارجع.": "If you see \"For your security, your phone is not allowed to install unknown apps from this source\": tap \"Settings\", turn on \"Allow from this source\", then go back.",
+ "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك بعد مراجعة الطلب.": "If this email is registered, you'll receive the recovery code by email once the request has been reviewed.",
+ "إن كان هذا البريد مسجّلًا، سيصلك رمز الاستعادة على بريدك خلال دقائق.": "If this email is registered, you'll receive the recovery code by email within a few minutes.",
  "إنشاء الحساب": "Create account",
  "ابحث بالاسم أو بالمعرّف. لا يظهر البريد أبدًا.": "Search by name or ID. Email never appears.",
  "ابحث عن أشخاص": "Find people",

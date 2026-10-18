@@ -163,7 +163,7 @@ def login(body: LoginBody, request: Request, response: Response) -> dict:
 
 def _reset_enabled(request: Request) -> None:
     st = get_state(request)
-    if st.bot is None:
+    if st.bot is None and not st.settings.RESET_CODE_AUTO:  # V6 phase 18: automatic codes need no bot
         raise AppError(503, "reset_unavailable", "استعادة الحساب غير مفعّلة حاليًا. تواصل مع الإدارة.")
 
 
@@ -175,8 +175,11 @@ def reset_request(body: ResetRequestBody, request: Request) -> dict:
     ctx = client_context(request)
     with st.database.session() as db:
         result = password_reset.request_reset(db, st.settings, ctx, email=body.email, antibot_payload=body.antibot)
-    if result.get("notify"):
-        st.bot.run_later(password_reset.notify_admin, st.bot, result["notify"])  # after commit, off the request path
+    if result.get("notify"):  # after commit, off the request path
+        if st.settings.RESET_CODE_AUTO:  # V6 phase 18: e-mailed from the mail queue
+            st.mail_queue.submit(password_reset.auto_send, st, result["notify"])
+        else:
+            st.bot.run_later(password_reset.notify_admin, st.bot, result["notify"])
     return {"ok": True, "message": result["message"]}
 
 
