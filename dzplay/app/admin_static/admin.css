@@ -437,3 +437,16 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .admin-images, .admin-features { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .admin-images h4 { margin: 8px 0 0; font-size: 14px; }
 .admin-images__bar { position: sticky; bottom: 8px; align-items: center; padding: 8px; border-radius: 12px; background: var(--surface-2); }
+
+/* V6 phase 19: «الحساب الرسمي» */
+.admin-official { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.admin-official__who { display: flex; align-items: center; gap: 10px; font-size: 18px; }
+
+/* V6 phase 19 «الهوية» → «الشارات»: the two badges at every size on four backgrounds */
+.brand-badges__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 8px; }
+.brand-badges__panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.brand-badges__title { font-size: 13px; }
+.brand-badges__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.brand-badges__name { font-size: 11.5px; opacity: .75; }
+.brand-badges__row .brand-strip { align-items: flex-end; gap: 12px; }
+.brand-badges__names { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; font-size: 15px; font-weight: 700; }

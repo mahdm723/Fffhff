@@ -8,6 +8,8 @@ are not unique: people are told apart by their public ID (DZ-XXXXXX). Rules:
 * invisible characters and bidi controls (RTL override…) are refused outright;
 * reserved names (NAME_RESERVED) and anything containing "dzplay" are refused after a
   lookalike "skeleton" (0→o, 1/i→l, rn→m, Arabic letter variants, spaces removed…);
+* V6 phase 19: the official account's name is reserved inside any name, in every spelling (DALTA.BIT, D4LTA B1T,
+  «دالتا بيت», «دلتا بت الرسمي»…), and badge-like symbols (stars, checks, medals, crowns) get their own clear error;
 * offensive words / phone numbers are refused (the moderation lexicon + NAME_BLOCKED_WORDS);
 * a change every NAME_CHANGE_COOLDOWN_DAYS; going back to the default is always allowed;
 * previous names are kept in NameHistory (admin only). Names are always rendered as text.
@@ -38,6 +40,11 @@ _ARABIC_VARIANTS = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا"
 _LOOKALIKE = str.maketrans({"0": "o", "1": "l", "i": "l", "|": "l", "!": "l", "3": "e", "4": "a", "5": "s", "7": "t",
                             "8": "b", "9": "g", "$": "s", "@": "a"})
 GENDERS = ("male", "female", "unspecified")
+# V6 phase 19: the official account's name in every spelling, compared INSIDE the skeleton of a name
+_BRAND = ("daltablt", "deltablt", "دالتابيت", "دالتابت", "دلتابيت", "دلتابت", "ديلتابت", "ديلتابيت")
+# Badge-like symbols: the gold badge and the blue star are the app's own marks (Unicode names, any variant)
+_BADGE_WORDS = ("STAR", "CHECK", "MEDAL", "CROWN", "TROPHY", "SPARKLE", "BALLOT", "BADGE", "ROSETTE", "DIZZY",
+                "SQUARE ROOT", "CIRCLED LATIN SMALL LETTER V", "HEAVY MULTIPLICATION")
 
 
 _default = {"name": "dzplay"}
@@ -53,6 +60,10 @@ def default_name() -> str:
 
 
 def shown_name(user: User | None, settings: Settings | None = None) -> str:
+    if user is not None and user.is_official:  # V6 phase 19: always the app's name (APP_NAME)
+        from app.services import brand
+
+        return brand.app_name()
     fallback = settings.DEFAULT_DISPLAY_NAME if settings is not None else _default["name"]
     return (user.display_name if user is not None and user.display_name else None) or fallback
 
@@ -71,6 +82,23 @@ def search_key(text: str) -> str:
     return moderation.normalize(unicodedata.normalize("NFKC", text or ""))
 
 
+def badge_like(text: str) -> bool:
+    """A star, a check mark, a medal, a crown… anywhere in the text (V6 phase 19)."""
+    for ch in text:
+        if ord(ch) < 0x2000:
+            continue  # letters, digits and the usual punctuation
+        name = unicodedata.name(ch, "")
+        if any(w in name for w in _BADGE_WORDS):
+            return True
+    return False
+
+
+def brand_like(text: str) -> bool:
+    """The official account's name inside a name, in any spelling (V6 phase 19)."""
+    sk = skeleton(text)
+    return any(b in sk for b in _BRAND)
+
+
 def _reserved(settings: Settings) -> set[str]:
     return {skeleton(w) for w in settings.NAME_RESERVED.split(",") if w.strip()}
 
@@ -81,6 +109,8 @@ def clean(raw: object, settings: Settings) -> str:
         raise AppError(400, "invalid_name", "اسم غير صالح.")
     if _INVISIBLE.search(raw):
         raise AppError(400, "invalid_name", "الاسم يحتوي حروفًا مخفية غير مسموح بها.")
+    if badge_like(raw):
+        raise AppError(400, "badge_symbol_name", "لا يُسمح بالنجوم أو علامات التوثيق أو الشارات في الاسم.")
     name = unicodedata.normalize("NFKC", raw)
     if _INVISIBLE.search(name):
         raise AppError(400, "invalid_name", "الاسم يحتوي حروفًا مخفية غير مسموح بها.")
@@ -89,6 +119,8 @@ def clean(raw: object, settings: Settings) -> str:
     if not (settings.NAME_MIN_LENGTH <= len(name) <= settings.NAME_MAX_LENGTH):
         raise AppError(400, "invalid_name_length", "الاسم بين {min} و{max} حرفًا.",
                        params={"min": settings.NAME_MIN_LENGTH, "max": settings.NAME_MAX_LENGTH})
+    if brand_like(name):  # before the character check: «DALTA.BIT» is refused as the reserved name it is
+        raise AppError(400, "reserved_name", "هذا الاسم محجوز. اختر اسمًا آخر.")
     if not _ALLOWED.match(name):
         raise AppError(400, "invalid_name_chars", "الاسم: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط.")
     if not re.search(r"[ء-يA-Za-z]", name):
@@ -96,7 +128,7 @@ def clean(raw: object, settings: Settings) -> str:
     sk = skeleton(name)
     brand = skeleton(settings.APP_NAME)  # V6 phase 8: the current app name (and the old one) cannot be impersonated
     if (sk in _reserved(settings) or "dzplay" in sk or "دزبلاي" in sk or "ديزدبلاي" in sk
-            or (len(brand) >= 4 and brand in sk)):
+            or (len(brand) >= 4 and brand in sk) or brand_like(name)):
         raise AppError(400, "reserved_name", "هذا الاسم محجوز. اختر اسمًا آخر.")
     hit = moderation.scan(name, settings.NAME_BLOCKED_WORDS)
     if hit.categories:

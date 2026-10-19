@@ -1,6 +1,6 @@
 // DOM helpers. User content is only ever inserted with textContent — never innerHTML.
 import { appName, wordmarkParts } from './brand.js';
-import { STAR_CHECK, STAR_SEAL, icon } from './icons.js';
+import { GOLD_CHECK, GOLD_FLAT, GOLD_SEAL, STAR_CHECK, STAR_SEAL, icon } from './icons.js';
 import { LOGO } from './logo-shapes.js';
 import { t, locale } from './i18n.js';
 
@@ -67,10 +67,68 @@ export function genderMark(gender) {
   return h('span', { class: `gender gender--${gender}`, title: g[1] }, icon(g[0]), h('span', { class: 'sr-only', text: g[1] }));
 }
 
-/** A display name as plain text (dir="auto": Arabic or Latin) + gender icon. */
-export function nameLine(name, gender, cls = '', verified = false) {
+/** A display name as plain text (dir="auto": Arabic or Latin) + gender icon. V6 phase 19: the official account
+ *  gets the gold badge instead (never a star, never a gender). */
+export function nameLine(name, gender, cls = '', verified = false, official = false) {
   return h('span', { class: `name-line ${cls}` }, h('bdi', { class: 'name-line__text', text: name || 'dzplay' }),
-    verified ? starMark() : null, genderMark(gender));
+    ...[official ? goldMark() : verified ? starMark() : null, official ? null : genderMark(gender)].filter(Boolean));
+}
+
+let goldSeq = 0;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+/** V6 phase 19: the gold badge of the official account — the blue star's seal in gold with a thick white check.
+ *  From 28 px: a metallic gradient (#FFE08A → #F5B83D → #C98A14), a light rim and a soft highlight on the upper part.
+ *  Smaller: one flat colour (--gold, appearance.GOLD) on a pixel grid of its own size (16 / 18 / 20 / 24) so it
+ *  stays crisp. Same size and alignment as the star (18 px next to names). A tap explains it. */
+export function goldMark({ size = 18, interactive = true } = {}) {
+  const svg = svgEl('svg', { 'aria-hidden': 'true' });
+  if (size >= 28) {
+    const id = `gold${(goldSeq += 1)}`;
+    svg.setAttribute('viewBox', '0 0 24 24');
+    const grad = svgEl('linearGradient', { id: `${id}g`, x1: '0', y1: '0', x2: '0', y2: '1' });
+    for (const [o, c] of [['0', '#FFE08A'], ['0.55', '#F5B83D'], ['1', '#C98A14']]) grad.append(svgEl('stop', { offset: o, 'stop-color': c }));
+    const clip = svgEl('clipPath', { id: `${id}c` });
+    clip.append(svgEl('path', { d: GOLD_SEAL }));
+    svg.append(svgEl('defs', {}), svgEl('path', { class: 'gold-mark__metal', d: GOLD_SEAL, fill: `url(#${id}g)`, stroke: `url(#${id}g)` }),
+      svgEl('path', { class: 'gold-mark__rim', d: GOLD_SEAL }),
+      svgEl('ellipse', { class: 'gold-mark__shine', cx: '12', cy: '6.6', rx: '7.4', ry: '3.4', 'clip-path': `url(#${id}c)` }),
+      svgEl('path', { class: 'gold-mark__shade', d: GOLD_CHECK, transform: 'translate(0 0.45)' }),
+      svgEl('path', { class: 'gold-mark__check', d: GOLD_CHECK }));
+    svg.firstChild.append(grad, clip);
+  } else {
+    const grid = size <= 16 ? 16 : size <= 18 ? 18 : size <= 20 ? 20 : 24;
+    const g = GOLD_FLAT[grid];
+    svg.setAttribute('viewBox', `0 0 ${grid} ${grid}`);
+    svg.append(svgEl('path', { class: 'gold-mark__seal', d: g.seal, 'stroke-width': String(g.rim) }),
+      svgEl('path', { class: 'gold-mark__check', d: g.check, 'stroke-width': String(g.w) }));
+  }
+  const label = t('الحساب الرسمي لـ {app}', { app: appName() });
+  const mark = h('span', { class: `gold-mark${size >= 28 ? ' gold-mark--metal' : ''}`, title: label }, svg, h('span', { class: 'sr-only', text: label }));
+  mark.style.width = `${size}px`;
+  mark.style.height = `${size}px`;
+  if (interactive) {
+    mark.setAttribute('role', 'button');
+    mark.tabIndex = 0;
+    const open = (e) => { e.preventDefault(); e.stopPropagation(); officialSheet(); };
+    mark.addEventListener('click', open);
+    mark.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') open(e); });
+  }
+  return mark;
+}
+
+/** What the gold badge means (tap on it). */
+export function officialSheet() {
+  sheet((panel, close) => panel.append(h('div', { class: 'official-sheet' },
+    goldMark({ size: 56, interactive: false }),
+    h('h2', { text: t('الحساب الرسمي لـ {app}', { app: appName() }) }),
+    h('p', { text: t('منشورات {app} وإعلاناته الرسمية. لا يستقبل الرسائل: للمساعدة استعمل «حسابي ← الدعم والمساعدة».', { app: appName() }) }),
+    h('div', { class: 'actions' }, h('button', { class: 'btn btn--block btn--ghost', type: 'button', onclick: close }, t('إغلاق'))))));
 }
 
 /** The blue star (the membership badge): one size next to every name (18px, centred on the text line);

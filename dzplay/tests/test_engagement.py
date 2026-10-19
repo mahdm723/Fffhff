@@ -110,7 +110,9 @@ def test_random_from_category_official_badge_and_ideas_privacy(hx):
     assert [t["posted"] for t in r["targets"]] == [3, 3]
     mine = owner.get(f"/api/posts/{pids[0]}/comments").json()["comments"]
     assert len(mine) == 3 and len({c["content"] for c in mine}) == 3
-    assert all(c["author"]["name"] == f"{hx.settings.APP_NAME} الرسمي" and c["official"] and c["team"] for c in mine)
+    # V6 phase 19: shown as the official account itself (the app name, the gold badge), not as «الفريق»
+    assert all(c["author"]["name"] == hx.settings.APP_NAME and c["official"] and c["author"]["official"]
+               and not c["team"] for c in mine)
     assert len(other.get(f"/api/posts/{pids[0]}/comments").json()["comments"]) == 3  # V6: public, badged
     assert owner.get("/api/me").json()["unseen_comments"] == 3  # post A's were just read; post B's 3 are new
     # random again can only use what is left (one unused text per post)

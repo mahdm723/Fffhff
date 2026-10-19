@@ -17,7 +17,7 @@ export function renderUsers(page, { navigate }) {
   function personRow(p) {
     return h('button', { class: 'user-row', type: 'button', role: 'listitem', onclick: () => navigate(`#/id/${p.public_id}`) },
       personAvatar(p.name, { url: p.avatar_url }),
-      h('span', { class: 'user-row__text' }, nameLine(p.name, p.gender, 'user-row__name', p.verified),
+      h('span', { class: 'user-row__text' }, nameLine(p.name, p.gender, 'user-row__name', p.verified, p.official),
         h('small', { class: 'user-row__id', dir: 'ltr', text: p.public_id })),
       icon('chev', 'chev'));
   }

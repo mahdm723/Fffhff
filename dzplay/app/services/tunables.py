@@ -79,6 +79,7 @@ REGISTRY: list[Tunable] = [
     Tunable("MAX_POSTS_PER_HOUR", "int", "ideas", "أفكار في الساعة", 1, 200),
     Tunable("MAX_POSTS_PER_DAY", "int", "ideas", "أفكار في اليوم", 1, 1000),
     Tunable("MAX_POST_LENGTH", "int", "ideas", "أقصى طول للفكرة (حرف)", 50, 10000),
+    Tunable("OFFICIAL_POSTS_PER_DAY", "int", "ideas", "منشورات الحساب الرسمي في 24 ساعة (0 = بلا حد)", 0, 1000),
     # chat
     Tunable("MAX_MESSAGES_PER_MINUTE", "int", "chat", "رسائل في الدقيقة", 1, 120),
     Tunable("MAX_MESSAGES_PER_HOUR", "int", "chat", "رسائل في الساعة", 1, 2000),

@@ -43,13 +43,13 @@ export function renderUser(page, { ref, publicId, navigate }) {
       ? h('button', { class: 'btn btn--primary', type: 'button', onclick: () => messagePerson(person.public_id, navigate, person) },
         icon('chat'), person.conversation_id ? t('فتح المحادثة') : t('مراسلة'))
       : null;
-    if (msgBtn && !person.can_message && !person.conversation_id) {
+    if (msgBtn && !person.official && !person.can_message && !person.conversation_id) { // official: its reply sheet
       msgBtn.disabled = true;
       msgBtn.title = t('لا يستقبل رسائل مباشرة');
     }
     card.replaceChildren(...[
       personAvatar(p.name, { size: 'xl', url: p.avatar_url }),
-      h('div', { class: 'id-card__name' }, nameLine(p.name, p.gender, '', p.verified)),
+      h('div', { class: 'id-card__name' }, nameLine(p.name, p.gender, '', p.verified, p.official)),
       idChip(p.public_id),
       msgBtn ? h('div', { class: 'id-card__actions' }, msgBtn) : null,
     ].filter(Boolean));

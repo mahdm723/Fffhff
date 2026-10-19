@@ -88,21 +88,43 @@ export function openIdea(pid) {
       body.replaceChildren(
         h('div', { class: 'admin-group glass' }, authorLine(d.idea.author), h('p', { class: 'admin-text', dir: 'auto', text: d.idea.content }),
           h('p', { class: 'admin-meta', text: counts(d.idea) })),
-        h('p', { class: 'admin-meta', text: 'التعليقات على الأفكار يراها صاحب الفكرة فقط داخل التطبيق.' }),
-        ...(d.comments.length ? d.comments.map((c) => commentRow(c, 'idea_comment', paint)) : [emptyState('لا تعليقات.')]));
+        h('p', { class: 'admin-meta', text: 'التعليقات عامة يراها الجميع. يمكنك التعليق أو الرد باسم الحساب الرسمي (الشارة الذهبية).' }),
+        officialReply(pid, null, paint),
+        ...(d.comments.length ? d.comments.map((c) => commentRow(c, 'idea_comment', paint, pid)) : [emptyState('لا تعليقات.')]));
     };
     paint();
   });
 }
 
-function commentRow(c, kind, after) {
+// V6 phase 19: a comment (or a reply to `parent`) as the official account (gold badge), from the idea's page
+function officialReply(pid, parent, after) {
+  const text = h('textarea', { class: 'input', rows: '2', dir: 'auto', maxlength: '2000', placeholder: parent ? 'الرد باسم الحساب الرسمي' : 'تعليق باسم الحساب الرسمي' });
+  const send = h('button', { type: 'button', class: 'btn btn--primary btn--sm' }, parent ? 'رد رسمي' : 'تعليق رسمي');
+  send.addEventListener('click', async () => {
+    if (!text.value.trim()) return;
+    send.disabled = true;
+    const body = { target: 'idea', target_id: pid, text: text.value.trim(), parent_id: parent ? parent.id : null };
+    if (await attempt(() => call('POST', '/api/admin/official-comment', body))) { toast('نُشر باسم الحساب الرسمي.'); after(); }
+    send.disabled = false;
+  });
+  return h('div', { class: 'admin-actions admin-official-reply' }, text, send);
+}
+
+function commentRow(c, kind, after, pid = null) {
+  const reply = pid ? h('div', { hidden: true }) : null;
   return h('div', { class: `admin-card glass ${c.author && c.author.team ? 'admin-card--team' : ''}` },
     h('div', { class: 'admin-card__head' }, authorLine(c.author), h('time', { class: 'admin-card__time', text: when(c.created_at) })),
     h('p', { class: 'admin-text', dir: 'auto', text: c.content }),
-    h('div', { class: 'admin-actions' }, h('button', { type: 'button', class: 'btn btn--danger btn--sm', onclick: async () => {
-      if (!(await confirmDanger('حذف التعليق؟', c.content.slice(0, 120), 'حذف'))) return;
-      if (await attempt(() => call('DELETE', `/api/admin/access/content/${kind}/${encodeURIComponent(c.id)}`))) { toast('حُذف.'); after(); }
-    } }, 'حذف')));
+    h('div', { class: 'admin-actions' },
+      pid ? h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onclick: () => {
+        reply.hidden = !reply.hidden;
+        if (!reply.firstChild) reply.append(officialReply(pid, c, after));
+      } }, 'رد رسمي') : null,
+      h('button', { type: 'button', class: 'btn btn--danger btn--sm', onclick: async () => {
+        if (!(await confirmDanger('حذف التعليق؟', c.content.slice(0, 120), 'حذف'))) return;
+        if (await attempt(() => call('DELETE', `/api/admin/access/content/${kind}/${encodeURIComponent(c.id)}`))) { toast('حُذف.'); after(); }
+      } }, 'حذف')),
+    reply);
 }
 
 // ------------------------------------------------------------------ conversations

@@ -671,9 +671,9 @@ def find_person(db: Session, public_id: object) -> User | None:
     if not re.match(PUBLIC_ID_RE, pid):
         return None
     u = db.scalar(select(User).where(User.public_id == pid))
-    if u is None or u.status != "active" or u.is_system or u.is_official:
+    if u is None or u.status != "active" or u.is_system:
         return None
-    return u
+    return u  # V6 phase 19: the official account can be found (its card opens); it never receives messages
 
 
 def require_adult(user: User) -> None:
@@ -681,10 +681,15 @@ def require_adult(user: User) -> None:
         raise AppError(403, "age_required", "أكّد أن عمرك 18 سنة أو أكثر من الإعدادات أولًا.")
 
 
+OFFICIAL_NO_DM = N_("هذا الحساب لا يستقبل الرسائل. للمساعدة تواصل مع الدعم من «حسابي ← الدعم والمساعدة».")
+
+
 def direct_target(db: Session, user: User, public_id: object) -> User:
     target = find_person(db, public_id)
     if target is None or target.id == user.id or _blocked_between(db, user.id, target.id):
         raise not_found()  # unknown, blocked either way, suspended: indistinguishable
+    if target.is_official:  # V6 phase 19: the official account answers through support only
+        raise AppError(403, "official_no_dm", OFFICIAL_NO_DM)
     return target
 
 
@@ -703,8 +708,14 @@ def existing_direct_by_public_id(db: Session, viewer: User, public_id: object) -
 
 
 def person_card(db: Session, viewer: User, public_id: object) -> dict:
-    target = direct_target(db, viewer, public_id)
     from app.services import ideas
+
+    official = find_person(db, public_id)
+    if official is not None and official.is_official:  # V6 phase 19: its card, without messaging
+        return {"name": names.shown_name(official), "public_id": official.public_id, "gender": None,
+                "profile_ref": ideas.profile_ref_for(db, official.id), "can_message": False, "conversation_id": None,
+                "verified": False, "official": True, "no_dm": i18n.tr(OFFICIAL_NO_DM), "avatar_url": None}
+    target = direct_target(db, viewer, public_id)
 
     conv = existing_direct(db, viewer.id, target.id)
     if conv is not None and conv.status == "active":
@@ -714,7 +725,7 @@ def person_card(db: Session, viewer: User, public_id: object) -> dict:
     visible = conv is not None and not conv.hidden_for(viewer.id)
     return {"name": names.shown_name(target), "public_id": target.public_id, "gender": names.public_gender(target),
             "profile_ref": ideas.profile_ref_for(db, target.id), "can_message": can_message,
-            "conversation_id": conv.id if visible else None, "verified": badges.star(target),
+            "conversation_id": conv.id if visible else None, "verified": badges.star(target), "official": False,
             "avatar_url": avatar_url(target)}
 
 

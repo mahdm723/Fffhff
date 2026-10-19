@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import clock
+from app.errors import AppError
 from app.models import LedgerEntry, User
 
 ACCOUNTS = ("membership", "rewards")
@@ -53,6 +54,8 @@ def post(db: Session, *, user_id: str, account: str, kind: str, amount_minor: in
         raise ValueError(f"invalid ledger kind {account}/{kind}")
     if not isinstance(amount_minor, int) or amount_minor == 0:
         raise ValueError("amount must be a non-zero integer (cents)")
+    if db.scalar(select(User.is_official).where(User.id == user_id)):  # V6 phase 19: no money, ever
+        raise AppError(400, "official_account", "الحساب الرسمي خارج العضوية والمكافآت والسحب.")
     existing = _find(db, account, source_type, source_id, kind)
     if existing is not None:
         return existing, False

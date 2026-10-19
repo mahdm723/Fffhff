@@ -4,8 +4,10 @@
 // monochrome), as the notification icon, in one colour, next to the DALTA.BIT wordmark, with the dot's glow pulse
 // and on a phone home screen; the earlier concepts; the brand colours and a proposal (not applied) to align the
 // app's default accent with the brand red. Nothing here changes the app.
+// V6 phase 19 «الشارات»: the blue star and the gold badge at every size, on the app's dark and light pages and on
+// two wallpapers, with their measured contrast.
 import { appName, wordmarkParts } from '/js/brand.js';
-import { h } from '/js/ui.js';
+import { goldMark, h, nameLine, starMark } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 import { call, handleError, spinner } from './admin-common.js';
 
@@ -275,6 +277,55 @@ function chosenCard(d, colors) {
     both((v) => h('div', { class: 'brand-phones' }, phone(v.L, colors, 'circle', v.S))));
 }
 
+// ------------------------------------------------------------------ «الشارات» (V6 phase 19)
+
+const BADGE_SIZES = [14, 16, 18, 20, 24, 34, 56];
+// the app's own page colours (appearance.SURFACES) and two wallpapers; each panel takes its theme's badge colours
+const BADGE_TONES = [['dark', 'الوضع الداكن'], ['light', 'الوضع الفاتح'], ['wall-dark', 'خلفية صورة داكنة'], ['wall-light', 'خلفية صورة فاتحة']];
+
+function sizedStar(px) {
+  const s = starMark();
+  s.style.width = `${px}px`;
+  s.style.height = `${px}px`;
+  return s;
+}
+
+function badgesCard(d) {
+  const b = d.badges;
+  const tonePanel = ([tone, title]) => {
+    const mode = tone.endsWith('dark') ? 'dark' : 'light';
+    const p = h('div', { class: 'brand-panel brand-badges__panel', 'data-tone': tone });
+    p.style.background = PANEL_BG[tone] || d.surfaces[mode].bg;
+    p.style.color = mode === 'dark' ? '#eef0f8' : '#1a1c2a';
+    p.style.setProperty('--star', b[mode].star.color);
+    p.style.setProperty('--gold', b[mode].gold.color);
+    const row = (make, name, kind) => h('div', { class: 'brand-badges__row', 'data-badge': kind },
+      h('small', { class: 'brand-badges__name', text: name }),
+      wrap(...BADGE_SIZES.map((px) => labelled(make(px), `${px}`))));
+    p.append(h('b', { class: 'brand-badges__title', text: title }),
+      row(sizedStar, 'النجمة الزرقاء', 'star'),
+      row((px) => goldMark({ size: px, interactive: false }), 'الشارة الذهبية (معدنية من 28px)', 'gold'),
+      h('div', { class: 'brand-badges__names' }, nameLine(appName(), null, 'brand-badges__who', false, true),
+        nameLine('اسم موثّق', null, '', true)));
+    return p;
+  };
+  // the measured contrast (the rule: ≥ 3:1 on the page and the cards, and of the white check on the badge)
+  const num = (v) => h('td', { dir: 'ltr', text: `${v}:1` });
+  const contrast = h('div', { class: 'viz-table glass' }, h('table', {},
+    h('thead', {}, h('tr', {}, ...['', 'اللون', 'على الصفحة', 'على البطاقات', 'العلامة البيضاء'].map((c) => h('th', { text: c })))),
+    h('tbody', {}, ...['dark', 'light'].flatMap((mode) => [['gold', 'الذهبية'], ['star', 'الزرقاء']].map(([key, name]) => {
+      const v = b[mode][key];
+      return h('tr', {}, h('th', { text: `${name} · ${mode === 'dark' ? 'داكن' : 'فاتح'}` }),
+        h('td', { dir: 'ltr', text: v.color }), num(v.page), num(v.card), num(v.check));
+    })))));
+  return h('section', { class: 'admin-card glass brand-badges', id: 'brand-badges', 'aria-labelledby': 'brand-badges-title' },
+    h('h2', { id: 'brand-badges-title', text: 'الشارات' }),
+    h('p', { class: 'admin-meta', text: 'النجمة الزرقاء (التوثيق والعضوية) والشارة الذهبية (الحساب الرسمي): نفس الشكل (12 فصًّا) ونفس الحجم والمحاذاة بجانب الاسم (18px). الذهبية من 28px فما فوق معدنية بتدرّج ولمعة خفيفة، وأصغر من ذلك مسطحة بلون واحد على شبكة بكسل خاصة بحجمها (16 · 18 · 20 · 24). اضغط الشارة الذهبية بجانب الاسم لترى ما يظهر للمستخدم.' }),
+    h('div', { class: 'brand-badges__grid' }, ...BADGE_TONES.map(tonePanel)),
+    h('h3', { text: 'التباين المقيس (الحد الأدنى 3:1)' }),
+    contrast);
+}
+
 function swatch(name, hex, note) {
   const chip = h('span', { class: 'brand-swatch__chip' });
   chip.style.background = hex;
@@ -313,6 +364,7 @@ export function renderBrand(main) {
           swatch('أسود', colors.black), swatch('أبيض', colors.white),
           swatch('أحمر العلامة', colors.red, `تباين ${k.red_on_black}:1 على الأسود، ${k.red_on_white}:1 على الأبيض`)),
       ),
+      badgesCard(d),
       chosenCard(d, colors),
       h('details', { class: 'admin-card glass brand-earlier' },
         h('summary', { text: 'المفاهيم السابقة (للمقارنة)' }),

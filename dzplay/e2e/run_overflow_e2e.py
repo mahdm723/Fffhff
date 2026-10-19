@@ -12,7 +12,7 @@ their detail views):
    it; on Home the band under it is opaque and what scrolls goes under it;
 6. the blue star: 18×18 next to every name (profile, posts, comments, likers, users, search, conversations,
    chat), centred on the name, its seal and check exactly centred, in --star of the theme — dark and light,
-   every accent.
+   every accent (the badge sizes on «الهوية» → «الشارات» are a preview and are checked by run_brand_e2e).
 
 All problems are listed at the end (one run shows everything); any problem fails the test.
 
@@ -134,7 +134,7 @@ CHECK_JS = r"""(opts) => {
   document.body.append(probe);
   const starColour = getComputedStyle(probe).color;
   probe.remove();
-  const stars = [...scope.querySelectorAll('.star-mark')].filter((s) => !s.closest('#star-sizes') && shown(s));
+  const stars = [...scope.querySelectorAll('.star-mark')].filter((s) => !s.closest('#star-sizes, #brand-badges') && shown(s));
   for (const s of stars) {
     const where = desc(s.closest('.name-line') ? s.closest('.name-line').parentElement : s.parentElement);
     const r = s.getBoundingClientRect();
@@ -237,14 +237,24 @@ def seed_long(base: str, db_url: str) -> dict:
     from sqlalchemy import create_engine, update
     from sqlalchemy.orm import Session
 
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
     from app import clock
-    from app.models import User
+    from app.models import Post, User
 
     with Session(create_engine(db_url)) as db:  # both are members: the blue star shows next to their names
         db.execute(update(User).where(User.email.in_(["fit-a@example.com", "fit-b@example.com"]))
                    .values(verified_at=clock.utcnow(), member_since=clock.utcnow()))
+        # V6 phase 19: a pinned post of the official account (gold badge) on top of the ideas
+        official = db.scalar(select(User).where(User.is_official.is_(True)))
+        now = clock.utcnow()
+        db.add(Post(author_id=official.id, content="إعلان رسمي: تحديث جديد للتطبيق مع تفاصيل كثيرة " * 4 + LONG_WORD,
+                    created_at=now, updated_at=now, pinned_until=now + timedelta(days=1)))
+        official_pub = official.public_id
         db.commit()
-    return {"a": a, "pid": pid, "conv": conv, "tid": tid, "b_pub": b_pub}
+    return {"a": a, "pid": pid, "conv": conv, "tid": tid, "b_pub": b_pub, "official_pub": official_pub}
 
 
 # ----------------------------------------------------------------------------- app pages
@@ -289,6 +299,17 @@ def user_pages(run: Run, browser, base: str, data: dict, width: int) -> None:
     page.locator(".home-switch__tab[data-pane=ideas]").click()
     page.wait_for_timeout(500)
     run.shot(page, f"{width}-home")
+    # V6 phase 19: the official post pinned on top, its gold badge, and what a tap on it says
+    first = page.locator(".post-card").first
+    problem_if("post-card--pinned" not in (first.get_attribute("class") or "") or first.locator(".gold-mark").count() != 1,
+               f"{width} home: the pinned official post with its gold badge is not first")
+    first.locator(".gold-mark").click()
+    expect(page.locator(".official-sheet")).to_be_visible()
+    page.wait_for_timeout(400)
+    check(page, f"{width} official badge sheet", ".sheet")
+    run.shot(page, f"{width}-sheet-official")
+    page.keyboard.press("Escape")
+    expect(page.locator(".sheet-backdrop")).to_have_count(0)
 
     for route, ready, place in pages:
         visit(route, ready)
@@ -313,6 +334,18 @@ def user_pages(run: Run, browser, base: str, data: dict, width: int) -> None:
     expect(page.locator(".sheet .likers .user-row .star-mark").first).to_be_visible()
     page.wait_for_timeout(400)  # the sheet's entry animation
     stars["likers"] = check(page, f"{width} likers sheet", ".sheet")
+    page.keyboard.press("Escape")
+
+    visit("#/users", ".user-row")
+    problem_if(page.locator(".user-row").first.locator(".gold-mark").count() != 1, f"{width} users: the official account is not first")
+    # its profile: «مراسلة» answers with the way to support (it never receives messages)
+    visit(f"#/id/{data['official_pub']}", ".id-card__name .gold-mark")
+    check(page, f"{width} official profile")
+    page.locator(".id-card__actions .btn").click()
+    expect(page.locator(".sheet").get_by_role("button", name=T("الدعم والمساعدة"))).to_be_visible()
+    page.wait_for_timeout(400)
+    check(page, f"{width} official no-message sheet", ".sheet")
+    run.shot(page, f"{width}-sheet-official-dm")
     page.keyboard.press("Escape")
 
     visit("#/users", ".user-row")
@@ -350,7 +383,7 @@ def user_pages(run: Run, browser, base: str, data: dict, width: int) -> None:
     if width == WIDTHS[0] and LANG == "ar":
         star_themes(run, page)
     ctx.close()
-    run.step(f"{width}px: home (both panes), 14 pages and 5 sheets fit; stars in {', '.join(sorted(stars))}")
+    run.step(f"{width}px: home (both panes), 15 pages and 7 sheets fit; stars in {', '.join(sorted(stars))}; the gold badge")
 
 
 def star_themes(run: Run, page: Page) -> None:
@@ -433,7 +466,7 @@ def public_pages(run: Run, browser, base: str, width: int) -> None:
 
 # ----------------------------------------------------------------------------- panel
 
-PANEL_TABS = ("overview", "users", "content", "engage", "reports", "media", "membership", "rewards", "giveaway",
+PANEL_TABS = ("overview", "users", "content", "engage", "reports", "media", "official", "membership", "rewards", "giveaway",
               "texts", "brand", "support", "settings", "system", "logs")
 DETAIL = {"users": ".admin-card--tap", "content": ".admin-card--tap", "support": ".admin-line--btn", "texts": ".i18n-cell"}
 

@@ -36,12 +36,34 @@ OFFICIAL_EMAIL = "official@dzplay.invalid"  # not a real mailbox; the account ha
 
 
 def official_user(db: Session) -> User:
-    user = db.scalar(select(User).where(User.is_official.is_(True)))
+    """V6 phase 19: the one official account (DALTA.BIT, gold badge). No password, no e-mail sign-in, no Google:
+    it posts only from the panel (2FA) or the owner's bot. Its shown name is always APP_NAME (names.shown_name)."""
+    user = db.scalar(select(User).where(User.is_official.is_(True)).order_by(User.created_at))
     if user is None:
+        from app.models import new_public_user_id
+        from app.services import brand, names
+
+        name = brand.app_name()
         user = User(email=OFFICIAL_EMAIL, password_hash=None, google_sub=None, status="active", is_official=True,
-                    privacy_ack_version=PRIVACY_VERSION)
+                    privacy_ack_version=PRIVACY_VERSION, display_name=name, name_norm=names.search_key(name),
+                    public_id=new_public_user_id(), searchable_by_name=True)
         db.add(user)
         db.flush()
+    return user
+
+
+def ensure_official(db: Session, settings: Settings) -> User:
+    """At start-up: exactly one official account, named after the app (the old «DZPLAY» row is reused)."""
+    from app.services import names
+
+    user = official_user(db)
+    for extra in db.scalars(select(User).where(User.is_official.is_(True), User.id != user.id)).all():
+        extra.is_official = None  # never two «official» accounts (cannot happen through the app; kept safe anyway)
+        extra.status = "suspended"
+    if user.display_name != settings.APP_NAME:
+        user.display_name, user.name_norm = settings.APP_NAME, names.search_key(settings.APP_NAME)
+    user.password_hash, user.google_sub, user.status = None, None, "active"
+    db.flush()
     return user
 
 
@@ -56,23 +78,36 @@ def _comment_text(db: Session, settings: Settings, text: object, library_id: obj
 
 
 def official_comment(db: Session, settings: Settings, *, target: str, target_id: str, text: object,
-                     library_id: object, effects: Effects) -> dict:
+                     library_id: object, effects: Effects, parent_id: object = None) -> dict:
+    """A public comment as the official account (V6 phase 19: or a reply to a comment, in its thread)."""
     user = official_user(db)
     if target == "idea":
+        from app.services import notify
+        from app.services.ideas import _comment_by_id
+
         post = db.get(Post, str(target_id)[:32])
         if post is None or post.status != "visible":
             raise not_found()
+        parent = None
+        if parent_id:
+            parent, parent_post = _comment_by_id(db, parent_id)
+            if parent_post.id != post.id or parent.visibility != "public" or parent.deleted_at is not None:
+                raise not_found()
         body = _comment_text(db, settings, text, library_id, settings.MAX_COMMENT_LENGTH)
-        comment = Comment(post_id=post.id, author_id=user.id, content=body, created_at=clock.utcnow(), visibility="public")
+        comment = Comment(post_id=post.id, author_id=user.id, content=body, created_at=clock.utcnow(), visibility="public",
+                          parent_id=(parent.parent_id or parent.id) if parent is not None else None,
+                          reply_to_user_id=parent.author_id if parent is not None else None)
         db.add(comment)
+        own = post.author_id == user.id
         db.execute(update(Post).where(Post.id == post.id).values(
-            comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + 1))
+            comments_count=Post.comments_count + 1, unseen_comments_count=Post.unseen_comments_count + (0 if own else 1)))
         db.flush()
-        from app.services import notify
-
-        # V6 phase 4: public like any comment, shown as «DZPLAY الرسمي» with the team badge
-        notify.create(db, post.author_id, "comment", effects, actor_id=user.id, post_id=post.id, comment_id=comment.id)
-        effects.signal(post.author_id, "comment")
+        replied_to = parent.author_id if parent is not None else None
+        if replied_to and replied_to != user.id:
+            notify.create(db, replied_to, "reply", effects, actor_id=user.id, post_id=post.id, comment_id=comment.id)
+        if not own and post.author_id != replied_to:  # public like any comment, under the official name + gold badge
+            notify.create(db, post.author_id, "comment", effects, actor_id=user.id, post_id=post.id, comment_id=comment.id)
+            effects.signal(post.author_id, "comment")
         return {"target": "idea", "comment_id": comment.id}
     raise AppError(400, "invalid_target", "invalid target")
 

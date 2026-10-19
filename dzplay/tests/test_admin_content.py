@@ -39,10 +39,12 @@ def test_official_comment_on_idea_is_public_with_the_official_badge(hx):
     assert admin.post("/api/admin/official-comment", json={"target": "idea", "target_id": pid, "text": "فكرة رائعة!"}).status_code == 201
     assert owner.get("/api/me").json()["unseen_comments"] == 1
     mine = owner.get(f"/api/posts/{pid}/comments").json()["comments"]
-    assert mine[0]["author"]["name"] == f"{hx.settings.APP_NAME} الرسمي" and mine[0]["official"] and mine[0]["team"]
-    assert mine[0]["content"] == "فكرة رائعة!" and mine[0]["author"]["public_id"] is None
+    # V6 phase 19: the official account is shown as itself — the app name, its profile and the gold badge
+    assert mine[0]["author"]["name"] == hx.settings.APP_NAME and mine[0]["official"] and not mine[0]["team"]
+    assert mine[0]["author"]["official"] is True and mine[0]["author"]["verified"] is False
+    assert mine[0]["content"] == "فكرة رائعة!" and mine[0]["author"]["public_id"]
     seen = other.get(f"/api/posts/{pid}/comments").json()["comments"]  # V6: public, with the badge
-    assert seen[0]["team"] is True and seen[0]["content"] == "فكرة رائعة!"
+    assert seen[0]["official"] is True and seen[0]["content"] == "فكرة رائعة!"
     assert [n["kind"] for n in owner.get("/api/notifications").json()["notifications"]] == ["comment"]
     assert admin.post("/api/admin/official-comment", json={"target": "idea", "target_id": "nope", "text": "x"}).status_code == 404
     assert admin.post("/api/admin/official-comment", json={"target": "user", "target_id": pid, "text": "x"}).status_code == 400
@@ -51,13 +53,16 @@ def test_official_comment_on_idea_is_public_with_the_official_badge(hx):
 def test_official_account_is_not_a_user(hx):
     a = hx.user()
     hx.admin().post("/api/admin/official-comment", json={"target": "idea", "target_id": idea(a), "text": "مرحبًا"})
-    # never a message recipient: its public ID is unknown to the messaging
+    # V6 phase 19: it exists from startup (one row) and can be viewed, but never receives a message
     b = hx.user()
     with hx.db() as db:
-        official_pid = db.scalar(select(User.public_id).where(User.is_official.is_(True)))
-    assert official_pid and send(a, official_pid, "مرحبا").status_code == 404
+        rows = db.scalars(select(User).where(User.is_official.is_(True))).all()
+        assert len(rows) == 1 and rows[0].display_name == hx.settings.APP_NAME
+        official_pid = rows[0].public_id
+    r = send(a, official_pid, "مرحبا")
+    assert official_pid and r.status_code == 403 and r.json()["error"]["code"] == "official_no_dm"
     assert send(a, b, "مرحبا").status_code == 201
-    # cannot sign in, not counted, not listed
+    # cannot sign in, not counted among the users, never in the admin lists
     assert hx.login(hx.client(), "official@dzplay.invalid", "anything-at-all").status_code == 401
     assert hx.admin().get("/api/admin/stats").json()["users"]["total"] == 2
     assert all(u["ref"] for u in hx.admin().get("/api/admin/users", params={"filter": "reported"}).json()["users"])

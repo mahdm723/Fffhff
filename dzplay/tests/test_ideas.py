@@ -322,7 +322,7 @@ def test_profiles_show_only_public_idea_stats(hx):
     pid = prof.pop("public_id")
     assert pid.startswith("DZ-") and len(pid) == 9
     assert prof == {"ref": ref, "name": owner.get("/api/me").json()["display_name"], "gender": None, "verified": False,
-                    "avatar_url": None, "is_me": False, "stats": {"posts": 2, "likes": 2, "dislikes": 1}}
+                    "official": False, "avatar_url": None, "is_me": False, "stats": {"posts": 2, "likes": 2, "dislikes": 1}}
     posts = b.get(f"/api/profiles/{ref}/posts").json()["posts"]
     assert [p["content"] for p in posts] == ["الفكرة الثانية", "الفكرة الأولى"]
 

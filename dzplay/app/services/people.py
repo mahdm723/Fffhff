@@ -35,20 +35,25 @@ def _like(q: str) -> str:
 
 def card(db: Session, u: User) -> dict:
     return {"name": names.shown_name(u), "public_id": u.public_id, "gender": names.public_gender(u),
-            "profile_ref": ideas.profile_ref_for(db, u.id), "verified": badges.star(u),
+            "profile_ref": ideas.profile_ref_for(db, u.id), "verified": badges.star(u), "official": badges.official(u),
             "avatar_url": avatar_url(u)}
 
 
 def list_card(u: User) -> dict:
     """«المستخدمون»: the public card only."""
     return {"public_id": u.public_id, "name": names.shown_name(u), "avatar_url": avatar_url(u),
-            "verified": badges.star(u), "gender": names.public_gender(u)}
+            "verified": badges.star(u), "official": badges.official(u), "gender": names.public_gender(u)}
 
 
 def _base_filters(viewer: User) -> list:
     blocked = exists().where(or_(and_(Block.blocker_id == viewer.id, Block.blocked_id == User.id),
                                  and_(Block.blocker_id == User.id, Block.blocked_id == viewer.id)))
     return [User.status == "active", User.is_system.is_not(True), User.is_official.is_not(True), ~blocked]
+
+
+def _official(db: Session) -> User | None:
+    """V6 phase 19: the official account (listed first, found by name or ID; never messaged)."""
+    return db.scalar(select(User).where(User.is_official.is_(True), User.status == "active"))
 
 
 def check_lookup(settings: Settings, limiter, viewer: User) -> None:
@@ -71,8 +76,11 @@ def search(db: Session, settings: Settings, limiter, viewer: User, q: object, pa
 
     base = _base_filters(viewer)
     pid = q.upper()
+    official = _official(db)
     if re.match(PUBLIC_ID_RE, pid):
         rows = list(db.execute(select(User).where(User.public_id == pid, *base)).scalars())
+        if official is not None and official.public_id == pid:
+            rows = [official]
         return {"by": "id", "results": [card(db, u) for u in rows], "has_more": False}
 
     key = names.search_key(q)
@@ -85,7 +93,10 @@ def search(db: Session, settings: Settings, limiter, viewer: User, q: object, pa
         .order_by(User.last_active_at.desc()).offset(page * size).limit(size + 1)
     ).scalars())
     has_more = len(rows) > size and page + 1 < settings.SEARCH_MAX_PAGES
-    return {"by": "name", "results": [card(db, u) for u in rows[:size]], "has_more": has_more}
+    rows = rows[:size]
+    if page == 0 and official is not None and key.replace(" ", "") in (official.name_norm or "").replace(" ", ""):
+        rows = [official, *rows]  # V6 phase 19: the official account first when its name matches
+    return {"by": "name", "results": [card(db, u) for u in rows], "has_more": has_more}
 
 
 def _cursor_out(u: User) -> str:
@@ -121,7 +132,9 @@ def listing(db: Session, settings: Settings, limiter, viewer: User, q: object, c
         query = query.where(or_(User.last_active_at < at, and_(User.last_active_at == at, User.id < uid)))
     rows = list(db.execute(query.order_by(User.last_active_at.desc(), User.id.desc()).limit(size + 1)).scalars())
     page = rows[:size]
-    return {"results": [list_card(u) for u in page], "next_cursor": _cursor_out(page[-1]) if len(rows) > size else None}
+    first = [] if cursor else [u for u in (_official(db),) if u is not None]  # V6 phase 19: listed first
+    return {"results": [list_card(u) for u in [*first, *page]],
+            "next_cursor": _cursor_out(page[-1]) if len(rows) > size else None}
 
 
 def report_avatar(db: Session, settings: Settings, limiter, user: User, public_id: str, reason: object, details: object,

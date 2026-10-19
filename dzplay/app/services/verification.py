@@ -281,6 +281,8 @@ def resubmit(db: Session, settings: Settings, user: User, request_id: object, bo
 
 
 def grant(db: Session, user: User, actor: str, effects: Effects | None = None) -> None:
+    if user.is_official:  # V6 phase 19: it has the gold badge instead
+        raise AppError(400, "official_account", "الحساب الرسمي له الشارة الذهبية بدل النجمة.")
     user.verified_at, user.verified_by = clock.utcnow(), actor[:80]
     audit.record(db, actor, "verify_grant", target_type="user", target_id=user.public_id)
     if effects is not None:

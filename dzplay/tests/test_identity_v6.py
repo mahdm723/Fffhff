@@ -224,9 +224,11 @@ def test_users_list_excludes_and_paginates(hx):
         if not cursor:
             break
     ids = {c.get("/api/me").json()["public_id"] for c in people}
-    assert set(seen) == ids and len(seen) == len(set(seen))
+    with hx.db() as db:  # V6 phase 19: the official account comes first, on the first page only
+        official = db.scalar(select(User.public_id).where(User.is_official.is_(True)))
+    assert seen[0] == official and set(seen[1:]) == ids and len(seen) == len(set(seen))
     for p in d["results"]:
-        assert set(p) == {"public_id", "name", "avatar_url", "verified", "gender"}
+        assert set(p) == {"public_id", "name", "avatar_url", "verified", "official", "gender"} and p["official"] is False
     # search by name and by ID still respect the rules
     _set(hx, people[0].email, display_name="Yacine Trader", name_norm="yacine trader")
     found = viewer.get("/api/people?q=yacine").json()["results"]

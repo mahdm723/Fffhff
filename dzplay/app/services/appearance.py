@@ -26,6 +26,9 @@ SURFACES = {"dark": ("#0c0e18", "#161a29"), "light": ("#f5f2ec", "#ffffff")}
 # The blue star (membership badge) of each mode — a graphic, so ≥ 3:1 (WCAG 1.4.11) on the page and cards, and its
 # white check ≥ 3:1 on it (must match --star in static/css/app.css).
 STAR = {"dark": "#2a86ff", "light": "#1a73e8"}
+# V6 phase 19: the official account's gold badge, flat version (≤ 24 px) — the same two rules as the star (must match
+# --gold in static/css/app.css). The large version is a gradient #FFE08A → #F5B83D → #C98A14 (static/js/ui.js).
+GOLD = {"dark": "#c08510", "light": "#b07a0e"}
 MIN_GRAPHIC = 3.0
 
 # name: (label, dark (stop 1, stop 2), light (stop 1, stop 2)). The first one is the default (the DALTA.BIT identity).

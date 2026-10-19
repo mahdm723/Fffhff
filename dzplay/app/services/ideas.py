@@ -105,7 +105,7 @@ def _author_view(u: User | None) -> dict:
 
     return {"name": names.shown_name(u) if u is not None else PEER_NAME,
             "gender": names.public_gender(u) if u is not None else None,
-            "verified": badges.star(u),
+            "verified": badges.star(u), "official": badges.official(u),  # V6 phase 19: the gold badge
             "avatar_url": avatar_url(u) if u is not None and not u.is_system else None}
 
 
@@ -126,6 +126,7 @@ def serialize_post(p: Post, viewer_id: str, author_ref: str, my_reaction: str | 
         "can_comment": True,
         "can_react": not mine,
         "media": media,  # V5: one picture (signed, session-bound URL) or None
+        "pinned": bool(p.pinned_until and p.pinned_until > clock.utcnow()),  # V6 phase 19: an official post on top
         "status": p.status if mine and p.status != "visible" else None,  # pending (approval) / hidden (reports)
     }
 
@@ -274,6 +275,9 @@ def feed(db: Session, settings: Settings, user: User, *, cursor: str | None, lim
         seed, offset, snapshot = secrets.token_hex(8), 0, clock.utcnow()
 
     blocked = _blocked_ids(db, user.id)
+    from app.services.official import pinned_post
+
+    pinned = pinned_post(db)  # V6 phase 19: first on the first page, never drawn again
     q = (
         select(Post.id, Post.author_id, Post.created_at, Post.likes_count.label("likes"),
                Post.dislikes_count.label("dislikes"))
@@ -283,6 +287,8 @@ def feed(db: Session, settings: Settings, user: User, *, cursor: str | None, lim
     )
     if blocked:
         q = q.where(Post.author_id.not_in(blocked))
+    if pinned is not None:
+        q = q.where(Post.id != pinned.id)
     pool = db.execute(q).all()
     seen = set(db.execute(select(PostReaction.post_id).where(
         PostReaction.user_id == user.id, PostReaction.post_id.in_([r.id for r in pool]))).scalars()) if pool else set()
@@ -298,6 +304,8 @@ def feed(db: Session, settings: Settings, user: User, *, cursor: str | None, lim
 
     posts_by_id = {p.id: p for p in db.execute(select(Post).where(Post.id.in_(page_ids), Post.status == "visible")).scalars()} if page_ids else {}
     page = [posts_by_id[pid] for pid in page_ids if pid in posts_by_id]
+    if pinned is not None and not cursor:
+        page = [pinned, *page]
     next_offset = offset + limit
     return {
         "posts": _serialize_many(db, page, user.id),
@@ -442,19 +450,19 @@ def _comment_views(db: Session, post: Post, viewer_id: str, rows: list[Comment])
     out = []
     for c in rows:
         u = users.get(c.author_id)
-        team = bool(u is not None and (u.is_system or u.is_official))
+        team = bool(u is not None and u.is_system)  # V6 phase 19: the official account is shown as itself (gold badge)
         if team:
-            author = {"name": brand.official_name() if u.is_official else brand.team_name(), "public_id": None, "avatar_url": None,
-                      "verified": False, "gender": None}
+            author = {"name": brand.team_name(), "public_id": None, "avatar_url": None, "verified": False,
+                      "official": False, "gender": None}
         else:
             author = {"name": names.shown_name(u) if u else PEER_NAME, "public_id": u.public_id if u else None,
                       "avatar_url": avatar_url(u) if u else None, "verified": badges.star(u),
-                      "gender": names.public_gender(u) if u else None}
+                      "official": badges.official(u), "gender": names.public_gender(u) if u else None}
         to = users.get(c.reply_to_user_id) if c.reply_to_user_id else None
         out.append({
             "id": c.id, "author": author, "team": team, "official": bool(u is not None and u.is_official),
             "content": c.content, "created_at": iso(c.created_at), "parent_id": c.parent_id,
-            "reply_to": (brand.team_name() if to.is_system or to.is_official else names.shown_name(to)) if to else None,
+            "reply_to": (brand.team_name() if to.is_system else names.shown_name(to)) if to else None,
             "private": c.visibility is None, "mine": c.author_id == viewer_id,
             "can_delete": viewer_id in (c.author_id, post.author_id),
             "can_reply": c.visibility == "public",
@@ -632,6 +640,7 @@ def public_profile(db: Session, viewer: User, ref: str) -> dict:
         "gender": names.public_gender(owner),
         "public_id": owner.public_id,
         "verified": badges.star(owner),
+        "official": badges.official(owner),
         "avatar_url": avatar_url(owner),
         "is_me": owner.id == viewer.id,
         "stats": idea_stats(db, owner.id),  # public stats only — never messaging stats or personal data

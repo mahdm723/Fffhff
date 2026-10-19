@@ -425,6 +425,20 @@ class Post(Base):
     unseen_comments_count: Mapped[int] = mapped_column(Integer, default=0)  # for the author only
     # V5: one picture (MediaItem). status may then also be "pending" (awaiting approval) or "hidden" (reported).
     media_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # V6 phase 19: an official post pinned at the top of the ideas until this time (one at a time)
+    pinned_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class OfficialDraft(Base):
+    """V6 phase 19: a /post sent to the bot, waiting for «نشر» / «إلغاء» (text and/or a Telegram photo)."""
+
+    __tablename__ = "official_drafts"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_public_id)
+    content: Mapped[str] = mapped_column(Text, default="")
+    tg_file_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(10), default="pending")  # pending|publishing|posted|cancelled|failed
+    post_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.utcnow)
 
 
 class PostReaction(Base):

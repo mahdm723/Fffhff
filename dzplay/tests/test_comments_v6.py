@@ -128,7 +128,7 @@ def test_likers_list_and_dislikers_never_exposed(hx):
     ids = {x["public_id"] for x in likers["likers"]}
     assert ids == {_me(b)["public_id"], _me(c)["public_id"]}
     assert _me(d)["public_id"] not in json.dumps(likers)
-    assert set(likers["likers"][0]) == {"public_id", "name", "avatar_url", "verified", "gender"}
+    assert set(likers["likers"][0]) == {"public_id", "name", "avatar_url", "verified", "official", "gender"}
     assert d.get(f"/api/posts/{pid}").json()["dislikes"] == 1
     # no route anywhere lists who disliked
     paths = [p for p, _r in _all_routes(hx.app)]

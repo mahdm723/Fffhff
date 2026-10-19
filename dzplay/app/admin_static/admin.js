@@ -15,6 +15,7 @@ import { renderMedia, renderSettings, renderSupport } from './admin-v5.js';
 import { renderGiveaway, renderMembership, renderRewards } from './admin-money.js';
 import { renderLanguages } from './admin-i18n.js';
 import { renderBrand } from './admin-brand.js';
+import { renderOfficial } from './admin-official.js';
 
 const REFRESH_MS = 30_000;
 const app = document.getElementById('app');
@@ -74,6 +75,7 @@ const TABS = [
   ['engage', 'التفاعل'],
   ['reports', 'البلاغات'],
   ['media', 'الإشراف على الوسائط'],
+  ['official', 'الحساب الرسمي'],
   ['membership', 'العضوية والدفع'],
   ['rewards', 'المكافآت والسحب'],
   ['giveaway', 'الظرف الأحمر'],
@@ -190,7 +192,7 @@ function showTab(id) {
   ({
     overview: renderOverview, users: renderUsers, content: renderContent, engage: renderEngage, reports: renderReports,
     system: renderSystem, logs: renderSecurity,
-    media: renderMedia, membership: renderMembership, rewards: renderRewards, giveaway: renderGiveaway, texts: renderLanguages, brand: renderBrand, support: renderSupport, settings: renderSettings,
+    media: renderMedia, official: renderOfficial, membership: renderMembership, rewards: renderRewards, giveaway: renderGiveaway, texts: renderLanguages, brand: renderBrand, support: renderSupport, settings: renderSettings,
   })[id](main);
   window.scrollTo({ top: 0 });
 }
@@ -641,6 +643,14 @@ const AUDIT_LABELS = {
   settings_change: 'تغيير الإعدادات', monetize_accept: 'تحقيق الدخل: قبول', monetize_reject: 'تحقيق الدخل: رفض',
   monetize_fix: 'تحقيق الدخل: تصحيح', ledger_earning: 'أرباح: إضافة', ledger_payout: 'أرباح: دفعة الظرف الأحمر',
   ledger_adjustment: 'أرباح: تسوية', ledger_reversal: 'أرباح: إلغاء قيد', account_self_delete: 'حذف حساب بطلب صاحبه',
+  // V6 phases 16–19
+  membership_auto_granted: 'عضوية: منح تلقائي', membership_auto_revoked: 'عضوية: سحب منح تلقائي',
+  user_suspicious: 'تعليم حساب كمشبوه', user_unsuspicious: 'إزالة علامة مشبوه', device_suspicious: 'تعليم جهاز كمشبوه',
+  device_unsuspicious: 'إزالة علامة جهاز', images_grant: 'منح إذن نشر الصور', images_revoke: 'سحب إذن نشر الصور',
+  view_image_permissions: 'اطّلع على أذونات الصور', chat_images_purge: 'حذف صور المحادثات القديمة',
+  signup_code_sent_by_hand: 'رمز تسجيل أُرسل يدويًا', signup_cancelled: 'إلغاء تسجيل معلّق', reset_code_auto: 'رمز استعادة تلقائي',
+  official_post: 'منشور رسمي', official_pin: 'تثبيت منشور رسمي', official_unpin: 'إلغاء تثبيت منشور رسمي',
+  official_delete: 'حذف منشور رسمي',
 };
 const auditLabel = (a) => AUDIT_LABELS[a] || ({ report_: 'بلاغ: ', flag_: 'رصد: ' }[a.replace(/[a-z]+$/, '')] || '') + (RESOLUTIONS[a.split('_').pop()] || a);
 

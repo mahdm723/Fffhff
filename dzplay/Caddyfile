@@ -13,11 +13,11 @@
 {$DOMAIN} {
 	encode zstd gzip
 	# API bodies are tiny JSON documents; only file uploads (V5) may be larger (exact caps in the app).
-	@upload path /api/uploads
+	@upload path /api/uploads */api/admin/official/uploads
 	request_body @upload {
 		max_size 210MB
 	}
-	@small not path /api/uploads
+	@small not path /api/uploads */api/admin/official/uploads
 	request_body @small {
 		max_size 64KB
 	}

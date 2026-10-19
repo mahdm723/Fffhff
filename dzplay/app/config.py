@@ -309,6 +309,8 @@ class Settings(BaseSettings):
     AUTO_APPROVE_DAILY_MAX: int = 10  # automatic grants per day (UTC); beyond: back to the owner's review
     # V6 phase 17: the membership features, each switchable for everyone (services/membership.FEATURES)
     MEMBER_FEATURE_STAR: bool = True
+    # V6 phase 19: posts of the official account per 24 h (0 = no limit)
+    OFFICIAL_POSTS_PER_DAY: int = 0
 
     # --- V6 phase 5b: promotional rewards («أرباحي») — separate from membership, amounts in USDT -----
     REFERRAL_ENABLED: bool = True

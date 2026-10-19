@@ -102,7 +102,19 @@ def preview_data() -> dict:
         "accent_now": {"label": current[0], "dark": _accent(current[1], "dark"), "light": _accent(current[2], "light")},
         "accent_proposed": {"label": PROPOSED_ACCENT["label"], "dark": _accent(PROPOSED_ACCENT["dark"], "dark"),
                             "light": _accent(PROPOSED_ACCENT["light"], "light")},
+        "badges": _badges(),
     }
+
+
+def _badges() -> dict:
+    """V6 phase 19 «الشارات»: the blue star and the gold badge, their colour per theme and the measured contrast
+    (against the page and the cards, and of the white check on them)."""
+    out = {}
+    for mode, (bg, card) in ap.SURFACES.items():
+        out[mode] = {name: {"color": col[mode], "page": round(ap.contrast(col[mode], bg), 2),
+                            "card": round(ap.contrast(col[mode], card), 2), "check": round(ap.contrast("#ffffff", col[mode]), 2)}
+                     for name, col in (("star", ap.STAR), ("gold", ap.GOLD))}
+    return out
 
 
 @router.get("/brand")

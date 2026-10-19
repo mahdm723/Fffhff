@@ -55,6 +55,24 @@ def test_the_blue_star_reads_in_both_modes():
     assert "export const STAR_SEAL = rosette();" in icons and "STAR_CHECK = 'M7.5 12.375 10.25 15.125 16.5 8.875'" in icons
 
 
+def test_the_gold_badge_reads_in_both_modes():
+    """V6 phase 19: the official account's badge — the same seal as the star, the same rules (≥ 3 on the page and
+    the cards, white check ≥ 3 on the flat colour), the same 18 px next to names, and the metal gradient's stops."""
+    app_css = (STATIC / "css" / "app.css").read_text()
+    for mode, gold in ap.GOLD.items():
+        bg, card = ap.SURFACES[mode]
+        assert f"--gold: {gold};" in app_css, mode
+        assert min(ap.contrast(gold, bg), ap.contrast(gold, card)) >= ap.MIN_GRAPHIC, mode
+        assert ap.contrast(gold, ap.WHITE) >= ap.MIN_GRAPHIC, mode
+    assert re.search(r"\.gold-mark \{[^}]*width: 18px; height: 18px;", app_css)
+    icons = (STATIC / "js" / "icons.js").read_text()
+    assert "export const GOLD_SEAL = rosette();" in icons
+    for grid in (16, 18, 20, 24):  # a flat drawing on each small size's own pixel grid
+        assert re.search(rf"\b{grid}: \{{ seal: rosette\(", icons), grid
+    ui = (STATIC / "js" / "ui.js").read_text()
+    assert "['0', '#FFE08A'], ['0.55', '#F5B83D'], ['1', '#C98A14']" in ui and "size >= 28" in ui
+
+
 def test_appearance_is_saved_validated_and_returned(make_harness):
     hx = make_harness()
     a = hx.user()

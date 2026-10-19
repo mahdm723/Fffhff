@@ -63,12 +63,13 @@ def listing(db: Session, user: User) -> dict:
     out = []
     for n in rows:
         a = actors.get(n.actor_id)
-        team = bool(a and (a.is_system or a.is_official))
+        team = bool(a and a.is_system)  # V6 phase 19: the official account is shown as itself (gold badge)
         c = comments.get(n.comment_id)
         out.append({
             "id": n.id, "kind": n.kind, "post_id": n.post_id, "comment_id": n.comment_id,
             "actor": None if a is None else {"name": brand.team_name() if team else names.shown_name(a),
                                              "public_id": None if team else a.public_id,
+                                             "official": bool(a.is_official),
                                              "avatar_url": None if team else avatar_url(a)},
             "preview": preview(c.content, 120) if c is not None and c.deleted_at is None else None,
             "data": _shown(n.data),

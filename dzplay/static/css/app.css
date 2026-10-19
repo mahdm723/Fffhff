@@ -26,6 +26,7 @@
   --up: #3fcf8e; /* market: price up / down (with an arrow and a sign, never colour alone) */
   --down: #ff6b6b;
   --star: #2a86ff; /* the blue star (app/services/appearance.py STAR): ≥ 3 on the page and cards, white check ≥ 3 on it */
+  --gold: #c08510; /* V6 phase 19: the official account's flat gold badge (appearance.py GOLD): same rules */
   --grad: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   --bubble-mine: var(--grad);  /* accent colours: static/css/accents.css (generated) */
   --bubble-mine-ink: var(--on-accent);
@@ -61,6 +62,7 @@
     --up: #0b8a5a;
     --down: #d23c3c;
     --star: #1a73e8;
+    --gold: #b07a0e;
     --bubble-theirs: #ffffff;
     --shadow: 0 10px 30px -14px #1a1c2a40;
     color-scheme: light;
@@ -81,6 +83,7 @@
   --up: #0b8a5a;
   --down: #d23c3c;
   --star: #1a73e8;
+  --gold: #b07a0e;
   --bubble-theirs: #ffffff;
   --shadow: 0 10px 30px -14px #1a1c2a40;
   color-scheme: light;
@@ -251,6 +254,9 @@ a { color: var(--lilac); }
 
 .post-card { position: relative; border-radius: 22px; padding: 12px 14px 6px; }
 .post-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* V6 phase 19: the official post pinned at the top of the ideas */
+.post-card--pinned { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 70%, transparent), var(--shadow); }
+.post-card__pin { display: inline-flex; align-items: center; gap: 4px; margin-block-end: 6px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
 .post-card__author { border: 0; background: none; display: flex; align-items: center; gap: 10px; padding: 2px; border-radius: 14px; text-align: start; min-width: 0; }
 .post-card__who { display: flex; flex-direction: column; line-height: 1.25; }
 .post-card__name { font-weight: 700; direction: ltr; text-align: start; }
@@ -860,6 +866,21 @@ body::before {
 .star-mark__seal { fill: var(--star); stroke: var(--star); stroke-width: 1.5; stroke-linejoin: round; }
 .star-mark__check { fill: none; stroke: #fff; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .star-mark--lg { width: 34px; height: 34px; margin: 0; }
+/* V6 phase 19: the gold badge (ui.goldMark) — next to names it takes the star's place, size and alignment */
+.gold-mark { display: inline-flex; flex: none; width: 18px; height: 18px; margin-inline-start: 2px; cursor: pointer; border-radius: 50%; }
+.gold-mark:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.gold-mark svg { display: block; width: 100%; height: 100%; shape-rendering: geometricPrecision; overflow: visible; }
+.gold-mark__seal { fill: var(--gold); stroke: var(--gold); stroke-linejoin: round; }
+.gold-mark__check { fill: none; stroke: #fff; stroke-linecap: round; stroke-linejoin: round; }
+.gold-mark--metal .gold-mark__metal { stroke-width: 1.5; stroke-linejoin: round; }
+.gold-mark--metal .gold-mark__rim { fill: none; stroke: #fff4cf; stroke-opacity: .7; stroke-width: .55; stroke-linejoin: round; }
+.gold-mark--metal .gold-mark__shine { fill: #fff; opacity: .26; }
+.gold-mark--metal .gold-mark__shade { fill: none; stroke: #7a4e00; stroke-opacity: .35; stroke-width: 3.1; stroke-linecap: round; stroke-linejoin: round; }
+.gold-mark--metal .gold-mark__check { stroke-width: 2.7; }
+.official-sheet { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 10px; text-align: center; }
+.official-sheet h2 { margin: 4px 0 0; }
+.official-sheet p { margin: 0; color: var(--ink-2); }
+.official-sheet .actions { width: 100%; }
 
 .ticket-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .ticket-list > li { min-width: 0; }

@@ -28,6 +28,7 @@ from app.i18n import N_
 from app.api import account as account_api
 from app.api import admin as admin_api
 from app.api import admin_money as admin_money_api
+from app.api import admin_official as admin_official_api
 from app.api import admin_v5 as admin_v5_api
 from app.api import admin_brand as admin_brand_api
 from app.api import admin_cms as admin_cms_api
@@ -62,7 +63,7 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 ADMIN_STATIC_DIR = Path(__file__).resolve().parent / "admin_static"
 _ADMIN_ASSETS = {"admin.css": "text/css", **{f"{m}.js": "text/javascript" for m in (
     "admin", "admin-common", "admin-users", "admin-content", "admin-engage", "admin-system", "admin-v5", "admin-money",
-    "admin-texts", "admin-brand", "admin-i18n")}}
+    "admin-texts", "admin-brand", "admin-i18n", "admin-official")}}
 
 
 def brand(page: str, settings: Settings, base: str = "") -> str:
@@ -102,6 +103,7 @@ for _ext, _type in {".js": "text/javascript", ".webmanifest": "application/manif
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 MAX_BODY_BYTES = 64 * 1024  # API bodies are tiny JSON documents
 _UPLOAD_PATH = "/api/uploads"  # V5: file uploads carry their own per-purpose cap (app.services.media_items)
+_OFFICIAL_UPLOAD = "/api/admin/official/uploads"  # V6 phase 19: the official account's picture (capped by the route)
 # V6 phase 17: pictures in chats are switched off for good — refused here, before the body is read
 _CHAT_MEDIA_PATH = re.compile(r"^/api/conversations/[^/]+/media$")
 
@@ -248,6 +250,10 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         state.database.create_all()
         state.load_runtime_config()  # bot settings saved from the admin panel
+        with state.database.session() as db:  # V6 phase 19: exactly one official account, named after the app
+            from app.services import admin_content
+
+            admin_content.ensure_official(db, settings)
         if settings.secret_key_generated:
             log.warning("SECRET_KEY not set: using a temporary key (sessions survive, IP blocks reset on restart).")
         await state.hub.start()
@@ -310,7 +316,8 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
         if _chat_picture_upload(request):
             return _error(410, "chat_images_disabled", N_("إرسال الصور في المحادثات متوقف نهائيًا."))
         cap = I18N_IMPORT_BYTES if in_admin and path.startswith(admin_prefix + "/api/admin/i18n/import") else MAX_BODY_BYTES
-        if is_api and path != _UPLOAD_PATH and int(request.headers.get("content-length") or 0) > cap:
+        upload = path == _UPLOAD_PATH or (in_admin and path == admin_prefix + _OFFICIAL_UPLOAD)
+        if is_api and not upload and int(request.headers.get("content-length") or 0) > cap:
             return _error(413, "too_large", "الطلب كبير جدًا.")
         if is_api and request.method not in _SAFE_METHODS and path not in _CSRF_EXEMPT:
             # CSRF defence in depth (cookies are SameSite=Strict as well): a custom
@@ -384,6 +391,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
         app.include_router(admin_api.router, prefix=admin_prefix)
         app.include_router(admin_v5_api.router, prefix=admin_prefix)
         app.include_router(admin_money_api.router, prefix=admin_prefix)
+        app.include_router(admin_official_api.router, prefix=admin_prefix)  # V6 phase 19
         app.include_router(admin_cms_api.router, prefix=admin_prefix)
         app.include_router(admin_brand_api.router, prefix=admin_prefix)
         app.include_router(admin_i18n_api.router, prefix=admin_prefix)

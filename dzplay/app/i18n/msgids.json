@@ -148,7 +148,7 @@
  {
   "id": "{n} جديد",
   "where": [
-   "static/js/ideas.js:70"
+   "static/js/ideas.js:71"
   ],
   "client": true,
   "plural": true
@@ -481,7 +481,7 @@
  {
   "id": "أزرق",
   "where": [
-   "app/services/appearance.py:36"
+   "app/services/appearance.py:39"
   ],
   "client": false,
   "plural": false
@@ -521,7 +521,7 @@
  {
   "id": "أعجب {n} أشخاص",
   "where": [
-   "static/js/ideas.js:74"
+   "static/js/ideas.js:75"
   ],
   "client": true,
   "plural": true
@@ -529,7 +529,7 @@
  {
   "id": "أعجب شخصًا واحدًا",
   "where": [
-   "static/js/ideas.js:74"
+   "static/js/ideas.js:75"
   ],
   "client": true,
   "plural": false
@@ -537,7 +537,7 @@
  {
   "id": "أعجبتهم الفكرة",
   "where": [
-   "static/js/ideas.js:274"
+   "static/js/ideas.js:275"
   ],
   "client": true,
   "plural": false
@@ -657,7 +657,7 @@
  {
   "id": "أمس",
   "where": [
-   "static/js/ui.js:220"
+   "static/js/ui.js:278"
   ],
   "client": true,
   "plural": false
@@ -780,7 +780,7 @@
  {
   "id": "أول رسالة",
   "where": [
-   "static/js/people.js:51"
+   "static/js/people.js:62"
   ],
   "client": true,
   "plural": false
@@ -977,7 +977,7 @@
   "where": [
    "app/services/membership.py:216",
    "app/services/membership.py:299",
-   "app/services/verification.py:299",
+   "app/services/verification.py:301",
    "app/services/withdrawals.py:109"
   ],
   "client": false,
@@ -1026,7 +1026,7 @@
  {
   "id": "إرسال البلاغ",
   "where": [
-   "static/js/ideas.js:334",
+   "static/js/ideas.js:336",
    "static/js/views/chat.js:297"
   ],
   "client": true,
@@ -1035,7 +1035,7 @@
  {
   "id": "إرسال التعليق",
   "where": [
-   "static/js/ideas.js:109"
+   "static/js/ideas.js:110"
   ],
   "client": true,
   "plural": false
@@ -1051,7 +1051,7 @@
  {
   "id": "إرسال الصور في المحادثات متوقف نهائيًا.",
   "where": [
-   "app/main.py:311",
+   "app/main.py:317",
    "app/services/media_items.py:69"
   ],
   "client": false,
@@ -1076,7 +1076,7 @@
  {
   "id": "إرسال طلب المراسلة",
   "where": [
-   "static/js/people.js:52"
+   "static/js/people.js:63"
   ],
   "client": true,
   "plural": false
@@ -1172,7 +1172,7 @@
  {
   "id": "إعجاب",
   "where": [
-   "static/js/ideas.js:63",
+   "static/js/ideas.js:64",
    "static/js/views/profile.js:170",
    "static/js/views/profile.js:301",
    "static/js/views/user.js:25",
@@ -1192,10 +1192,12 @@
  {
   "id": "إغلاق",
   "where": [
-   "static/js/ideas.js:212",
-   "static/js/ideas.js:275",
+   "static/js/ideas.js:213",
+   "static/js/ideas.js:276",
    "static/js/media-pick.js:214",
+   "static/js/people.js:44",
    "static/js/privacy.js:29",
+   "static/js/ui.js:131",
    "static/js/views/market.js:73",
    "static/js/views/profile.js:198"
   ],
@@ -1213,11 +1215,11 @@
  {
   "id": "إلغاء",
   "where": [
-   "static/js/ideas.js:122",
-   "static/js/ideas.js:248",
-   "static/js/ideas.js:297",
+   "static/js/ideas.js:123",
+   "static/js/ideas.js:249",
+   "static/js/ideas.js:298",
    "static/js/people.js:31",
-   "static/js/ui.js:200",
+   "static/js/ui.js:258",
    "static/js/views/earnings.js:66",
    "static/js/views/profile.js:69",
    "static/js/views/profile.js:129",
@@ -1293,7 +1295,7 @@
  {
   "id": "ابحث بالاسم أو بالمعرّف. لا يظهر البريد أبدًا.",
   "where": [
-   "static/js/people.js:126"
+   "static/js/people.js:137"
   ],
   "client": true,
   "plural": false
@@ -1301,7 +1303,7 @@
  {
   "id": "ابحث عن أشخاص",
   "where": [
-   "static/js/people.js:125"
+   "static/js/people.js:136"
   ],
   "client": true,
   "plural": false
@@ -1317,7 +1319,7 @@
  {
   "id": "ابحث عن شخص بالاسم أو المعرّف",
   "where": [
-   "static/js/people.js:80"
+   "static/js/people.js:91"
   ],
   "client": true,
   "plural": false
@@ -1390,7 +1392,7 @@
  {
   "id": "اختر اسمًا يظهر للآخرين.",
   "where": [
-   "app/services/names.py:110"
+   "app/services/names.py:142"
   ],
   "client": false,
   "plural": false
@@ -1416,9 +1418,9 @@
  {
   "id": "اختر سبب البلاغ.",
   "where": [
-   "app/services/ideas.py:583",
+   "app/services/ideas.py:591",
    "app/services/messaging.py:531",
-   "app/services/people.py:138"
+   "app/services/people.py:151"
   ],
   "client": false,
   "plural": false
@@ -1461,7 +1463,7 @@
    "static/js/onboarding.js:69",
    "static/js/views/auth.js:280",
    "app/services/auth.py:187",
-   "app/services/names.py:147"
+   "app/services/names.py:179"
   ],
   "client": true,
   "plural": false
@@ -1477,7 +1479,7 @@
  {
   "id": "اختيار غير صالح.",
   "where": [
-   "app/services/appearance.py:135"
+   "app/services/appearance.py:138"
   ],
   "client": false,
   "plural": false
@@ -1565,7 +1567,7 @@
  {
   "id": "اسم أو معرّف مثل DZ-7K4P2M",
   "where": [
-   "static/js/people.js:80"
+   "static/js/people.js:91"
   ],
   "client": true,
   "plural": false
@@ -1581,7 +1583,7 @@
  {
   "id": "اسم غير صالح.",
   "where": [
-   "app/services/names.py:81"
+   "app/services/names.py:109"
   ],
   "client": false,
   "plural": false
@@ -1653,7 +1655,7 @@
  {
   "id": "افتح التطبيق للمتابعة.",
   "where": [
-   "app/main.py:308"
+   "app/main.py:314"
   ],
   "client": false,
   "plural": false
@@ -1678,7 +1680,7 @@
  {
   "id": "اقرأ المزيد",
   "where": [
-   "static/js/ideas.js:49"
+   "static/js/ideas.js:50"
   ],
   "client": true,
   "plural": false
@@ -1694,7 +1696,7 @@
  {
   "id": "اكتب أول رسالة…",
   "where": [
-   "static/js/people.js:51"
+   "static/js/people.js:62"
   ],
   "client": true,
   "plural": false
@@ -1737,7 +1739,7 @@
  {
   "id": "اكتب تعليقًا…",
   "where": [
-   "static/js/ideas.js:108"
+   "static/js/ideas.js:109"
   ],
   "client": true,
   "plural": false
@@ -1745,7 +1747,7 @@
  {
   "id": "اكتب حرفين على الأقل.",
   "where": [
-   "static/js/people.js:103"
+   "static/js/people.js:114"
   ],
   "client": true,
   "plural": false
@@ -1753,7 +1755,7 @@
  {
   "id": "اكتب حرفين على الأقل، أو الـID كاملًا (DZ-XXXXXX).",
   "where": [
-   "app/services/people.py:80"
+   "app/services/people.py:88"
   ],
   "client": false,
   "plural": false
@@ -1885,7 +1887,7 @@
  {
   "id": "الإبلاغ عن التعليق",
   "where": [
-   "static/js/ideas.js:223"
+   "static/js/ideas.js:224"
   ],
   "client": true,
   "plural": false
@@ -1893,7 +1895,7 @@
  {
   "id": "الإبلاغ عن المنشور",
   "where": [
-   "static/js/ideas.js:295"
+   "static/js/ideas.js:296"
   ],
   "client": true,
   "plural": false
@@ -1901,7 +1903,7 @@
  {
   "id": "الإبلاغ عن تعليق",
   "where": [
-   "static/js/ideas.js:346"
+   "static/js/ideas.js:348"
   ],
   "client": true,
   "plural": false
@@ -1925,7 +1927,7 @@
  {
   "id": "الإبلاغ عن منشور",
   "where": [
-   "static/js/ideas.js:346"
+   "static/js/ideas.js:348"
   ],
   "client": true,
   "plural": false
@@ -1995,7 +1997,7 @@
  {
   "id": "الاسم بين {min} و{max} حرفًا.",
   "where": [
-   "app/services/names.py:90"
+   "app/services/names.py:120"
   ],
   "client": false,
   "plural": false
@@ -2003,7 +2005,7 @@
  {
   "id": "الاسم يجب أن يحتوي حروفًا.",
   "where": [
-   "app/services/names.py:95"
+   "app/services/names.py:127"
   ],
   "client": false,
   "plural": false
@@ -2011,8 +2013,8 @@
  {
   "id": "الاسم يحتوي حروفًا مخفية غير مسموح بها.",
   "where": [
-   "app/services/names.py:83",
-   "app/services/names.py:86"
+   "app/services/names.py:111",
+   "app/services/names.py:116"
   ],
   "client": false,
   "plural": false
@@ -2020,7 +2022,7 @@
  {
   "id": "الاسم: حروف عربية أو لاتينية وأرقام ومسافة و _ فقط.",
   "where": [
-   "app/services/names.py:93"
+   "app/services/names.py:125"
   ],
   "client": false,
   "plural": false
@@ -2055,7 +2057,7 @@
  {
   "id": "البلاغات سرية. نحتفظ فقط بالنص المُبلّغ عنه لمراجعته.",
   "where": [
-   "static/js/ideas.js:347"
+   "static/js/ideas.js:349"
   ],
   "client": true,
   "plural": false
@@ -2087,8 +2089,8 @@
  {
   "id": "التعليقات",
   "where": [
-   "static/js/ideas.js:72",
-   "static/js/ideas.js:211"
+   "static/js/ideas.js:73",
+   "static/js/ideas.js:212"
   ],
   "client": true,
   "plural": false
@@ -2096,7 +2098,7 @@
  {
   "id": "التعليقات: {n}",
   "where": [
-   "static/js/ideas.js:72"
+   "static/js/ideas.js:73"
   ],
   "client": true,
   "plural": true
@@ -2154,6 +2156,31 @@
   "plural": false
  },
  {
+  "id": "الحساب الرسمي خارج العضوية والمكافآت والسحب.",
+  "where": [
+   "app/services/ledger.py:58"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "الحساب الرسمي لـ {app}",
+  "where": [
+   "static/js/ui.js:111",
+   "static/js/ui.js:129"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "الحساب الرسمي له الشارة الذهبية بدل النجمة.",
+  "where": [
+   "app/services/verification.py:285"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
   "id": "الخادم مشغول بمعالجة ملفات أخرى. حاول بعد دقيقة.",
   "where": [
    "app/api/uploads.py:84"
@@ -2189,6 +2216,7 @@
  {
   "id": "الدعم والمساعدة",
   "where": [
+   "static/js/people.js:43",
    "static/js/views/profile.js:280",
    "static/js/views/support.js:66"
   ],
@@ -2484,7 +2512,7 @@
  {
   "id": "الطلب كبير جدًا.",
   "where": [
-   "app/main.py:314"
+   "app/main.py:321"
   ],
   "client": false,
   "plural": false
@@ -2683,7 +2711,7 @@
  {
   "id": "المزيد",
   "where": [
-   "static/js/ideas.js:256",
+   "static/js/ideas.js:257",
    "app/api/policies.py:50"
   ],
   "client": true,
@@ -2734,7 +2762,8 @@
  {
   "id": "الملف أكبر من الحد المسموح ({mb} MB).",
   "where": [
-   "app/services/media_items.py:143"
+   "app/services/media_items.py:142",
+   "app/services/media_items.py:183"
   ],
   "client": false,
   "plural": false
@@ -2742,7 +2771,8 @@
  {
   "id": "الملف فارغ.",
   "where": [
-   "app/services/media_items.py:141"
+   "app/services/media_items.py:140",
+   "app/services/media_items.py:181"
   ],
   "client": false,
   "plural": false
@@ -2758,7 +2788,7 @@
  {
   "id": "الملف ما زال قيد المعالجة. انتظر لحظة.",
   "where": [
-   "app/services/media_items.py:199"
+   "app/services/media_items.py:215"
   ],
   "client": false,
   "plural": false
@@ -2767,7 +2797,7 @@
   "id": "الملف مرفوض.",
   "where": [
    "static/js/media-pick.js:197",
-   "app/services/media_items.py:201",
+   "app/services/media_items.py:217",
    "app/services/media_pipeline.py:161"
   ],
   "client": true,
@@ -2817,7 +2847,7 @@
  {
   "id": "اليوم",
   "where": [
-   "static/js/ui.js:219"
+   "static/js/ui.js:277"
   ],
   "client": true,
   "plural": false
@@ -2894,7 +2924,7 @@
  {
   "id": "انتهت صلاحية الصورة.",
   "where": [
-   "app/services/media_items.py:291"
+   "app/services/media_items.py:307"
   ],
   "client": false,
   "plural": false
@@ -2928,7 +2958,7 @@
  {
   "id": "انتهت مهلة المعالجة.",
   "where": [
-   "app/services/media_items.py:452"
+   "app/services/media_items.py:468"
   ],
   "client": false,
   "plural": false
@@ -2952,7 +2982,7 @@
  {
   "id": "بانتظار مراجعة الصورة — لا يراها غيرك الآن",
   "where": [
-   "static/js/ideas.js:310"
+   "static/js/ideas.js:311"
   ],
   "client": true,
   "plural": false
@@ -2960,7 +2990,7 @@
  {
   "id": "بحث",
   "where": [
-   "static/js/people.js:82"
+   "static/js/people.js:93"
   ],
   "client": true,
   "plural": false
@@ -3025,7 +3055,7 @@
  {
   "id": "بنفسجي",
   "where": [
-   "app/services/appearance.py:35"
+   "app/services/appearance.py:38"
   ],
   "client": false,
   "plural": false
@@ -3499,7 +3529,7 @@
  {
   "id": "تعليق",
   "where": [
-   "static/js/ideas.js:69"
+   "static/js/ideas.js:70"
   ],
   "client": true,
   "plural": false
@@ -3507,7 +3537,7 @@
  {
   "id": "تعليق خاص قديم",
   "where": [
-   "static/js/ideas.js:140"
+   "static/js/ideas.js:141"
   ],
   "client": true,
   "plural": false
@@ -3515,7 +3545,7 @@
  {
   "id": "تعليقات ({n})",
   "where": [
-   "static/js/ideas.js:69"
+   "static/js/ideas.js:70"
   ],
   "client": true,
   "plural": true
@@ -3523,7 +3553,7 @@
  {
   "id": "تعليقات أقدم…",
   "where": [
-   "static/js/ideas.js:106"
+   "static/js/ideas.js:107"
   ],
   "client": true,
   "plural": false
@@ -3531,7 +3561,7 @@
  {
   "id": "تعليقك",
   "where": [
-   "static/js/ideas.js:108"
+   "static/js/ideas.js:109"
   ],
   "client": true,
   "plural": false
@@ -3571,7 +3601,7 @@
  {
   "id": "تفاصيل إضافية (اختياري)",
   "where": [
-   "static/js/ideas.js:331",
+   "static/js/ideas.js:333",
    "static/js/views/chat.js:293"
   ],
   "client": true,
@@ -3588,7 +3618,7 @@
  {
   "id": "تفاعل غير صالح.",
   "where": [
-   "app/services/ideas.py:328"
+   "app/services/ideas.py:336"
   ],
   "client": false,
   "plural": false
@@ -3653,7 +3683,7 @@
  {
   "id": "تم إيقاف هذا الحساب.",
   "where": [
-   "app/services/ideas.py:333",
+   "app/services/ideas.py:341",
    "app/services/messaging.py:189",
    "app/services/support.py:67"
   ],
@@ -3683,7 +3713,7 @@
    "app/services/membership.py:305",
    "app/services/payment_check.py:326",
    "app/services/payment_check.py:392",
-   "app/services/verification.py:301",
+   "app/services/verification.py:303",
    "app/services/withdrawals.py:114"
   ],
   "client": false,
@@ -3708,7 +3738,7 @@
  {
   "id": "تم الحظر.",
   "where": [
-   "static/js/ideas.js:230",
+   "static/js/ideas.js:231",
    "static/js/views/chat.js:272"
   ],
   "client": true,
@@ -3765,7 +3795,7 @@
  {
   "id": "تمت الموافقة على طلب التوثيق. تظهر الآن النجمة الزرقاء بجانب اسمك.",
   "where": [
-   "app/services/verification.py:384"
+   "app/services/verification.py:386"
   ],
   "client": false,
   "plural": false
@@ -3807,7 +3837,7 @@
  {
   "id": "جارٍ البحث…",
   "where": [
-   "static/js/people.js:106"
+   "static/js/people.js:117"
   ],
   "client": true,
   "plural": false
@@ -3841,8 +3871,8 @@
  {
   "id": "جارٍ التحميل…",
   "where": [
-   "static/js/ideas.js:105",
-   "static/js/ideas.js:255",
+   "static/js/ideas.js:106",
+   "static/js/ideas.js:256",
    "static/js/privacy.js:16",
    "static/js/views/profile.js:196",
    "static/js/views/support.js:38"
@@ -3919,7 +3949,7 @@
  {
   "id": "جمري",
   "where": [
-   "app/services/appearance.py:33"
+   "app/services/appearance.py:36"
   ],
   "client": false,
   "plural": false
@@ -3960,7 +3990,7 @@
  {
   "id": "حدث خطأ غير متوقع. حاول مرة أخرى.",
   "where": [
-   "app/main.py:359"
+   "app/main.py:366"
   ],
   "client": false,
   "plural": false
@@ -3992,8 +4022,8 @@
  {
   "id": "حذف",
   "where": [
-   "static/js/ideas.js:236",
-   "static/js/ideas.js:285",
+   "static/js/ideas.js:237",
+   "static/js/ideas.js:286",
    "static/js/views/chat.js:148",
    "static/js/views/chat.js:281"
   ],
@@ -4003,7 +4033,7 @@
  {
   "id": "حذف التعليق",
   "where": [
-   "static/js/ideas.js:245"
+   "static/js/ideas.js:246"
   ],
   "client": true,
   "plural": false
@@ -4011,7 +4041,7 @@
  {
   "id": "حذف التعليق؟",
   "where": [
-   "static/js/ideas.js:236"
+   "static/js/ideas.js:237"
   ],
   "client": true,
   "plural": false
@@ -4035,7 +4065,7 @@
  {
   "id": "حذف المنشور",
   "where": [
-   "static/js/ideas.js:294"
+   "static/js/ideas.js:295"
   ],
   "client": true,
   "plural": false
@@ -4062,7 +4092,7 @@
  {
   "id": "حذف هذه الفكرة؟",
   "where": [
-   "static/js/ideas.js:285"
+   "static/js/ideas.js:286"
   ],
   "client": true,
   "plural": false
@@ -4078,8 +4108,8 @@
  {
   "id": "حساب موثّق",
   "where": [
-   "static/js/ui.js:89",
-   "static/js/ui.js:89"
+   "static/js/ui.js:147",
+   "static/js/ui.js:147"
   ],
   "client": true,
   "plural": false
@@ -4128,7 +4158,7 @@
  {
   "id": "حظر",
   "where": [
-   "static/js/ideas.js:228",
+   "static/js/ideas.js:229",
    "static/js/views/chat.js:207",
    "static/js/views/chat.js:247",
    "static/js/views/chat.js:266"
@@ -4139,7 +4169,7 @@
  {
   "id": "حظر صاحب التعليق",
   "where": [
-   "static/js/ideas.js:231"
+   "static/js/ideas.js:232"
   ],
   "client": true,
   "plural": false
@@ -4147,7 +4177,7 @@
  {
   "id": "حظر صاحب التعليق؟",
   "where": [
-   "static/js/ideas.js:228"
+   "static/js/ideas.js:229"
   ],
   "client": true,
   "plural": false
@@ -4205,7 +4235,7 @@
  {
   "id": "حُذفت الفكرة.",
   "where": [
-   "static/js/ideas.js:292"
+   "static/js/ideas.js:293"
   ],
   "client": true,
   "plural": false
@@ -4237,8 +4267,8 @@
  {
   "id": "خيارات التعليق",
   "where": [
-   "static/js/ideas.js:141",
-   "static/js/ideas.js:247"
+   "static/js/ideas.js:142",
+   "static/js/ideas.js:248"
   ],
   "client": true,
   "plural": false
@@ -4246,8 +4276,8 @@
  {
   "id": "خيارات المنشور",
   "where": [
-   "static/js/ideas.js:41",
-   "static/js/ideas.js:296"
+   "static/js/ideas.js:42",
+   "static/js/ideas.js:297"
   ],
   "client": true,
   "plural": false
@@ -4297,7 +4327,7 @@
  {
   "id": "ذهبي",
   "where": [
-   "app/services/appearance.py:38"
+   "app/services/appearance.py:41"
   ],
   "client": false,
   "plural": false
@@ -4347,7 +4377,7 @@
  {
   "id": "رد",
   "where": [
-   "static/js/ideas.js:139"
+   "static/js/ideas.js:140"
   ],
   "client": true,
   "plural": false
@@ -4372,7 +4402,7 @@
  {
   "id": "ردّ على {name}",
   "where": [
-   "static/js/ideas.js:121"
+   "static/js/ideas.js:122"
   ],
   "client": true,
   "plural": false
@@ -4400,14 +4430,6 @@
   ],
   "client": true,
   "plural": true
- },
- {
-  "id": "رسمي",
-  "where": [
-   "static/js/ideas.js:136"
-  ],
-  "client": true,
-  "plural": false
  },
  {
   "id": "رسوم الاسترجاع",
@@ -4563,7 +4585,7 @@
  {
   "id": "رُفض طلب التوثيق. السبب: {note}",
   "where": [
-   "app/services/verification.py:385"
+   "app/services/verification.py:387"
   ],
   "client": false,
   "plural": false
@@ -4627,7 +4649,7 @@
  {
   "id": "ستصله رسالتك كطلب مراسلة. لا تستطيع إرسال أكثر من بضع رسائل حتى يقبل أو يرد.",
   "where": [
-   "static/js/people.js:69"
+   "static/js/people.js:80"
   ],
   "client": true,
   "plural": false
@@ -4720,7 +4742,7 @@
  {
   "id": "سيُحذف المنشور وكل تفاعلاته وتعليقاته نهائيًا.",
   "where": [
-   "static/js/ideas.js:285"
+   "static/js/ideas.js:286"
   ],
   "client": true,
   "plural": false
@@ -4771,7 +4793,7 @@
  {
   "id": "شكرًا لك. تم إرسال البلاغ وسيُراجع.",
   "where": [
-   "static/js/ideas.js:342",
+   "static/js/ideas.js:344",
    "static/js/views/chat.js:316"
   ],
   "client": true,
@@ -4828,8 +4850,8 @@
  {
   "id": "صورة مرفقة بالفكرة",
   "where": [
-   "static/js/ideas.js:305",
-   "static/js/ideas.js:308"
+   "static/js/ideas.js:306",
+   "static/js/ideas.js:309"
   ],
   "client": true,
   "plural": false
@@ -4853,7 +4875,7 @@
  {
   "id": "طلب التوثيق",
   "where": [
-   "app/services/verification.py:389"
+   "app/services/verification.py:391"
   ],
   "client": false,
   "plural": false
@@ -4861,7 +4883,7 @@
  {
   "id": "طلب التوثيق يحتاج تصحيحًا: {note}\nادخل إلى التطبيق ← حسابي ← التوثيق لتعديله.",
   "where": [
-   "app/services/verification.py:386"
+   "app/services/verification.py:388"
   ],
   "client": false,
   "plural": false
@@ -4880,21 +4902,22 @@
    "app/api/app_access.py:60",
    "app/api/app_access.py:58",
    "app/api/uploads.py:70",
-   "app/main.py:349",
+   "app/main.py:356",
    "app/services/auth.py:132",
    "app/services/email_codes.py:43",
    "app/services/engagement.py:195",
-   "app/services/ideas.py:240",
+   "app/services/ideas.py:241",
    "app/services/image_permission.py:40",
    "app/services/media_items.py:135",
-   "app/services/media_items.py:139",
+   "app/services/media_items.py:138",
    "app/services/messaging.py:251",
    "app/services/messaging.py:71",
    "app/services/messaging.py:651",
-   "app/services/messaging.py:775",
+   "app/services/messaging.py:786",
    "app/services/messaging.py:647",
-   "app/services/people.py:65",
-   "app/services/people.py:103",
+   "app/services/official.py:78",
+   "app/services/people.py:70",
+   "app/services/people.py:114",
    "app/services/signup.py:420",
    "app/services/signup.py:435",
    "app/services/signup.py:433"
@@ -4905,8 +4928,8 @@
  {
   "id": "طلب غير مسموح.",
   "where": [
-   "app/main.py:319",
-   "app/main.py:322"
+   "app/main.py:326",
+   "app/main.py:329"
   ],
   "client": false,
   "plural": false
@@ -5010,7 +5033,7 @@
  {
   "id": "عدم إعجاب",
   "where": [
-   "static/js/ideas.js:64",
+   "static/js/ideas.js:65",
    "static/js/views/profile.js:171",
    "static/js/views/profile.js:301",
    "static/js/views/user.js:25",
@@ -5022,7 +5045,7 @@
  {
   "id": "عرض الصورة بملء الشاشة",
   "where": [
-   "static/js/ideas.js:307"
+   "static/js/ideas.js:308"
   ],
   "client": true,
   "plural": false
@@ -5030,8 +5053,8 @@
  {
   "id": "عرض المزيد",
   "where": [
-   "static/js/ideas.js:367",
-   "static/js/people.js:84"
+   "static/js/ideas.js:369",
+   "static/js/people.js:95"
   ],
   "client": true,
   "plural": false
@@ -5039,7 +5062,7 @@
  {
   "id": "عرض الملف",
   "where": [
-   "static/js/people.js:96",
+   "static/js/people.js:107",
    "static/js/views/chat.js:244"
   ],
   "client": true,
@@ -5105,7 +5128,7 @@
  {
   "id": "عمليات بحث كثيرة. انتظر قليلًا.",
   "where": [
-   "app/services/people.py:60"
+   "app/services/people.py:65"
   ],
   "client": false,
   "plural": false
@@ -5189,8 +5212,8 @@
   "where": [
    "app/api/i18n.py:22",
    "app/errors.py:23",
-   "app/main.py:301",
-   "app/main.py:397",
+   "app/main.py:307",
+   "app/main.py:405",
    "app/services/payment_check.py:368"
   ],
   "client": false,
@@ -5231,7 +5254,7 @@
  {
   "id": "فريق {app}",
   "where": [
-   "static/js/ideas.js:136",
+   "static/js/ideas.js:137",
    "app/services/brand.py:36"
   ],
   "client": true,
@@ -5305,7 +5328,7 @@
  {
   "id": "قرمزي",
   "where": [
-   "app/services/appearance.py:39"
+   "app/services/appearance.py:42"
   ],
   "client": false,
   "plural": false
@@ -5510,7 +5533,7 @@
  {
   "id": "لا إعجابات بعد.",
   "where": [
-   "static/js/ideas.js:269"
+   "static/js/ideas.js:270"
   ],
   "client": true,
   "plural": false
@@ -5542,7 +5565,7 @@
  {
   "id": "لا توجد تعليقات بعد. كن أول من يعلّق.",
   "where": [
-   "static/js/ideas.js:175"
+   "static/js/ideas.js:176"
   ],
   "client": true,
   "plural": false
@@ -5614,7 +5637,7 @@
  {
   "id": "لا نتائج. الأشخاص باسم dzplay يُعثر عليهم بالمعرّف فقط.",
   "where": [
-   "static/js/people.js:113"
+   "static/js/people.js:124"
   ],
   "client": true,
   "plural": false
@@ -5735,7 +5758,7 @@
  {
   "id": "لا يمكنك الإبلاغ عن منشورك.",
   "where": [
-   "app/services/ideas.py:555"
+   "app/services/ideas.py:563"
   ],
   "client": false,
   "plural": false
@@ -5743,7 +5766,7 @@
  {
   "id": "لا يمكنك التعليق على هذا المنشور.",
   "where": [
-   "app/services/ideas.py:404"
+   "app/services/ideas.py:412"
   ],
   "client": false,
   "plural": false
@@ -5751,7 +5774,7 @@
  {
   "id": "لا يمكنك التفاعل مع منشورك.",
   "where": [
-   "app/services/ideas.py:331"
+   "app/services/ideas.py:339"
   ],
   "client": false,
   "plural": false
@@ -5759,7 +5782,7 @@
  {
   "id": "لا يمكنك الرد على هذا التعليق.",
   "where": [
-   "app/services/ideas.py:411"
+   "app/services/ideas.py:419"
   ],
   "client": false,
   "plural": false
@@ -5776,7 +5799,7 @@
  {
   "id": "لا يوجد حساب متاح بهذا المعرّف.",
   "where": [
-   "static/js/people.js:113"
+   "static/js/people.js:124"
   ],
   "client": true,
   "plural": false
@@ -5801,6 +5824,14 @@
   "id": "لا يُسمح بإرسال الروابط في الرسائل.",
   "where": [
    "app/services/content.py:53"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "لا يُسمح بالنجوم أو علامات التوثيق أو الشارات في الاسم.",
+  "where": [
+   "app/services/names.py:113"
   ],
   "client": false,
   "plural": false
@@ -5981,7 +6012,7 @@
  {
   "id": "لن يستطيع التعليق على أفكارك أو مراسلتك.",
   "where": [
-   "static/js/ideas.js:228"
+   "static/js/ideas.js:229"
   ],
   "client": true,
   "plural": false
@@ -6046,7 +6077,7 @@
  {
   "id": "مجتمع للمتداولين ولمشاركة أخبار العملات الرقمية والتحليلات والأفكار، مع حماية بياناتك.",
   "where": [
-   "app/main.py:85"
+   "app/main.py:86"
   ],
   "client": false,
   "plural": false
@@ -6183,7 +6214,7 @@
  {
   "id": "مخفية مؤقتًا للمراجعة بعد بلاغات",
   "where": [
-   "static/js/ideas.js:311"
+   "static/js/ideas.js:312"
   ],
   "client": true,
   "plural": false
@@ -6199,7 +6230,7 @@
  {
   "id": "مراسلة",
   "where": [
-   "static/js/people.js:95",
+   "static/js/people.js:106",
    "static/js/views/user.js:44"
   ],
   "client": true,
@@ -6482,6 +6513,14 @@
   "plural": false
  },
  {
+  "id": "منشورات {app} وإعلاناته الرسمية. لا يستقبل الرسائل: للمساعدة استعمل «حسابي ← الدعم والمساعدة».",
+  "where": [
+   "static/js/ui.js:130"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
   "id": "منشوراته",
   "where": [
    "static/js/views/user.js:58"
@@ -6516,7 +6555,7 @@
  {
   "id": "نتائج كثيرة: اكتب بحثًا أدق.",
   "where": [
-   "app/services/people.py:69"
+   "app/services/people.py:74"
   ],
   "client": false,
   "plural": false
@@ -6550,7 +6589,7 @@
  {
   "id": "نسخ المعرّف {publicId}",
   "where": [
-   "static/js/ui.js:104"
+   "static/js/ui.js:162"
   ],
   "client": true,
   "plural": false
@@ -6584,8 +6623,8 @@
   "id": "نشر الصور مع الأفكار متوقف حاليًا.",
   "where": [
    "app/api/uploads.py:58",
-   "app/services/media_items.py:223",
-   "app/services/media_items.py:149"
+   "app/services/media_items.py:239",
+   "app/services/media_items.py:148"
   ],
   "client": false,
   "plural": false
@@ -6625,7 +6664,7 @@
  {
   "id": "نعناعي",
   "where": [
-   "app/services/appearance.py:37"
+   "app/services/appearance.py:40"
   ],
   "client": false,
   "plural": false
@@ -6693,7 +6732,7 @@
  {
   "id": "نُسخ المعرّف.",
   "where": [
-   "static/js/ui.js:104"
+   "static/js/ui.js:162"
   ],
   "client": true,
   "plural": false
@@ -6709,7 +6748,7 @@
  {
   "id": "نُسخ.",
   "where": [
-   "static/js/ui.js:92"
+   "static/js/ui.js:150"
   ],
   "client": true,
   "plural": false
@@ -6725,7 +6764,7 @@
  {
   "id": "هذا الاسم غير مسموح به.",
   "where": [
-   "app/services/names.py:103"
+   "app/services/names.py:135"
   ],
   "client": false,
   "plural": false
@@ -6733,7 +6772,8 @@
  {
   "id": "هذا الاسم محجوز. اختر اسمًا آخر.",
   "where": [
-   "app/services/names.py:100"
+   "app/services/names.py:123",
+   "app/services/names.py:132"
   ],
   "client": false,
   "plural": false
@@ -6783,7 +6823,16 @@
  {
   "id": "هذا الحساب غير متاح.",
   "where": [
-   "static/js/people.js:43"
+   "static/js/people.js:53"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "هذا الحساب لا يستقبل الرسائل. للمساعدة تواصل مع الدعم من «حسابي ← الدعم والمساعدة».",
+  "where": [
+   "static/js/people.js:41",
+   "app/services/messaging.py:684"
   ],
   "client": true,
   "plural": false
@@ -6791,8 +6840,8 @@
  {
   "id": "هذا الشخص لا يستقبل رسائل مباشرة.",
   "where": [
-   "static/js/people.js:47",
-   "app/services/messaging.py:741"
+   "static/js/people.js:58",
+   "app/services/messaging.py:752"
   ],
   "client": true,
   "plural": false
@@ -6824,7 +6873,7 @@
  {
   "id": "هذا الملف مستخدم بالفعل.",
   "where": [
-   "app/services/media_items.py:203"
+   "app/services/media_items.py:219"
   ],
   "client": false,
   "plural": false
@@ -6851,7 +6900,7 @@
   "where": [
    "static/js/views/chat.js:342",
    "app/services/messaging.py:334",
-   "app/services/messaging.py:736"
+   "app/services/messaging.py:747"
   ],
   "client": true,
   "plural": false
@@ -6883,7 +6932,15 @@
  {
   "id": "وردي",
   "where": [
-   "app/services/appearance.py:34"
+   "app/services/appearance.py:37"
+  ],
+  "client": false,
+  "plural": false
+ },
+ {
+  "id": "وصل الحساب الرسمي إلى حد منشوراته اليومي ({limit}).",
+  "where": [
+   "app/services/official.py:47"
   ],
   "client": false,
   "plural": false
@@ -7022,7 +7079,7 @@
  {
   "id": "يحتاج {app} إلى تفعيل JavaScript.",
   "where": [
-   "app/main.py:82"
+   "app/main.py:83"
   ],
   "client": false,
   "plural": false
@@ -7038,7 +7095,7 @@
  {
   "id": "يختفي عند الجميع.",
   "where": [
-   "static/js/ideas.js:236"
+   "static/js/ideas.js:237"
   ],
   "client": true,
   "plural": false
@@ -7150,7 +7207,7 @@
  {
   "id": "يمكنك تغيير الاسم مرة كل {every} يومًا. حاول بعد {days} يوم.",
   "where": [
-   "app/services/names.py:129"
+   "app/services/names.py:161"
   ],
   "client": false,
   "plural": false
@@ -7176,8 +7233,8 @@
   "id": "يمكنك نشر صورة واحدة كل 24 ساعة.",
   "where": [
    "app/api/uploads.py:62",
-   "app/services/media_items.py:227",
-   "app/services/media_items.py:153"
+   "app/services/media_items.py:243",
+   "app/services/media_items.py:152"
   ],
   "client": false,
   "plural": false
@@ -7202,6 +7259,14 @@
   "id": "🎉 ربحت! أُرسل رمز الجائزة إلى بريدك.",
   "where": [
    "static/js/views/giveaway.js:66"
+  ],
+  "client": true,
+  "plural": false
+ },
+ {
+  "id": "📌 مثبّت",
+  "where": [
+   "static/js/ideas.js:41"
   ],
   "client": true,
   "plural": false

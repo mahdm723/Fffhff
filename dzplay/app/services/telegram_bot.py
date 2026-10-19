@@ -36,8 +36,16 @@ HELP = (
     "الأوامر:\n"
     "/stats — ملخص سريع\n"
     "/code <رقم الطلب> <الرمز> — رمز استعادة حساب\n"
+    "/post <النص> — منشور باسم الحساب الرسمي (أو أرسل صورة مع وصف)\n"
     "تصلك هنا أيضًا طلبات الإشراف وأزرارها."
 )
+
+
+def _is_post(msg: dict) -> bool:
+    if msg.get("photo") or str((msg.get("document") or {}).get("mime_type", "")).startswith("image/"):
+        return True
+    words = str(msg.get("text") or "").split(maxsplit=1)
+    return bool(words) and words[0].split("@", 1)[0].lower() == "/post"
 
 
 class BotService:
@@ -53,6 +61,7 @@ class BotService:
         self._inflight = 0
         self._inflight_lock = threading.Lock()
         self.reset_handler = None  # set by password_reset: (bot, text_args, reply) -> None
+        self.post_handler = None  # V6 phase 19, set by official: (bot, message) -> None
         self.callback_handlers: dict[str, object] = {}
 
     # -------------------------------------------------------------- plumbing
@@ -147,7 +156,9 @@ class BotService:
         if not self._authorized(msg.get("chat"), msg.get("from")):
             self._reject(msg.get("from"))
             return
-        if isinstance(msg.get("text"), str) and msg["text"].startswith("/"):
+        if self.post_handler is not None and _is_post(msg):  # V6 phase 19: /post or a photo → official draft
+            self.post_handler(self, msg)
+        elif isinstance(msg.get("text"), str) and msg["text"].startswith("/"):
             self._command(msg["text"].strip(), msg.get("message_id"))
         else:
             self.say(HELP)

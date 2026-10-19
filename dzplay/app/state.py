@@ -135,6 +135,9 @@ class AppState:
         from app.services import signup
 
         signup.install(self)  # V6 phase 18: «أُرسل يدويًا» / «إلغاء التسجيل»
+        from app.services import official
+
+        official.install(self)  # V6 phase 19: /post → «نشر» / «إلغاء»
 
     def load_runtime_config(self) -> None:
         """Apply bot settings saved from the admin panel (they take precedence over .env)."""

@@ -133,7 +133,6 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
         raise chat_images_disabled()
     if purpose not in PURPOSE_KIND:
         raise AppError(400, "invalid_purpose", "طلب غير صالح.")
-    kind = PURPOSE_KIND[purpose]
     cap = int(settings.UPLOAD_IMAGE_MAX_MB * MB)
     if length is None:
         raise AppError(411, "length_required", "طلب غير صالح.")
@@ -156,6 +155,11 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
         if quota["remaining"] <= 0:
             raise _avatar_limit(quota)
     _check_limits(limiter, [Limit(f"upload_hour:{user.id}", settings.UPLOADS_PER_HOUR, HOUR)])
+    return _new_item(db, settings, user, purpose, length)
+
+
+def _new_item(db: Session, settings: Settings, user: User, purpose: str, length: int) -> tuple[MediaItem, dict]:
+    kind = PURPOSE_KIND[purpose]
     item = MediaItem(owner_id=user.id, owner_public_id=user.public_id, purpose=purpose, kind=kind, state="uploaded",
                      source_size=length, created_at=clock.utcnow())
     db.add(item)
@@ -166,6 +170,18 @@ def begin_upload(db: Session, settings: Settings, limiter, user: User, *, purpos
            "nsfw_block": settings.NSFW_BLOCK_THRESHOLD, "nsfw_sexy": settings.NSFW_SEXY_THRESHOLD,
            "blur": False}
     return item, job
+
+
+def begin_official_upload(db: Session, settings: Settings, length: int) -> tuple[MediaItem, dict]:
+    """V6 phase 19: a picture for the official account (panel or bot): the same checks and storage, no quota."""
+    from app.services.admin_content import official_user
+
+    cap = int(settings.UPLOAD_IMAGE_MAX_MB * MB)
+    if length <= 0:
+        raise AppError(400, "empty_file", "الملف فارغ.")
+    if length > cap:
+        raise AppError(413, "file_too_large", "الملف أكبر من الحد المسموح ({mb} MB).", params={"mb": cap // MB})
+    return _new_item(db, settings, official_user(db), "idea", length)
 
 
 def _retry(next_at: str | None) -> int:

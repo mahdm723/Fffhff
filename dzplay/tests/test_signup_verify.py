@@ -196,7 +196,7 @@ def test_no_mailbox_and_no_bot_means_signup_is_unavailable(make_harness):
     assert r.status_code == 503 and r.json()["error"] == {"code": "registration_unavailable",
                                                           "message": "التسجيل غير متاح مؤقتًا. حاول لاحقًا."}
     with hx.db() as db:
-        assert db.scalars(select(SignupPending)).all() == [] and db.scalars(select(User)).all() == []
+        assert db.scalars(select(SignupPending)).all() == [] and db.scalars(select(User).where(User.is_official.is_not(True))).all() == []
 
 
 def test_a_mail_server_that_refuses_hands_the_code_to_the_owner(make_harness):

@@ -3,17 +3,30 @@
 // The blue star, computed so it is exactly symmetric: a 12-point rosette centred on (12, 12) (filled and
 // stroked with round joins, which softens every point the same way) and a check mark made of two 45° strokes
 // whose bounding box is centred on the same point (x 7.5…16.5, y 8.875…15.125).
-function rosette(points = 12, outer = 10.75, inner = 9.25) {
+function rosette(points = 12, outer = 10.75, inner = 9.25, c = 12) {
   const d = [];
   for (let i = 0; i < points * 2; i += 1) {
     const r = i % 2 ? inner : outer;
     const a = -Math.PI / 2 + (i * Math.PI) / points;
-    d.push(`${i ? 'L' : 'M'}${(12 + r * Math.cos(a)).toFixed(3)} ${(12 + r * Math.sin(a)).toFixed(3)}`);
+    d.push(`${i ? 'L' : 'M'}${(c + r * Math.cos(a)).toFixed(3)} ${(c + r * Math.sin(a)).toFixed(3)}`);
   }
   return `${d.join('')}Z`;
 }
 export const STAR_SEAL = rosette();
 export const STAR_CHECK = 'M7.5 12.375 10.25 15.125 16.5 8.875';
+
+// V6 phase 19: the gold badge of the official account — the same 12-scallop seal. Its thicker check sits on the
+// OPTICAL centre (¼ unit up and right of the star's: a check's weight is low on its short stroke).
+export const GOLD_SEAL = rosette();
+export const GOLD_CHECK = 'M7.75 12.125 10.5 14.875 16.75 8.625';
+// Small sizes, one flat colour, each drawn on its own pixel grid (viewBox = the size in px) so the seal and the
+// check land on whole and half pixels: { seal, its softening stroke, check, check stroke }.
+export const GOLD_FLAT = {
+  16: { seal: rosette(12, 7, 6, 8), rim: 1, check: 'M5 8 7 10 11 6', w: 2 },
+  18: { seal: rosette(12, 8, 6.9, 9), rim: 1, check: 'M5.5 8.75 8 11.25 12.5 6.75', w: 2 },
+  20: { seal: rosette(12, 8.9, 7.65, 10), rim: 1.2, check: 'M6 9.75 8.75 12.5 14 7.25', w: 2.25 },
+  24: { seal: rosette(), rim: 1.5, check: 'M7.5 11.75 10.5 14.75 16.5 8.75', w: 2.5 },
+};
 
 const P = {
   image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',

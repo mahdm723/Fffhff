@@ -34,6 +34,16 @@ export function confirmAge() {
   });
 }
 
+/** V6 phase 19: «مراسلة» on the official account — its automatic reply, with the way to support. */
+function officialNoDm(card) {
+  sheet((panel, close) => panel.append(
+    h('div', { class: 'peer-info peer-info--row' }, personAvatar(card.name, { size: 'sm' }), h('div', {}, nameLine(card.name, null, '', false, true))),
+    h('p', { text: card.no_dm || t('هذا الحساب لا يستقبل الرسائل. للمساعدة تواصل مع الدعم من «حسابي ← الدعم والمساعدة».') }),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn btn--primary btn--block', type: 'button', onclick: () => { close(); location.hash = '#/support'; } }, icon('chat'), t('الدعم والمساعدة')),
+      h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('إغلاق')))));
+}
+
 /** Open the chat with a person, or write them a first message (a message request). */
 export async function messagePerson(publicId, navigate, known = null) {
   let card = known;
@@ -44,6 +54,7 @@ export async function messagePerson(publicId, navigate, known = null) {
     return;
   }
   if (card.conversation_id) { navigate(`#/chat/${card.conversation_id}`); return; }
+  if (card.official) { officialNoDm(card); return; } // V6 phase 19: the official account answers through support
   if (!card.can_message) { toast(t('هذا الشخص لا يستقبل رسائل مباشرة.'), 'error'); return; }
   if (store.state.me && store.state.me.age_confirmed === false && !(await confirmAge())) return;
   const max = store.state.config.max_message_length;
@@ -65,7 +76,7 @@ export async function messagePerson(publicId, navigate, known = null) {
       }
     });
     panel.append(
-      h('div', { class: 'peer-info peer-info--row' }, personAvatar(card.name, { size: 'sm', url: card.avatar_url }), h('div', {}, nameLine(card.name, card.gender, '', card.verified), h('small', { dir: 'ltr', text: card.public_id }))),
+      h('div', { class: 'peer-info peer-info--row' }, personAvatar(card.name, { size: 'sm', url: card.avatar_url }), h('div', {}, nameLine(card.name, card.gender, '', card.verified, card.official), h('small', { dir: 'ltr', text: card.public_id }))),
       h('p', { text: t('ستصله رسالتك كطلب مراسلة. لا تستطيع إرسال أكثر من بضع رسائل حتى يقبل أو يرد.') }),
       h('div', { class: 'field' }, text),
       h('div', { class: 'actions' }, go),
@@ -90,7 +101,7 @@ export function searchBox(navigate) {
   function row(p) {
     return h('li', { class: 'person' },
       personAvatar(p.name, { url: p.avatar_url }),
-      h('div', { class: 'person__body' }, nameLine(p.name, p.gender, 'person__name', p.verified), h('small', { class: 'person__id', dir: 'ltr', text: p.public_id })),
+      h('div', { class: 'person__body' }, nameLine(p.name, p.gender, 'person__name', p.verified, p.official), h('small', { class: 'person__id', dir: 'ltr', text: p.public_id })),
       h('div', { class: 'person__actions' },
         h('button', { class: 'btn btn--primary btn--sm', type: 'button', onclick: () => messagePerson(p.public_id, navigate) }, t('مراسلة')),
         h('button', { class: 'btn btn--ghost btn--sm', type: 'button', onclick: () => navigate(p.profile_ref ? `#/u/${p.profile_ref}` : `#/id/${p.public_id}`) }, t('عرض الملف')),

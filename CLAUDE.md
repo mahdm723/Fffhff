@@ -97,6 +97,15 @@
   - النجمة تُحسب بـ`badges.star(user)` في كل payload، ولا تُقرأ `verified_at` مباشرة. نجمة العضوية تتبع ميزة `star`، والنجمة اليدوية تبقى.
   - صور المحادثات متوقفة نهائيًا: 410 `chat_images_disabled` في Caddy و`security_middleware` قبل قراءة الجسم.
   - `admin_cli purge-chat-images` (عبر `deploy/chat-images-purge.sh` بعد نسخة احتياطية) يحذف القديمة من الخادم وقناة التخزين، إلا المبلَّغ عنها (`legal_hold`).
+- **الحساب الرسمي DALTA.BIT (المرحلة 19):**
+  - صف واحد `is_official`، يُنشأ ويُعاد تسميته عند الإقلاع (`admin_content.ensure_official`). اسمه دائمًا `APP_NAME` (`names.shown_name`). بلا كلمة مرور ولا دخول.
+  - ينشر من اللوحة فقط (`api/admin_official.py`، برمز 2FA عبر `admin_auth.verify_step_up`) أو من البوت (`/post` أو صورة بوصف ← `official_drafts` ← أزرار `op:yes|no`). المنطق في `services/official.py`، وكل إجراء في التدقيق.
+  - صوره تمر بنفس الفحص والتخزين (`media_items.begin_official_upload`)، بلا حد يومي (`OFFICIAL_POSTS_PER_DAY`، 0 = بلا حد).
+  - التثبيت: `posts.pinned_until`، منشور واحد، أول الصفحة الأولى من الأفكار، وينتهي وحده.
+  - يظهر أولًا في «المستخدمون»، وملفه يُفتح، والرسائل إليه 403 `official_no_dm` (ورقة بزر «الدعم والمساعدة»).
+  - خارج المال: `ledger.post` يرفضه (`official_account`)، و`verification.grant` كذلك.
+  - الاسم محجوز بكل أشكاله (`names.brand_like`: داخل الاسم، بعد `skeleton`)، ورموز الشارات (نجوم، علامات صح، أوسمة، تيجان) مرفوضة في الأسماء (`badge_symbol_name`).
+  - `badges.official(user)` في كل payload بجانب `verified`.
 - **اللغات (V6 المرحلة 12):** العربية (الأصل والاحتياط) والفرنسية والإنجليزية.
   - **النص العربي هو المفتاح:** `t('…')` في الواجهة (`static/js/i18n.js`)، و`tr('…')`/`N_('…')` في الخادم (`app/i18n/`). رسائل `AppError` تُكتب بالعربية وقيمها في `params` (`{name}`)، ولا تُدمج في النص.
   - الترجمات المرفقة في `app/i18n/fr.json` و`en.json` (وصيغ الجمع العربية في `ar.json`)، ونصوص نظام المحتوى في `app/i18n/content_fr.py` و`content_en.py`.
@@ -121,6 +130,9 @@
   - كل صفحة أو نافذة جديدة تُضاف إلى `e2e/run_overflow_e2e.py`. يفحص عند 360 و390: لا تمرير أفقي، ولا حقل مخفي، ولا نص مقطوع، وشريط الحالة، والنجمة.
 - **الشعار:** `logoMark({ size, pulse, mono })` في `ui.js` فقط (الصغيرة عند ≤24px). نقطة الاسم بلون `--brand-red` في كل ألوان التمييز.
 - **النجمة الزرقاء:** `starMark()` في `ui.js` فقط، بشكل محسوب في `icons.js` ولون `--star` (`appearance.STAR`). حجمها 18px بجانب كل اسم عبر `nameLine`.
+- **الشارة الذهبية (الحساب الرسمي):** `goldMark({ size })` في `ui.js` فقط، عبر `nameLine(…, official)` بدل النجمة.
+  - نفس الختم (`GOLD_SEAL` في `icons.js`). من 28px: تدرّج معدني `#FFE08A → #F5B83D → #C98A14` مع لمعة. أصغر: لون واحد `--gold` (`appearance.GOLD`) على شبكة بكسل لكل حجم (`GOLD_FLAT`).
+  - الضغط عليها يفتح `officialSheet()`. معاينتها في اللوحة: «الهوية ← الشارات» (`run_brand_e2e`).
 - **خانات الكتابة:** `autoGrow` بلا مقبض تغيير حجم.
 - **النوافذ (sheets):** تُغلق عند تغيّر الصفحة، إلا الإلزامية منها.
 

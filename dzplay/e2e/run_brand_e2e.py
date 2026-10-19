@@ -10,7 +10,10 @@ Checks, in each colour scheme:
 - no copy is mirrored in the RTL pages (the tallest on the left, then shorter, then shorter; the dot above it);
 - the glow pulses, and stops with «تقليل الحركة» (prefers-reduced-motion);
 - the favicon, the iPhone icon and the link-preview image are served;
-- no horizontal scroll.
+- no horizontal scroll;
+- V6 phase 19 «الهوية» → «الشارات»: the blue star and the gold badge at 14–56 px on the four backgrounds (the real
+  size, flat under 28 px and metallic from 28, the theme's colour, centred on the name line like the star), the tap
+  sheet «الحساب الرسمي لـ …»; screenshots badges-<scheme>.png (phone) and badges-<scheme>-wide.png.
 All problems are listed at the end; any problem fails the run.
 """
 
@@ -79,6 +82,53 @@ def red_dot(page: Page, where: str, sel: str) -> None:
     for i in range(dots.count()):
         bg = dots.nth(i).evaluate("(e) => getComputedStyle(e).backgroundColor")
         problem_if(bg != RED, f"{where}: the name's dot is {bg}, not the logo's red")
+
+
+BADGES_JS = r"""() => [...document.querySelectorAll('#brand-badges .brand-badges__panel')].map((p) => {
+  const mid = (e) => { const b = e.getBoundingClientRect(); return b.top + b.height / 2; };
+  const off = (sel) => { const m = p.querySelector(`.brand-badges__names ${sel}`); const tx = m && m.parentElement.querySelector('.name-line__text');
+    return m && tx ? Math.abs(mid(m) - mid(tx)) : null; };
+  const flat = p.querySelector('.gold-mark:not(.gold-mark--metal) .gold-mark__seal');
+  return { tone: p.dataset.tone,
+    rows: Object.fromEntries([...p.querySelectorAll('.brand-badges__row')].map((r) => [r.dataset.badge,
+      [...r.querySelectorAll('.star-mark, .gold-mark')].map((m) => { const b = m.getBoundingClientRect();
+        return [Math.round(b.width), Math.round(b.height), m.classList.contains('gold-mark--metal')]; })])),
+    gold: off('.gold-mark'), star: off('.star-mark'), fill: flat ? getComputedStyle(flat).fill : null };
+})"""
+BADGE_SIZES = [14, 16, 18, 20, 24, 34, 56]
+GOLD = {"dark": "rgb(192, 133, 16)", "light": "rgb(176, 122, 14)"}  # appearance.GOLD
+
+
+def badges(page: Page, base: str, tag: str, shots: Path) -> None:
+    """«الهوية» → «الشارات» (the panel is open)."""
+    page.get_by_role("tab", name="الهوية").click()
+    expect(page.locator("#brand-badges")).to_be_visible(timeout=15000)
+    found = page.evaluate(BADGES_JS)
+    problem_if([p["tone"] for p in found] != ["dark", "light", "wall-dark", "wall-light"], f"{tag} badges: panels {found}")
+    for p in found:
+        where = f"{tag} badges {p['tone']}"
+        problem_if(p["rows"].get("star") != [[s, s, False] for s in BADGE_SIZES], f"{where}: star sizes {p['rows'].get('star')}")
+        problem_if(p["rows"].get("gold") != [[s, s, s >= 28] for s in BADGE_SIZES], f"{where}: gold sizes {p['rows'].get('gold')}")
+        problem_if(p["gold"] is None or p["gold"] > 1 or p["star"] is None or p["star"] > 1,
+                   f"{where}: the badges are not centred on the name line (gold {p['gold']}, star {p['star']})")
+        mode = "dark" if p["tone"].endswith("dark") else "light"
+        problem_if(p["fill"] != GOLD[mode], f"{where}: the flat gold is {p['fill']}, not {GOLD[mode]}")
+    no_scroll(page, f"{tag} badges")
+    page.locator("#brand-badges").screenshot(path=str(shots / f"badges-{tag}.png"))
+    # the tap: what a user sees
+    page.locator("#brand-badges .brand-badges__names .gold-mark").first.click()
+    sheet = page.locator(".official-sheet")
+    expect(sheet).to_be_visible()
+    problem_if("الحساب الرسمي لـ DALTA.BIT" not in sheet.inner_text(), f"{tag} badges: the tap sheet says {sheet.inner_text()!r}")
+    problem_if(sheet.locator(".gold-mark--metal").count() != 1, f"{tag} badges: no large badge in the tap sheet")
+    page.screenshot(path=str(shots / f"badges-{tag}-sheet.png"))
+    sheet.get_by_role("button", name="إغلاق").click()
+    expect(sheet).to_have_count(0)
+    page.set_viewport_size({"width": 1180, "height": 1500})  # tall enough that the sticky tabs never cover it
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(200)
+    page.locator("#brand-badges").screenshot(path=str(shots / f"badges-{tag}-wide.png"))
+    page.set_viewport_size(ae.MOBILE["viewport"])
 
 
 def no_scroll(page: Page, where: str) -> None:
@@ -163,6 +213,7 @@ def scheme(browser, base: str, scheme_name: str, admin: str, shots: Path) -> Non
     red_dot(page, f"{tag} panel header", ".admin-top__brand .wordmark__dot")
     no_scroll(page, f"{tag} panel")
     page.screenshot(path=str(shots / f"{tag}-panel.png"))
+    badges(page, base, tag, shots)
     ctx.close()
 
 

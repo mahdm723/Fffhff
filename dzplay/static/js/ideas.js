@@ -27,7 +27,7 @@ function count(n) {
 // ------------------------------------------------------------------ card
 export function postCard(post, { navigate, onRemoved } = {}) {
   let state = { ...post };
-  const card = h('article', { class: 'post-card glass', 'data-post': post.id });
+  const card = h('article', { class: `post-card glass${post.pinned ? ' post-card--pinned' : ''}`, 'data-post': post.id });
 
   const authorBtn = h('button', {
     class: 'post-card__author', type: 'button', 'aria-label': t('عرض ملف {name}', { name: state.author.name }),
@@ -35,9 +35,10 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   },
   personAvatar(state.author.name, { size: 'sm', url: state.author.avatar_url }),
   h('span', { class: 'post-card__who' },
-    nameLine(state.author.name, state.author.gender, 'post-card__name', state.author.verified),
+    nameLine(state.author.name, state.author.gender, 'post-card__name', state.author.verified, state.author.official),
     h('span', { class: 'post-card__time', text: formatListTime(state.created_at) }),
   ));
+  const pin = state.pinned ? h('span', { class: 'post-card__pin' }, t('📌 مثبّت')) : null; // V6 phase 19: an official post on top
   const moreBtn = h('button', { class: 'icon-btn icon-btn--plain', type: 'button', 'aria-label': t('خيارات المنشور') }, icon('more'));
   moreBtn.addEventListener('click', () => postMenu());
 
@@ -130,10 +131,10 @@ export function postCard(post, { navigate, onRemoved } = {}) {
           : h('span', { class: 'comment__who' }, personAvatar(c.author.name, { size: 'sm' }));
         const nameEl = c.author.public_id
           ? h('button', { class: 'comment__name-btn', type: 'button', onclick: () => go(`#/id/${c.author.public_id}`) },
-            nameLine(c.author.name, c.author.gender, 'comment__name', c.author.verified))
+            nameLine(c.author.name, c.author.gender, 'comment__name', c.author.verified, c.author.official))
           : nameLine(c.author.name, null, 'comment__name');
         const head = h('div', { class: 'comment__head' }, nameEl,
-          c.team ? h('span', { class: 'chip chip--team', text: c.official ? t('رسمي') : t('فريق {app}', { app: appName() }) }) : '',
+          c.team ? h('span', { class: 'chip chip--team', text: t('فريق {app}', { app: appName() }) }) : '',
           h('span', { class: 'comment__time', text: formatListTime(c.created_at) }));
         const actions = h('div', { class: 'comment__actions' },
           c.can_reply ? h('button', { class: 'link-btn', type: 'button', onclick: () => setReply(c) }, t('رد')) : '',
@@ -262,7 +263,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
           list.append(...d.likers.map((p) => h('li', {}, h('button', { class: 'user-row', type: 'button',
             onclick: () => { close(); if (navigate) navigate(`#/id/${p.public_id}`); } },
           personAvatar(p.name, { url: p.avatar_url }),
-          h('span', { class: 'user-row__text' }, nameLine(p.name, p.gender, 'user-row__name', p.verified),
+          h('span', { class: 'user-row__text' }, nameLine(p.name, p.gender, 'user-row__name', p.verified, p.official),
             h('small', { class: 'user-row__id', dir: 'ltr', text: p.public_id }))))));
           cursor = d.next_cursor;
           more.hidden = !cursor;
@@ -313,6 +314,7 @@ export function postCard(post, { navigate, onRemoved } = {}) {
   paint();
   if (!state.content) body.hidden = true;
   card.append(...[
+    pin,
     h('header', { class: 'post-card__head' }, authorBtn, moreBtn),
     review ? h('p', { class: 'post-card__review' }, icon('clock'), review) : null,
     body,

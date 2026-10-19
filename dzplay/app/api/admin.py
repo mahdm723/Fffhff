@@ -240,6 +240,7 @@ def audit_log(request: Request, limit: int = Query(default=100, le=500), before:
 class OfficialCommentBody(_Body):
     target: str = Field(max_length=8)  # idea
     target_id: str = Field(max_length=32)
+    parent_id: str | None = Field(default=None, max_length=32)  # V6 phase 19: a reply to this comment
     text: str | None = Field(default=None, max_length=4000)
     library_id: str | None = Field(default=None, max_length=32)
 
@@ -283,7 +284,8 @@ def official_comment(body: OfficialCommentBody, request: Request, ac: AdminConte
     effects = Effects()
     with st.database.session() as db:
         result = admin_content.official_comment(db, st.settings, target=body.target, target_id=body.target_id,
-                                                text=body.text, library_id=body.library_id, effects=effects)
+                                                text=body.text, library_id=body.library_id, effects=effects,
+                                                parent_id=body.parent_id)
         _record(db, ac, "official_comment", target_type=body.target, target_id=body.target_id,
                 detail=f"library={body.library_id}" if body.library_id else None)
     st.dispatch(effects)

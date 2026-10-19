@@ -22,7 +22,7 @@ def test_register_creates_session_and_hides_identity(hx):
     me = c.get("/api/me")
     assert me.status_code == 200 and me.json()["display_name"] == "Lily Rose"
     with hx.db() as db:
-        user = db.scalar(select(User))
+        user = db.scalar(select(User).where(User.is_official.is_not(True)))
         assert user.email == "alice@example.com"
         assert user.password_hash.startswith("$argon2id$")  # never plain text
 
@@ -71,7 +71,7 @@ def test_honeypot_rejected(hx):
     r = hx.register(c, "bot@example.com", website="http://spam")
     assert r.status_code == 400
     with hx.db() as db:
-        assert db.scalar(select(User)) is None
+        assert db.scalar(select(User).where(User.is_official.is_not(True))) is None
         assert db.scalar(select(SecurityEvent.type).where(SecurityEvent.type == "honeypot"))
 
 
@@ -253,13 +253,13 @@ def test_google_sign_in_creates_independent_account(hx, monkeypatch):
     assert "g@example.com" not in r.text
     assert c.get("/api/me").json()["sign_in_method"] == "google"
     with hx.db() as db:
-        user = db.scalar(select(User))
+        user = db.scalar(select(User).where(User.is_official.is_not(True)))
         assert user.google_sub == "g-123" and user.password_hash is None and user.id != "g-123"
     # Same Google account later -> same DZPLAY account
     c2 = hx.client()
     assert _google(hx, c2, monkeypatch, {}).status_code == 200
     with hx.db() as db:
-        assert len(db.scalars(select(User)).all()) == 1
+        assert len(db.scalars(select(User).where(User.is_official.is_not(True))).all()) == 1  # (+ the official account)
 
 
 def test_google_rejects_bad_tokens(hx, monkeypatch):
