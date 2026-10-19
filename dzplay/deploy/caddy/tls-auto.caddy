@@ -1,0 +1,1 @@
+# TLS_MODE=auto: Caddy obtains and renews a Let's Encrypt certificate for {$DOMAIN} by itself.

@@ -1,0 +1,5 @@
+# TLS_MODE=cloudflare: the client's address is read from CF-Connecting-IP, and only when the connection comes from
+# one of Cloudflare's published ranges (cloudflare-ips.caddy, written by deploy/cloudflare-ips.sh). From any other
+# address the header is ignored and the TCP peer is the client.
+import /etc/caddy/conf.d/cloudflare-ips.caddy
+client_ip_headers CF-Connecting-IP

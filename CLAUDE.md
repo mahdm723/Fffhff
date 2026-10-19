@@ -179,6 +179,16 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
   - `deploy/v6-cleanup.sh [anon]`: نسخة كاملة ← تصدير مشفّر للبيانات القديمة ← تحقق ← حذف (مرة واحدة، آمن للتكرار).
     - `anon`: المحادثات المجهولة القديمة بعد `LEGACY_ANON_RETENTION_DAYS`.
     - cron يومي `/etc/cron.d/dzplay-v6-anon` يثبّته `install.sh`.
+- **النطاق خلف Cloudflare (المرحلة 20، جاهز وغير مطبَّق حتى يعطي المالك النطاق):** الخطوات في `docs/DOMAIN_MIGRATION.md`.
+  - `APP_DOMAIN` إعداد واحد، و`PUBLIC_URL` يتبعه (الروابط، وwebhook، واسم EHLO و`Message-ID` عبر `settings.mail_hostname`).
+  - `LEGACY_HOSTS`: العنوان القديم ← 301 (308 لغير GET)، ما عدا `_LEGACY_SERVED` في `main.py` وطلبات `DZPLAYApp/`.
+  - Caddy بوضعين `TLS_MODE=auto|cloudflare`، والأجزاء في `deploy/caddy/` (مركّبة في `/etc/caddy/conf.d`):
+    - `cloudflare`: شهادة Origin من `deploy/origin/` (خارج git)، و`trusted_proxies` من `cloudflare-ips.caddy` (مولَّد، خارج git) مع `client_ip_headers CF-Connecting-IP`.
+    - `X-Forwarded-For` = `{client_ip}` دائمًا، وبلا ترويسة `Server`/`Via` (وuvicorn بـ`--no-server-header`).
+  - `deploy/cloudflare-ips.sh`: يجلب النطاقات ويتحقق منها (القائمة السيئة لا تُستعمل أبدًا)، ومؤقت systemd يومي وعند الإقلاع. مع `CF_FIREWALL=on`: 80/443 لـCloudflare فقط في سلسلة `DOCKER-USER` (منافذ Docker تتجاوز ufw)، ولا يمسّ SSH.
+  - `deploy/domain-switch.sh <domain>|check|finalize|rollback`.
+  - `GET /healthz/ip` يعيد عنوان المتصل نفسه فقط (لفحص السلسلة).
+  - التنبيهات بلا اسم الجهاز. الاختبارات: `tests/test_domain_v20.py`، و`e2e/run_cloudflare_e2e.sh` (Docker).
 - **التطبيق:**
   - الكود في `/opt/dzplay/dzplay`.
   - السجلات: `docker compose logs -f app`.

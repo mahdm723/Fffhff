@@ -110,11 +110,14 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN}
+      TLS_MODE: ${TLS_MODE:-auto}  # V6 phase 20: auto (Let's Encrypt) | cloudflare (origin certificate), see Caddyfile
     security_opt:
       - no-new-privileges:true
     logging: *logging
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/caddy:/etc/caddy/conf.d:ro  # the per-mode parts + the generated Cloudflare ranges
+      - ./deploy/origin:/etc/caddy/origin:ro  # Cloudflare Origin Certificate (server only, never in git)
       - caddy_data:/data
     depends_on:
       - app

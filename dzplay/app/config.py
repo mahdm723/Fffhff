@@ -155,6 +155,11 @@ class Settings(BaseSettings):
 
     # --- admin panel (separate admin accounts + TOTP 2FA) ---------------------
     PUBLIC_URL: str = ""  # https://your-domain (set by the installer); used to register the Telegram webhook
+    # V6 phase 20: the public domain (behind Cloudflare). PUBLIC_URL follows it (https://APP_DOMAIN); the old
+    # addresses in LEGACY_HOSTS (e.g. the sslip name) answer with a 301 to it, except what the installed app still
+    # needs (main.py _legacy_redirect). Written by deploy/domain-switch.sh.
+    APP_DOMAIN: str = ""
+    LEGACY_HOSTS: str = ""
     ADMIN_PATH: str = ""  # secret URL prefix of the panel, e.g. /panel-x7f3k9q2; empty disables the panel
     ADMIN_IP_ALLOWLIST: str = ""  # optional comma-separated IPs/CIDRs allowed to reach the panel
     ADMIN_SESSION_TTL: int = 12 * HOUR  # absolute lifetime of an admin session
@@ -362,6 +367,18 @@ class Settings(BaseSettings):
             raise ValueError("LINK_POLICY must be 'reject' or 'allow_plain'")
         return v
 
+    @field_validator("APP_DOMAIN")
+    @classmethod
+    def _app_domain(cls, v: str) -> str:
+        v = v.strip().lower().removeprefix("https://").removeprefix("http://").split("/")[0]
+        if not v:
+            return ""
+        import re as _re
+
+        if not _re.fullmatch(r"(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,62}[a-z0-9]", v):
+            raise ValueError("APP_DOMAIN must be a domain name, e.g. dalta.example")
+        return v
+
     @model_validator(mode="after")
     def _finalize(self) -> "Settings":
         if not self.SECRET_KEY:
@@ -371,9 +388,27 @@ class Settings(BaseSettings):
             self.secret_key_generated = True
         if self.COOKIE_SECURE is None:
             self.COOKIE_SECURE = self.ENV == "production"
+        if self.APP_DOMAIN:  # V6 phase 20: one setting for the address everywhere (links, webhook, e-mail)
+            from urllib.parse import urlsplit
+
+            if urlsplit(self.PUBLIC_URL).hostname != self.APP_DOMAIN:
+                self.PUBLIC_URL = f"https://{self.APP_DOMAIN}"
         return self
 
     # helpers ------------------------------------------------------------------
+    @property
+    def legacy_hosts(self) -> set[str]:
+        hosts = {h.strip().lower().split(":")[0] for h in self.LEGACY_HOSTS.split(",") if h.strip()}
+        return hosts - {self.APP_DOMAIN}
+
+    @property
+    def mail_hostname(self) -> str:
+        """The name the server gives itself to the SMTP server (EHLO) and in Message-ID: never the machine's name
+        or address (V6 phase 20)."""
+        from urllib.parse import urlsplit
+
+        return self.APP_DOMAIN or urlsplit(self.PUBLIC_URL).hostname or "localhost"
+
     @property
     def trusted_ips(self) -> set[str]:
         return {ip.strip() for ip in self.TRUSTED_IPS.split(",") if ip.strip()}

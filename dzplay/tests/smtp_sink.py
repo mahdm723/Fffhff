@@ -14,7 +14,8 @@ class _Handler:
 
     async def handle_DATA(self, server, session, envelope):  # noqa: N802 - aiosmtpd hook name
         msg = message_from_bytes(envelope.content, policy=policy.default)
-        self.messages.append({"to": envelope.rcpt_tos, "from": envelope.mail_from, "msg": msg})
+        self.messages.append({"to": envelope.rcpt_tos, "from": envelope.mail_from, "msg": msg,
+                              "helo": session.host_name})  # the name the sender gave itself (EHLO)
         return "250 OK"
 
 

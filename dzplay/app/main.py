@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -106,6 +106,27 @@ _UPLOAD_PATH = "/api/uploads"  # V5: file uploads carry their own per-purpose ca
 _OFFICIAL_UPLOAD = "/api/admin/official/uploads"  # V6 phase 19: the official account's picture (capped by the route)
 # V6 phase 17: pictures in chats are switched off for good — refused here, before the body is read
 _CHAT_MEDIA_PATH = re.compile(r"^/api/conversations/[^/]+/media$")
+
+
+# V6 phase 20: on an old address (LEGACY_HOSTS) only what the installed Android app and the download page need is
+# still served (the app itself, its update, the files its pages load); everything else moves to APP_DOMAIN.
+_LEGACY_SERVED = ("/download", "/api/app/", "/.well-known/", "/healthz", "/api/telegram/webhook", "/sw.js",
+                  "/manifest.webmanifest", "/css/", "/js/", "/icons/", "/fonts/", "/brand/", "/favicon", "/robots.txt")
+
+
+def _legacy_redirect(request: Request, settings: Settings) -> Response | None:
+    if not settings.APP_DOMAIN:
+        return None
+    legacy = settings.legacy_hosts
+    host = (request.headers.get("host") or "").strip().lower()
+    host = host[1:].split("]")[0] if host.startswith("[") else host.split(":")[0]
+    if not legacy or host not in legacy:
+        return None
+    path = request.url.path
+    if path.startswith(_LEGACY_SERVED) or "DZPLAYApp/" in request.headers.get("user-agent", ""):
+        return None
+    target = f"https://{settings.APP_DOMAIN}{path}" + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(target, status_code=301 if request.method in ("GET", "HEAD") else 308)
 
 
 def _chat_picture_upload(request: Request) -> bool:
@@ -300,6 +321,9 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
         path = request.url.path
+        moved = _legacy_redirect(request, settings)  # V6 phase 20: the old address → the domain
+        if moved is not None:
+            return moved
         in_admin = bool(admin_prefix) and (path == admin_prefix or path.startswith(admin_prefix + "/"))
         # the panel (its pages and its API) stays in Arabic whatever language the app on the same browser uses
         i18n.set_current(i18n.DEFAULT if in_admin or path.startswith("/api/admin") else request_language(request))
@@ -368,6 +392,12 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         return {"ok": True}
+
+    @app.get("/healthz/ip", include_in_schema=False)
+    def healthz_ip(request: Request) -> JSONResponse:
+        """V6 phase 20: the address the server sees for the caller — its own, never anyone else's, never stored. The
+        move to Cloudflare checks with it that the real client arrives (CF-Connecting-IP from Cloudflare only)."""
+        return JSONResponse({"ip": client_ip(request, settings)}, headers={"Cache-Control": "no-store"})
 
     app.include_router(auth_api.router)
     app.include_router(messages_api.router)

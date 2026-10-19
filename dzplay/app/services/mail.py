@@ -100,7 +100,8 @@ def prepare(db: Session, settings: Settings, profile: str, to: str, key: str, va
 def deliver(out: Outgoing) -> None:
     """Send it. Raises MailError; the admin is alerted (rate limited) when the server refuses or is unreachable."""
     try:
-        mailer.send_text(out.settings, out.to, out.subject, out.body, reply_to=out.reply_to, html_body=out.html)
+        mailer.send_text(out.settings, out.to, out.subject, out.body, reply_to=out.reply_to, html_body=out.html,
+                         automatic=out.profile == "system")
     except MailError as exc:
         failed(out.profile, exc)
         raise

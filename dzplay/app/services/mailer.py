@@ -11,7 +11,7 @@ import html
 import smtplib
 import ssl
 from email.message import EmailMessage
-from email.utils import formataddr, make_msgid, parseaddr
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 
 from app.config import Settings
 from app.services import brand
@@ -61,7 +61,9 @@ def _message(settings: Settings, to_email: str, subject: str) -> EmailMessage:
     msg["From"] = formataddr((from_name or settings.APP_NAME, from_addr))
     msg["To"] = to_email
     msg["Subject"] = subject
-    msg["Message-ID"] = make_msgid(domain=from_addr.split("@")[-1] if "@" in from_addr else None)
+    msg["Date"] = formatdate(usegmt=True)
+    # V6 phase 20: the sender's domain, never the machine's name (make_msgid would use the container's hostname)
+    msg["Message-ID"] = make_msgid(domain=from_addr.split("@")[-1] if "@" in from_addr else settings.mail_hostname)
     return msg
 
 
@@ -77,13 +79,16 @@ def send_reset_code(settings: Settings, to_email: str, code: str) -> None:
 
 
 def send_text(settings: Settings, to_email: str, subject: str, text: str, reply_to: str | None = None,
-              html_body: str | None = None) -> None:
-    """A plain-text message (with an optional HTML alternative)."""
+              html_body: str | None = None, automatic: bool = False) -> None:
+    """A plain-text message (with an optional HTML alternative). automatic: a message no one wrote by hand (codes,
+    notices) — marked so that out-of-office replies are not sent back (RFC 3834)."""
     if not settings.smtp_enabled:
         raise MailError("SMTP is not configured")
     msg = _message(settings, to_email, subject[:200])
     if reply_to:
         msg["Reply-To"] = reply_to
+    if automatic:
+        msg["Auto-Submitted"] = "auto-generated"
     msg.set_content(text)
     if html_body:
         msg.add_alternative(html_body, subtype="html")
@@ -101,11 +106,14 @@ def send_test(settings: Settings, to_email: str) -> None:
 
 def _deliver(settings: Settings, msg: EmailMessage) -> None:
     try:
+        # EHLO with the domain, not the machine's name (V6 phase 20: nothing in the mail points at the server)
+        name = settings.mail_hostname
         if settings.SMTP_SECURITY == "ssl":
             server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT,
-                                      context=ssl.create_default_context())
+                                      context=ssl.create_default_context(), local_hostname=name)
         else:
-            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT)
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT,
+                                  local_hostname=name)
         with server:
             if settings.SMTP_SECURITY == "starttls":
                 server.starttls(context=ssl.create_default_context())

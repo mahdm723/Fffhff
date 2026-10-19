@@ -1,0 +1,1 @@
+# TLS_MODE=auto: clients connect directly; the TCP peer is the client and no proxy header is trusted.

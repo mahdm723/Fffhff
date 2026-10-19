@@ -1,0 +1,3 @@
+# TLS_MODE=cloudflare: the Cloudflare Origin Certificate (Cloudflare → this server, SSL mode "Full (strict)").
+# deploy/origin/cert.pem + key.pem on the server only, never in git.
+tls /etc/caddy/origin/cert.pem /etc/caddy/origin/key.pem

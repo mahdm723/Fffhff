@@ -142,6 +142,15 @@ fi
 bash "$APP_DIR/deploy/harden.sh" close-turn || true
 ok "Ports 80/443 available"
 
+# V6 phase 20: behind Cloudflare (after deploy/domain-switch.sh) Caddy needs the origin certificate and the
+# Cloudflare ranges; the ranges (and the Cloudflare-only firewall once finalized) are refreshed here too.
+if grep -q '^TLS_MODE=cloudflare' .env; then
+  [ -s deploy/origin/cert.pem ] && [ -s deploy/origin/key.pem ] \
+    || die "TLS_MODE=cloudflare but deploy/origin/cert.pem or key.pem is missing (docs/DOMAIN_MIGRATION.md)."
+  chmod 700 deploy/cloudflare-ips.sh
+  deploy/cloudflare-ips.sh >/dev/null && ok "Cloudflare ranges up to date"
+fi
+
 # --- 5. build & start ---------------------------------------------------------------
 say "5/6 Building and starting (first time takes a few minutes)"
 docker compose up -d --build --remove-orphans </dev/null
@@ -189,7 +198,7 @@ fi
 
 # Daily encrypted database backup (03:17 server time) + a first backup now.
 chmod 700 deploy/backup.sh deploy/restore.sh deploy/harden.sh deploy/telegram-setup.sh deploy/monitor.sh deploy/ssh-harden.sh \
-  deploy/v6-cleanup.sh deploy/perms.sh deploy/chat-images-purge.sh
+  deploy/v6-cleanup.sh deploy/perms.sh deploy/chat-images-purge.sh deploy/cloudflare-ips.sh deploy/domain-switch.sh
 cat > /etc/cron.d/dzplay-backup <<CRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

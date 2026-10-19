@@ -17,3 +17,9 @@ e2e/screenshots-*/
 secrets/
 android/app/google-services.json
 e2e/shots-*/
+
+# V6 phase 20: generated on the server (Cloudflare ranges, the old address during a move) and the origin
+# certificate + key — never in git
+deploy/caddy/cloudflare-ips.caddy
+deploy/caddy/legacy-*.caddy
+deploy/origin/

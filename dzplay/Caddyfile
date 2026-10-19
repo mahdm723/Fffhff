@@ -1,17 +1,28 @@
-# Automatic HTTPS (Let's Encrypt) in front of DZPLAY.
+# HTTPS in front of DALTA.BIT. Two modes (TLS_MODE in .env, V6 phase 20):
+#   auto        Let's Encrypt certificate, clients connect directly (the default).
+#   cloudflare  behind Cloudflare (proxied DNS, SSL "Full (strict)"): the Cloudflare Origin Certificate in
+#               deploy/origin/, and the client's address from CF-Connecting-IP — only when the connection comes
+#               from one of Cloudflare's ranges (deploy/cloudflare-ips.sh keeps them up to date).
+# The per-mode parts live in deploy/caddy/ (mounted at /etc/caddy/conf.d).
 {
 	servers {
-		# Slow-client protection (slowloris) without cutting long uploads, calls or WebSockets:
+		# Slow-client protection (slowloris) without cutting long uploads or WebSockets:
 		# only the request headers have a deadline; idle keep-alive connections are closed after 2 minutes.
 		timeouts {
 			read_header 15s
 			idle 2m
 		}
+		import /etc/caddy/conf.d/proxies-{$TLS_MODE:auto}.caddy
 	}
 }
 
-{$DOMAIN} {
+(app) {
 	encode zstd gzip
+	# Nothing in the answers names the software or the hops in front of the app.
+	header {
+		-Server
+		-Via
+	}
 	# API bodies are tiny JSON documents; only file uploads (V5) may be larger (exact caps in the app).
 	@upload path /api/uploads */api/admin/official/uploads
 	request_body @upload {
@@ -38,9 +49,21 @@
 	respond @chatsend 410 {
 		close
 	}
-	# Caddy is the only proxy: overwrite any client-supplied X-Forwarded-For.
+	# Caddy is the only proxy the app trusts: it overwrites any client-supplied X-Forwarded-For with the client's
+	# address — the TCP peer, or CF-Connecting-IP when the peer is Cloudflare (servers › trusted_proxies above).
 	reverse_proxy app:8000 {
-		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-For {client_ip}
+		header_up -CF-Connecting-IP
+		header_up -True-Client-IP
+		header_up -X-Real-IP
 	}
-	# No access log: DZPLAY does not keep request logs with IP addresses.
+	# No access log: the app does not keep request logs with IP addresses.
 }
+
+{$DOMAIN} {
+	import /etc/caddy/conf.d/tls-{$TLS_MODE:auto}.caddy
+	import app
+}
+
+# The old address during a move to a new domain (written by deploy/domain-switch.sh, removed by its "finalize").
+import /etc/caddy/conf.d/legacy-*.caddy

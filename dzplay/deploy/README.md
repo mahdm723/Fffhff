@@ -82,7 +82,7 @@ https://<رابط تطبيقك>/download/dzplay.apk
 
 التطبيق يفتح DZPLAY بملء الشاشة بأيقونته الخاصة، ولا يحتاج Chrome ولا أي متصفح. المحتوى يأتي من خادمك، لذلك **كل تحديث للخادم يصل لكل من ثبّت التطبيق تلقائيًا** دون ملف APK جديد. تحتاج APK جديدًا فقط إذا غيّرت عنوان الموقع (النطاق).
 
-> التطبيق مرتبط بعنوان `72-61-147-28.sslip.io`. إذا انتقلت إلى نطاق خاص، غيّر `appHost` في `android/gradle.properties` وأعد البناء.
+> التطبيق مرتبط بالعنوان في `appHost` (`android/gradle.properties`). الانتقال إلى نطاق خاص: `docs/DOMAIN_MIGRATION.md`.
 
 ## لوحة التحكم
 
@@ -195,6 +195,15 @@ cd /opt/dzplay/dzplay && nano .env && docker compose up -d
    - `ssh root@IP-الخادم` يجب أن يُرفض.
    - إن نجح الاختبار: `sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh confirm`
    - إن فشل: `sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh rollback`، أو انتظر 10 دقائق فيعود كل شيء تلقائيًا.
+
+---
+
+## الانتقال إلى نطاق خاص خلف Cloudflare
+
+- الخطوات كلها بالترتيب في [docs/DOMAIN_MIGRATION.md](../docs/DOMAIN_MIGRATION.md): Cloudflare، والبريد، ثم `deploy/domain-switch.sh`، ثم تطبيق أندرويد الجديد، ثم `finalize`.
+- `sudo deploy/domain-switch.sh check`: الفحوص في أي وقت.
+- `sudo deploy/domain-switch.sh rollback`: الرجوع إلى العنوان القديم.
+- `sudo deploy/cloudflare-ips.sh status`: النطاقات وجدار الحماية.
 
 ---
 

@@ -60,6 +60,11 @@ for f in "$APP_DIR"/.env.*; do
   case "$f" in */.env.example) continue ;; esac
   limit "$f" 600 root
 done
+# V6 phase 20: the Cloudflare Origin Certificate's private key (only once the app moved to its domain)
+if [ -d "$APP_DIR/deploy/origin" ]; then
+  limit "$APP_DIR/deploy/origin" 700 root
+  [ -e "$APP_DIR/deploy/origin/key.pem" ] && limit "$APP_DIR/deploy/origin/key.pem" 600 root
+fi
 if [ -d "$BACKUP_DIR" ]; then
   limit "$BACKUP_DIR" 700 root
   while IFS= read -r -d '' f; do limit "$f" 600 root; done < <(find "$BACKUP_DIR" -maxdepth 1 -type f -print0)

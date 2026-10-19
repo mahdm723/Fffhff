@@ -56,7 +56,7 @@ sudo /opt/dzplay/dzplay/deploy/perms.sh              # صلاحيات الملف
 sudo ss -ltnp                                          # 22 و80 و443 فقط على كل العناوين، والباقي على 127.0.0.1 أو داخل Docker
 sudo /opt/dzplay/dzplay/deploy/ssh-harden.sh status    # قراءة فقط: لا تغيير في SSH قبل موافقتك
 ```
-ومن Termux على الهاتف (`pkg install nmap`): `nmap -Pn -p- 72.61.147.28`، والمتوقع أن تكون المنافذ المفتوحة 22 و80 و443 فقط.
+ومن Termux على الهاتف (`pkg install nmap`): `nmap -Pn -p- <عنوان الخادم>`، والمتوقع أن تكون المنافذ المفتوحة 22 و80 و443 فقط.
 
 ## V6 المرحلة 1ب (إزالة الرسائل المجهولة العشوائية) — 2026-10-07
 
