@@ -454,3 +454,21 @@ def test_a_popular_picture_is_not_written_on_every_view(hx):
     for bad in ("../" + key[3:], key.upper(), key + "/x", ""):
         with pytest.raises(ValueError):
             store.path_for(bad, "img")
+
+
+def test_hashes_run_at_a_low_cpu_priority():
+    """G with 2 workers: one hash keeps ~1.3 cores busy, so a wave took the CPU from browsing (read p95 → ~29 s).
+    The hashing threads now run at nice HASH_NICE: browsing and messages come first."""
+    import os
+
+    if not hasattr(os, "getpriority"):
+        pytest.skip("no thread priorities on this system")
+    base = os.getpriority(os.PRIO_PROCESS, 0)
+    passwords.configure(1, queue=0, wait=0)
+    try:
+        nice = passwords.gate().run(lambda: os.getpriority(os.PRIO_PROCESS, threading.get_native_id()))
+        assert nice == max(passwords.HASH_NICE, base)
+        assert os.getpriority(os.PRIO_PROCESS, threading.get_native_id()) == base  # the request thread is untouched
+        assert passwords.verify_password(passwords.hash_password("pw-123456"), "pw-123456")
+    finally:
+        passwords.configure()
