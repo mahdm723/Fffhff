@@ -398,6 +398,8 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
 
     state.metrics = Metrics(settings.REDIS_URL, admin_prefix)  # V6 phase 21: «صحة النظام», alerts, load tests
 
+    auth_cap = settings.AUTH_MAX_IN_FLIGHT or max(4, settings.THREADPOOL_SIZE // 4)
+
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
         path = request.url.path
@@ -431,7 +433,16 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
             origin = request.headers.get("origin")
             if origin and urlsplit(origin).netloc != request.headers.get("host") and origin.rstrip("/") not in settings.allowed_origins:
                 return _error(403, "csrf", "طلب غير مسموح.")
-        response = await call_next(request)
+        auth_call = request.method == "POST" and path.startswith("/api/auth/") and path != "/api/auth/logout"
+        if auth_call:  # V6 phase 21: a sign-in/sign-up flood keeps its share of the worker (AUTH_MAX_IN_FLIGHT)
+            if state.auth_in_flight >= auth_cap:
+                return _error(503, "busy", passwords.BUSY, retry_after=passwords.RETRY_AFTER)
+            state.auth_in_flight += 1
+        try:
+            response = await call_next(request)
+        finally:
+            if auth_call:
+                state.auth_in_flight -= 1
         h = response.headers
         h["X-Content-Type-Options"] = "nosniff"
         h["Referrer-Policy"] = "no-referrer"

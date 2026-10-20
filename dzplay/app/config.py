@@ -258,6 +258,10 @@ class Settings(BaseSettings):
     PASSWORD_HASH_CONCURRENCY: int = 0
     PASSWORD_HASH_QUEUE: int = -1
     PASSWORD_HASH_WAIT_SECONDS: float = 3.0
+    # V6 phase 21: sign-in and sign-up requests (challenge, login, register, codes, reset) served at once per worker;
+    # the rest get the same 503 "busy" before using a thread or the database (0 = a quarter of THREADPOOL_SIZE).
+    # A flood of them can then never take more than that share of the worker from browsing and messages.
+    AUTH_MAX_IN_FLIGHT: int = 0
     # V6 phase 21: request timings (services/metrics.py) → Redis every N seconds (0 = never: tests read them directly)
     METRICS_FLUSH_SECONDS: int = 10
     # V6 phase 21: Telegram alert (admin_cli health-check via deploy/monitor.sh) over the last 5 minutes (panel settings)

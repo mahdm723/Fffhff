@@ -122,6 +122,7 @@
     - لذلك بوابة لكل عامل: `PASSWORD_HASH_CONCURRENCY` في وقت واحد (0 = الأنوية ÷ العمال)، و`PASSWORD_HASH_QUEUE` ينتظر حتى `PASSWORD_HASH_WAIT_SECONDS`.
     - ما زاد: 503 `busy` فورًا مع `Retry-After`، بلا خيط ولا ذاكرة.
     - التشفير نفسه في خيوط خاصة بأولوية منخفضة (`HASH_NICE`، وخيوط Argon2 ترثها): التصفح والرسائل أولًا، والتشفير يأخذ ما يبقى من المعالج.
+    - `AUTH_MAX_IN_FLIGHT` (0 = ربع `THREADPOOL_SIZE`): طلبات `POST /api/auth/*` (عدا الخروج) في وقت واحد لكل عامل، يُعدّها `security_middleware` (`state.auth_in_flight`). الزائد 503 `busy` قبل أي خيط أو قاعدة بيانات.
   - **المنشور المثبّت:** `official.pinned_post` من ذاكرة كل عامل (60 ث، 10 ث بلا منشور)، و`official.changed_pin` بعد التثبيت أو الحذف يبثّ `{type:"pinned"}` عبر الـhub فيُنسى فورًا في كل العمال.
   - **WebSocket:**
     - الجلسة تُراجع كل `WS_SESSION_RECHECK_SECONDS`؛

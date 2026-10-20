@@ -11,7 +11,7 @@ cd "$APP_DIR"
 env_get() { [ -f .env ] && grep -E "^$1=" .env | tail -1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//; s/^"//; s/"$//' || true; }
 export APP_ENV=staging
 for k in WEB_CONCURRENCY DB_POOL_SIZE DB_MAX_OVERFLOW THREADPOOL_SIZE PASSWORD_HASH_CONCURRENCY PASSWORD_HASH_QUEUE \
-         PASSWORD_HASH_WAIT_SECONDS WS_SESSION_RECHECK_SECONDS; do
+         PASSWORD_HASH_WAIT_SECONDS AUTH_MAX_IN_FLIGHT WS_SESSION_RECHECK_SECONDS; do
     v="$(env_get "$k")"
     if [ -n "$v" ]; then export "$k=$v"; echo "  $k=$v (production)"; fi
 done

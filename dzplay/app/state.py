@@ -32,6 +32,7 @@ class AppState:
     pipeline: object | None = None  # V5 MediaPipeline (user uploads -> worker -> Telegram storage)
     mail_queue: object | None = None  # V6 phase 18: MailQueue (code e-mails, off the request path)
     metrics: object | None = None  # V6 phase 21: services.metrics.Metrics (request timings per endpoint)
+    auth_in_flight: int = 0  # V6 phase 21: sign-in/sign-up requests being served by this worker (main.security_middleware)
 
     @classmethod
     def build(cls, settings: Settings, telegram_transport=None, chain_transport=None) -> "AppState":

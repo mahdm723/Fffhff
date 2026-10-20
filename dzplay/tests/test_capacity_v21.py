@@ -472,3 +472,21 @@ def test_hashes_run_at_a_low_cpu_priority():
         assert passwords.verify_password(passwords.hash_password("pw-123456"), "pw-123456")
     finally:
         passwords.configure()
+
+
+def test_a_sign_in_flood_is_refused_before_it_takes_the_worker(hx):
+    """G at double load: the wave alone sent more requests than the server serves. Beyond AUTH_MAX_IN_FLIGHT the
+    sign-in and sign-up calls are refused at once (no thread, no database); browsing and logout are never counted."""
+    a = hx.user()
+    cap = hx.state.settings.AUTH_MAX_IN_FLIGHT or max(4, hx.state.settings.THREADPOOL_SIZE // 4)
+    hx.state.auth_in_flight = cap  # as if `cap` sign-ins were being served right now
+    try:
+        c = hx.client()
+        for path, body in (("/api/auth/challenge", {"purpose": "login"}), ("/api/auth/login", {"email": a.email, "password": "x"})):
+            r = c.post(path, json=body)
+            assert r.status_code == 503 and r.json()["error"]["code"] == "busy" and r.headers["Retry-After"] == "3"
+        assert a.get("/api/posts/feed").status_code == 200 and a.get("/api/me").status_code == 200
+    finally:
+        hx.state.auth_in_flight = 0
+    assert hx.login(hx.client(), a.email).status_code == 200
+    assert hx.state.auth_in_flight == 0  # every served call gave its place back
