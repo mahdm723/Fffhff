@@ -8,8 +8,9 @@ start. So, per worker:
 * at most PASSWORD_HASH_QUEUE more wait, each for PASSWORD_HASH_WAIT_SECONDS at most;
 * anything beyond is answered at once 503 "busy, try again in a moment" (Retry-After) — no thread, no memory used;
 * the hashes themselves run on `slots` threads of their own at a low CPU priority (nice HASH_NICE; Argon2's lane threads
-  inherit it): one hash keeps ~1.3 cores busy, so at normal priority a wave took the whole CPU from browsing (measured:
-  read p95 from ~5 s to ~29 s). Now browsing and messages come first and hashing gets the CPU they leave.
+  inherit it): one hash keeps more than a core busy (4 lanes; 1.1–1.3 measured), so at normal priority a wave took the
+  whole CPU from browsing (measured: read p95 from ~5 s to ~29 s). Now browsing and messages come first and hashing
+  gets the CPU they leave.
 So the waiting logins hold only a few of the worker's threads and little CPU: browsing and messages keep the rest.
 The Argon2 parameters stay the library's (RFC 9106: 64 MiB, 3 passes, 4 lanes — above OWASP's minimum).
 """

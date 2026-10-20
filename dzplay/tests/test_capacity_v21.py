@@ -490,3 +490,21 @@ def test_a_sign_in_flood_is_refused_before_it_takes_the_worker(hx):
         hx.state.auth_in_flight = 0
     assert hx.login(hx.client(), a.email).status_code == 200
     assert hx.state.auth_in_flight == 0  # every served call gave its place back
+
+
+def test_pillow_only_ever_decodes_the_accepted_formats(hx, tmp_path):
+    """pip-audit (phase 21): 8 advisories in Pillow 12.3 (TIFF, GIF, PPM, EPS, PDF decoders). Uploads are sniffed to
+    JPEG/PNG/WebP/HEIC first; on top of that Pillow itself may now open only those, whatever the file contains."""
+    from PIL import Image
+
+    from app.services import media, media_check
+
+    tiff, ok = tmp_path / "x.bin", tmp_path / "ok.bin"
+    Image.new("RGB", (40, 40), "red").save(tiff, "TIFF")
+    Image.new("RGB", (40, 40), "red").save(ok, "PNG")
+    with pytest.raises(media_check.Rejected):
+        media_check.process_image(hx.state.settings, tiff, tmp_path / "out.webp", {"kind": "image"})
+    with pytest.raises(media.MediaError):
+        media.prepare_image(hx.state.settings, tiff, tmp_path / "out2.webp")
+    assert media_check.process_image(hx.state.settings, ok, tmp_path / "out3.webp", {"kind": "image"})["width"] == 40
+    assert media.prepare_image(hx.state.settings, ok, tmp_path / "out4.webp")["width"] == 40

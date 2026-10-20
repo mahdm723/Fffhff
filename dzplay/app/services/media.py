@@ -49,8 +49,10 @@ def prepare_image(settings: Settings, src: Path, out: Path) -> dict:
     from PIL import Image, ImageOps, UnidentifiedImageError
 
     Image.MAX_IMAGE_PIXELS = settings.IMAGE_MAX_PIXELS
+    from app.services.media_check import PILLOW_FORMATS
+
     try:
-        with Image.open(src) as im:
+        with Image.open(src, formats=PILLOW_FORMATS) as im:
             im = ImageOps.exif_transpose(im)  # apply the camera rotation, then drop all metadata
             im = im.convert("RGB")
             im.thumbnail((settings.IMAGE_MAX_SIDE, settings.IMAGE_MAX_SIDE))

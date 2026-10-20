@@ -126,6 +126,11 @@ def nsfw_verdict(scores: list[dict[str, float]], block: float, sexy: float) -> t
 # ---------------------------------------------------------------------------
 
 
+# The only decoders Pillow may use (the upload is sniffed to one of these first): no TIFF, GIF, PPM, EPS, PDF…
+# whatever a file claims to be, so a flaw in another decoder can never be reached by an upload.
+PILLOW_FORMATS = ("JPEG", "PNG", "WEBP", "HEIF")
+
+
 def _pillow():
     from PIL import Image
 
@@ -161,7 +166,7 @@ def process_image(settings: Settings, src: Path, out: Path, job: dict) -> dict:
     warnings.simplefilter("error", Image.DecompressionBombWarning)  # between 1x and 2x the limit: refuse too
     bad = Rejected("bad_image", N_("الصورة غير صالحة أو تالفة."))
     try:
-        with Image.open(src) as probe:
+        with Image.open(src, formats=PILLOW_FORMATS) as probe:
             w, h = probe.size
             if w * h > max_pixels:  # checked from the header: no decoding of a bomb
                 raise Rejected("too_many_pixels", N_("أبعاد الصورة كبيرة جدًا."))

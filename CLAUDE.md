@@ -133,6 +133,7 @@
     - `path_for` بلا `resolve()` (المعرّف 32 حرفًا ست عشريًا)؛
     - `touch` يكتب `last_access` مرة كل دقيقتين لكل صورة في كل عامل، لا عند كل عرض.
     - الصور المرسلة إلى المتصفح تُحسب مرة لكل هاتف (ذاكرته المؤقتة)، وk6 يحاكي ذلك.
+    - Pillow يفتح JPEG/PNG/WebP/HEIF فقط (`media_check.PILLOW_FORMATS`) بعد فحص البايتات الأولى: ثغرات المفكِّكات الأخرى (TIFF، GIF، PPM، EPS، PDF) لا يصلها أي رفع.
   - **الإيقاف:** `CMD` في `Dockerfile` بـ`exec uvicorn`، فيستلم uvicorn إشارة الإيقاف (PID 1) ويغلق الاتصالات بهدوء.
   - **التنظيف:** دفعات `cleanup.BATCH` في كل دورة (لا معاملة طويلة تحجز الصفوف).
   - **فهارس:** `ix_posts_pinned`، و`ix_notifications_created_at`، و`ix_users_name_trgm` (pg_trgm، `migrations.search_index`).
