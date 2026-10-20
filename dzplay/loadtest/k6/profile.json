@@ -1,0 +1,30 @@
+{
+  "_comment": "V6 phase 21: how a user behaves (weights are relative; think time in seconds between two actions).",
+  "think_seconds": [3, 10],
+  "actions_per_session": [4, 14],
+  "pause_between_sessions_seconds": [5, 20],
+  "cold_open_pct": 10,
+  "android_pct": 70,
+  "images_per_page": 6,
+  "actions": {
+    "feed_more": 20,
+    "open_post": 18,
+    "react": 10,
+    "chat": 10,
+    "profile": 8,
+    "notifications": 6,
+    "market": 6,
+    "users_page": 4,
+    "comment": 4,
+    "search": 3,
+    "reply": 2,
+    "money_pages": 2,
+    "new_idea": 1,
+    "rare": 1
+  },
+  "rare": {
+    "login": 50,
+    "membership_request": 25,
+    "withdraw_code": 25
+  }
+}

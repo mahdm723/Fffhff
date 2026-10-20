@@ -42,6 +42,21 @@ def add_missing_columns(engine: Engine) -> list[str]:
     return added
 
 
+def search_index(engine: Engine) -> bool:
+    """V6 phase 21: people search matches any part of a name (LIKE '%…%'): a trigram index (PostgreSQL) instead of
+    reading every account. Needs the pg_trgm extension (bundled with PostgreSQL; the database owner may create it)."""
+    if engine.dialect.name != "postgresql":
+        return False
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_name_trgm ON users USING gin (name_norm gin_trgm_ops)"))
+        return True
+    except Exception as exc:  # noqa: BLE001 - search still works without it, only slower
+        log.warning("schema: no trigram index for people search (%s)", type(exc).__name__)
+        return False
+
+
 def backfill(engine: Engine) -> dict:
     """Idempotent data steps for existing databases (V4): unique indexes on new columns and a
     public ID for every account that has none. Safe to run on every start."""
@@ -58,6 +73,10 @@ def backfill(engine: Engine) -> dict:
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_ledger_source ON ledger_entries "
                           "(account, source_type, source_id, kind)"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_referral_code ON users (referral_code)"))
+        # V6 phase 21 (load tests): the pinned official post is looked up on every feed page (it scanned every post),
+        # and the cleanup deletes old notifications by date (it scanned the whole table)
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_posts_pinned ON posts (pinned_until) WHERE pinned_until IS NOT NULL"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (created_at)"))
         # Conversations from before V4: the initiator always wrote first; the recipient replied if a
         # message of theirs is still stored or they were the last sender.
         conn.execute(text("UPDATE conversations SET initiator_sent = :t WHERE initiator_sent IS NULL"), {"t": True})

@@ -53,10 +53,21 @@ def resolve_session(db: Session, settings: Settings, token: str | None) -> User 
     return user
 
 
+def _ended(db: Session, user_id: str | None) -> None:
+    """V6 phase 21: remember whose sessions ended; after the commit their open WebSockets re-check at once
+    (db.Database.session → state: hub "session" event)."""
+    if user_id:
+        db.info.setdefault("dz_sessions_ended", set()).add(user_id)
+
+
 def revoke_session(db: Session, token: str | None) -> None:
     if token:
+        sess = db.get(AuthSession, sha256_hex(token))
+        if sess is not None:
+            _ended(db, sess.user_id)
         db.execute(delete(AuthSession).where(AuthSession.token_hash == sha256_hex(token)))
 
 
 def revoke_all_sessions(db: Session, user_id: str) -> None:
+    _ended(db, user_id)
     db.execute(delete(AuthSession).where(AuthSession.user_id == user_id))

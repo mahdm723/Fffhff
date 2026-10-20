@@ -62,6 +62,8 @@
 
 {$DOMAIN} {
 	import /etc/caddy/conf.d/tls-{$TLS_MODE:auto}.caddy
+	# V6 phase 21: «صيانة مؤقتة» while maintenance-<mode>.caddy exists (loadtest/phase2/maintenance.sh); staging never matches
+	import /etc/caddy/conf.d/maintenance-{$TLS_MODE:auto}*.caddy
 	import app
 }
 

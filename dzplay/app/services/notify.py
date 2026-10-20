@@ -60,6 +60,9 @@ def listing(db: Session, user: User) -> dict:
                            .order_by(Notification.created_at.desc()).limit(PAGE)).scalars())
     actors = {u.id: u for u in db.execute(select(User).where(User.id.in_({n.actor_id for n in rows if n.actor_id}))).scalars()}
     comments = {c.id: c for c in db.execute(select(Comment).where(Comment.id.in_({n.comment_id for n in rows if n.comment_id}))).scalars()}
+    from app.services.media_items import prefetch
+
+    prefetch(db, actors.values())  # V6 phase 21: one query for every picture
     out = []
     for n in rows:
         a = actors.get(n.actor_id)
@@ -92,8 +95,12 @@ def mark_read(db: Session, user: User) -> dict:
     return {"unread": 0}
 
 
-def purge_old(db: Session) -> int:
-    from sqlalchemy import delete
+def purge_old(db: Session, limit: int | None = None) -> int:
+    """Notifications older than KEEP_DAYS; at most `limit` per call (V6 phase 21: the cleanup's short batches)."""
+    from sqlalchemy import delete, select
 
-    return db.execute(delete(Notification).where(
-        Notification.created_at < clock.utcnow() - timedelta(days=KEEP_DAYS))).rowcount or 0
+    old = Notification.created_at < clock.utcnow() - timedelta(days=KEEP_DAYS)
+    if limit:
+        return db.execute(delete(Notification).where(
+            Notification.id.in_(select(Notification.id).where(old).limit(limit)))).rowcount or 0
+    return db.execute(delete(Notification).where(old)).rowcount or 0

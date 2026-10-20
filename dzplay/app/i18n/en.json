@@ -937,5 +937,6 @@
  "📌 مثبّت": "📌 Pinned",
  "📷 صورة": "📷 Image",
  "🧧 ربحت في «{title}»! تحقق من بريدك.": "🧧 You won in \"{title}\"! Check your email.",
- "🧧 شارك الآن": "🧧 Enter now"
+ "🧧 شارك الآن": "🧧 Enter now",
+ "الخادم مشغول الآن. أعد المحاولة بعد لحظات.": "The server is busy right now. Try again in a moment."
 }

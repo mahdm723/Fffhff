@@ -352,6 +352,16 @@ def purge_chat_images(db: Session, actor: str = "system:purge") -> dict:
 # ---------------------------------------------------------------------------
 
 
+def prefetch(db: Session, users=(), posts=()) -> None:
+    """V6 phase 21: the pictures of a whole list (avatars, idea pictures) in one query, before it is serialized —
+    avatar_url() and post_media() then find them in the session (db.get) instead of one query each. The session only
+    holds weak references: the rows are kept in db.info for the rest of the request."""
+    ids = {u.avatar_media_id for u in users if u is not None and u.avatar_media_id}
+    ids |= {p.media_id for p in posts if p.media_id}
+    if ids:
+        db.info.setdefault("dz_prefetched", []).extend(db.execute(select(MediaItem).where(MediaItem.id.in_(ids))).scalars())
+
+
 def avatar_url(user: User | None) -> str | None:
     """Signed, session-bound URL of the user's profile picture (None: no picture, removed or hidden)."""
     if user is None or not user.avatar_media_id:

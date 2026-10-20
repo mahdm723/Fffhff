@@ -143,8 +143,9 @@ def _serialize_many(db: Session, posts: list[Post], viewer_id: str) -> list[dict
     counts = dict(db.execute(select(Comment.post_id, func.count(Comment.id)).where(
         Comment.post_id.in_([p.id for p in posts]), Comment.visibility == "public", Comment.deleted_at.is_(None))
         .group_by(Comment.post_id)).all())
-    from app.services.media_items import post_media
+    from app.services.media_items import post_media, prefetch
 
+    prefetch(db, authors.values(), posts)  # V6 phase 21: one query for every picture
     return [serialize_post(p, viewer_id, refs[p.author_id], reactions.get(p.id), authors.get(p.author_id),
                            post_media(db, p, viewer_id), counts.get(p.id, 0)) for p in posts]
 
@@ -447,6 +448,9 @@ def _comment_views(db: Session, post: Post, viewer_id: str, rows: list[Comment])
     from app.services.media_items import avatar_url
 
     users = _authors(db, {c.author_id for c in rows} | {c.reply_to_user_id for c in rows if c.reply_to_user_id})
+    from app.services.media_items import prefetch
+
+    prefetch(db, users.values())  # V6 phase 21: one query for every picture
     out = []
     for c in rows:
         u = users.get(c.author_id)

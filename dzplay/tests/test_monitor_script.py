@@ -21,7 +21,9 @@ case "$1 $2" in
   "exec -T")
     shift 2
     case "$1 $2" in
-      "app python") [ "${FAKE_APP_SEND:-1}" = 1 ] || exit 1; printf '%s\n---\n' "${@: -1}" >> "$FAKE_ALERTS" ;;
+      "app python")
+        if [ "${@: -1}" = "health-check" ]; then printf '%b' "${FAKE_HEALTH:-}"; exit 0; fi  # V6 phase 21: timings
+        [ "${FAKE_APP_SEND:-1}" = 1 ] || exit 1; printf '%s\n---\n' "${@: -1}" >> "$FAKE_ALERTS" ;;
       "app printenv") echo queue ;;
       "redis redis-cli") echo "${FAKE_HB:-1}" ;;
     esac ;;
@@ -113,3 +115,37 @@ def test_direct_fallback_keeps_the_token_off_the_command_line(box):
     assert "secret-token-value" in (tmp / "curl.in").read_text()  # config on stdin
     assert "secret-token-value" not in (tmp / "curl.args").read_text()  # never in argv (ps)
     assert "media-worker" in (tmp / "curl.args").read_text()
+
+
+def test_slow_answers_alert_once_then_recover(box):
+    """V6 phase 21: admin_cli health-check (request timings in Redis) prints "key<TAB>message" lines."""
+    _, run, sent = box
+    slow = "app:latency\\tزمن الاستجابة p95 = 2400 ms (الحد 1000 ms)\\n"
+    run(FAKE_HEALTH=slow)
+    assert len(sent()) == 1 and "2400 ms" in sent()[0]
+    run(FAKE_HEALTH=slow)
+    assert len(sent()) == 1  # no duplicate
+    run()
+    assert len(sent()) == 2 and "عاد طبيعيًا" in sent()[1]
+
+
+def test_a_maintenance_window_only_watches_the_disk(box):
+    tmp, run, sent = box
+    state = tmp / "state"
+    state.mkdir(exist_ok=True)
+    (state / ".maintenance").write_text(str(int(datetime.now().timestamp()) + 3600))
+    run(running="caddy")  # production stopped on purpose
+    assert sent() == []
+    (state / ".maintenance").write_text(str(int(datetime.now().timestamp()) - 10))  # the window is over
+    run(running="caddy")
+    assert len(sent()) == 1 and "متوقفة" in sent()[0]  # the checks are back: the stopped services are reported
+
+
+def test_problems_open_before_the_window_are_not_called_fixed(box):
+    tmp, run, sent = box
+    run(running="app db redis caddy")  # media-worker down: one alert
+    assert len(sent()) == 1
+    state = tmp / "state"
+    (state / ".maintenance").write_text(str(int(datetime.now().timestamp()) + 3600))
+    run(running="caddy")
+    assert len(sent()) == 1  # no "fixed" message for what is simply not checked during the window

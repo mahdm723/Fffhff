@@ -129,7 +129,12 @@ check_bans() {
   return 0
 }
 
-all_checks() { check_disk; check_load; check_mem; check_containers; check_http; check_bans; }
+# V6 phase 21: the app itself — slow answers (p95) or errors over the last 5 minutes (thresholds in the panel)
+check_app() {
+  $COMPOSE exec -T app python -m app.admin_cli health-check 2>/dev/null </dev/null || true
+}
+
+all_checks() { check_disk; check_load; check_mem; check_containers; check_http; check_bans; check_app; }
 
 # --- state: one file per open problem (first seen, last sent) -------------------
 key_file() { printf '%s/%s' "$STATE" "$(printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' '_')"; }
@@ -140,6 +145,13 @@ run_check() {
   local now problems new="" again="" fixed="" k msg f first last
   now="$(date +%s)"
   problems="$(all_checks)"
+  # V6 phase 21: a planned maintenance window (loadtest/phase2/maintenance.sh): production is stopped on purpose,
+  # so only the disk is watched until the window ends (the flag holds its own end time: never forgotten "on")
+  local maint=0
+  if [ -f "$STATE/.maintenance" ] && [ "$(cat "$STATE/.maintenance" 2>/dev/null || echo 0)" -gt "$now" ]; then
+    problems="$(check_disk)"
+    maint=1
+  fi
   declare -A open=()
   while IFS=$'\t' read -r k msg; do
     [ -n "$k" ] || continue
@@ -159,6 +171,7 @@ run_check() {
   for f in "$STATE"/*; do
     [ -f "$f" ] || continue
     k="$(basename "$f")"
+    [ "$maint" = 1 ] && [[ "$k" != disk* ]] && continue  # not checked during the window: neither open nor fixed
     local still=0
     for o in "${!open[@]}"; do [ "$(basename "$(key_file "$o")")" = "$k" ] && still=1; done
     if [ "$still" = 0 ]; then

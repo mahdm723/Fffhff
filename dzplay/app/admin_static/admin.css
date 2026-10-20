@@ -450,3 +450,8 @@ details.admin-group summary { cursor: pointer; font-weight: 700; padding: 4px 0;
 .brand-badges__name { font-size: 11.5px; opacity: .75; }
 .brand-badges__row .brand-strip { align-items: flex-end; gap: 12px; }
 .brand-badges__names { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; font-size: 15px; font-weight: 700; }
+
+/* V6 phase 21 «صحة النظام» */
+.admin-health .viz-table th[dir="ltr"] { white-space: normal; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: 12px; }
+.admin-health .viz-table { margin-top: 6px; }
+.admin-group__sub { margin: 12px 0 0; font-size: 13px; }

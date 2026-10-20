@@ -31,10 +31,11 @@ class AppState:
     fcm: object | None = None  # FcmNotifier when FCM_SERVICE_ACCOUNT_FILE is set (new-message alerts in the Android app)
     pipeline: object | None = None  # V5 MediaPipeline (user uploads -> worker -> Telegram storage)
     mail_queue: object | None = None  # V6 phase 18: MailQueue (code e-mails, off the request path)
+    metrics: object | None = None  # V6 phase 21: services.metrics.Metrics (request timings per endpoint)
 
     @classmethod
     def build(cls, settings: Settings, telegram_transport=None, chain_transport=None) -> "AppState":
-        database = Database(settings.DATABASE_URL)
+        database = Database(settings.DATABASE_URL, settings.DB_POOL_SIZE, settings.DB_MAX_OVERFLOW, settings.DB_POOL_TIMEOUT)
         limiter = make_rate_limiter(settings.REDIS_URL)
         holder: dict = {}
 
@@ -51,6 +52,8 @@ class AppState:
                     push=PushNotifier(settings, database), media=media, telegram_transport=telegram_transport,
                     chain_transport=chain_transport)
         holder["state"] = state
+        # V6 phase 21: logout, ban, password change: the user's open sockets (any worker) check their session now
+        database.on_sessions_ended = lambda user_ids: state.hub.notify(sorted(user_ids), {"type": "session"})
         from app.services import media_items
         from app.services.media_pipeline import MediaPipeline
 

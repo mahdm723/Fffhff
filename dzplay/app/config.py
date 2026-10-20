@@ -33,18 +33,22 @@ class Settings(BaseSettings):
 
     # --- application -------------------------------------------------------
     APP_NAME: str = "DALTA.BIT"
-    ENV: str = "development"  # "development" | "production" | "test"
+    ENV: str = "development"  # "development" | "production" | "staging" (V6 phase 21: load tests) | "test"
     SECRET_KEY: str = ""
     DATABASE_URL: str = "sqlite:///./dzplay.db"
     REDIS_URL: str = ""  # optional: enables shared rate limits + realtime across workers
     LOG_LEVEL: str = "INFO"
 
     # --- HTTP / cookies / proxies -----------------------------------------
-    COOKIE_SECURE: bool | None = None  # default: True in production
+    COOKIE_SECURE: bool | None = None  # default: True in production and staging
     SESSION_COOKIE_NAME: str = "dz_session"
     SESSION_DURATION: int = 30 * DAY
     TRUST_PROXY_HEADERS: bool = False  # read client IP from X-Forwarded-For
     TRUSTED_PROXY_COUNT: int = 1  # number of reverse proxies in front of the app
+    # V6 phase 21: load tests, in staging ONLY (the settings refuse it anywhere else; see app/security/loadtest.py).
+    # Never in .env.example, never a panel setting.
+    LOADTEST_MODE: bool = False
+    LOADTEST_TOKEN: str = ""  # a long random secret shared with the load generator (32+ characters)
     ALLOWED_ORIGINS: str = ""  # extra origins allowed for WebSocket (comma separated)
 
     # --- registration / login protection ----------------------------------
@@ -236,7 +240,27 @@ class Settings(BaseSettings):
     TYPING_EVENTS_PER_MINUTE: int = 30
     WS_MAX_MESSAGE_BYTES: int = 16_384  # client → server WebSocket message size cap
     WS_MSGS_PER_10S: int = 60  # client → server WebSocket messages per connection per 10 s
-    WS_PING_SECONDS: int = 25  # keep-alive interval; the session is re-checked at each one
+    WS_PING_SECONDS: int = 25  # keep-alive interval
+    # V6 phase 21: an open socket re-checks its session in the database this often (logout, ban, password change and
+    # «revoke sessions» close it at once anyway: they signal the socket, services/realtime "session" event)
+    WS_SESSION_RECHECK_SECONDS: int = 300
+    # V6 phase 21: capacity. Workers = uvicorn processes (WEB_CONCURRENCY, read by uvicorn itself; the background loops
+    # run in one of them at a time). Per worker: DB_POOL_SIZE + DB_MAX_OVERFLOW database connections at most —
+    # WEB_CONCURRENCY × (both) + 10 must stay under PostgreSQL's max_connections (a warning at start says so).
+    WEB_CONCURRENCY: int = 1
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30  # seconds a request waits for a free connection before failing
+    THREADPOOL_SIZE: int = 40  # threads per worker for the synchronous endpoints (database work)
+    # Argon2 hashes at once per worker (each takes 64 MiB and a CPU core for ~0.1 s): a login/sign-up wave queues
+    # instead of exhausting the memory. 0 = the number of CPUs.
+    PASSWORD_HASH_CONCURRENCY: int = 0
+    # V6 phase 21: request timings (services/metrics.py) → Redis every N seconds (0 = never: tests read them directly)
+    METRICS_FLUSH_SECONDS: int = 10
+    # V6 phase 21: Telegram alert (admin_cli health-check via deploy/monitor.sh) over the last 5 minutes (panel settings)
+    HEALTH_P95_MS: int = 1000
+    HEALTH_ERROR_PCT: float = 2.0
+    HEALTH_MIN_REQUESTS: int = 100  # fewer requests than this in 5 minutes: no alert on percentages
 
     # --- Optional Firebase Cloud Messaging: new-message alerts in the Android app -------
     FCM_SERVICE_ACCOUNT_FILE: str = ""  # SECRET file (never in the repo): Firebase service-account JSON path
@@ -382,12 +406,17 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _finalize(self) -> "Settings":
         if not self.SECRET_KEY:
-            if self.ENV == "production":
+            if self.ENV in ("production", "staging"):
                 raise ValueError("SECRET_KEY must be set in production")
             self.SECRET_KEY = secrets.token_urlsafe(48)
             self.secret_key_generated = True
         if self.COOKIE_SECURE is None:
-            self.COOKIE_SECURE = self.ENV == "production"
+            self.COOKIE_SECURE = self.ENV in ("production", "staging")
+        if self.LOADTEST_MODE:  # V6 phase 21: impossible outside staging
+            if self.ENV != "staging":
+                raise ValueError("LOADTEST_MODE is only allowed with ENV=staging (never in production)")
+            if len(self.LOADTEST_TOKEN) < 32:
+                raise ValueError("LOADTEST_MODE needs LOADTEST_TOKEN (32+ random characters)")
         if self.APP_DOMAIN:  # V6 phase 20: one setting for the address everywhere (links, webhook, e-mail)
             from urllib.parse import urlsplit
 

@@ -23,3 +23,8 @@ e2e/shots-*/
 deploy/caddy/cloudflare-ips.caddy
 deploy/caddy/legacy-*.caddy
 deploy/origin/
+
+# V6 phase 21: load-test outputs (staging secrets, session tokens, results) — never in git
+loadtest/out/
+loadtest/results/
+deploy/caddy/maintenance-*.caddy

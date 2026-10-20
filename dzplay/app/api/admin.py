@@ -565,6 +565,14 @@ def system_status(request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> 
         }
 
 
+@router.get("/health")
+def health(request: Request, minutes: int = Query(default=15, ge=1, le=180), ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
+    """V6 phase 21: «صحة النظام» — timings per endpoint, the machine, the database, Redis."""
+    from app.services import health as health_service
+
+    return health_service.report(get_state(request), minutes)
+
+
 # ----------------------------------------------------------------- Telegram bot settings (token is write-only)
 
 

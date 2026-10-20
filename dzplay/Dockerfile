@@ -25,5 +25,5 @@ USER dzplay
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"
 
-# One worker is enough for the MVP. With REDIS_URL set you can raise --workers.
+# Worker processes: WEB_CONCURRENCY in .env (uvicorn reads it; V6 phase 21 — needs REDIS_URL, as in docker-compose.yml).
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-proxy-headers --no-access-log --no-server-header"]

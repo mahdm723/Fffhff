@@ -281,6 +281,9 @@ def _summaries(db: Session, user: User, conversations: list[Conversation], setti
     ).all())
     peer_ids = {c.peer_of(user.id) for c in conversations}
     peers = {u.id: u for u in db.execute(select(User).where(User.id.in_(peer_ids))).scalars()} if peer_ids else {}
+    from app.services.media_items import prefetch
+
+    prefetch(db, peers.values())  # V6 phase 21: one query for every picture
     return [serialize_conversation(c, user.id, last_by_conv.get(c.id), unread.get(c.id, 0), peers.get(c.peer_of(user.id)),
                                    anon_until) for c in conversations]
 

@@ -1,5 +1,5 @@
-// Admin panel — security & system: Telegram bot, e-mail, media cache, network blocks (lift),
-// password-reset requests, failed sign-ins, data cleanup and the admin-account CLI.
+// Admin panel — security & system: «صحة النظام» (V6 phase 21), Telegram bot, e-mail, media cache, network blocks
+// (lift), password-reset requests, failed sign-ins, data cleanup and the admin-account CLI.
 import { h, toast } from '/js/ui.js';
 import { icon } from '/js/icons.js';
 import { appName } from '/js/brand.js';
@@ -44,6 +44,7 @@ export async function renderSystem(main) {
   fill.style.inlineSize = `${pct}%`;
 
   body.replaceChildren(
+    healthCard(),
     botSection(),
     smtpSection('system'),
     smtpSection('support'),
@@ -67,6 +68,61 @@ export async function renderSystem(main) {
           + 'docker compose exec app python -m app.admin_cli set-admin-password NAME\n'
           + 'docker compose exec app python -m app.admin_cli audit',
       }))));
+}
+
+// ------------------------------------------------------------------ V6 phase 21: «صحة النظام»
+
+const ms = (v) => `${fmt(Math.round(v))} ms`;
+const pct = (v) => (v === null || v === undefined ? '—' : `${fmt(v)}٪`);
+
+function healthCard() {
+  const box = h('div', {}, spinner());
+  let minutes = 15;
+  const pick = h('select', { class: 'input admin-select', 'aria-label': 'المدة' },
+    h('option', { value: '15', text: 'آخر 15 دقيقة' }), h('option', { value: '60', text: 'آخر ساعة' }),
+    h('option', { value: '180', text: 'آخر 3 ساعات' }));
+  const again = h('button', { type: 'button', class: 'btn btn--sm btn--ghost' }, 'تحديث');
+
+  async function load() {
+    const d = await attempt(() => call('GET', `/api/admin/health?minutes=${minutes}`));
+    if (!d) { box.replaceChildren(); return; }
+    const t = d.metrics.totals;
+    const lim = d.thresholds;
+    const sys = d.system;
+    const db = d.database;
+    const slow = (v) => (v > lim.p95_ms ? 'admin-warn' : 'admin-ok');
+    const table = d.metrics.slowest.length ? h('div', { class: 'viz-table glass' }, h('table', {},
+      h('thead', {}, h('tr', {}, ...['الطلب', 'العدد', 'p95', 'p99', 'الأخطاء'].map((c) => h('th', { text: c })))),
+      h('tbody', {}, ...d.metrics.slowest.map((e) => h('tr', {},
+        h('th', { dir: 'ltr', text: e.endpoint }), h('td', { text: fmt(e.count) }),
+        h('td', { class: slow(e.p95_ms), text: ms(e.p95_ms) }), h('td', { text: ms(e.p99_ms) }),
+        h('td', { class: e.error_pct > lim.error_pct ? 'admin-warn' : null, text: pct(e.error_pct) })))))) : emptyState('لا طلبات في هذه المدة.');
+    box.replaceChildren(
+      rows([
+        ['الطلبات في الثانية', fmt(t.rps)],
+        ['زمن الاستجابة p50 / p95 / p99', `${ms(t.p50_ms)} / ${ms(t.p95_ms)} / ${ms(t.p99_ms)}`, slow(t.p95_ms)],
+        ['نسبة الأخطاء', `${pct(t.error_pct)} (${fmt(t.errors)} من ${fmt(t.count)})`, t.error_pct > lim.error_pct ? 'admin-warn' : 'admin-ok'],
+        ['اتصالات فورية مفتوحة (WebSocket)', fmt(d.metrics.websockets)],
+        ['حمل المعالج (1 / 5 / 15 دقيقة)', `${fmt(sys.load1)} / ${fmt(sys.load5)} / ${fmt(sys.load15)} — ${fmt(sys.cpus)} معالج`,
+          sys.load5 > sys.cpus ? 'admin-warn' : 'admin-ok'],
+        ['الذاكرة المستعملة', pct(sys.mem_used_pct), sys.mem_used_pct > 80 ? 'admin-warn' : 'admin-ok'],
+        ['القرص المستعمل', pct(sys.disk_used_pct), sys.disk_used_pct > 85 ? 'admin-warn' : 'admin-ok'],
+        ...(db.connections !== undefined ? [
+          ['اتصالات قاعدة البيانات (نشطة / الكل / الحد)', `${fmt(db.active)} / ${fmt(db.connections)} / ${fmt(db.max_connections)}`,
+            db.connections > db.max_connections * 0.8 ? 'admin-warn' : 'admin-ok'],
+          ['حجم قاعدة البيانات', bytes(db.size_bytes)]] : []),
+        ...(d.redis && !d.redis.error ? [['Redis: الذاكرة / العملاء', `${bytes(d.redis.used_memory)} / ${fmt(d.redis.clients)}`]] : []),
+      ]),
+      h('h4', { class: 'admin-group__sub', text: 'أبطأ الطلبات' }),
+      table,
+      h('p', { class: 'admin-meta', text: `تنبيه Telegram (كل 5 دقائق) إذا تجاوز p95 ${fmt(lim.p95_ms)} ms أو الأخطاء ${fmt(lim.error_pct)}٪ — من «الإعدادات ← صحة النظام والتنبيهات».` }));
+  }
+  pick.addEventListener('change', () => { minutes = Number(pick.value); box.replaceChildren(spinner()); load(); });
+  again.addEventListener('click', () => { box.replaceChildren(spinner()); load(); });
+  load();
+  return h('article', { class: 'admin-group glass admin-health' },
+    h('h3', { class: 'admin-group__title' }, icon('timer'), 'صحة النظام'),
+    h('div', { class: 'admin-actions' }, pick, again), box);
 }
 
 // ------------------------------------------------------------------ V6 phase 15: the admin signup code

@@ -51,6 +51,7 @@ GROUPS = {
     "access": "الوصول للتطبيق",
     "signup": "التسجيل وتأكيد البريد",
     "reset": "استعادة الحساب",
+    "health": "صحة النظام والتنبيهات",
 }
 _CHAT = re.compile(r"^-?[0-9]{3,20}$")
 
@@ -80,6 +81,10 @@ REGISTRY: list[Tunable] = [
     Tunable("MAX_POSTS_PER_DAY", "int", "ideas", "أفكار في اليوم", 1, 1000),
     Tunable("MAX_POST_LENGTH", "int", "ideas", "أقصى طول للفكرة (حرف)", 50, 10000),
     Tunable("OFFICIAL_POSTS_PER_DAY", "int", "ideas", "منشورات الحساب الرسمي في 24 ساعة (0 = بلا حد)", 0, 1000),
+    # V6 phase 21: Telegram alert when the app slows down or fails (over the last 5 minutes)
+    Tunable("HEALTH_P95_MS", "int", "health", "تنبيه إذا تجاوز زمن الاستجابة p95 (ملّي ثانية)", 100, 30000),
+    Tunable("HEALTH_ERROR_PCT", "float", "health", "تنبيه إذا تجاوزت نسبة الأخطاء (٪)", 0.1, 100),
+    Tunable("HEALTH_MIN_REQUESTS", "int", "health", "أقل عدد طلبات في 5 دقائق لحساب النسب", 1, 100000),
     # chat
     Tunable("MAX_MESSAGES_PER_MINUTE", "int", "chat", "رسائل في الدقيقة", 1, 120),
     Tunable("MAX_MESSAGES_PER_HOUR", "int", "chat", "رسائل في الساعة", 1, 2000),

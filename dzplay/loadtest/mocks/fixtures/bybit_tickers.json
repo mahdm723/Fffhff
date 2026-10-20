@@ -1,0 +1,550 @@
+[
+ {
+  "symbol": "BTCUSDT",
+  "lastPrice": "67000.5",
+  "price24hPcnt": "0.1294",
+  "highPrice24h": "70350.525000",
+  "lowPrice24h": "63650.475000",
+  "turnover24h": "572229946.48",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ETHUSDT",
+  "lastPrice": "1437.301468",
+  "price24hPcnt": "-0.1312",
+  "highPrice24h": "1509.166541",
+  "lowPrice24h": "1365.436395",
+  "turnover24h": "713784755.66",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "SOLUSDT",
+  "lastPrice": "2423.562925",
+  "price24hPcnt": "0.0319",
+  "highPrice24h": "2544.741071",
+  "lowPrice24h": "2302.384779",
+  "turnover24h": "455565569.82",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "XRPUSDT",
+  "lastPrice": "708.169167",
+  "price24hPcnt": "-0.2483",
+  "highPrice24h": "743.577625",
+  "lowPrice24h": "672.760709",
+  "turnover24h": "335199929.09",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "BNBUSDT",
+  "lastPrice": "1756.087533",
+  "price24hPcnt": "-0.2119",
+  "highPrice24h": "1843.891910",
+  "lowPrice24h": "1668.283156",
+  "turnover24h": "714788417.63",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "DOGEUSDT",
+  "lastPrice": "696.758226",
+  "price24hPcnt": "-0.122",
+  "highPrice24h": "731.596137",
+  "lowPrice24h": "661.920315",
+  "turnover24h": "40017204.15",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ADAUSDT",
+  "lastPrice": "2992.683627",
+  "price24hPcnt": "0.1563",
+  "highPrice24h": "3142.317808",
+  "lowPrice24h": "2843.049446",
+  "turnover24h": "787785489.78",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "TRXUSDT",
+  "lastPrice": "1847.670305",
+  "price24hPcnt": "-0.2313",
+  "highPrice24h": "1940.053820",
+  "lowPrice24h": "1755.286790",
+  "turnover24h": "297378553.03",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "TONUSDT",
+  "lastPrice": "1492.657004",
+  "price24hPcnt": "-0.1863",
+  "highPrice24h": "1567.289854",
+  "lowPrice24h": "1418.024154",
+  "turnover24h": "856863777.18",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "AVAXUSDT",
+  "lastPrice": "1105.339986",
+  "price24hPcnt": "-0.1649",
+  "highPrice24h": "1160.606985",
+  "lowPrice24h": "1050.072987",
+  "turnover24h": "736123480.02",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "LINKUSDT",
+  "lastPrice": "374.631391",
+  "price24hPcnt": "0.2604",
+  "highPrice24h": "393.362961",
+  "lowPrice24h": "355.899821",
+  "turnover24h": "408908579.41",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "DOTUSDT",
+  "lastPrice": "1656.00867",
+  "price24hPcnt": "-0.0614",
+  "highPrice24h": "1738.809103",
+  "lowPrice24h": "1573.208236",
+  "turnover24h": "437263867.63",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "MATICUSDT",
+  "lastPrice": "560.726374",
+  "price24hPcnt": "-0.2296",
+  "highPrice24h": "588.762693",
+  "lowPrice24h": "532.690055",
+  "turnover24h": "779565254.62",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "LTCUSDT",
+  "lastPrice": "704.598438",
+  "price24hPcnt": "0.1791",
+  "highPrice24h": "739.828360",
+  "lowPrice24h": "669.368516",
+  "turnover24h": "189288869.27",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "BCHUSDT",
+  "lastPrice": "2906.306996",
+  "price24hPcnt": "0.2417",
+  "highPrice24h": "3051.622346",
+  "lowPrice24h": "2760.991646",
+  "turnover24h": "679803621.43",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "NEARUSDT",
+  "lastPrice": "2288.377962",
+  "price24hPcnt": "0.0694",
+  "highPrice24h": "2402.796860",
+  "lowPrice24h": "2173.959064",
+  "turnover24h": "657322124.14",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "APTUSDT",
+  "lastPrice": "367.4337",
+  "price24hPcnt": "0.012",
+  "highPrice24h": "385.805385",
+  "lowPrice24h": "349.062015",
+  "turnover24h": "744662240.36",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ARBUSDT",
+  "lastPrice": "603.23835",
+  "price24hPcnt": "0.2577",
+  "highPrice24h": "633.400268",
+  "lowPrice24h": "573.076432",
+  "turnover24h": "799028624.90",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "OPUSDT",
+  "lastPrice": "1228.805131",
+  "price24hPcnt": "-0.0491",
+  "highPrice24h": "1290.245388",
+  "lowPrice24h": "1167.364874",
+  "turnover24h": "407286821.90",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "SUIUSDT",
+  "lastPrice": "1157.333115",
+  "price24hPcnt": "0.2972",
+  "highPrice24h": "1215.199771",
+  "lowPrice24h": "1099.466459",
+  "turnover24h": "349160762.52",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ATOMUSDT",
+  "lastPrice": "80.507089",
+  "price24hPcnt": "-0.1987",
+  "highPrice24h": "84.532443",
+  "lowPrice24h": "76.481735",
+  "turnover24h": "646847124.36",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "FILUSDT",
+  "lastPrice": "2978.470221",
+  "price24hPcnt": "0.0228",
+  "highPrice24h": "3127.393732",
+  "lowPrice24h": "2829.546710",
+  "turnover24h": "443402565.72",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ICPUSDT",
+  "lastPrice": "1651.29274",
+  "price24hPcnt": "0.1615",
+  "highPrice24h": "1733.857377",
+  "lowPrice24h": "1568.728103",
+  "turnover24h": "201385652.54",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "INJUSDT",
+  "lastPrice": "1826.704213",
+  "price24hPcnt": "0.0561",
+  "highPrice24h": "1918.039424",
+  "lowPrice24h": "1735.369002",
+  "turnover24h": "561115204.12",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "SEIUSDT",
+  "lastPrice": "542.03216",
+  "price24hPcnt": "-0.1564",
+  "highPrice24h": "569.133768",
+  "lowPrice24h": "514.930552",
+  "turnover24h": "314690129.67",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "TIAUSDT",
+  "lastPrice": "2781.220831",
+  "price24hPcnt": "-0.0594",
+  "highPrice24h": "2920.281873",
+  "lowPrice24h": "2642.159789",
+  "turnover24h": "538318442.71",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "PEPEUSDT",
+  "lastPrice": "919.841931",
+  "price24hPcnt": "-0.1932",
+  "highPrice24h": "965.834028",
+  "lowPrice24h": "873.849834",
+  "turnover24h": "60948261.06",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "SHIBUSDT",
+  "lastPrice": "2441.087544",
+  "price24hPcnt": "0.1774",
+  "highPrice24h": "2563.141921",
+  "lowPrice24h": "2319.033167",
+  "turnover24h": "338638247.62",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "WIFUSDT",
+  "lastPrice": "2050.05541",
+  "price24hPcnt": "0.1217",
+  "highPrice24h": "2152.558181",
+  "lowPrice24h": "1947.552639",
+  "turnover24h": "809030475.76",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "BONKUSDT",
+  "lastPrice": "2874.840359",
+  "price24hPcnt": "-0.0261",
+  "highPrice24h": "3018.582377",
+  "lowPrice24h": "2731.098341",
+  "turnover24h": "890220446.95",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "FLOKIUSDT",
+  "lastPrice": "2884.2893",
+  "price24hPcnt": "0.0748",
+  "highPrice24h": "3028.503765",
+  "lowPrice24h": "2740.074835",
+  "turnover24h": "795086348.95",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "JUPUSDT",
+  "lastPrice": "1472.735631",
+  "price24hPcnt": "-0.0434",
+  "highPrice24h": "1546.372413",
+  "lowPrice24h": "1399.098849",
+  "turnover24h": "223992595.54",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "RNDRUSDT",
+  "lastPrice": "2628.433827",
+  "price24hPcnt": "-0.1607",
+  "highPrice24h": "2759.855518",
+  "lowPrice24h": "2497.012136",
+  "turnover24h": "64262965.61",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "IMXUSDT",
+  "lastPrice": "2415.845348",
+  "price24hPcnt": "0.1757",
+  "highPrice24h": "2536.637615",
+  "lowPrice24h": "2295.053081",
+  "turnover24h": "435889285.53",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "STXUSDT",
+  "lastPrice": "2510.996439",
+  "price24hPcnt": "-0.2213",
+  "highPrice24h": "2636.546261",
+  "lowPrice24h": "2385.446617",
+  "turnover24h": "233662997.03",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "AAVEUSDT",
+  "lastPrice": "869.624046",
+  "price24hPcnt": "-0.0192",
+  "highPrice24h": "913.105248",
+  "lowPrice24h": "826.142844",
+  "turnover24h": "155225448.73",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "UNIUSDT",
+  "lastPrice": "208.353885",
+  "price24hPcnt": "-0.0641",
+  "highPrice24h": "218.771579",
+  "lowPrice24h": "197.936191",
+  "turnover24h": "809432391.34",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "MKRUSDT",
+  "lastPrice": "2950.341185",
+  "price24hPcnt": "0.1602",
+  "highPrice24h": "3097.858244",
+  "lowPrice24h": "2802.824126",
+  "turnover24h": "432117929.40",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "LDOUSDT",
+  "lastPrice": "756.644468",
+  "price24hPcnt": "0.2774",
+  "highPrice24h": "794.476691",
+  "lowPrice24h": "718.812245",
+  "turnover24h": "474013769.90",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "CRVUSDT",
+  "lastPrice": "2185.825527",
+  "price24hPcnt": "-0.2344",
+  "highPrice24h": "2295.116803",
+  "lowPrice24h": "2076.534251",
+  "turnover24h": "192458164.60",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "SANDUSDT",
+  "lastPrice": "2514.791409",
+  "price24hPcnt": "0.1874",
+  "highPrice24h": "2640.530979",
+  "lowPrice24h": "2389.051839",
+  "turnover24h": "793544615.83",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "MANAUSDT",
+  "lastPrice": "1804.067386",
+  "price24hPcnt": "-0.0157",
+  "highPrice24h": "1894.270755",
+  "lowPrice24h": "1713.864017",
+  "turnover24h": "523863281.45",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "AXSUSDT",
+  "lastPrice": "2548.02617",
+  "price24hPcnt": "-0.0806",
+  "highPrice24h": "2675.427479",
+  "lowPrice24h": "2420.624861",
+  "turnover24h": "481832648.67",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "GALAUSDT",
+  "lastPrice": "827.945494",
+  "price24hPcnt": "0.1725",
+  "highPrice24h": "869.342769",
+  "lowPrice24h": "786.548219",
+  "turnover24h": "11189731.59",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "APEUSDT",
+  "lastPrice": "2055.896235",
+  "price24hPcnt": "0.2747",
+  "highPrice24h": "2158.691047",
+  "lowPrice24h": "1953.101423",
+  "turnover24h": "23103593.17",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "FTMUSDT",
+  "lastPrice": "1781.059656",
+  "price24hPcnt": "0.1041",
+  "highPrice24h": "1870.112639",
+  "lowPrice24h": "1692.006673",
+  "turnover24h": "766810502.49",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ALGOUSDT",
+  "lastPrice": "1753.020606",
+  "price24hPcnt": "-0.1085",
+  "highPrice24h": "1840.671636",
+  "lowPrice24h": "1665.369576",
+  "turnover24h": "366234468.80",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "HBARUSDT",
+  "lastPrice": "2876.138806",
+  "price24hPcnt": "0.2481",
+  "highPrice24h": "3019.945746",
+  "lowPrice24h": "2732.331866",
+  "turnover24h": "121916924.49",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "VETUSDT",
+  "lastPrice": "284.517477",
+  "price24hPcnt": "-0.1983",
+  "highPrice24h": "298.743351",
+  "lowPrice24h": "270.291603",
+  "turnover24h": "24734668.82",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "EGLDUSDT",
+  "lastPrice": "1340.56644",
+  "price24hPcnt": "-0.1725",
+  "highPrice24h": "1407.594762",
+  "lowPrice24h": "1273.538118",
+  "turnover24h": "780867873.76",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "XLMUSDT",
+  "lastPrice": "1965.969842",
+  "price24hPcnt": "-0.1804",
+  "highPrice24h": "2064.268334",
+  "lowPrice24h": "1867.671350",
+  "turnover24h": "485715439.41",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "XMRUSDT",
+  "lastPrice": "972.830715",
+  "price24hPcnt": "0.0216",
+  "highPrice24h": "1021.472251",
+  "lowPrice24h": "924.189179",
+  "turnover24h": "199207915.83",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ETCUSDT",
+  "lastPrice": "498.241423",
+  "price24hPcnt": "-0.1488",
+  "highPrice24h": "523.153494",
+  "lowPrice24h": "473.329352",
+  "turnover24h": "341274024.88",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "KASUSDT",
+  "lastPrice": "2129.925617",
+  "price24hPcnt": "0.0525",
+  "highPrice24h": "2236.421898",
+  "lowPrice24h": "2023.429336",
+  "turnover24h": "43470917.41",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ORDIUSDT",
+  "lastPrice": "2132.628161",
+  "price24hPcnt": "0.2306",
+  "highPrice24h": "2239.259569",
+  "lowPrice24h": "2025.996753",
+  "turnover24h": "697275450.59",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "ENAUSDT",
+  "lastPrice": "2372.176495",
+  "price24hPcnt": "-0.2457",
+  "highPrice24h": "2490.785320",
+  "lowPrice24h": "2253.567670",
+  "turnover24h": "418563980.40",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "WLDUSDT",
+  "lastPrice": "190.474359",
+  "price24hPcnt": "0.1702",
+  "highPrice24h": "199.998077",
+  "lowPrice24h": "180.950641",
+  "turnover24h": "159416838.40",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "PYTHUSDT",
+  "lastPrice": "2134.46283",
+  "price24hPcnt": "-0.1109",
+  "highPrice24h": "2241.185972",
+  "lowPrice24h": "2027.739688",
+  "turnover24h": "627666316.45",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "JTOUSDT",
+  "lastPrice": "940.851908",
+  "price24hPcnt": "-0.2269",
+  "highPrice24h": "987.894503",
+  "lowPrice24h": "893.809313",
+  "turnover24h": "351206171.72",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "STRKUSDT",
+  "lastPrice": "928.234819",
+  "price24hPcnt": "0.2454",
+  "highPrice24h": "974.646560",
+  "lowPrice24h": "881.823078",
+  "turnover24h": "266934260.58",
+  "volume24h": "1000"
+ },
+ {
+  "symbol": "USDCUSDT",
+  "lastPrice": "1.0001",
+  "price24hPcnt": "0.0001",
+  "highPrice24h": "1.001",
+  "lowPrice24h": "0.999",
+  "turnover24h": "500000000"
+ }
+]

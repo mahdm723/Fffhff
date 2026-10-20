@@ -136,6 +136,13 @@ def _load(db: Session) -> MarketSnapshot | None:
     return db.get(MarketSnapshot, _KEY)
 
 
+def load_shared(db: Session) -> None:
+    """V6 phase 21: a worker that is not refreshing this round takes the snapshot another one saved."""
+    row = _load(db)
+    if row is not None:
+        _mem.snapshot = _row_dict(row)
+
+
 def refresh(db: Session, settings: Settings, transport=None, force: bool = False) -> dict | None:
     """One refresh round (the background loop). Returns the snapshot in use (new or previous)."""
     if not settings.MARKET_ENABLED:

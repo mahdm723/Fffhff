@@ -106,6 +106,34 @@
   - خارج المال: `ledger.post` يرفضه (`official_account`)، و`verification.grant` كذلك.
   - الاسم محجوز بكل أشكاله (`names.brand_like`: داخل الاسم، بعد `skeleton`)، ورموز الشارات (نجوم، علامات صح، أوسمة، تيجان) مرفوضة في الأسماء (`badge_symbol_name`).
   - `badges.official(user)` في كل payload بجانب `verified`.
+- **السعة واختبار الحمل (المرحلة 21):**
+  - `services/metrics.py`:
+    - أزمنة كل نقطة (قالب المسار، لا رابط ولا عنوان) بهستوغرام، تُجمع في Redis كل `METRICS_FLUSH_SECONDS` من كل العمال؛
+    - عدد WebSocket المفتوحة؛
+    - تُعرض في «صحة النظام» (`services/health.py`، `GET /api/admin/health`)؛
+    - تنبيه `admin_cli health-check` ← `monitor.sh` (`HEALTH_P95_MS`/`HEALTH_ERROR_PCT` من اللوحة).
+  - **العمال (`WEB_CONCURRENCY`):**
+    - كل حلقة خلفية تأخذ `leader.take` (قفل `pg_try_advisory_xact_lock`) فتعمل في عامل واحد؛
+    - الإقلاع (الجداول والحساب الرسمي) تحت `database.startup_lock()`؛
+    - السوق للبقية من `market.load_shared`.
+  - **قاعدة البيانات:** `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`THREADPOOL_SIZE`، وتحذير عند الإقلاع إن لم تتسع لها `max_connections`.
+  - **كلمات المرور:** Argon2 بحد `PASSWORD_HASH_CONCURRENCY` لكل عامل، و503 `busy` بعد 20 ثانية.
+  - **WebSocket:**
+    - الجلسة تُراجع كل `WS_SESSION_RECHECK_SECONDS`؛
+    - وفورًا عند حدث `session` في الـhub: `sessions.revoke_*` تسجّل في `db.info`، ثم `Database.on_sessions_ended` بعد الـcommit (الخروج، والحظر، وتغيير كلمة المرور).
+    - التطبيق يرفع حدّ الملفات المفتوحة إلى الحد الأعلى عند الإقلاع.
+  - **التنظيف:** دفعات `cleanup.BATCH` في كل دورة (لا معاملة طويلة تحجز الصفوف).
+  - **فهارس:** `ix_posts_pinned`، و`ix_notifications_created_at`، و`ix_users_name_trgm` (pg_trgm، `migrations.search_index`).
+  - **وضع الاختبار:** `LOADTEST_MODE` (`security/loadtest.py`، `api/loadtest.py`) مستحيل خارج `ENV=staging`، ويحتاج رمزًا من 32+ حرفًا. لا يدخل اللوحة ولا `.env.example`.
+  - **الأدوات في `loadtest/`** (README بالعربية):
+    - staging منفصل على 8443 بخدمات مزيفة؛
+    - زرع 50 ألفًا؛
+    - k6 أ–ز؛
+    - wsflood؛
+    - المراقبة؛
+    - التقرير؛
+    - `phase2/` للخادم.
+    - **لا يلمس الإنتاج أبدًا، والمرحلة 2 بعد موافقة المالك فقط.**
 - **اللغات (V6 المرحلة 12):** العربية (الأصل والاحتياط) والفرنسية والإنجليزية.
   - **النص العربي هو المفتاح:** `t('…')` في الواجهة (`static/js/i18n.js`)، و`tr('…')`/`N_('…')` في الخادم (`app/i18n/`). رسائل `AppError` تُكتب بالعربية وقيمها في `params` (`{name}`)، ولا تُدمج في النص.
   - الترجمات المرفقة في `app/i18n/fr.json` و`en.json` (وصيغ الجمع العربية في `ar.json`)، ونصوص نظام المحتوى في `app/i18n/content_fr.py` و`content_en.py`.
@@ -189,6 +217,10 @@ curl -fsSL https://raw.githubusercontent.com/mahdm723/Fffhff/claude/github-acces
   - `deploy/domain-switch.sh <domain>|check|finalize|rollback`.
   - `GET /healthz/ip` يعيد عنوان المتصل نفسه فقط (لفحص السلسلة).
   - التنبيهات بلا اسم الجهاز. الاختبارات: `tests/test_domain_v20.py`، و`e2e/run_cloudflare_e2e.sh` (Docker).
+- **صفحة الصيانة واختبار الحمل على الخادم (المرحلة 21):**
+  - `loadtest/phase2/maintenance.sh on|off`: «صيانة مؤقتة» من Caddy عبر `deploy/caddy/maintenance-<TLS_MODE>.caddy`، والمراقبة تكتفي بالقرص.
+  - `night.sh`: النافذة الليلية بالترتيب.
+  - `abort.sh`: إيقاف طارئ يعيد الإنتاج.
 - **التطبيق:**
   - الكود في `/opt/dzplay/dzplay`.
   - السجلات: `docker compose logs -f app`.

@@ -132,6 +132,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
     await ws.accept()
     queue = st.hub.connect(user_id)
+    st.metrics.ws_changed(+1)  # V6 phase 21: open sockets («صحة النظام», load tests)
     conn = Connection(ws, user_id, token)
 
     async def reader() -> None:
@@ -164,6 +165,8 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     log.exception("ws handler %s failed", data["type"][:20])
 
     reader_task = asyncio.create_task(reader())
+    loop = asyncio.get_running_loop()
+    checked_at = loop.time()
     try:
         await ws.send_json({"type": "hello"})
         while True:
@@ -178,11 +181,17 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 event = get_task.result()
             else:
                 get_task.cancel()
-                # keep-alive: also re-check the session (logout elsewhere, ban, password reset)
+                event = {"type": "ping"}
+            # The session is re-checked when one of the user's sessions ended (logout, ban, password change: a
+            # "session" event, V6 phase 21) and every WS_SESSION_RECHECK_SECONDS (expiry) — not at every ping.
+            recheck = event.get("type") == "session"
+            if recheck or loop.time() - checked_at >= st.settings.WS_SESSION_RECHECK_SECONDS:
+                checked_at = loop.time()
                 if await run_in_threadpool(_resolve) != user_id:
                     await ws.close(code=4401)
                     break
-                event = {"type": "ping"}
+            if recheck:
+                continue  # internal: never sent to the app
             await ws.send_json(event)
     except (WebSocketDisconnect, RuntimeError):
         pass
@@ -191,3 +200,4 @@ async def websocket_endpoint(ws: WebSocket) -> None:
         with contextlib.suppress(asyncio.CancelledError, WebSocketDisconnect, Exception):
             await reader_task
         st.hub.disconnect(user_id, queue)
+        st.metrics.ws_changed(-1)

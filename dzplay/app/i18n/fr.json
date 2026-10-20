@@ -937,5 +937,6 @@
  "📌 مثبّت": "📌 Épinglé",
  "📷 صورة": "📷 Image",
  "🧧 ربحت في «{title}»! تحقق من بريدك.": "🧧 Vous avez gagné dans « {title} » ! Consultez votre e-mail.",
- "🧧 شارك الآن": "🧧 Participer maintenant"
+ "🧧 شارك الآن": "🧧 Participer maintenant",
+ "الخادم مشغول الآن. أعد المحاولة بعد لحظات.": "Le serveur est très sollicité. Réessayez dans un instant."
 }

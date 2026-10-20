@@ -11,6 +11,12 @@ def client_ip(conn: HTTPConnection, settings: Settings) -> str:
     With N trusted proxies, the real client is the N-th address from the right
     (addresses further left can be forged by the client).
     """
+    if settings.LOADTEST_MODE:  # V6 phase 21: staging only (app/security/loadtest.py)
+        from app.security import loadtest
+
+        ip = loadtest.synthetic_ip(conn.headers, settings)
+        if ip:
+            return ip
     if settings.TRUST_PROXY_HEADERS:
         forwarded = conn.headers.get("x-forwarded-for", "")
         parts = [p.strip() for p in forwarded.split(",") if p.strip()]

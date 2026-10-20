@@ -19,6 +19,7 @@ import re
 import shutil
 import tempfile
 import threading
+import time
 from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
@@ -187,10 +188,13 @@ class MediaStore:
                     if item.is_dir() and now.timestamp() - item.stat().st_mtime > 2 * 3600:
                         shutil.rmtree(item, ignore_errors=True)
                     continue
-                if item.is_file() and item.name not in known:
+                # V6 phase 21: a file prepared a moment ago has its row in a transaction not committed yet — it is
+                # being served now (the load tests found it: 404/500 on fresh pictures); orphans are old files only
+                if item.is_file() and item.name not in known and time.time() - item.stat().st_mtime > 600:
                     item.unlink(missing_ok=True)
                     removed["orphans"] += 1
-        for asset_id, kind in db.execute(select(MediaItem.id, MediaItem.kind).where(MediaItem.ready.is_(True))).all():
-            if not all((self.dir / self.path_for(asset_id, v).name).exists() for v in VARIANTS.get(kind, ())):
-                db.execute(update(MediaItem).where(MediaItem.id == asset_id).values(ready=False))
+        gone = [asset_id for asset_id, kind in db.execute(select(MediaItem.id, MediaItem.kind).where(MediaItem.ready.is_(True))).all()
+                if not all((self.dir / self.path_for(asset_id, v).name).exists() for v in VARIANTS.get(kind, ()))]
+        for i in range(0, len(gone), 1000):  # V6 phase 21: one statement per thousand, not one per picture
+            db.execute(update(MediaItem).where(MediaItem.id.in_(gone[i:i + 1000])).values(ready=False))
         return removed

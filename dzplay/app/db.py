@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -12,7 +12,10 @@ class Base(DeclarativeBase):
     pass
 
 
-def make_engine(url: str) -> Engine:
+STARTUP_LOCK = 0x445A0001  # advisory lock keys of the app: "DZ" + a number (services/leader.py: the loops)
+
+
+def make_engine(url: str, pool_size: int = 10, max_overflow: int = 20, pool_timeout: int = 30) -> Engine:
     if url.startswith("sqlite"):
         engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})
 
@@ -25,21 +28,39 @@ def make_engine(url: str) -> Engine:
             cur.close()
 
         return engine
-    return create_engine(url, pool_pre_ping=True, pool_size=10, max_overflow=20)
+    return create_engine(url, pool_pre_ping=True, pool_size=pool_size, max_overflow=max_overflow, pool_timeout=pool_timeout)
 
 
 class Database:
-    def __init__(self, url: str):
-        self.engine = make_engine(url)
+    def __init__(self, url: str, pool_size: int = 10, max_overflow: int = 20, pool_timeout: int = 30):
+        self.engine = make_engine(url, pool_size, max_overflow, pool_timeout)
         self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False, autoflush=False)
+        # V6 phase 21: called after a commit that ended sessions (logout, ban, password change…) with their user ids,
+        # so their open WebSockets re-check at once (state.py connects it to the hub)
+        self.on_sessions_ended: Callable[[set[str]], None] | None = None
+
+    @contextmanager
+    def startup_lock(self) -> Iterator[None]:
+        """V6 phase 21: several workers start together; the schema steps and the official account run in one at a time
+        (a PostgreSQL advisory lock held by a connection of its own; nothing to do on SQLite)."""
+        if self.engine.dialect.name != "postgresql":
+            yield
+            return
+        with self.engine.connect() as conn:
+            conn.execute(text("SELECT pg_advisory_lock(:k)"), {"k": STARTUP_LOCK})
+            try:
+                yield
+            finally:
+                conn.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": STARTUP_LOCK})
 
     def create_all(self) -> None:
         from app import models  # noqa: F401  (register models)
-        from app.migrations import add_missing_columns, backfill
+        from app.migrations import add_missing_columns, backfill, search_index
 
         Base.metadata.create_all(self.engine)
         add_missing_columns(self.engine)
         backfill(self.engine)
+        search_index(self.engine)
 
     @contextmanager
     def session(self) -> Iterator[Session]:
@@ -52,3 +73,6 @@ class Database:
             raise
         finally:
             db.close()
+        ended = db.info.pop("dz_sessions_ended", None)
+        if ended and self.on_sessions_ended is not None:
+            self.on_sessions_ended(ended)

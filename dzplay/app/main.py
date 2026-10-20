@@ -16,10 +16,12 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import anyio
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -29,6 +31,7 @@ from app.api import account as account_api
 from app.api import admin as admin_api
 from app.api import admin_money as admin_money_api
 from app.api import admin_official as admin_official_api
+from app.api import loadtest as loadtest_api
 from app.api import admin_v5 as admin_v5_api
 from app.api import admin_brand as admin_brand_api
 from app.api import admin_cms as admin_cms_api
@@ -53,8 +56,9 @@ from app.api import uploads as uploads_api
 from app.api import ws as ws_api
 from app.config import Settings, get_settings
 from app.errors import AppError
+from app.security import passwords
 from app.security.net import client_ip
-from app.services import access, admin_auth
+from app.services import access, admin_auth, leader
 from app.services.cleanup import run_cleanup
 from app.state import AppState
 
@@ -177,7 +181,8 @@ async def _cleanup_loop(state: AppState) -> None:
         try:
             def _run() -> None:
                 with state.database.session() as db:
-                    run_cleanup(db, state.settings, state.media)
+                    if leader.take(db, "cleanup"):  # V6 phase 21: one worker at a time
+                        run_cleanup(db, state.settings, state.media)
 
             await run_in_threadpool(_run)
         except Exception:  # noqa: BLE001 - keep the loop alive
@@ -197,7 +202,8 @@ async def _engagement_loop(state: AppState) -> None:
 
             def _run() -> None:
                 with state.database.session() as db:
-                    engagement.tick(db, state.settings, effects)
+                    if leader.take(db, "engagement"):  # never two workers posting the same team comments
+                        engagement.tick(db, state.settings, effects)
 
             await run_in_threadpool(_run)
             state.dispatch(effects)
@@ -217,7 +223,8 @@ async def _media_loop(state: AppState) -> None:
 
             def _run() -> None:
                 with state.database.session() as db:
-                    media_items.tick(db, state.settings, effects)
+                    if leader.take(db, "media"):
+                        media_items.tick(db, state.settings, effects)
 
             await run_in_threadpool(_run)
             state.dispatch(effects)
@@ -233,12 +240,25 @@ async def _market_loop(state: AppState) -> None:
         try:
             def _run() -> None:
                 with state.database.session() as db:
-                    market.refresh(db, state.settings)
+                    if leader.take(db, "market"):  # the others read the shared snapshot
+                        market.refresh(db, state.settings)
+                    else:
+                        market.load_shared(db)
 
             await run_in_threadpool(_run)
         except Exception:  # noqa: BLE001 - keep the loop alive
             log.exception("market refresh failed")
         await asyncio.sleep(max(10, state.settings.MARKET_REFRESH_SECONDS))
+
+
+async def _metrics_loop(state: AppState) -> None:
+    """V6 phase 21: the request timings go to Redis every few seconds (several workers add up)."""
+    while True:
+        await asyncio.sleep(state.settings.METRICS_FLUSH_SECONDS)
+        try:
+            await run_in_threadpool(state.metrics.flush)
+        except Exception:  # noqa: BLE001 - keep the loop alive
+            log.exception("metrics flush failed")
 
 
 async def _chain_loop(state: AppState) -> None:
@@ -256,6 +276,36 @@ async def _chain_loop(state: AppState) -> None:
         await asyncio.sleep(max(10, state.settings.CHAIN_TICK_SECONDS))
 
 
+def _raise_open_files() -> None:
+    """V6 phase 21: one open file per WebSocket. Containers often start with a soft limit of 1024 (the hard limit is far
+    higher) and Python never raises it: up to the hard limit, which any process may do."""
+    import resource
+
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    want = min(hard if hard != resource.RLIM_INFINITY else 1 << 20, 1 << 20)
+    if soft < want:
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))
+        except (ValueError, OSError):
+            log.warning("open files: could not raise the limit above %d", soft)
+
+
+def _check_capacity(state: AppState) -> None:
+    """V6 phase 21: every worker's pool must fit in PostgreSQL's max_connections, or requests fail under load."""
+    s = state.settings
+    if state.database.engine.dialect.name != "postgresql":
+        return
+    try:
+        with state.database.engine.connect() as conn:
+            limit = int(conn.execute(text("SHOW max_connections")).scalar())
+    except Exception:  # noqa: BLE001 - a warning only
+        return
+    need = s.WEB_CONCURRENCY * (s.DB_POOL_SIZE + s.DB_MAX_OVERFLOW) + 10
+    if need > limit:
+        log.warning("database: %d workers × (%d + %d) connections + 10 = %d > max_connections %d — lower DB_POOL_SIZE / "
+                    "DB_MAX_OVERFLOW or raise max_connections", s.WEB_CONCURRENCY, s.DB_POOL_SIZE, s.DB_MAX_OVERFLOW, need, limit)
+
+
 def create_app(settings: Settings | None = None, telegram_transport=None, chain_transport=None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -265,16 +315,21 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
     from app.services import names
 
     names.configure(settings)
+    passwords.configure(settings.PASSWORD_HASH_CONCURRENCY)  # V6 phase 21: a login wave never exhausts the memory
+    _raise_open_files()
     state = AppState.build(settings, telegram_transport, chain_transport)
 
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        state.database.create_all()
-        state.load_runtime_config()  # bot settings saved from the admin panel
-        with state.database.session() as db:  # V6 phase 19: exactly one official account, named after the app
-            from app.services import admin_content
+        with state.database.startup_lock():  # V6 phase 21: several workers start together; one at a time here
+            state.database.create_all()
+            with state.database.session() as db:  # V6 phase 19: exactly one official account, named after the app
+                from app.services import admin_content
 
-            admin_content.ensure_official(db, settings)
+                admin_content.ensure_official(db, settings)
+        state.load_runtime_config()  # bot settings saved from the admin panel
+        anyio.to_thread.current_default_thread_limiter().total_tokens = max(4, settings.THREADPOOL_SIZE)
+        _check_capacity(state)
         if settings.secret_key_generated:
             log.warning("SECRET_KEY not set: using a temporary key (sessions survive, IP blocks reset on restart).")
         await state.hub.start()
@@ -283,7 +338,14 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
         media_task = asyncio.create_task(_media_loop(state)) if settings.MEDIA_TICK_SECONDS > 0 else None
         market_task = asyncio.create_task(_market_loop(state)) if settings.MARKET_REFRESH_SECONDS > 0 else None
         chain_task = asyncio.create_task(_chain_loop(state)) if settings.CHAIN_TICK_SECONDS > 0 else None
+        metrics_task = asyncio.create_task(_metrics_loop(state)) if settings.METRICS_FLUSH_SECONDS > 0 else None
         yield
+        if metrics_task:
+            metrics_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await metrics_task
+            with contextlib.suppress(Exception):
+                await run_in_threadpool(state.metrics.flush)
         if chain_task:
             chain_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -317,6 +379,9 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
     app.state.dz = state
     csp = _csp(settings)
     admin_prefix = settings.ADMIN_PATH
+    from app.services.metrics import Metrics, MetricsMiddleware
+
+    state.metrics = Metrics(settings.REDIS_URL, admin_prefix)  # V6 phase 21: «صحة النظام», alerts, load tests
 
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
@@ -400,6 +465,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
         return JSONResponse({"ip": client_ip(request, settings)}, headers={"Cache-Control": "no-store"})
 
     app.include_router(auth_api.router)
+    app.include_router(loadtest_api.router)  # V6 phase 21: staging only (404 everywhere else)
     app.include_router(messages_api.router)
     app.include_router(people_api.router)
     app.include_router(download_api.router)
@@ -477,6 +543,7 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
                 return FileResponse(ADMIN_STATIC_DIR / name, media_type=_ADMIN_ASSETS[name])
 
         app.mount("/", StaticFiles(directory=STATIC_DIR), name="static")
+    app.add_middleware(MetricsMiddleware, metrics=state.metrics)  # outermost: the whole time of every request
     return app
 
 

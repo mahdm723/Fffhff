@@ -275,6 +275,20 @@ def _market_check(settings, transport) -> None:
         print(f"Switch the source to {working[0]} (panel → الإعدادات → السوق).")
 
 
+def _health_check(settings, database) -> None:
+    """V6 phase 21: slow answers or errors over the last 5 minutes, one «key<TAB>message» line each (monitor.sh
+    sends them to Telegram once, then a reminder, then «عاد طبيعيًا»). Reads the timings all workers put in Redis."""
+    from app.services import health, tunables
+    from app.services.metrics import Metrics
+
+    if not settings.REDIS_URL:
+        return  # the timings live in the app's process only
+    with database.session() as db:
+        tunables.apply(db, settings)  # the thresholds chosen in the panel
+    for key, message in health.problems(settings, Metrics(settings.REDIS_URL).snapshot(5)):
+        print(f"{key}\t{message}")
+
+
 def main(argv: list[str] | None = None, telegram_transport=None, market_transport=None) -> None:
     parser = argparse.ArgumentParser(prog="dzplay-admin")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -317,6 +331,7 @@ def main(argv: list[str] | None = None, telegram_transport=None, market_transpor
     p = sub.add_parser("legacy-status")  # exit 0 when there is nothing (left) to remove (--anon: 2 = not yet)
     p.add_argument("--anon", action="store_true")
     sub.add_parser("stars-count")  # accounts that hold the blue star
+    sub.add_parser("health-check")  # V6 phase 21: deploy/monitor.sh — «key<TAB>message» per problem (last 5 minutes)
     sub.add_parser("market-check")  # V6 phase 2: reach Bybit from this server (both domains)
     p = sub.add_parser("purge-chat-images")  # V6 phase 17: chat pictures deleted everywhere (except reported ones)
     p.add_argument("--check", action="store_true", help="exit 0 when there is nothing (left) to do, 1 otherwise")
@@ -335,6 +350,9 @@ def main(argv: list[str] | None = None, telegram_transport=None, market_transpor
         return
     database = Database(settings.DATABASE_URL)
     database.create_all()
+    if args.cmd == "health-check":
+        _health_check(settings, database)
+        return
     if args.cmd == "market-check":
         from app.services import tunables
 

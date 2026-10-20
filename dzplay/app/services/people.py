@@ -33,10 +33,19 @@ def _like(q: str) -> str:
     return "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
 
-def card(db: Session, u: User) -> dict:
+def card(db: Session, u: User, ref: str | None = None) -> dict:
     return {"name": names.shown_name(u), "public_id": u.public_id, "gender": names.public_gender(u),
-            "profile_ref": ideas.profile_ref_for(db, u.id), "verified": badges.star(u), "official": badges.official(u),
+            "profile_ref": ref or ideas.profile_ref_for(db, u.id), "verified": badges.star(u), "official": badges.official(u),
             "avatar_url": avatar_url(u)}
+
+
+def _cards(db: Session, rows: list[User]) -> list[dict]:
+    """V6 phase 21: a page of cards with one query for the profile links and one for the pictures."""
+    from app.services.media_items import prefetch
+
+    refs = ideas._refs_for(db, {u.id for u in rows})
+    prefetch(db, rows)  # V6 phase 21: one query for every picture
+    return [card(db, u, refs.get(u.id)) for u in rows]
 
 
 def list_card(u: User) -> dict:
@@ -81,7 +90,7 @@ def search(db: Session, settings: Settings, limiter, viewer: User, q: object, pa
         rows = list(db.execute(select(User).where(User.public_id == pid, *base)).scalars())
         if official is not None and official.public_id == pid:
             rows = [official]
-        return {"by": "id", "results": [card(db, u) for u in rows], "has_more": False}
+        return {"by": "id", "results": _cards(db, rows), "has_more": False}
 
     key = names.search_key(q)
     if len(key.replace(" ", "")) < 2:
@@ -96,7 +105,7 @@ def search(db: Session, settings: Settings, limiter, viewer: User, q: object, pa
     rows = rows[:size]
     if page == 0 and official is not None and key.replace(" ", "") in (official.name_norm or "").replace(" ", ""):
         rows = [official, *rows]  # V6 phase 19: the official account first when its name matches
-    return {"by": "name", "results": [card(db, u) for u in rows], "has_more": has_more}
+    return {"by": "name", "results": _cards(db, rows), "has_more": has_more}
 
 
 def _cursor_out(u: User) -> str:
@@ -120,8 +129,13 @@ def listing(db: Session, settings: Settings, limiter, viewer: User, q: object, c
     if isinstance(q, str) and q.strip():
         page = int(cursor) if isinstance(cursor, str) and cursor.isdigit() else 0
         found = search(db, settings, limiter, viewer, q, page)
-        rows = [db.scalar(select(User).where(User.public_id == r["public_id"])) for r in found["results"]]
-        return {"results": [list_card(u) for u in rows if u is not None],
+        wanted = [r["public_id"] for r in found["results"]]
+        by_pid = {u.public_id: u for u in db.execute(select(User).where(User.public_id.in_(wanted))).scalars()} if wanted else {}
+        rows = [by_pid[pid] for pid in wanted if pid in by_pid]
+        from app.services.media_items import prefetch
+
+        prefetch(db, rows)  # V6 phase 21: one query for every picture
+        return {"results": [list_card(u) for u in rows],
                 "next_cursor": str(page + 1) if found["has_more"] else None}
     check_lookup(settings, limiter, viewer)
     size = settings.SEARCH_MAX_RESULTS
@@ -133,6 +147,9 @@ def listing(db: Session, settings: Settings, limiter, viewer: User, q: object, c
     rows = list(db.execute(query.order_by(User.last_active_at.desc(), User.id.desc()).limit(size + 1)).scalars())
     page = rows[:size]
     first = [] if cursor else [u for u in (_official(db),) if u is not None]  # V6 phase 19: listed first
+    from app.services.media_items import prefetch
+
+    prefetch(db, [*first, *page])  # V6 phase 21: one query for every picture
     return {"results": [list_card(u) for u in [*first, *page]],
             "next_cursor": _cursor_out(page[-1]) if len(rows) > size else None}
 
