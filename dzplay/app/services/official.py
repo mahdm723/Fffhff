@@ -97,10 +97,38 @@ def delete(db: Session, post_id: object, actor: str, effects: Effects | None) ->
     db.delete(post)
 
 
+# V6 phase 21: every first page of the feed asks for the pinned post. The answer is kept in each worker: a pin, an
+# unpin or a delete forgets it at once in every worker (hub system event "pinned", main/state.py); a kept post is
+# re-read by its primary key and shown only if still visible and pinned (removed, hidden or expired: never shown);
+# and the kept answer is asked again after PIN_KEEP_SECONDS anyway (NOTHING_KEEP_SECONDS for "nothing pinned").
+PIN_KEEP_SECONDS = 60
+NOTHING_KEEP_SECONDS = 10
+_pinned: dict = {"id": None, "at": None}
+
+
+def forget_pinned() -> None:
+    _pinned["at"] = None
+
+
+def changed_pin(state) -> None:
+    """After a pin, an unpin or a delete is committed: every worker forgets its kept answer."""
+    forget_pinned()
+    state.hub.notify_system({"type": "pinned"})
+
+
 def pinned_post(db: Session) -> Post | None:
     """The official post pinned now (it unpins itself when its time is over)."""
-    return db.scalar(select(Post).where(Post.pinned_until > clock.utcnow(), Post.status == "visible")
+    now, kept_id, kept_at = clock.utcnow(), _pinned["id"], _pinned["at"]
+    if kept_at is not None and time.monotonic() - kept_at < (PIN_KEEP_SECONDS if kept_id else NOTHING_KEEP_SECONDS):
+        if kept_id is None:
+            return None
+        post = db.get(Post, kept_id)
+        if post is not None and post.status == "visible" and post.pinned_until and post.pinned_until > now:
+            return post
+    post = db.scalar(select(Post).where(Post.pinned_until > now, Post.status == "visible")
                      .order_by(Post.pinned_until.desc()))
+    _pinned.update(id=post.id if post is not None else None, at=time.monotonic())
+    return post
 
 
 def panel_view(db: Session, limit: int = 50) -> dict:

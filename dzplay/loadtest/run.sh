@@ -15,7 +15,8 @@
 #   a separate VPS          GEN_HOST=ssh://root@<generator> SERVER_IP=<this server's address> (phase 2, option 1):
 #                           k6 runs there through Docker over SSH; staging (8443), the sink (8086) and the mock
 #                           mailbox (9000) are opened to that address only (loadtest/phase2/firewall.sh).
-# Other settings: STRESS_MAX, WS_STEP / WS_HOLD / WS_MAX (scenario F), STAGING_IMAGE, K6_IMAGE.
+# Other settings: STRESS_MAX, WS_STEP / WS_HOLD / WS_MAX (scenario F), G_WAVES (e.g. "60,120,240,480,960,1920": sign-ups
+# and logins per minute, scenario G), G_HOLD, G_BACKGROUND, STAGING_IMAGE, K6_IMAGE.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
@@ -142,6 +143,7 @@ run_one() {
         box=${PROJECT}-k6
         gen run -d --name $box "${GEN_RUN[@]}" $([ -z "$GEN_HOST" ] && echo "-v $R:/results") \
             -e LOADTEST_TOKEN="$TOKEN" -e SCENARIO="$S" -e PACE="$PACE" -e STRESS_MAX="${STRESS_MAX:-8000}" \
+            -e G_WAVES="${G_WAVES:-}" -e G_HOLD="${G_HOLD:-}" -e G_BACKGROUND="${G_BACKGROUND:-}" \
             -e VU_USERS=/lt/out/vu_users.csv -e SEED_META=/lt/out/meta.json -e PROFILE=/lt/k6/profile.json \
             -e SUMMARY_OUT=/results/summary.json -e MOCKS_URL="$MOCKS_URL" \
             -e K6_INFLUXDB_PUSH_INTERVAL=2s -e K6_INFLUXDB_CONCURRENT_WRITES=4 \

@@ -168,7 +168,11 @@ class AppState:
             store.load(db)
 
     def on_system_event(self, event: dict) -> None:
-        if event.get("type") == "tunables":
+        if event.get("type") == "pinned":  # V6 phase 21: the official pinned post changed (official.pinned_post)
+            from app.services import official
+
+            official.forget_pinned()
+        elif event.get("type") == "tunables":
             self.reload_tunables()
         elif event.get("type") == "i18n":
             self.reload_i18n()

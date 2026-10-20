@@ -86,50 +86,98 @@ def test_the_session_event_never_reaches_the_app(make_harness):
         assert ws.receive_json() == {"type": "ping"}
 
 
-# ----------------------------------------------------------------------------------------- Argon2 slots
-def test_hashes_wait_for_a_free_slot(monkeypatch):
-    running, peak, lock = [0], [0], threading.Lock()
+# ----------------------------------------------------------------------------------------- Argon2 gate
+class _SlowHasher:
+    def __init__(self, seconds=0.05):
+        self.seconds, self.running, self.peak, self.lock = seconds, 0, 0, threading.Lock()
 
-    class SlowHasher:
-        def hash(self, pw):
-            with lock:
-                running[0] += 1
-                peak[0] = max(peak[0], running[0])
-            time.sleep(0.05)
-            with lock:
-                running[0] -= 1
-            return "h"
+    def _work(self):
+        with self.lock:
+            self.running += 1
+            self.peak = max(self.peak, self.running)
+        time.sleep(self.seconds)
+        with self.lock:
+            self.running -= 1
 
-    monkeypatch.setattr(passwords, "_hasher", SlowHasher())
-    passwords.configure(2)
-    try:
-        threads = [threading.Thread(target=passwords.hash_password, args=("x",)) for _ in range(8)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-        assert peak[0] == 2
-    finally:
-        passwords.configure(0)
+    def hash(self, pw):
+        self._work()
+        return "h"
+
+    def verify(self, h, pw):
+        self._work()
+        return False
 
 
-def test_a_full_queue_answers_busy(monkeypatch):
+@pytest.fixture
+def slow_hasher(monkeypatch):
+    fake = _SlowHasher()
+    monkeypatch.setattr(passwords, "_hasher", fake)
+    yield fake
+    passwords.configure()
+
+
+def _hash_all(n):
+    errors = []
+
+    def one():
+        try:
+            passwords.hash_password("x")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=one) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return errors
+
+
+def test_never_more_hashes_at_once_than_the_slots(slow_hasher):
+    passwords.configure(2, queue=20, wait=5)
+    assert _hash_all(8) == [] and slow_hasher.peak == 2
+
+
+def test_beyond_the_queue_the_answer_is_busy_at_once(slow_hasher):
     from app.errors import AppError
 
-    passwords.configure(1)
-    monkeypatch.setattr(passwords, "HASH_WAIT_SECONDS", 0.05)
+    slow_hasher.seconds = 0.3
+    passwords.configure(1, queue=2, wait=5)
+    t0 = time.monotonic()
+    errors = _hash_all(8)  # 1 running + 2 waiting; the other 5 are refused without waiting
+    assert len(errors) == 5 and all(isinstance(e, AppError) and e.status == 503 and e.code == "busy" for e in errors)
+    assert all(e.retry_after == passwords.RETRY_AFTER for e in errors)
+    assert time.monotonic() - t0 < 1.5 and passwords.gate().inside == 0
+
+
+def test_a_short_wait_then_busy(slow_hasher):
+    slow_hasher.seconds = 0.5
+    passwords.configure(1, queue=5, wait=0.05)
+    errors = _hash_all(3)  # the 2 waiting give up after 50 ms
+    assert len(errors) == 2 and passwords.gate().inside == 0
+
+
+def test_default_slots_share_the_cpus_between_workers(monkeypatch):
+    monkeypatch.setattr(passwords.os, "sched_getaffinity", lambda _pid: {0, 1, 2, 3}, raising=False)
+    assert passwords.default_slots(1) == 4 and passwords.default_slots(2) == 2 and passwords.default_slots(8) == 1
+    monkeypatch.setattr(passwords.os, "sched_getaffinity", lambda _pid: {0, 1}, raising=False)
+    monkeypatch.setattr(passwords.os, "cpu_count", lambda: 16)  # a container pinned to 2 cores of a 16-core host
+    assert passwords.default_slots(1) == 2
+
+
+def test_a_login_wave_gets_busy_while_the_rest_of_the_app_answers(hx):
+    """The gate is full (as in a wave): a login is answered 503 + Retry-After at once, and browsing still works."""
+    a = hx.user()
+    passwords.configure(1, queue=0, wait=0)
+    gate = passwords.gate()
     try:
-        held = passwords._slots
-        held.acquire()
-        try:
-            with pytest.raises(AppError) as e:
-                passwords.hash_password("x")
-            assert e.value.status == 503 and e.value.code == "busy"
-        finally:
-            held.release()
-        assert passwords.verify_password(passwords.hash_password("pass-1234"), "pass-1234")
+        with gate:  # one hash running: the only slot is taken
+            r = hx.login(hx.client(), a.email)
+            assert r.status_code == 503 and r.json()["error"]["code"] == "busy" and r.headers["Retry-After"] == "3"
+            assert a.get("/api/posts/feed").status_code == 200 and a.get("/api/me").status_code == 200
+        assert hx.login(hx.client(), a.email).status_code == 200  # the slot is free again
     finally:
-        passwords.configure(0)
+        passwords.configure()
 
 
 # ----------------------------------------------------------------------------------------- one runner per task
@@ -313,3 +361,96 @@ def test_a_picture_prepared_a_moment_ago_is_not_an_orphan(hx):
     with hx.db() as db:
         hx.state.media.purge(db)
     assert fresh.exists() and not old.exists()
+
+
+# ----------------------------------------------------------------------------------------- the pinned post, kept
+def test_the_pinned_post_is_kept_and_changes_show_at_once(hx):
+    from sqlalchemy import event
+
+    from app.services import official
+
+    from tests.test_official_v19 import _publish
+
+    admin = hx.admin()
+    reader = hx.user()
+    first = _publish(hx, "إعلان أول").json()["id"]
+    second = _publish(hx, "إعلان ثانٍ").json()["id"]
+    assert admin.post(f"/api/admin/official/posts/{first}/pin", json={"hours": 24}).status_code == 200
+    assert reader.get("/api/posts/feed").json()["posts"][0]["id"] == first
+
+    pinned_queries = []
+
+    def count(conn, cursor, statement, *args):
+        if "pinned_until >" in statement:
+            pinned_queries.append(statement)
+
+    event.listen(hx.state.database.engine, "before_cursor_execute", count)
+    try:
+        for _ in range(5):
+            assert reader.get("/api/posts/feed").json()["posts"][0]["id"] == first
+        assert pinned_queries == []  # kept: no search of the posts for each page
+        assert admin.post(f"/api/admin/official/posts/{second}/pin", json={"hours": 24}).status_code == 200
+        assert reader.get("/api/posts/feed").json()["posts"][0]["id"] == second  # at once, not after a minute
+        assert admin.post(f"/api/admin/official/posts/{second}/pin", json={"hours": 0}).status_code == 200
+        assert all(p["id"] not in (first, second) or not p.get("pinned") for p in reader.get("/api/posts/feed").json()["posts"][:1])
+    finally:
+        event.remove(hx.state.database.engine, "before_cursor_execute", count)
+    official.forget_pinned()
+
+
+# ----------------------------------------------------------------------------------------- graceful stop
+def test_uvicorn_is_pid_1_so_a_stop_is_graceful():
+    """Profiling showed `sh -c uvicorn …` as PID 1: the shell ignored Docker's SIGTERM, so every update waited 10 s
+    and then killed in-flight requests and open sockets. `exec` makes uvicorn PID 1 (it shuts down cleanly)."""
+    from pathlib import Path
+
+    cmd = next(line for line in (Path(__file__).resolve().parents[1] / "Dockerfile").read_text().splitlines()
+               if line.startswith("CMD "))
+    assert '"exec uvicorn app.main:app' in cmd
+
+
+def test_each_websocket_no_longer_writes_two_log_lines(hx, caplog):
+    """F (5,000 sockets): uvicorn's per-socket INFO lines were 3.5 % of the CPU and most of the capped log."""
+    import logging
+
+    log = logging.getLogger("uvicorn.error")
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        log.info('%s - "WebSocket %s" [accepted]', "10.0.0.1:5000", "/api/ws")
+        log.info("connection open")
+        log.info('%s - "WebSocket %s" 403', "10.0.0.1:5000", "/api/ws")  # refusals stay
+        log.warning("connection open")  # anything above INFO stays
+    assert [r.getMessage() for r in caplog.records] == ['10.0.0.1:5000 - "WebSocket /api/ws" 403', "connection open"]
+
+
+# ----------------------------------------------------------------------------------------- a picture view, cheaper
+def test_a_popular_picture_is_not_written_on_every_view(hx):
+    """Scenario A's profile: 58 % of the app's CPU served pictures; each view resolved its path (realpath) and ran
+    an UPDATE of last_access. Now: one write per picture per process every 2 minutes, and the same LRU order."""
+    from sqlalchemy import event
+
+    from app.models import MediaCacheEntry
+
+    store, key = hx.state.media, "ab" * 16
+    with hx.db() as db:
+        db.add(MediaCacheEntry(key=f"{key}.img.webp", asset_id=key, size=1, created_at=clock.utcnow(),
+                               last_access=clock.utcnow() - timedelta(hours=1)))
+    updates = []
+
+    def count(conn, cursor, statement, *args):
+        if statement.lstrip().upper().startswith("UPDATE") and "media_cache" in statement:
+            updates.append(statement)
+
+    event.listen(hx.state.database.engine, "before_cursor_execute", count)
+    try:
+        for _ in range(20):
+            with hx.db() as db:
+                store.touch(db, key, "img")
+    finally:
+        event.remove(hx.state.database.engine, "before_cursor_execute", count)
+    assert len(updates) == 1
+    with hx.db() as db:
+        assert db.get(MediaCacheEntry, f"{key}.img.webp").last_access > clock.utcnow() - timedelta(minutes=1)
+    assert store.path_for(key, "img") == store.dir / f"{key}.img.webp"
+    for bad in ("../" + key[3:], key.upper(), key + "/x", ""):
+        with pytest.raises(ValueError):
+            store.path_for(bad, "img")

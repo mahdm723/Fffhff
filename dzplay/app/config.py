@@ -252,9 +252,12 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: int = 30  # seconds a request waits for a free connection before failing
     THREADPOOL_SIZE: int = 40  # threads per worker for the synchronous endpoints (database work)
-    # Argon2 hashes at once per worker (each takes 64 MiB and a CPU core for ~0.1 s): a login/sign-up wave queues
-    # instead of exhausting the memory. 0 = the number of CPUs.
+    # Argon2 per worker (each hash holds 64 MiB; 2 cores finish ~8 per second): at most CONCURRENCY at once (0 = the CPUs
+    # shared between the workers), at most QUEUE more waiting (-1 = 4 × concurrency) for WAIT_SECONDS; the rest get
+    # 503 "busy, try again in a moment" at once — a login wave can never exhaust the memory or the threads.
     PASSWORD_HASH_CONCURRENCY: int = 0
+    PASSWORD_HASH_QUEUE: int = -1
+    PASSWORD_HASH_WAIT_SECONDS: float = 3.0
     # V6 phase 21: request timings (services/metrics.py) → Redis every N seconds (0 = never: tests read them directly)
     METRICS_FLUSH_SECONDS: int = 10
     # V6 phase 21: Telegram alert (admin_cli health-check via deploy/monitor.sh) over the last 5 minutes (panel settings)

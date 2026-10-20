@@ -76,7 +76,7 @@ loadtest/staging/down.sh                              # يحذف staging كام�
 ```
 
 **الإعدادات المقيسة:** تُمرَّر إلى staging من الصدفة:
-- `WEB_CONCURRENCY`، `DB_POOL_SIZE`، `DB_MAX_OVERFLOW`، `THREADPOOL_SIZE`، `PASSWORD_HASH_CONCURRENCY`، `WS_SESSION_RECHECK_SECONDS`؛
+- `WEB_CONCURRENCY`، `DB_POOL_SIZE`، `DB_MAX_OVERFLOW`، `THREADPOOL_SIZE`، `PASSWORD_HASH_CONCURRENCY`/`_QUEUE`/`_WAIT_SECONDS`، `WS_SESSION_RECHECK_SECONDS`؛
 - `PG_MAX_CONNECTIONS`، `PG_SHARED_BUFFERS`، …
 
 ## النتائج (`results/<التشغيل>/<السيناريو>/`)

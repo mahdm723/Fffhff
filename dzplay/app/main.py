@@ -290,6 +290,17 @@ def _raise_open_files() -> None:
             log.warning("open files: could not raise the limit above %d", soft)
 
 
+class _QuietSockets(logging.Filter):
+    """V6 phase 21: uvicorn logs two INFO lines for every WebSocket ('… "WebSocket /api/ws" [accepted]', "connection
+    open"), even with --no-access-log. With thousands of phones that was most of the log (and its CPU under load): the
+    size-capped container log would rotate real warnings and errors away within minutes. Those two lines only."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno != logging.INFO or not isinstance(record.msg, str):
+            return True
+        return not (record.msg.endswith('" [accepted]') or record.msg in ("connection open", "connection closed"))
+
+
 def _check_capacity(state: AppState) -> None:
     """V6 phase 21: every worker's pool must fit in PostgreSQL's max_connections, or requests fail under load."""
     s = state.settings
@@ -312,10 +323,14 @@ def create_app(settings: Settings | None = None, telegram_transport=None, chain_
     # httpx logs full request URLs at INFO — Telegram URLs contain the bot token. Never log them.
     for noisy in ("httpx", "httpcore"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    for name in ("uvicorn.error", "websockets.server"):
+        if not any(isinstance(f, _QuietSockets) for f in logging.getLogger(name).filters):
+            logging.getLogger(name).addFilter(_QuietSockets())
     from app.services import names
 
     names.configure(settings)
-    passwords.configure(settings.PASSWORD_HASH_CONCURRENCY)  # V6 phase 21: a login wave never exhausts the memory
+    passwords.configure(settings.PASSWORD_HASH_CONCURRENCY, settings.PASSWORD_HASH_QUEUE,  # V6 phase 21: a login wave
+                        settings.PASSWORD_HASH_WAIT_SECONDS, settings.WEB_CONCURRENCY)   # never exhausts the memory
     _raise_open_files()
     state = AppState.build(settings, telegram_transport, chain_transport)
 

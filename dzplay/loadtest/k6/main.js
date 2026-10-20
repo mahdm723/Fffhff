@@ -100,9 +100,18 @@ function thresholds() {
     t[`http_req_failed{level:${lv}}`] = ['rate<0.01'];
     t[`http_reqs{level:${lv}}`] = ['count>=0'];
   }
-  if (SCENARIO === 'G') {
+  if (SCENARIO === 'G') { // the waves must never spill over the members who browse and chat meanwhile
     t.signup_total_ms = ['p(95)<5000'];
     t['http_req_duration{kind:auth}'] = ['p(95)<1500'];
+    t['http_req_failed{kind:auth}'] = ['rate>=0']; // reported: refusals ("busy") belong to the wave itself
+    t['http_req_failed{kind:read}'] = ['rate<0.01'];
+    t['http_req_failed{kind:write}'] = ['rate<0.01'];
+    t.busy_503 = ['count>=0'];
+    for (const lv of G_WAVES.map(String)) {
+      t[`http_req_failed{kind:read,level:${lv}}`] = ['rate<0.01'];
+      t[`http_req_failed{kind:auth,level:${lv}}`] = ['rate>=0'];
+      t[`http_req_duration{kind:auth,level:${lv}}`] = ['p(95)<1500'];
+    }
   }
   if (SCENARIO === 'C') { // backstop (cumulative); the 30-second window is watched by k6sink.py
     t.http_req_failed = [{ threshold: 'rate<0.05', abortOnFail: true, delayAbortEval: '2m' }];

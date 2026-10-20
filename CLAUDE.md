@@ -117,11 +117,21 @@
     - الإقلاع (الجداول والحساب الرسمي) تحت `database.startup_lock()`؛
     - السوق للبقية من `market.load_shared`.
   - **قاعدة البيانات:** `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`THREADPOOL_SIZE`، وتحذير عند الإقلاع إن لم تتسع لها `max_connections`.
-  - **كلمات المرور:** Argon2 بحد `PASSWORD_HASH_CONCURRENCY` لكل عامل، و503 `busy` بعد 20 ثانية.
+  - **كلمات المرور (`security/passwords.py`):**
+    - كل عملية Argon2 تحجز 64 MiB (معاملات RFC 9106 كما هي). بلا حد: 40 في وقت واحد = 2.5 GB، فأسقطت موجة الدخول التطبيق (OOM).
+    - لذلك بوابة لكل عامل: `PASSWORD_HASH_CONCURRENCY` في وقت واحد (0 = الأنوية ÷ العمال)، و`PASSWORD_HASH_QUEUE` ينتظر حتى `PASSWORD_HASH_WAIT_SECONDS`.
+    - ما زاد: 503 `busy` فورًا مع `Retry-After`، بلا خيط ولا ذاكرة.
+  - **المنشور المثبّت:** `official.pinned_post` من ذاكرة كل عامل (60 ث، 10 ث بلا منشور)، و`official.changed_pin` بعد التثبيت أو الحذف يبثّ `{type:"pinned"}` عبر الـhub فيُنسى فورًا في كل العمال.
   - **WebSocket:**
     - الجلسة تُراجع كل `WS_SESSION_RECHECK_SECONDS`؛
     - وفورًا عند حدث `session` في الـhub: `sessions.revoke_*` تسجّل في `db.info`، ثم `Database.on_sessions_ended` بعد الـcommit (الخروج، والحظر، وتغيير كلمة المرور).
     - التطبيق يرفع حدّ الملفات المفتوحة إلى الحد الأعلى عند الإقلاع.
+    - سطرا uvicorn لكل اتصال (`[accepted]`، `connection open`) محذوفان بفلتر `main._QuietSockets`، فلا يدفعان الأخطاء الحقيقية خارج السجل المحدود الحجم.
+  - **الصور (`services/media.py`، 55 % من الطلبات):**
+    - `path_for` بلا `resolve()` (المعرّف 32 حرفًا ست عشريًا)؛
+    - `touch` يكتب `last_access` مرة كل دقيقتين لكل صورة في كل عامل، لا عند كل عرض.
+    - الصور المرسلة إلى المتصفح تُحسب مرة لكل هاتف (ذاكرته المؤقتة)، وk6 يحاكي ذلك.
+  - **الإيقاف:** `CMD` في `Dockerfile` بـ`exec uvicorn`، فيستلم uvicorn إشارة الإيقاف (PID 1) ويغلق الاتصالات بهدوء.
   - **التنظيف:** دفعات `cleanup.BATCH` في كل دورة (لا معاملة طويلة تحجز الصفوف).
   - **فهارس:** `ix_posts_pinned`، و`ix_notifications_created_at`، و`ix_users_name_trgm` (pg_trgm، `migrations.search_index`).
   - **وضع الاختبار:** `LOADTEST_MODE` (`security/loadtest.py`، `api/loadtest.py`) مستحيل خارج `ENV=staging`، ويحتاج رمزًا من 32+ حرفًا. لا يدخل اللوحة ولا `.env.example`.

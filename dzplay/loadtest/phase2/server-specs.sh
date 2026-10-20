@@ -24,7 +24,7 @@ docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
 h "open files inside the app (WebSockets need one each)"
 docker compose exec -T app sh -c 'echo "soft $(ulimit -Sn) · hard $(ulimit -Hn)"' 2>/dev/null || echo "app not running"
 h "app performance settings (.env)"
-for k in WEB_CONCURRENCY DB_POOL_SIZE DB_MAX_OVERFLOW PASSWORD_HASH_CONCURRENCY WS_SESSION_RECHECK_SECONDS WS_PING_SECONDS \
+for k in WEB_CONCURRENCY DB_POOL_SIZE DB_MAX_OVERFLOW PASSWORD_HASH_CONCURRENCY PASSWORD_HASH_QUEUE PASSWORD_HASH_WAIT_SECONDS WS_SESSION_RECHECK_SECONDS WS_PING_SECONDS \
          FEED_CANDIDATE_POOL FEED_CACHE_SECONDS MEDIA_CACHE_MAX_GB MEDIA_WORKER TLS_MODE; do
     v="$(env_get $k)"; printf '%-28s %s\n' "$k" "${v:-(default)}"
 done

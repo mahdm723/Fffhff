@@ -17,6 +17,7 @@ services:
     mem_limit: 256m
   caddy:
     cpuset: "0,1"
-    mem_limit: 512m  # 256 MB was killed at ~3,000 WebSockets (two connections each through Caddy)
+    mem_limit: 1g  # 256 MB was killed at ~3,000 WebSockets, 512 MB at ~6,000 (two connections each through Caddy;
+                   # production sets no limit: the server's memory is the limit)
   mocks:
     cpuset: "2,3"

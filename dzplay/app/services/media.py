@@ -70,15 +70,15 @@ class MediaStore:
         self.dir = Path(settings.MEDIA_CACHE_DIR).resolve()
         self._locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
         self._guard = threading.Lock()
+        self._touched: dict[str, float] = {}  # V6 phase 21: cache key → when this process last wrote its last_access
 
     # -------------------------------------------------------------- paths
     def path_for(self, asset_id: str, variant: str) -> Path:
         if not ASSET_ID.match(asset_id) or variant not in EXTENSIONS:
             raise ValueError("bad media key")
-        path = (self.dir / f"{asset_id}.{variant}{EXTENSIONS[variant]}").resolve()
-        if path.parent != self.dir:
-            raise ValueError("bad media key")
-        return path
+        # 32 hex characters and a fixed extension: the name can never leave the cache folder. V6 phase 21: no
+        # resolve() any more — a realpath of every component, several times per picture view (14 % of the app's CPU).
+        return self.dir / f"{asset_id}.{variant}{EXTENSIONS[variant]}"
 
     def _lock(self, asset_id: str) -> threading.Lock:
         with self._guard:
@@ -140,9 +140,15 @@ class MediaStore:
 
     def touch(self, db: Session, asset_id: str, variant: str) -> None:
         key = self.path_for(asset_id, variant).name
+        seen = time.monotonic()
+        if seen - self._touched.get(key, float("-inf")) < _TOUCH_EVERY.total_seconds():
+            return  # V6 phase 21: written by this process a moment ago — no UPDATE on every view of a popular picture
         now = clock.utcnow()
         db.execute(update(MediaCacheEntry).where(MediaCacheEntry.key == key, MediaCacheEntry.last_access < now - _TOUCH_EVERY)
                    .values(last_access=now))
+        if len(self._touched) > 100_000:
+            self._touched.clear()
+        self._touched[key] = seen
 
     def forget_asset(self, db: Session, asset_id: str) -> None:
         for variant in EXTENSIONS:

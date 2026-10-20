@@ -71,8 +71,11 @@ def official_post(body: OfficialPostBody, request: Request, ac: AdminContext = D
 
 @router.post("/posts/{post_id}/pin")
 def official_pin(post_id: str, body: PinBody, request: Request, ac: AdminContext = Depends(SUPER_ADMIN)) -> dict:
-    with get_state(request).database.session() as db:
-        return official.pin(db, post_id, body.hours, f"admin:{ac.actor}")
+    st = get_state(request)
+    with st.database.session() as db:
+        out = official.pin(db, post_id, body.hours, f"admin:{ac.actor}")
+    official.changed_pin(st)  # V6 phase 21: the feed shows the new pin at once, in every worker
+    return out
 
 
 @router.delete("/posts/{post_id}")
@@ -82,4 +85,5 @@ def official_delete(post_id: str, request: Request, ac: AdminContext = Depends(S
     with st.database.session() as db:
         official.delete(db, post_id, f"admin:{ac.actor}", effects)
     st.dispatch(effects)
+    official.changed_pin(st)
     return {"ok": True}

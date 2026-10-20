@@ -425,7 +425,7 @@
  {
   "id": "أرسلت الحد الأقصى من الرسائل. انتظر حتى يقبل الطرف الآخر طلب المراسلة.",
   "where": [
-   "app/services/messaging.py:362"
+   "app/services/messaging.py:365"
   ],
   "client": false,
   "plural": false
@@ -449,7 +449,7 @@
  {
   "id": "أرسلت عدة رسائل متتالية. انتظر رد الطرف الآخر.",
   "where": [
-   "app/services/messaging.py:337"
+   "app/services/messaging.py:340"
   ],
   "client": false,
   "plural": false
@@ -641,7 +641,7 @@
  {
   "id": "أكّد أن عمرك 18 سنة أو أكثر من الإعدادات أولًا.",
   "where": [
-   "app/services/messaging.py:681"
+   "app/services/messaging.py:684"
   ],
   "client": false,
   "plural": false
@@ -1051,7 +1051,7 @@
  {
   "id": "إرسال الصور في المحادثات متوقف نهائيًا.",
   "where": [
-   "app/main.py:406",
+   "app/main.py:421",
    "app/services/media_items.py:69"
   ],
   "client": false,
@@ -1418,9 +1418,9 @@
  {
   "id": "اختر سبب البلاغ.",
   "where": [
-   "app/services/ideas.py:591",
-   "app/services/messaging.py:531",
-   "app/services/people.py:151"
+   "app/services/ideas.py:595",
+   "app/services/messaging.py:534",
+   "app/services/people.py:168"
   ],
   "client": false,
   "plural": false
@@ -1655,7 +1655,7 @@
  {
   "id": "افتح التطبيق للمتابعة.",
   "where": [
-   "app/main.py:403"
+   "app/main.py:418"
   ],
   "client": false,
   "plural": false
@@ -1755,7 +1755,7 @@
  {
   "id": "اكتب حرفين على الأقل، أو الـID كاملًا (DZ-XXXXXX).",
   "where": [
-   "app/services/people.py:88"
+   "app/services/people.py:97"
   ],
   "client": false,
   "plural": false
@@ -2181,14 +2181,6 @@
   "plural": false
  },
  {
-  "id": "الخادم مشغول الآن. أعد المحاولة بعد لحظات.",
-  "where": [
-   "app/security/passwords.py:35"
-  ],
-  "client": false,
-  "plural": false
- },
- {
   "id": "الخادم مشغول بمعالجة ملفات أخرى. حاول بعد دقيقة.",
   "where": [
    "app/api/uploads.py:84"
@@ -2503,7 +2495,7 @@
  {
   "id": "الصورة غير صالحة أو كبيرة جدًا.",
   "where": [
-   "app/services/media.py:61"
+   "app/services/media.py:62"
   ],
   "client": false,
   "plural": false
@@ -2520,7 +2512,7 @@
  {
   "id": "الطلب كبير جدًا.",
   "where": [
-   "app/main.py:410"
+   "app/main.py:425"
   ],
   "client": false,
   "plural": false
@@ -2966,7 +2958,7 @@
  {
   "id": "انتهت مهلة المعالجة.",
   "where": [
-   "app/services/media_items.py:468"
+   "app/services/media_items.py:478"
   ],
   "client": false,
   "plural": false
@@ -3618,7 +3610,7 @@
  {
   "id": "تفاصيل البلاغ غير صالحة.",
   "where": [
-   "app/services/messaging.py:524"
+   "app/services/messaging.py:527"
   ],
   "client": false,
   "plural": false
@@ -3626,7 +3618,7 @@
  {
   "id": "تفاعل غير صالح.",
   "where": [
-   "app/services/ideas.py:336"
+   "app/services/ideas.py:337"
   ],
   "client": false,
   "plural": false
@@ -3691,7 +3683,7 @@
  {
   "id": "تم إيقاف هذا الحساب.",
   "where": [
-   "app/services/ideas.py:341",
+   "app/services/ideas.py:342",
    "app/services/messaging.py:189",
    "app/services/support.py:67"
   ],
@@ -3998,7 +3990,7 @@
  {
   "id": "حدث خطأ غير متوقع. حاول مرة أخرى.",
   "where": [
-   "app/main.py:455"
+   "app/main.py:470"
   ],
   "client": false,
   "plural": false
@@ -4910,22 +4902,22 @@
    "app/api/app_access.py:60",
    "app/api/app_access.py:58",
    "app/api/uploads.py:70",
-   "app/main.py:445",
+   "app/main.py:460",
    "app/services/auth.py:132",
    "app/services/email_codes.py:43",
    "app/services/engagement.py:195",
-   "app/services/ideas.py:241",
+   "app/services/ideas.py:242",
    "app/services/image_permission.py:40",
    "app/services/media_items.py:135",
    "app/services/media_items.py:138",
    "app/services/messaging.py:251",
    "app/services/messaging.py:71",
-   "app/services/messaging.py:651",
-   "app/services/messaging.py:786",
-   "app/services/messaging.py:647",
+   "app/services/messaging.py:654",
+   "app/services/messaging.py:789",
+   "app/services/messaging.py:650",
    "app/services/official.py:78",
-   "app/services/people.py:70",
-   "app/services/people.py:114",
+   "app/services/people.py:79",
+   "app/services/people.py:123",
    "app/services/signup.py:420",
    "app/services/signup.py:435",
    "app/services/signup.py:433"
@@ -4936,8 +4928,8 @@
  {
   "id": "طلب غير مسموح.",
   "where": [
-   "app/main.py:415",
-   "app/main.py:418"
+   "app/main.py:430",
+   "app/main.py:433"
   ],
   "client": false,
   "plural": false
@@ -5136,7 +5128,7 @@
  {
   "id": "عمليات بحث كثيرة. انتظر قليلًا.",
   "where": [
-   "app/services/people.py:65"
+   "app/services/people.py:74"
   ],
   "client": false,
   "plural": false
@@ -5220,8 +5212,8 @@
   "where": [
    "app/api/i18n.py:22",
    "app/errors.py:23",
-   "app/main.py:396",
-   "app/main.py:501",
+   "app/main.py:411",
+   "app/main.py:516",
    "app/services/payment_check.py:368"
   ],
   "client": false,
@@ -5758,7 +5750,7 @@
  {
   "id": "لا يمكنك الإبلاغ عن رسالتك.",
   "where": [
-   "app/services/messaging.py:540"
+   "app/services/messaging.py:543"
   ],
   "client": false,
   "plural": false
@@ -5766,7 +5758,7 @@
  {
   "id": "لا يمكنك الإبلاغ عن منشورك.",
   "where": [
-   "app/services/ideas.py:563"
+   "app/services/ideas.py:567"
   ],
   "client": false,
   "plural": false
@@ -5774,7 +5766,7 @@
  {
   "id": "لا يمكنك التعليق على هذا المنشور.",
   "where": [
-   "app/services/ideas.py:412"
+   "app/services/ideas.py:413"
   ],
   "client": false,
   "plural": false
@@ -5782,7 +5774,7 @@
  {
   "id": "لا يمكنك التفاعل مع منشورك.",
   "where": [
-   "app/services/ideas.py:339"
+   "app/services/ideas.py:340"
   ],
   "client": false,
   "plural": false
@@ -5790,7 +5782,7 @@
  {
   "id": "لا يمكنك الرد على هذا التعليق.",
   "where": [
-   "app/services/ideas.py:419"
+   "app/services/ideas.py:420"
   ],
   "client": false,
   "plural": false
@@ -6563,7 +6555,7 @@
  {
   "id": "نتائج كثيرة: اكتب بحثًا أدق.",
   "where": [
-   "app/services/people.py:74"
+   "app/services/people.py:83"
   ],
   "client": false,
   "plural": false
@@ -6840,7 +6832,7 @@
   "id": "هذا الحساب لا يستقبل الرسائل. للمساعدة تواصل مع الدعم من «حسابي ← الدعم والمساعدة».",
   "where": [
    "static/js/people.js:41",
-   "app/services/messaging.py:684"
+   "app/services/messaging.py:687"
   ],
   "client": true,
   "plural": false
@@ -6849,7 +6841,7 @@
   "id": "هذا الشخص لا يستقبل رسائل مباشرة.",
   "where": [
    "static/js/people.js:58",
-   "app/services/messaging.py:752"
+   "app/services/messaging.py:755"
   ],
   "client": true,
   "plural": false
@@ -6907,8 +6899,8 @@
   "id": "هذه المحادثة لم تعد متاحة.",
   "where": [
    "static/js/views/chat.js:342",
-   "app/services/messaging.py:334",
-   "app/services/messaging.py:747"
+   "app/services/messaging.py:337",
+   "app/services/messaging.py:750"
   ],
   "client": true,
   "plural": false
@@ -6924,7 +6916,7 @@
  {
   "id": "هذه محادثة مجهولة قديمة للقراءة فقط.",
   "where": [
-   "app/services/messaging.py:354"
+   "app/services/messaging.py:357"
   ],
   "client": false,
   "plural": false

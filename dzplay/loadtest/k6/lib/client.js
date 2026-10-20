@@ -30,6 +30,7 @@ const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleW
 export const refused = new Counter('refused_4xx'); // 4xx other than 429: the model asked for something not allowed
 export const limited = new Counter('rate_limited_429');
 export const failures = new Counter('server_errors'); // 5xx, timeouts, resets
+export const busy = new Counter('busy_503'); // "busy, try again in a moment" (the password-hash gate)
 
 // ------------------------------------------------------------------------------------------- small helpers
 export const rand = (a, b) => a + Math.random() * (b - a);
@@ -93,6 +94,7 @@ export function cookieHeader() {
 let debugLeft = Number(__ENV.LT_DEBUG || 0); // LT_DEBUG=N: print the first N refusals of each user
 function account(res, name) {
   const s = res.status;
+  if (s === 503 && String(res.body || '').includes('"busy"')) busy.add(1, { name });
   if (s === 0 || s >= 500) failures.add(1, { name, status: String(s) });
   else if (s === 429) limited.add(1, { name });
   else if (s >= 400) refused.add(1, { name, status: String(s) });

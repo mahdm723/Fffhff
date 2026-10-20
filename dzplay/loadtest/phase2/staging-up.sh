@@ -3,14 +3,15 @@
 # and panel limits — never its secrets, its data or its addresses.
 #   sudo loadtest/phase2/staging-up.sh                                       the generator runs on this server
 #   sudo GEN_IP=<generator> SERVER_IP=<this server> loadtest/phase2/staging-up.sh    a separate generator (option 1)
-# From production: WEB_CONCURRENCY / DB_POOL_SIZE / DB_MAX_OVERFLOW / THREADPOOL_SIZE / PASSWORD_HASH_CONCURRENCY /
+# From production: WEB_CONCURRENCY / DB_POOL_SIZE / DB_MAX_OVERFLOW / THREADPOOL_SIZE / PASSWORD_HASH_* /
 # WS_SESSION_RECHECK_SECONDS (.env) and the panel tunables (tun.*, exported by night.sh to loadtest/out/tunables.tsv).
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$APP_DIR"
 env_get() { [ -f .env ] && grep -E "^$1=" .env | tail -1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//; s/^"//; s/"$//' || true; }
 export APP_ENV=staging
-for k in WEB_CONCURRENCY DB_POOL_SIZE DB_MAX_OVERFLOW THREADPOOL_SIZE PASSWORD_HASH_CONCURRENCY WS_SESSION_RECHECK_SECONDS; do
+for k in WEB_CONCURRENCY DB_POOL_SIZE DB_MAX_OVERFLOW THREADPOOL_SIZE PASSWORD_HASH_CONCURRENCY PASSWORD_HASH_QUEUE \
+         PASSWORD_HASH_WAIT_SECONDS WS_SESSION_RECHECK_SECONDS; do
     v="$(env_get "$k")"
     if [ -n "$v" ]; then export "$k=$v"; echo "  $k=$v (production)"; fi
 done

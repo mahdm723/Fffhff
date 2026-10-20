@@ -26,4 +26,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"
 
 # Worker processes: WEB_CONCURRENCY in .env (uvicorn reads it; V6 phase 21 — needs REDIS_URL, as in docker-compose.yml).
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-proxy-headers --no-access-log --no-server-header"]
+# `exec`: uvicorn itself is PID 1 and gets the stop signal (graceful shutdown: requests finish, sockets close cleanly),
+# instead of a shell that ignores it until Docker kills everything 10 s later.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-proxy-headers --no-access-log --no-server-header"]
