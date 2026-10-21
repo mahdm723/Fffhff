@@ -75,6 +75,11 @@ python3 loadtest/report/build.py loadtest/results/<قبل> loadtest/results/<ب�
 loadtest/staging/down.sh                              # يحذف staging كاملًا
 ```
 
+**السيناريو ز بأشكال أخرى:**
+- `G_WAVES=60,120,240,480,960,1920`: ضعف الموجات.
+- `G_BACKGROUND=100`: 100 متصفح بدل 300، أي حمل عادي يتسع له الخادم. هكذا يُرى أثر الموجة وحدها على التصفح.
+- `G_HOLD` و`G_LEAD`: مدة كل موجة، ومدة التصفح وحده قبلها.
+
 **الإعدادات المقيسة:** تُمرَّر إلى staging من الصدفة:
 - `WEB_CONCURRENCY`، `DB_POOL_SIZE`، `DB_MAX_OVERFLOW`، `THREADPOOL_SIZE`، `PASSWORD_HASH_CONCURRENCY`/`_QUEUE`/`_WAIT_SECONDS`، `WS_SESSION_RECHECK_SECONDS`؛
 - `PG_MAX_CONNECTIONS`، `PG_SHARED_BUFFERS`، …
