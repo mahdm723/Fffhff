@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="DALTA.BIT">
+  <!-- DALTA.BIT logo, small version (16–24 px, notification icon). The master: brand/build.py makes every icon
+       from it. The same three heights, thicker, on a thicker base; only the tallest (LEFT) keeps its wick,
+       thicker, with the dot on it; a simpler glow.
+       Never mirrored automatically (the same drawing in RTL pages). The dot glows: a lighter centre (radial
+       gradient) and a soft halo; flat versions (notification icon, Android 13 themed icon) hide .glow and fill
+       .dot with one colour. Colours: currentColor (black or white) + the brand red family. -->
+  <defs>
+    <radialGradient id="dz-dot-s" cx="0.38" cy="0.34" r="0.78">
+      <stop offset="0" stop-color="#FF8A80"/>
+      <stop offset="0.5" stop-color="#FF3B3B"/>
+      <stop offset="1" stop-color="#C8141C"/>
+    </radialGradient>
+    <radialGradient id="dz-glow-s">
+      <stop offset="0" stop-color="#FF3B3B" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#E5232D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle class="glow" cx="19" cy="17" r="15.5" fill="url(#dz-glow-s)"/>
+  <g class="ink" fill="currentColor">
+    <rect x="4" y="83" width="92" height="11" rx="4"/>
+    <rect x="8" y="40" width="22" height="45" rx="4"/>
+    <rect x="15" y="27" width="8" height="15" rx="3"/>
+    <rect x="39" y="53" width="22" height="32" rx="4"/>
+    <rect x="70" y="66" width="22" height="19" rx="4"/>
+  </g>
+  <circle class="dot" cx="19" cy="17" r="12" fill="url(#dz-dot-s)"/>
+</svg>

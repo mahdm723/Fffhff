@@ -1,0 +1,30 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.db
+*.db-shm
+*.db-wal
+e2e/screenshots/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+*.jks
+*.keystore
+e2e/screenshots-*/
+secrets/
+android/app/google-services.json
+e2e/shots-*/
+
+# V6 phase 20: generated on the server (Cloudflare ranges, the old address during a move) and the origin
+# certificate + key — never in git
+deploy/caddy/cloudflare-ips.caddy
+deploy/caddy/legacy-*.caddy
+deploy/origin/
+
+# V6 phase 21: load-test outputs (staging secrets, session tokens, results) — never in git
+loadtest/out/
+loadtest/results/
+deploy/caddy/maintenance-*.caddy

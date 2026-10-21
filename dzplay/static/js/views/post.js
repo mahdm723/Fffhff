@@ -1,0 +1,25 @@
+// V6 phase 4: one idea on its own page (from a notification), with its comments opened.
+import { api } from '../api.js';
+import { icon } from '../icons.js';
+import { postCard } from '../ideas.js';
+import { h } from '../ui.js';
+import { t } from '../i18n.js';
+
+export function renderPost(page, { postId, commentId, navigate }) {
+  const slot = h('div', { class: 'feed' }, h('div', { class: 'feed-status' }, h('span', { class: 'spinner', 'aria-label': t('جارٍ التحميل') })));
+  page.replaceChildren(
+    h('header', { class: 'topbar topbar--back' },
+      h('button', { class: 'icon-btn glass', type: 'button', 'aria-label': t('رجوع'), onclick: () => (history.length > 1 ? history.back() : navigate('#/home')) }, icon('back')),
+      h('h1', { class: 'page-title', text: t('فكرة') })),
+    slot);
+  (async () => {
+    try {
+      const post = await api.get(`/api/posts/${encodeURIComponent(postId)}`);
+      const card = postCard(post, { navigate, onRemoved: () => navigate('#/home') });
+      slot.replaceChildren(card);
+      card.openComments(commentId);
+    } catch {
+      slot.replaceChildren(h('div', { class: 'empty glass' }, icon('info'), h('h2', { text: t('هذه الفكرة لم تعد متاحة') })));
+    }
+  })();
+}

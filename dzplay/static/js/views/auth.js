@@ -1,0 +1,367 @@
+import { appName } from '../brand.js';
+import { api } from '../api.js';
+import { createAntibot } from '../antibot.js';
+import { genderPicker, nameInput } from '../onboarding.js';
+import { privacySheet } from '../privacy.js';
+import { canOfferAndroidApp, h, logoLockup } from '../ui.js';
+import { NAMES, lang, t } from '../i18n.js';
+import { icon } from '../icons.js';
+import { languageSheet } from '../language.js';
+
+let gsiLoading = null;
+function loadGoogleScript() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (!gsiLoading) {
+    gsiLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = () => { gsiLoading = null; reject(new Error('gsi')); };
+      document.head.append(s);
+    });
+  }
+  return gsiLoading;
+}
+
+export function renderAuth(root, { config, onAuthenticated }) {
+  let mode = 'login';
+  let pending = null; // V6 phase 15: a signup waiting for the code e-mailed to it ({signup_token, sent_to, …})
+  const antibotEnabled = !!config.antibot_enabled;
+
+  const tabs = h('div', { class: 'segmented', role: 'tablist' });
+  const formSlot = h('div');
+  const googleSlot = h('div', { class: 'google-slot' });
+
+  function tabButton(id, label) {
+    return h('button', { type: 'button', role: 'tab', 'aria-selected': String(mode === id), onclick: () => { mode = id; draw(); } }, label);
+  }
+
+  function draw() {
+    tabs.replaceChildren(tabButton('login', t('تسجيل الدخول')), tabButton('register', t('حساب جديد')));
+    tabs.hidden = mode === 'reset' || mode === 'verify';
+    googleSlot.hidden = mode === 'verify';
+    formSlot.replaceChildren(mode === 'reset' ? buildReset() : mode === 'verify' ? buildVerify() : buildForm());
+  }
+
+  // ------------------------------------------------------------ V6 phase 15: the code e-mailed at signup
+  function buildVerify() {
+    const wrap = h('div', { class: 'reset signup-verify' });
+    const codeIn = h('input', {
+      class: 'input signup-verify__code', id: 'signup-code', dir: 'ltr', type: 'text', inputmode: 'text', required: true,
+      autocomplete: 'one-time-code', autocapitalize: 'off', spellcheck: 'false', maxlength: '128',
+    });
+    const lead = h('p', { class: 'reset__lead' });
+    const status = h('div', { class: 'reset__sent glass', role: 'status', hidden: true });
+    const err = h('div', { class: 'form-error', role: 'alert' });
+    const send = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, t('تأكيد وإنشاء الحساب'));
+    const resendBtn = h('button', { type: 'button', class: 'btn btn--ghost btn--block signup-verify__resend' });
+    let left = pending.resend_in || 60;
+    const paintLead = () => {
+      lead.textContent = t('أرسلنا رمزًا من 6 أرقام إلى {email}. الرمز صالح {minutes} دقيقة.', {
+        email: `\u2068${pending.sent_to}\u2069`, minutes: Math.max(1, Math.round((pending.expires_in || 900) / 60)) }); // isolated: LTR inside RTL
+    };
+    const paintResend = () => {
+      resendBtn.disabled = left > 0;
+      resendBtn.textContent = left > 0 ? t('إعادة الإرسال بعد {seconds} ث', { seconds: left }) : t('إعادة إرسال الرمز');
+    };
+    const timer = setInterval(() => {
+      if (!wrap.isConnected) { clearInterval(timer); return; }
+      if (left > 0) { left -= 1; paintResend(); }
+    }, 1000);
+    const restart = () => { clearInterval(timer); pending = null; mode = 'register'; draw(); };
+    const fail = (e) => {
+      err.textContent = e.message || t('تعذّر الاتصال. حاول مرة أخرى.');
+      if (e.code === 'signup_expired' || e.code === 'code_cancelled') setTimeout(() => { if (wrap.isConnected) restart(); }, 2500);
+    };
+
+    const form = h('form', { novalidate: true, class: 'reset__step' },
+      h('h2', { class: 'reset__title', text: t('أدخل الرمز المرسل إلى بريدك') }),
+      lead,
+      h('div', { class: 'field' }, h('label', { for: 'signup-code', text: t('رمز التأكيد') }), codeIn),
+      h('p', { class: 'reset__hint', text: t('لم يصلك؟ تحقق من مجلد الرسائل غير المرغوب فيها (Spam).') }),
+      err, send);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      const code = codeIn.value.trim();
+      if (!code) { err.textContent = t('أدخل الرمز.'); codeIn.focus(); return; }
+      send.disabled = true;
+      try {
+        const me = await api.post('/api/auth/register/verify', { signup_token: pending.signup_token, code });
+        clearInterval(timer);
+        onAuthenticated(me);
+      } catch (e2) {
+        fail(e2);
+        send.disabled = false;
+      }
+    });
+    resendBtn.addEventListener('click', async () => {
+      err.textContent = '';
+      resendBtn.disabled = true;
+      try {
+        pending = { ...pending, ...(await api.post('/api/auth/register/resend', { signup_token: pending.signup_token })) };
+        left = pending.resend_in || 60;
+        paintLead();
+        status.textContent = t('أرسلنا رمزًا جديدًا. الرمز السابق لم يعد صالحًا.');
+        status.hidden = false;
+        codeIn.value = '';
+        codeIn.focus();
+      } catch (e2) {
+        fail(e2);
+        if (e2.retryAfter) left = Math.ceil(e2.retryAfter);
+      }
+      paintResend();
+    });
+    const back = h('button', { type: 'button', class: 'link-btn reset__back', onclick: restart }, t('تغيير البريد أو البيانات'));
+    paintLead();
+    paintResend();
+    wrap.append(form, status, resendBtn, back);
+    requestAnimationFrame(() => codeIn.focus());
+    return wrap;
+  }
+
+  // ------------------------------------------------------------ forgot password (3 steps, same page)
+  function buildReset() {
+    const wrap = h('div', { class: 'reset' });
+    const back = h('button', { type: 'button', class: 'link-btn reset__back', onclick: () => { mode = 'login'; draw(); } }, t('العودة لتسجيل الدخول'));
+    const field = (id, label, attrs) => h('div', { class: 'field' }, h('label', { for: id, text: label }),
+      h('input', { class: 'input', id, dir: 'ltr', required: true, ...attrs }));
+    const fail = (box, err) => {
+      box.textContent = err.message || t('تعذّر الاتصال. حاول مرة أخرى.');
+      if (err.code === 'rate_limited' && err.retryAfter > 90) box.textContent += t(' (حاول بعد {n} دقيقة تقريبًا)', { n: Math.ceil(err.retryAfter / 60) });
+    };
+
+    // step 1 — e-mail + anti-bot
+    const emailF = field('reset-email', t('البريد الإلكتروني'), { type: 'email', autocomplete: 'email', inputmode: 'email', maxlength: '254' });
+    const emailIn = emailF.querySelector('input');
+    const antibot1 = createAntibot('reset', antibotEnabled);
+    const err1 = h('div', { class: 'form-error', role: 'alert' });
+    const send1 = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, t('إرسال الطلب'));
+    const sent = h('div', { class: 'reset__sent glass', role: 'status', hidden: true });
+    const step1 = h('form', { novalidate: true, class: 'reset__step' },
+      h('h2', { class: 'reset__title', text: t('استعادة الحساب') }),
+      h('p', { class: 'reset__lead', text: t('أدخل بريدك. يراجع فريق {app} الطلب، ثم يصلك رمز على بريدك الإلكتروني.', { app: appName() }) }),
+      emailF, antibot1.el, err1, send1);
+
+    // step 2 — the code from the e-mail
+    const codeF = field('reset-code', t('الرمز الذي وصلك على البريد'), {
+      type: 'text', inputmode: 'text', autocomplete: 'one-time-code', autocapitalize: 'characters', spellcheck: 'false', maxlength: '12',
+    });
+    const err2 = h('div', { class: 'form-error', role: 'alert' });
+    const send2 = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, t('تحقق من الرمز'));
+    const step2 = h('form', { novalidate: true, class: 'reset__step', hidden: true },
+      codeF, h('p', { class: 'reset__hint',
+        text: t('الرمز صالح {hours} ساعة ولمرة واحدة. بعد {attempts} محاولات خاطئة يُلغى ويلزمك طلب رمز جديد.', { hours: config.reset_code_hours || 24, attempts: config.reset_max_attempts || 5 }) }),
+      err2, send2);
+
+    // step 3 — new password
+    let resetToken = null;
+    const pw = field('reset-password', t('كلمة المرور الجديدة'), { type: 'password', autocomplete: 'new-password', maxlength: '128' });
+    const pw2 = field('reset-password2', t('تأكيد كلمة المرور'), { type: 'password', autocomplete: 'new-password', maxlength: '128' });
+    const antibot3 = createAntibot('reset', antibotEnabled);
+    const err3 = h('div', { class: 'form-error', role: 'alert' });
+    const send3 = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, t('تغيير كلمة المرور والدخول'));
+    const step3 = h('form', { novalidate: true, class: 'reset__step', hidden: true },
+      h('h2', { class: 'reset__title', text: t('كلمة مرور جديدة') }),
+      h('p', { class: 'reset__lead', text: t('بعد التغيير يُسجَّل خروجك من كل الأجهزة الأخرى.') }),
+      pw, pw2, antibot3.el, err3, send3);
+
+    step1.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err1.textContent = '';
+      if (!emailIn.value.trim()) { err1.textContent = t('أدخل بريدك الإلكتروني.'); return; }
+      send1.disabled = true;
+      try {
+        const solution = antibotEnabled ? await antibot1.ensure() : null;
+        const res = await api.post('/api/auth/reset/request', { email: emailIn.value.trim(), antibot: solution });
+        sent.textContent = res.message;
+        sent.hidden = false;
+        step2.hidden = false;
+        send1.textContent = t('إعادة إرسال الطلب');
+        codeF.querySelector('input').focus();
+      } catch (err) {
+        fail(err1, err);
+      }
+      antibot1.reset();
+      send1.disabled = false;
+    });
+
+    step2.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err2.textContent = '';
+      const code = codeF.querySelector('input').value.trim();
+      if (!code) { err2.textContent = t('أدخل الرمز.'); return; }
+      send2.disabled = true;
+      try {
+        const res = await api.post('/api/auth/reset/verify', { email: emailIn.value.trim(), code });
+        resetToken = res.reset_token;
+        step1.hidden = true; step2.hidden = true; sent.hidden = true;
+        step3.hidden = false;
+        pw.querySelector('input').focus();
+      } catch (err) {
+        fail(err2, err);
+      }
+      send2.disabled = false;
+    });
+
+    step3.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err3.textContent = '';
+      const a = pw.querySelector('input').value;
+      const b = pw2.querySelector('input').value;
+      if (a.length < config.password_min_length) { err3.textContent = t('كلمة المرور يجب أن تكون {n} أحرف على الأقل.', { n: config.password_min_length }); return; }
+      if (a !== b) { err3.textContent = t('كلمتا المرور غير متطابقتين.'); return; }
+      send3.disabled = true;
+      try {
+        const solution = antibotEnabled ? await antibot3.ensure() : null;
+        const me = await api.post('/api/auth/reset/complete', { reset_token: resetToken, password: a, password_confirm: b, antibot: solution });
+        onAuthenticated(me);
+      } catch (err) {
+        fail(err3, err);
+        antibot3.reset();
+        send3.disabled = false;
+        if (err.code === 'reset_expired') { mode = 'reset'; setTimeout(draw, 2500); }
+      }
+    });
+
+    wrap.append(step1, sent, step2, step3, back);
+    requestAnimationFrame(() => emailIn.focus());
+    return wrap;
+  }
+
+  function buildForm() {
+    const isRegister = mode === 'register';
+    const antibot = createAntibot(isRegister ? 'register' : 'login', antibotEnabled);
+    const email = h('input', { class: 'input', type: 'email', id: 'email', name: 'email', autocomplete: 'email', dir: 'ltr', required: true, inputmode: 'email', maxlength: '254' });
+    const password = h('input', { class: 'input', type: 'password', id: 'password', name: 'password', autocomplete: isRegister ? 'new-password' : 'current-password', dir: 'ltr', required: true, maxlength: '128' });
+    const confirm = isRegister ? h('input', { class: 'input', type: 'password', id: 'password_confirm', name: 'password_confirm', autocomplete: 'new-password', dir: 'ltr', required: true, maxlength: '128' }) : null;
+    // Honeypot: invisible to people, tempting for form-filling bots.
+    const honeypot = h('input', { class: 'hp', type: 'text', name: 'website', tabindex: '-1', autocomplete: 'off', 'aria-hidden': 'true' });
+    const error = h('div', { class: 'form-error', role: 'alert' });
+    const submit = h('button', { class: 'btn btn--primary btn--block', type: 'submit' }, isRegister ? t('إنشاء الحساب') : t('دخول'));
+    const gender = isRegister ? genderPicker('reg-gender') : null;
+    const displayName = isRegister ? nameInput('display-name') : null;
+    const adult = isRegister ? h('input', { type: 'checkbox', id: 'age_confirmed', name: 'age_confirmed' }) : null;
+
+    const forgot = !isRegister && config.password_reset_enabled
+      ? h('button', { type: 'button', class: 'link-btn auth__forgot', onclick: () => { mode = 'reset'; draw(); } }, t('نسيت كلمة السر؟'))
+      : null;
+    const form = h('form', { novalidate: true },
+      h('div', { class: 'field' }, h('label', { for: 'email', text: t('البريد الإلكتروني') }), email),
+      h('div', { class: 'field' }, h('label', { for: 'password', text: t('كلمة المرور') }), password),
+      confirm && h('div', { class: 'field' }, h('label', { for: 'password_confirm', text: t('تأكيد كلمة المرور') }), confirm),
+      displayName && h('div', { class: 'field' }, h('label', { for: 'display-name', text: t('الاسم الظاهر') }), displayName,
+        h('small', { class: 'field__hint', text: t('يظهر مع أفكارك ورسائلك بدل بريدك. يمكنك تغييره لاحقًا.') })),
+      gender && h('div', { class: 'field' }, h('label', { text: t('الجنس') }), gender),
+      adult && h('label', { class: 'choice choice--adult', for: 'age_confirmed' }, adult, h('span', { text: t('أؤكد أن عمري 18 سنة أو أكثر وأوافق على شروط الاستخدام.') })),
+      adult && h('p', { class: 'auth-policies' },
+        h('a', { href: '/policies/terms', target: '_blank', rel: 'noopener' }, t('شروط الاستخدام')), ' · ',
+        h('a', { href: '/policies/privacy', target: '_blank', rel: 'noopener' }, t('سياسة الخصوصية')), ' · ',
+        h('a', { href: '/policies/guidelines', target: '_blank', rel: 'noopener' }, t('إرشادات المجتمع'))),
+      honeypot,
+      antibot.el,
+      error,
+      submit,
+      forgot,
+    );
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      error.textContent = '';
+      if (!email.value.trim() || !password.value) { error.textContent = t('أدخل البريد الإلكتروني وكلمة المرور.'); return; }
+      if (isRegister && password.value !== confirm.value) { error.textContent = t('كلمتا المرور غير متطابقتين.'); return; }
+      if (isRegister && password.value.length < config.password_min_length) {
+        error.textContent = t('كلمة المرور يجب أن تكون {n} أحرف على الأقل.', { n: config.password_min_length }); return;
+      }
+      const nameValue = isRegister ? displayName.value.trim().replace(/\s+/g, ' ') : null;
+      if (isRegister && !nameValue) { error.textContent = t('اكتب اسمًا يظهر للآخرين.'); return; }
+      const genderValue = isRegister ? form.querySelector('input[name="reg-gender"]:checked')?.value : null;
+      if (isRegister && !genderValue) { error.textContent = t('اختر: رجل، أنثى، أو أفضّل عدم الذكر.'); return; }
+      if (isRegister && !adult.checked) { error.textContent = t('يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام {app}.', { app: appName() }); return; }
+      submit.disabled = true;
+      const label = submit.textContent;
+      try {
+        let solution = null;
+        if (antibotEnabled) {
+          submit.textContent = t('جارٍ التحقق…');
+          solution = await antibot.ensure();
+        }
+        submit.textContent = '…';
+        const body = { email: email.value.trim(), password: password.value, antibot: solution };
+        const me = isRegister
+          ? await api.post('/api/auth/register', {
+            ...body, password_confirm: confirm.value, website: honeypot.value || null, gender: genderValue, age_confirmed: adult.checked, display_name: nameValue,
+          })
+          : await api.post('/api/auth/login', body);
+        if (me && me.verify) { pending = me; mode = 'verify'; draw(); return; } // V6 phase 15: the code e-mailed now
+        onAuthenticated(me);
+      } catch (err) {
+        error.textContent = err.message || t('تعذّر الاتصال. حاول مرة أخرى.');
+        if (err.retryAfter && err.code === 'rate_limited') {
+          const mins = Math.ceil(err.retryAfter / 60);
+          if (err.retryAfter > 90) error.textContent += t(' (حاول بعد {n} دقيقة تقريبًا)', { n: mins });
+        }
+        antibot.reset(); // every challenge is single-use
+        submit.disabled = false;
+        submit.textContent = label;
+      }
+    });
+    return form;
+  }
+
+  async function setupGoogle() {
+    if (!config.google_client_id) return;
+    try {
+      await loadGoogleScript();
+      const { nonce } = await api.get('/api/auth/google/nonce');
+      window.google.accounts.id.initialize({
+        client_id: config.google_client_id,
+        nonce,
+        ux_mode: 'popup',
+        auto_select: false,
+        callback: async ({ credential }) => {
+          try {
+            const me = await api.post('/api/auth/google', { credential });
+            onAuthenticated(me);
+          } catch (err) {
+            const box = formSlot.querySelector('.form-error');
+            if (box) box.textContent = err.message;
+            setupGoogle(); // fresh nonce for the next attempt
+          }
+        },
+      });
+      googleSlot.replaceChildren();
+      window.google.accounts.id.renderButton(googleSlot, {
+        theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'filled_black' : 'outline',
+        size: 'large', shape: 'pill', text: 'continue_with', locale: lang(), width: Math.min(360, root.clientWidth - 44),
+      });
+    } catch {
+      googleSlot.replaceChildren(h('p', { class: 'auth__foot', text: t('تعذّر تحميل تسجيل الدخول عبر Google.') }));
+    }
+  }
+
+  root.replaceChildren(
+    h('main', { class: 'auth' },
+      // V6 phase 12: the language, before an account exists (the phone's one by default)
+      h('div', { class: 'auth__top' }, h('button', { type: 'button', class: 'lang-btn glass', 'aria-label': t('اللغة'),
+        onclick: () => languageSheet({ signedIn: false }) }, icon('globe'), h('span', { text: NAMES[lang()] }))),
+      h('div', { class: 'auth__brand' },
+        logoLockup({ size: 88, pulse: true, large: true }),
+        h('p', { class: 'auth__tagline', text: config.welcome_text || t('مجتمع للمتداولين وأخبار العملات الرقمية والتحليلات.') }),
+      ),
+      tabs,
+      formSlot,
+      config.google_client_id ? h('div', { class: 'divider', text: t('أو') }) : null,
+      config.google_client_id ? googleSlot : null,
+      h('p', { class: 'auth__foot' }, t('لا يرى الآخرون بريدك أبدًا: يظهر فقط الاسم الذي تختاره وصورتك إن أضفتها. '),
+        t('يطّلع فريق الإدارة على الحسابات والمحتوى للإشراف وحماية المستخدمين. '),
+        h('button', { type: 'button', class: 'link-btn', onclick: privacySheet }, t('سياسة الخصوصية'))),
+      canOfferAndroidApp(config)
+        ? h('a', { class: 'btn btn--ghost btn--block app-download', href: config.download_page || '/download' }, t('تحميل تطبيق أندرويد'))
+        : null,
+    ),
+  );
+  draw();
+  setupGoogle();
+}

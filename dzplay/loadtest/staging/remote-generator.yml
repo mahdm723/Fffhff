@@ -1,0 +1,7 @@
+# Phase 2, option 1 (a separate load-generator VPS): the mock mailbox must be reachable from it (the sign-up scenario
+# reads its codes there). Published on STAGING_BIND (the server's address); loadtest/phase2/firewall.sh lets only the
+# generator in (8443 staging, 8086 the k6 sink, 9000 the mocks).
+services:
+  mocks:
+    ports:
+      - "${STAGING_BIND:?set STAGING_BIND}:9000:9000"

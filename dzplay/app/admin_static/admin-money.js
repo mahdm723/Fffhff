@@ -1,0 +1,362 @@
+// Admin panel — V6 money: «العضوية والدفع» (payment wallet, membership requests, refunds, old star requests).
+// Rewards, withdrawals (5b) and the red envelope (5c) are added here too. Every action is audited server-side.
+import { h, toast } from '/js/ui.js';
+import {
+  attempt, call, chip, confirmDanger, detailSheet, emptyState, qs, sectionHead, segmented, spinner, userRef, when,
+} from './admin-common.js';
+import { paymentSettingsBox, verifyHistory } from './admin-v5.js';
+
+const input = (attrs) => h('input', { class: 'input', ...attrs });
+const btn = (label, cls, onclick) => h('button', { type: 'button', class: `btn btn--sm ${cls}`, onclick }, label);
+const memState = { status: 'pending' };
+
+function txLine(r) {
+  return h('p', { class: 'admin-meta' }, `${r.amount} ${r.currency || 'USDT'} · ${r.network} · `, h('code', { dir: 'ltr', text: r.txid }), ' ',
+    r.explorer_url ? h('a', { href: r.explorer_url, target: '_blank', rel: 'noopener noreferrer', text: 'فتح في المستكشف ↗' }) : '');
+}
+
+// V6 phase 13: the automatic check on the chain — information only: the decision stays yours (accept / reject / ban)
+function checkBox(r, reload) {
+  const c = r.check;
+  if (!c) return '';
+  const pending = r.status === 'pending';
+  const recheck = btn('🔄 إعادة الفحص', 'btn--ghost', async (e) => {
+    e.target.disabled = true;
+    if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/check`))) { toast('فُحص من جديد.'); reload(); }
+    e.target.disabled = false;
+  });
+  const topup = btn('💬 طلب استكمال الفارق', 'btn--ghost', async () => {
+    if (!(await confirmDanger('طلب الفارق؟', `يصل المستخدم إشعار وبريد بلغته: المبلغ الناقص ${c.diff} USDT، على الشبكة نفسها وإلى العنوان نفسه.`, 'إرسال'))) return;
+    if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/topup`))) { toast('طُلب الفارق من المستخدم.'); reload(); }
+  });
+  const ban = btn('⛔ حظر', 'btn--danger', async () => {
+    if (!(await confirmDanger('حظر الحساب ورفض الطلب؟', 'يُحظر الحساب وتُغلق جلساته، ويُرفض الطلب. يُسجَّل في سجل الإدارة.', 'حظر'))) return;
+    if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/ban`, { action: 'ban', note: null }))) { toast('حُظر الحساب ورُفض الطلب.'); reload(); }
+  });
+  return h('div', { class: `admin-paycheck admin-paycheck--${c.status || 'none'}` },
+    h('p', { class: 'admin-paycheck__head' }, h('b', { text: c.text }),
+      c.checked_at ? h('span', { class: 'admin-meta', text: ` · آخر فحص ${when(c.checked_at)}` }) : ''),
+    ...c.txs.map((tx) => h('div', { class: 'admin-paycheck__tx' },
+      h('span', { class: 'admin-meta', text: tx.kind === 'topup' ? 'الفارق' : 'الدفع' }), h('code', { dir: 'ltr', text: tx.txid }),
+      h('span', { text: `${tx.label}${tx.amount ? ` · ${tx.amount} USDT` : ''}${tx.confirmations ? ` · ${tx.confirmations} تأكيد` : ''}` }),
+      tx.explorer_url ? h('a', { href: tx.explorer_url, target: '_blank', rel: 'noopener noreferrer', text: 'المستكشف ↗' }) : '')),
+    c.underpay_notified_at ? h('p', { class: 'admin-meta', text: `💬 طُلب الفارق من المستخدم ${when(c.underpay_notified_at)}` }) : '',
+    pending ? h('div', { class: 'admin-actions' }, recheck, c.can_request_topup ? topup : '', r.user_status !== 'banned' ? ban : '') : '');
+}
+
+// V6 phase 16: automatic grant — shown with «سحب العضوية»; or why the request waits for you
+function autoBox(r, reload) {
+  const a = r.auto || {};
+  if (a.state === 'granted') {
+    const revoke = btn('🚫 سحب العضوية', 'btn--danger', async () => {
+      if (!(await confirmDanger('سحب العضوية الممنوحة تلقائيًا؟', 'تتوقف العضوية وتُلغى مكافأة الدعوة المرتبطة، ويصل المستخدم إشعار وبريد. لا يُسترجع المبلغ تلقائيًا.', 'سحب'))) return;
+      if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/revoke`, { reason: null }))) { toast('سُحبت العضوية.'); reload(); }
+    });
+    return h('div', { class: 'admin-auto' },
+      h('p', { class: 'admin-auto__head' }, chip('🤖 مُنحت تلقائيًا', 'chip--team'),
+        a.review === 'over' ? chip('⚠️ مبلغ زائد: للمراجعة', 'chip--warn') : ''),
+      h('div', { class: 'admin-actions' }, revoke));
+  }
+  if (a.state === 'revoked') return h('p', { class: 'admin-meta', text: '🚫 سُحبت العضوية الممنوحة تلقائيًا' });
+  const why = [...(a.suspicion || []), ...(a.manual || [])].filter((x, i, all) => all.indexOf(x) === i);
+  if (r.status !== 'pending' || !why.length) return '';
+  return h('div', { class: 'admin-auto' },
+    h('p', { class: 'admin-auto__head', text: '↩️ لن يُمنح تلقائيًا:' }),
+    h('ul', { class: 'admin-auto__why' }, ...why.map((x) => h('li', { text: x }))));
+}
+
+// V6 phase 17: the membership features, each switched on or off for every member at once (panel settings,
+// MEMBER_FEATURE_*; audited). Posting pictures is not one of them: it is a per-account permission (user page).
+function featuresBox() {
+  const box = h('section', { class: 'admin-group glass admin-features' }, h('h3', { class: 'admin-group__title', text: 'ميزات العضوية' }), spinner());
+  const paint = async () => {
+    const d = await attempt(() => call('GET', '/api/admin/settings'));
+    if (!d) return;
+    const rows = d.settings.filter((s) => s.key.startsWith('MEMBER_FEATURE_'));
+    box.replaceChildren(h('h3', { class: 'admin-group__title', text: 'ميزات العضوية' }),
+      h('p', { class: 'admin-meta', text: 'الإيقاف يزيل الميزة عن كل الأعضاء فورًا، والتفعيل يعيدها. النجمة الممنوحة يدويًا لا تتأثر.' }),
+      ...rows.map((s) => {
+        const box2 = h('input', { type: 'checkbox', checked: s.value ? true : null });
+        box2.addEventListener('change', async () => {
+          const on = box2.checked;
+          if (!on && !(await confirmDanger('إيقاف الميزة لكل الأعضاء؟', s.label, 'إيقاف'))) { box2.checked = true; return; }
+          if (await attempt(() => call('PUT', '/api/admin/settings', { changes: { [s.key]: on } }))) toast(on ? 'فُعّلت الميزة.' : 'أُوقفت الميزة.');
+          paint();
+        });
+        return h('label', { class: 'admin-check' }, box2, s.label.replace(/^ميزة العضوية: /, '').replace(/ \(.*\)$/, ''));
+      }));
+  };
+  paint();
+  return box;
+}
+
+export function renderMembership(main) {
+  const summary = h('p', { class: 'admin-meta' });
+  const list = h('div', { class: 'admin-list' }, spinner());
+  const refunds = h('div', { class: 'admin-list' });
+
+  function requestCard(r) {
+    const note = input({ placeholder: 'سبب الرفض (يراه المستخدم)', maxlength: '500' });
+    const decide = (action) => async () => {
+      if (action === 'accept' && !(await confirmDanger('قبول العضوية؟', `تأكد في المستكشف أن ${r.amount} ${r.currency} وصلت إلى محفظتك على ${r.network}.`, 'قبول'))) return;
+      if (await attempt(() => call('POST', `/api/admin/membership/requests/${r.id}/decide`, { action, note: note.value.trim() || null }))) { toast('تم.'); load(); }
+    };
+    return h('article', { class: 'admin-card glass' },
+      h('div', { class: 'admin-line' }, h('b', { text: r.public_id || '—' }), r.name ? h('bdi', { text: r.name }) : '', chip(r.status_label),
+        r.member ? chip('عضو', 'chip--team') : '', userRef(r.user_ref, 'الصفحة')),
+      h('p', { class: 'admin-meta', text: when(r.created_at) }),
+      txLine(r),
+      checkBox(r, load),
+      autoBox(r, load),
+      r.note ? h('p', { class: 'admin-meta', text: `ملاحظة: ${r.note} (${r.decided_by || ''})` }) : '',
+      r.status === 'pending' ? h('div', { class: 'admin-actions' }, note,
+        btn('قبول', 'btn--primary', decide('accept')), btn('رفض', 'btn--danger', decide('reject'))) : '');
+  }
+
+  function refundCard(r) {
+    const tx = input({ placeholder: 'TXID تحويل الإرجاع', dir: 'ltr', maxlength: '200' });
+    const reason = input({ placeholder: 'سبب الرفض (يراه المستخدم)', maxlength: '500' });
+    return h('article', { class: 'admin-card glass' },
+      h('div', { class: 'admin-line' }, h('b', { text: r.public_id || '—' }), chip(r.status_label), userRef(r.user_ref, 'الصفحة')),
+      h('p', { class: 'admin-meta', text: `طُلب ${when(r.created_at)} · ${r.network_label}` }),
+      h('p', { class: 'admin-meta' }, 'أرسل ', h('b', { text: `${r.amount} USDT` }), ` (بعد رسوم ${r.fee}) إلى: `, h('code', { dir: 'ltr', text: r.address })),
+      r.refund_txid ? h('p', { class: 'admin-meta' }, 'تم: ', h('code', { dir: 'ltr', text: r.refund_txid }), ' ',
+        r.explorer_url ? h('a', { href: r.explorer_url, target: '_blank', rel: 'noopener noreferrer', text: '↗' }) : '') : '',
+      r.reason ? h('p', { class: 'admin-meta', text: `السبب: ${r.reason}` }) : '',
+      r.status === 'requested' ? h('div', { class: 'admin-actions' }, tx,
+        btn('تم الإرسال', 'btn--primary', async () => {
+          if (!tx.value.trim()) { toast('أدخل رقم عملية التحويل أولًا.', 'error'); return; }
+          if (!(await confirmDanger('تسجيل الإرجاع؟', 'تنتهي العضوية وتُسجَّل الحركة في الدفتر. لا تراجع.', 'تسجيل'))) return;
+          if (await attempt(() => call('POST', `/api/admin/membership/refunds/${r.id}/decide`, { action: 'done', txid: tx.value.trim() }))) { toast('سُجّل.'); load(); }
+        }),
+        reason,
+        btn('رفض', 'btn--danger', async () => {
+          if (await attempt(() => call('POST', `/api/admin/membership/refunds/${r.id}/decide`, { action: 'reject', note: reason.value.trim() }))) { toast('رُفض.'); load(); }
+        })) : '');
+  }
+
+  async function load() {
+    list.replaceChildren(spinner());
+    const d = await attempt(() => call('GET', `/api/admin/membership${qs({ status: memState.status })}`));
+    if (!d) return;
+    summary.textContent = `الأعضاء الحاليون: ${d.members} · بانتظار المراجعة: ${d.counts.pending} · استرجاع مفتوح: ${d.open_refunds}`;
+    list.replaceChildren(...(d.requests.length ? d.requests.map(requestCard) : [emptyState('لا توجد طلبات.')]));
+    refunds.replaceChildren(...(d.refunds.length ? d.refunds.map(refundCard) : [emptyState('لا توجد طلبات استرجاع.')]));
+  }
+
+  main.replaceChildren(
+    sectionHead('العضوية والدفع'),
+    h('p', { class: 'admin-meta', text: 'العضوية ميزات داخل التطبيق فقط ولا علاقة لها بأي عائد. نشر الصور ليس منها: إذن تمنحه لكل حساب من صفحته. السعر ومدة الاسترجاع ورسومه من «الإعدادات ← العضوية».' }),
+    h('p', { class: 'admin-meta', text: 'كل طلب يُفحص آليًا على البلوكشين (TRC20 / BEP20): المستلم، عقد USDT الرسمي، المبلغ، التأكيدات، التاريخ، وعدم تكرار رقم العملية. الفحص يعرض النتيجة فقط والقرار لك، إلا إن فعّلت «منح العضوية تلقائيًا» من «الإعدادات ← العضوية».' }),
+    summary,
+    featuresBox(),
+    paymentSettingsBox(),
+    h('h3', { text: 'طلبات العضوية' }),
+    segmented([['pending', 'قيد المراجعة'], ['accepted', 'مقبول'], ['rejected', 'مرفوض'], ['', 'الكل (سجل الدفع)']],
+      memState.status, (v) => { memState.status = v; load(); }, 'حالة الطلبات'),
+    list,
+    h('h3', { text: 'الاسترجاع' }),
+    refunds,
+    h('details', { class: 'admin-group glass' }, h('summary', { text: 'طلبات النجمة القديمة (V5، للاطلاع)' }), verifyHistory()));
+  load();
+}
+
+// ------------------------------------------------------------------ V6 phase 5b: rewards + withdrawals
+
+export function renderRewards(main) {
+  const summary = h('p', { class: 'admin-meta' });
+  const wList = h('div', { class: 'admin-list' }, spinner());
+  const rList = h('div', { class: 'admin-list' });
+  const batches = h('div', { class: 'admin-list' });
+
+  function withdrawalCard(w) {
+    const tx = input({ placeholder: 'TXID التحويل', dir: 'ltr', maxlength: '200' });
+    const reason = input({ placeholder: 'سبب الرفض (يُعاد المبلغ للرصيد)', maxlength: '500' });
+    return h('article', { class: 'admin-card glass' },
+      h('div', { class: 'admin-line' }, h('b', { text: w.public_id || '—' }), w.name ? h('bdi', { text: w.name }) : '', chip(w.status_label), userRef(w.user_ref, 'الصفحة')),
+      h('p', { class: 'admin-meta', text: `${when(w.created_at)} · ${w.network_label}` }),
+      h('p', { class: 'admin-meta' }, 'أرسل ', h('b', { text: `${w.net} USDT` }), ` (المبلغ ${w.amount} − الرسوم ${w.fee}) إلى: `, h('code', { dir: 'ltr', text: w.address })),
+      w.txid ? h('p', { class: 'admin-meta' }, 'تم: ', h('code', { dir: 'ltr', text: w.txid }), ' ',
+        w.explorer_url ? h('a', { href: w.explorer_url, target: '_blank', rel: 'noopener noreferrer', text: '↗' }) : '') : '',
+      w.reason ? h('p', { class: 'admin-meta', text: `السبب: ${w.reason}` }) : '',
+      w.status === 'pending' ? h('div', { class: 'admin-actions' }, tx,
+        btn('تم الإرسال', 'btn--primary', async () => {
+          if (!tx.value.trim()) { toast('أدخل رقم عملية التحويل أولًا.', 'error'); return; }
+          if (await attempt(() => call('POST', `/api/admin/withdrawals/${w.id}/decide`, { action: 'done', txid: tx.value.trim() }))) { toast('سُجّل.'); load(); }
+        }),
+        reason,
+        btn('رفض', 'btn--danger', async () => {
+          if (await attempt(() => call('POST', `/api/admin/withdrawals/${w.id}/decide`, { action: 'reject', note: reason.value.trim() }))) { toast('رُفض وأُعيد المبلغ.'); load(); }
+        })) : '');
+  }
+
+  function referralCard(r) {
+    return h('article', { class: 'admin-card glass' },
+      h('div', { class: 'admin-line' }, h('span', { text: 'الداعي:' }), h('b', { text: r.referrer.public_id || '—' }), userRef(r.referrer.ref, 'الصفحة'),
+        h('span', { text: '← المدعو:' }), h('b', { text: r.referee.public_id || '—' }), r.referee.member ? chip('عضو', 'chip--team') : '', chip(r.status_label)),
+      r.flags ? h('p', { class: 'admin-meta', text: `علامات: ${r.flags.replace('same_network', 'نفس الشبكة').replace('same_device', 'نفس الجهاز').replace('burst', 'دعوات كثيرة من شبكة واحدة')}` }) : '',
+      h('p', { class: 'admin-meta', text: when(r.created_at) }),
+      r.status === 'review' ? h('div', { class: 'admin-actions' },
+        btn('اعتماد المكافأة', 'btn--primary', async () => {
+          if (await attempt(() => call('POST', `/api/admin/referrals/${r.id}/review`, { action: 'approve' }))) { toast('اعتُمدت.'); load(); }
+        }),
+        btn('رفض', 'btn--danger', async () => {
+          if (await attempt(() => call('POST', `/api/admin/referrals/${r.id}/review`, { action: 'reject' }))) { toast('رُفضت.'); load(); }
+        })) : '');
+  }
+
+  const amount = input({ dir: 'ltr', inputmode: 'decimal', placeholder: '2' });
+  const activeDays = input({ dir: 'ltr', inputmode: 'numeric', value: '30' });
+  const minPosts = input({ dir: 'ltr', inputmode: 'numeric', value: '1' });
+  const minAge = input({ dir: 'ltr', inputmode: 'numeric', value: '7' });
+  const note = input({ placeholder: 'السبب (يظهر للمستفيدين)', maxlength: '200' });
+  const code = input({ dir: 'ltr', inputmode: 'numeric', maxlength: '6', placeholder: 'رمز المصادقة' });
+  const preview = h('p', { class: 'admin-meta' });
+  const groupBody = () => ({ amount: Number(amount.value), active_days: Number(activeDays.value || 0), min_posts: Number(minPosts.value || 0),
+    min_age_days: Number(minAge.value || 0), note: note.value.trim() });
+  const groupBox = h('section', { class: 'admin-group glass' },
+    h('h3', { text: 'مكافأة جماعية' }),
+    h('p', { class: 'admin-meta', text: 'معايير النشاط فقط — لا تدخل العضوية ولا الدفع في أي معيار. تُستبعد الحسابات الموقوفة والمحظورة وحسابات الفريق.' }),
+    h('div', { class: 'admin-actions' }, h('label', { text: 'المبلغ لكل شخص (USDT)' }), amount),
+    h('div', { class: 'admin-actions' }, h('label', { text: 'نشط خلال (يوم)' }), activeDays, h('label', { text: 'أفكار ≥' }), minPosts, h('label', { text: 'عمر الحساب ≥ (يوم)' }), minAge),
+    h('div', { class: 'admin-actions' }, note),
+    h('div', { class: 'admin-actions' }, btn('معاينة', 'btn--ghost', async () => {
+      const r = await attempt(() => call('POST', '/api/admin/rewards/group/preview', groupBody()));
+      if (r) preview.textContent = `سيستفيد ${r.count} شخصًا × ${r.amount} = ${r.total} USDT`;
+    }), code, btn('تنفيذ', 'btn--primary', async () => {
+      if (!(await confirmDanger('تنفيذ المكافأة الجماعية؟', preview.textContent || 'اعرض المعاينة أولًا.', 'تنفيذ'))) return;
+      const r = await attempt(() => call('POST', '/api/admin/rewards/group', { ...groupBody(), code: code.value.trim() }));
+      if (r) { toast(`نُفّذت: ${r.count} شخصًا، ${r.total} USDT.`); code.value = ''; load(); }
+    })),
+    preview);
+
+  async function load() {
+    const d = await attempt(() => call('GET', '/api/admin/rewards'));
+    if (!d) return;
+    summary.textContent = `سحب بانتظار التنفيذ: ${d.pending} · دعوات للمراجعة: ${d.review}`;
+    wList.replaceChildren(...(d.withdrawals.length ? d.withdrawals.map(withdrawalCard) : [emptyState('لا طلبات سحب.')]));
+    rList.replaceChildren(...(d.referrals.length ? d.referrals.map(referralCard) : [emptyState('لا دعوات بعد.')]));
+    batches.replaceChildren(...d.batches.map((b) => h('div', { class: 'admin-line' }, chip(`${b.count} × ${b.amount}`), h('b', { text: `${b.total} USDT` }),
+      h('span', { dir: 'auto', text: b.note }), h('span', { class: 'admin-meta', text: `${b.by} · ${when(b.at)}` }))));
+  }
+  main.replaceChildren(sectionHead('المكافآت والسحب'),
+    h('p', { class: 'admin-meta', text: 'مكافآت ترويجية مستقلة عن العضوية. القيم (مكافأة الدعوة، مدة التعليق، حد السحب ورسومه) من «الإعدادات ← المكافآت والسحب».' }),
+    summary, h('h3', { text: 'طلبات السحب' }), wList, h('h3', { text: 'الدعوات' }), rList, groupBox,
+    h('details', { class: 'admin-group glass' }, h('summary', { text: 'سجل المكافآت الجماعية' }), batches));
+  load();
+}
+
+/** A member's ledger on the user page (membership + rewards), and «إيقاف العضوية». */
+function rewardForm(userId, paintAgain) {
+  const kind = h('select', { class: 'input admin-select' }, h('option', { value: 'contest', text: 'مسابقة' }),
+    h('option', { value: 'activity', text: 'نشاط' }), h('option', { value: 'correction', text: 'تصحيح (+/−)' }));
+  const amount = input({ dir: 'ltr', inputmode: 'decimal', placeholder: 'المبلغ USDT' });
+  const reason = input({ placeholder: 'السبب (إلزامي، يراه المستخدم)', maxlength: '300' });
+  return h('details', {}, h('summary', { text: 'مكافأة فردية / تصحيح' }),
+    h('div', { class: 'admin-actions' }, kind, amount, reason, btn('تنفيذ', 'btn--primary', async () => {
+      if (await attempt(() => call('POST', `/api/admin/users/${encodeURIComponent(userId)}/rewards`, { kind: kind.value, amount: Number(amount.value), reason: reason.value.trim() }))) { toast('سُجّلت.'); paintAgain(); }
+    })));
+}
+
+export async function userMoneySection(userId, paintAgain) {
+  const box = h('section', { class: 'admin-group glass' }, spinner());
+  const d = await attempt(() => call('GET', `/api/admin/users/${encodeURIComponent(userId)}/balances`));
+  if (!d) return box;
+  const rows = (acc) => d[acc].entries.map((e) => h('div', { class: 'admin-line' },
+    chip(e.kind), h('b', { dir: 'ltr', text: e.amount }), e.pending ? chip('معلّق') : '', h('span', { class: 'admin-meta', text: `${e.note || ''} · ${when(e.created_at)}` })));
+  const reason = input({ placeholder: 'السبب (إلزامي)', maxlength: '500' });
+  box.replaceChildren(
+    h('h3', { text: 'العضوية والأرصدة' }),
+    h('div', { class: 'admin-line' }, chip(d.member ? `عضو منذ ${when(d.member_since)}` : 'ليس عضوًا', d.member ? 'chip--team' : '')),
+    h('p', { class: 'admin-meta', text: `العضوية: ${d.membership.balances.total} · المكافآت: متاح ${d.rewards.balances.available} / معلّق ${d.rewards.balances.pending}` }),
+    h('details', {}, h('summary', { text: `حركات العضوية (${d.membership.entries.length})` }), ...rows('membership')),
+    h('details', {}, h('summary', { text: `حركات المكافآت (${d.rewards.entries.length})` }), ...rows('rewards')),
+    rewardForm(userId, paintAgain),
+    d.member ? h('div', { class: 'admin-actions' }, reason, btn('إيقاف العضوية', 'btn--danger', async () => {
+      if (!reason.value.trim()) { toast('اكتب السبب.', 'error'); return; }
+      if (!(await confirmDanger('إيقاف العضوية؟', 'تتوقف ميزات الأعضاء فورًا، وتُزال النجمة إن كانت من العضوية. لا يُرجَع أي مبلغ تلقائيًا.'))) return;
+      if (await attempt(() => call('POST', `/api/admin/users/${encodeURIComponent(userId)}/membership/end`, { reason: reason.value.trim() }))) { toast('أُوقفت.'); paintAgain(); }
+    })) : '');
+  return box;
+}
+
+
+// ------------------------------------------------------------------ V6 phase 5c: red envelope
+
+export function renderGiveaway(main) {
+  const list = h('div', { class: 'admin-list' }, spinner());
+  const title = input({ placeholder: 'عنوان الجولة', maxlength: '120' });
+  const desc = input({ placeholder: 'وصف (اختياري)', maxlength: '1000' });
+  const winners = input({ dir: 'ltr', inputmode: 'numeric', value: '3' });
+  const ends = h('input', { class: 'input', type: 'datetime-local', dir: 'ltr' });
+  const show = h('input', { type: 'checkbox' });
+  const createBox = h('section', { class: 'admin-group glass' }, h('h3', { text: 'جولة جديدة' }),
+    h('div', { class: 'admin-actions' }, title), h('div', { class: 'admin-actions' }, desc),
+    h('div', { class: 'admin-actions' }, h('label', { text: 'عدد الفائزين' }), winners, h('label', { text: 'تنتهي' }), ends),
+    h('label', { class: 'admin-line' }, show, h('span', { text: 'عرض أسماء الفائزين للمشاركين' })),
+    h('div', { class: 'admin-actions' }, btn('إنشاء', 'btn--primary', async () => {
+      if (!ends.value) { toast('اختر وقت الانتهاء.', 'error'); return; }
+      const r = await attempt(() => call('POST', '/api/admin/giveaway', { title: title.value.trim(), description: desc.value.trim() || null,
+        winners_count: Number(winners.value), ends_at: new Date(ends.value).toISOString(), show_winners: show.checked }));
+      if (r) { toast('أُنشئت الجولة.'); title.value = ''; desc.value = ''; load(); }
+    })));
+
+  function roundCard(r) {
+    const open = () => roundSheet(r.id);
+    return h('button', { type: 'button', class: 'admin-card glass admin-line admin-line--btn', onclick: open },
+      h('b', { dir: 'auto', text: r.title }), chip(r.status_label), h('span', { class: 'admin-meta', text: `${r.confirmed}/${r.entries} مؤكد · ${r.winners_count} فائز · تنتهي ${when(r.ends_at)}` }));
+  }
+
+  function roundSheet(id) {
+    detailSheet('الظرف الأحمر', async (body) => {
+      const paint = async () => {
+        const d = await attempt(() => call('GET', `/api/admin/giveaway/${id}`));
+        if (!d) return;
+        const code = input({ dir: 'ltr', inputmode: 'numeric', maxlength: '6', placeholder: 'رمز المصادقة' });
+        const codes = h('textarea', { class: 'input', rows: '3', dir: 'ltr', placeholder: 'رمز لكل فائز في سطر، أو رمز واحد للجميع' });
+        body.replaceChildren(
+          h('section', { class: 'admin-group glass' }, h('h3', { dir: 'auto', text: d.title }),
+            h('p', { class: 'admin-meta', text: `${d.status_label} · ${d.confirmed} مؤكد من ${d.entries} · ${d.winners_count} فائز · تنتهي ${when(d.ends_at)}` }),
+            d.draw_log ? h('p', { class: 'admin-meta' }, `السحب: ${d.draw_log.entrants} مؤهل · ${when(d.draw_log.at)} · ${d.draw_log.by} · SHA-256 `,
+              h('code', { dir: 'ltr', text: d.draw_log.entrants_sha256.slice(0, 16) + '…' })) : '',
+            d.status === 'open' ? h('div', { class: 'admin-actions' }, code,
+              btn('سحب الفائزين', 'btn--primary', async () => {
+                if (!(await confirmDanger('السحب الآن؟', 'سحب عشوائي بين المؤكدين غير المعلَّمين. لا يمكن إعادته.', 'سحب'))) return;
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/draw`, { code: code.value.trim() }))) { toast('تم السحب.'); paint(); load(); }
+              }),
+              btn('إلغاء الجولة', 'btn--danger', async () => {
+                if (!(await confirmDanger('إلغاء الجولة؟', 'لا يمكن التراجع.'))) return;
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/cancel`))) { paint(); load(); }
+              })) : ''),
+          d.winners.length ? h('section', { class: 'admin-group glass' }, h('h3', { text: 'الفائزون' }),
+            ...d.winners.map((w) => h('div', { class: 'admin-line' }, h('b', { text: w.entry ? w.entry.public_id : '—' }),
+              w.entry ? h('code', { dir: 'ltr', text: w.entry.email }) : '', w.code ? h('code', { dir: 'ltr', text: w.code }) : chip('بلا رمز'),
+              w.sent_at ? chip('أُرسل', 'chip--team') : '')),
+            d.status === 'drawn' ? h('div', { class: 'admin-actions' }, codes,
+              btn('حفظ الرموز', 'btn--ghost', async () => {
+                const list2 = codes.value.split('\n').map((x) => x.trim()).filter(Boolean);
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/codes`, { codes: list2 }))) { toast('حُفظت (مختومة).'); paint(); }
+              }),
+              btn('إرسال بالبريد', 'btn--primary', async () => {
+                if (!(await confirmDanger('إرسال الجوائز؟', 'يصل كل فائز رمزه بالبريد مع إشعار في التطبيق.', 'إرسال'))) return;
+                if (await attempt(() => call('POST', `/api/admin/giveaway/${id}/send`))) { toast('أُرسلت.'); paint(); load(); }
+              })) : '') : '',
+          h('details', { class: 'admin-group glass' }, h('summary', { text: `المشاركون (${d.entrants.length})` }),
+            ...d.entrants.map((e) => h('div', { class: 'admin-line' }, h('b', { text: e.public_id }), e.name ? h('bdi', { text: e.name }) : '',
+              h('code', { dir: 'ltr', text: e.email }), chip(e.confirmed ? 'مؤكد' : 'غير مؤكد'), e.flags ? chip('نفس الشبكة', 'chip--hot') : '',
+              e.status !== 'active' ? chip(e.status) : '', userRef(e.user_ref, 'الصفحة')))));
+      };
+      paint();
+    });
+  }
+
+  async function load() {
+    const d = await attempt(() => call('GET', '/api/admin/giveaway'));
+    if (!d) return;
+    list.replaceChildren(...(d.rounds.length ? d.rounds.map(roundCard) : [emptyState('لا جولات بعد.')]));
+  }
+  main.replaceChildren(sectionHead('الظرف الأحمر'),
+    h('p', { class: 'admin-meta', text: 'المشاركة مجانية ولا تتطلب عضوية. البريد يُؤكد برمز. السحب عشوائي (SystemRandom) بعد الانتهاء، ويُسجَّل مع بصمة قائمة المشاركين. رموز الجوائز مختومة وتظهر للمشرفين فقط.' }),
+    createBox, list);
+  load();
+}

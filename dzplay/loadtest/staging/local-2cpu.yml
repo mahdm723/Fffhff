@@ -1,0 +1,23 @@
+# Local measurements (V6 phase 21): the "server" gets 2 CPUs (0-1) and ~4 GB, like a small VPS; the load generator,
+# the collector and the mocks run on the other CPUs so they never steal the server's time.
+#   docker compose -p dzstaging -f docker-compose.yml -f local-2cpu.yml up -d
+# Absolute capacity comes from the real server (phase 2); these numbers find the bottlenecks and compare the fixes.
+services:
+  app:
+    cpuset: "0,1"
+    mem_limit: 2g
+  media-worker:
+    cpuset: "0,1"
+    mem_limit: 512m
+  db:
+    cpuset: "0,1"
+    mem_limit: 1536m
+  redis:
+    cpuset: "0,1"
+    mem_limit: 256m
+  caddy:
+    cpuset: "0,1"
+    mem_limit: 1g  # 256 MB was killed at ~3,000 WebSockets, 512 MB at ~6,000 (two connections each through Caddy;
+                   # production sets no limit: the server's memory is the limit)
+  mocks:
+    cpuset: "2,3"

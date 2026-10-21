@@ -1,0 +1,69 @@
+// Inside the DZPLAY Android app: register its Firebase token (new-message alerts while the app is closed)
+// and tell the user when a newer version is on /download. V6 phase 14: every update is mandatory — below
+// min_version_code the sheet cannot be closed (the server refuses the old version anyway: services/access.py).
+import { appName } from './brand.js';
+import { api } from './api.js';
+import { h, isAndroidApp, sheet } from './ui.js';
+import { t } from './i18n.js';
+
+const native = () => window.DZPLAYAndroid || null;
+
+function appVersion() {
+  const m = navigator.userAgent.match(/\bDZPLAYApp\/([\d.]+)/);
+  return m ? m[1] : null;
+}
+
+export function newer(a, b) { // "2.0.0" > "1.2.0"
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d > 0;
+  }
+  return false;
+}
+
+function appVersionCode() { // 3.2.0+ tells its versionCode; older apps only their name
+  try { return (native() && native().versionCode && Number(native().versionCode())) || 0; } catch { return 0; }
+}
+
+function fcmToken() {
+  try { return (native() && native().fcmToken && native().fcmToken()) || ''; } catch { return ''; }
+}
+
+export function initNative() {
+  if (!isAndroidApp()) return;
+  const token = fcmToken();
+  if (token) api.post('/api/push/fcm', { token }).catch(() => {});
+  checkUpdate();
+}
+
+export async function forgetNative() {
+  const token = fcmToken();
+  if (token) { try { await api.post('/api/push/fcm/remove', { token }); } catch { /* logout anyway */ } }
+}
+
+async function checkUpdate() {
+  const mine = appVersion();
+  if (!mine) return;
+  let rel;
+  try { rel = await api.get('/api/app/version'); } catch { return; }
+  if (!rel.available || !rel.version_name || !newer(rel.version_name, mine)) return;
+  const code = appVersionCode();
+  const mandatory = code ? code < (rel.min_version_code || 0) : (rel.min_version_code || 0) >= (rel.version_code || 0);
+  const key = `dz:update-seen:${rel.version_name}`;
+  if (!mandatory) {
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { /* ignore */ }
+  }
+  sheet((panel, close) => {
+    panel.append(...[
+      h('h2', { text: mandatory ? t('تحديث إلزامي') : t('تحديث متوفر') }),
+      h('p', { text: t('الإصدار {version_name} من تطبيق {app} متاح (لديك {mine}).', { version_name: rel.version_name, app: appName(), mine }) }),
+      mandatory ? h('p', { class: 'muted', text: t('لا يمكن متابعة استخدام التطبيق قبل التحديث. يبقى حسابك وبياناتك كما هي.') }) : null,
+      (rel.notes || []).length ? h('ul', { class: 'update-notes' }, ...rel.notes.slice(0, 5).map((n) => h('li', { text: n }))) : null,
+      h('div', { class: 'actions' },
+        h('a', { class: 'btn btn--primary btn--block', href: rel.url || '/download' }, t('تحميل التحديث')),
+        mandatory ? null : h('button', { class: 'btn btn--ghost btn--block', type: 'button', onclick: close }, t('لاحقًا'))),
+    ].filter(Boolean));
+  }, null, { dismissible: !mandatory });
+}
